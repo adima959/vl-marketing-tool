@@ -1,0 +1,45 @@
+/* Clean white background */
+.dataTable :global(.ant-table) {
+  background: #fff;
+  font-size: 13px;
+}
+
+/* Header styling */
+.dataTable :global(.ant-table-thead > tr > th) {
+  background: #fff;
+  border-bottom: 1px solid #dadce0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #5f6368;
+  padding: 4px 16px !important;
+}
+
+/* Row styling - compact */
+.dataTable :global(.ant-table-tbody > tr > td) {
+  border-bottom: 1px solid #e8eaed;
+  color: #202124;
+  background: #fff;
+  padding: 4px 16px !important;
+}
+
+/* Hover effect - more prominent blue */
+.dataTable :global(.ant-table-tbody > tr:hover > td) {
+  background-color: #e8f0fe !important;
+  cursor: pointer;
+}
+
+/* Remove default borders */
+.dataTable :global(.ant-table-bordered .ant-table-thead > tr > th),
+.dataTable :global(.ant-table-bordered .ant-table-tbody > tr > td) {
+  border-right: none;
+}
+
+/* Remove expand icon column padding */
+.dataTable :global(.ant-table-row-expand-icon-cell) {
+  display: none !important;
+}
+
+/* Hide default indent spacing */
+.dataTable :global(.ant-table-row-indent) {
+  display: none !important;
+}

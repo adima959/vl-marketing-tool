@@ -1,0 +1,52 @@
+/**
+ * Raw row from merged_ads_spending view (unified FB + Google Ads)
+ */
+export interface RawAdDataRow {
+  network: string;           // "Facebook" | "Google Ads"
+  date: string;              // Date string (YYYY-MM-DD)
+  campaign_id: string;
+  campaign_name: string;
+  adset_id: string;
+  adset_name: string;
+  ad_id: string;
+  ad_name: string;
+  cost: string;              // Numeric stored as string
+  currency: string;          // "NOK"
+  clicks: number;
+  impressions: number;
+  ctr_percent: string;       // Numeric stored as string
+  cpc: string;               // Numeric stored as string
+  cpm: string;               // Numeric stored as string
+  conversions: string;       // Numeric stored as string
+}
+
+/**
+ * Aggregated row after GROUP BY
+ */
+export interface AggregatedMetrics {
+  dimension_value: string;   // The grouped value (e.g., "Facebook", "Campaign A")
+  cost: number;
+  clicks: number;
+  impressions: number;
+  conversions: number;
+  ctr_percent: number;
+  cpc: number;
+  cpm: number;
+  conversion_rate: number;
+}
+
+/**
+ * Query options for building SQL
+ */
+export interface QueryOptions {
+  dateRange: {
+    start: Date;
+    end: Date;
+  };
+  dimensions: string[];      // Array of dimension IDs
+  depth: number;             // Current depth in hierarchy (0-based)
+  parentFilters?: Record<string, string>; // Filters from parent rows
+  sortBy?: string;           // Metric to sort by
+  sortDirection?: 'ASC' | 'DESC';
+  limit?: number;            // Max rows to return
+}

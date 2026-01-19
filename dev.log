@@ -1,0 +1,247 @@
+
+> analytics-dashboard-next@0.1.0 dev
+> next dev
+
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /Users/adi/Programming/19-01/package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * /Users/adi/Programming/19-01/analytics-dashboard-next/package-lock.json
+
+▲ Next.js 16.1.3 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://10.0.0.62:3000
+
+✓ Starting...
+✓ Ready in 632ms
+  Reload env: .env.local
+  Reload env: .env.local
+○ Compiling / ...
+(node:85886) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET / 200 in 4.7s (compile: 4.2s, render: 499ms)
+Database query error: {
+  error: 'This function can now be called only as a tagged-template function: sql`SELECT ${value}`, not sql("SELECT $1", [value], options). For a conventional function call with value placeholders ($1, $2, etc.), use sql.query("SELECT $1", [value], options).',
+  query: '\n' +
+    '      \n' +
+    '      WITH ads_data AS (\n' +
+    '        -- Facebook Ads data\n' +
+    '        SELECT\n' +
+    "          'Facebook'::text AS network,\n" +
+    '          fb_ads_insights.date_start AS date,\n' +
+    '          fb_ads_insights.campaign_id:',
+  params: [ '2025-12-19', '2026-01-19' ]
+}
+API error: {
+  message: 'Database query failed: This function can now be called only as a tagged-template function: sql`SELECT ${value}`, not sql("SELECT $1", [value], options). For a conventional function call with value placeholders ($1, $2, etc.), use sql.query("SELECT $1", [value], options).',
+  stack: 'Error: Database query failed: This function can now be called only as a tagged-template function: sql`SELECT ${value}`, not sql("SELECT $1", [value], options). For a conventional function call with value placeholders ($1, $2, etc.), use sql.query("SELECT $1", [value], options).\n' +
+    '    at executeQuery (/Users/adi/Programming/19-01/analytics-dashboard-next/.next/dev/server/chunks/[root-of-the-server]__672f9a1e._.js:71:15)\n' +
+    '    at POST (/Users/adi/Programming/19-01/analytics-dashboard-next/.next/dev/server/chunks/[root-of-the-server]__672f9a1e._.js:356:200)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n' +
+    '    at async AppRouteRouteModule.do (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:37866)\n' +
+    '    at async AppRouteRouteModule.handle (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:45156)\n' +
+    '    at async responseGenerator (/Users/adi/Programming/19-01/analytics-dashboard-next/.next/dev/server/chunks/aea54_051f85a0._.js:20142:38)\n' +
+    '    at async AppRouteRouteModule.handleResponse (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:1:187713)\n' +
+    '    at async handleResponse (/Users/adi/Programming/19-01/analytics-dashboard-next/.next/dev/server/chunks/aea54_051f85a0._.js:20205:32)\n' +
+    '    at async Module.handler (/Users/adi/Programming/19-01/analytics-dashboard-next/.next/dev/server/chunks/aea54_051f85a0._.js:20258:13)\n' +
+    '    at async DevServer.renderToResponseWithComponentsImpl (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/base-server.js:1422:9)\n' +
+    '    at async DevServer.renderPageComponent (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/base-server.js:1474:24)\n' +
+    '    at async DevServer.renderToResponseImpl (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/base-server.js:1524:32)\n' +
+    '    at async DevServer.pipeImpl (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/base-server.js:1018:25)\n' +
+    '    at async NextNodeServer.handleCatchallRenderRequest (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/next-server.js:395:17)\n' +
+    '    at async DevServer.handleRequestImpl (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/base-server.js:909:17)\n' +
+    '    at async /Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/dev/next-dev-server.js:387:20\n' +
+    '    at async Span.traceAsyncFn (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/trace/trace.js:157:20)\n' +
+    '    at async DevServer.handleRequest (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/dev/next-dev-server.js:383:24)\n' +
+    '    at async invokeRender (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/lib/router-server.js:248:21)\n' +
+    '    at async handleRequest (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/lib/router-server.js:447:24)\n' +
+    '    at async requestHandlerImpl (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/lib/router-server.js:496:13)\n' +
+    '    at async Server.requestListener (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/lib/start-server.js:226:13)'
+}
+ POST /api/reports/query 500 in 251ms (compile: 235ms, render: 16ms)
+ GET / 200 in 124ms (compile: 22ms, render: 102ms)
+ GET / 200 in 139ms (compile: 5ms, render: 134ms)
+ GET / 200 in 95ms (compile: 4ms, render: 91ms)
+✓ Compiled in 13ms
+ GET / 200 in 276ms (compile: 62ms, render: 214ms)
+Database query error: {
+  error: 'This function can now be called only as a tagged-template function: sql`SELECT ${value}`, not sql("SELECT $1", [value], options). For a conventional function call with value placeholders ($1, $2, etc.), use sql.query("SELECT $1", [value], options).',
+  query: '\n' +
+    '      \n' +
+    '      WITH ads_data AS (\n' +
+    '        -- Facebook Ads data\n' +
+    '        SELECT\n' +
+    "          'Facebook'::text AS network,\n" +
+    '          fb_ads_insights.date_start AS date,\n' +
+    '          fb_ads_insights.campaign_id:',
+  params: [ '2025-12-19', '2026-01-19' ]
+}
+API error: {
+  message: 'Database query failed: This function can now be called only as a tagged-template function: sql`SELECT ${value}`, not sql("SELECT $1", [value], options). For a conventional function call with value placeholders ($1, $2, etc.), use sql.query("SELECT $1", [value], options).',
+  stack: 'Error: Database query failed: This function can now be called only as a tagged-template function: sql`SELECT ${value}`, not sql("SELECT $1", [value], options). For a conventional function call with value placeholders ($1, $2, etc.), use sql.query("SELECT $1", [value], options).\n' +
+    '    at executeQuery (/Users/adi/Programming/19-01/analytics-dashboard-next/.next/dev/server/chunks/[root-of-the-server]__672f9a1e._.js:75:15)\n' +
+    '    at POST (/Users/adi/Programming/19-01/analytics-dashboard-next/.next/dev/server/chunks/[root-of-the-server]__672f9a1e._.js:361:200)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n' +
+    '    at async AppRouteRouteModule.do (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:37866)\n' +
+    '    at async AppRouteRouteModule.handle (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:45156)\n' +
+    '    at async responseGenerator (/Users/adi/Programming/19-01/analytics-dashboard-next/.next/dev/server/chunks/aea54_051f85a0._.js:20142:38)\n' +
+    '    at async AppRouteRouteModule.handleResponse (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:1:187713)\n' +
+    '    at async handleResponse (/Users/adi/Programming/19-01/analytics-dashboard-next/.next/dev/server/chunks/aea54_051f85a0._.js:20205:32)\n' +
+    '    at async Module.handler (/Users/adi/Programming/19-01/analytics-dashboard-next/.next/dev/server/chunks/aea54_051f85a0._.js:20258:13)\n' +
+    '    at async DevServer.renderToResponseWithComponentsImpl (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/base-server.js:1422:9)\n' +
+    '    at async DevServer.renderPageComponent (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/base-server.js:1474:24)\n' +
+    '    at async DevServer.renderToResponseImpl (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/base-server.js:1524:32)\n' +
+    '    at async DevServer.pipeImpl (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/base-server.js:1018:25)\n' +
+    '    at async NextNodeServer.handleCatchallRenderRequest (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/next-server.js:395:17)\n' +
+    '    at async DevServer.handleRequestImpl (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/base-server.js:909:17)\n' +
+    '    at async /Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/dev/next-dev-server.js:387:20\n' +
+    '    at async Span.traceAsyncFn (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/trace/trace.js:157:20)\n' +
+    '    at async DevServer.handleRequest (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/dev/next-dev-server.js:383:24)\n' +
+    '    at async invokeRender (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/lib/router-server.js:248:21)\n' +
+    '    at async handleRequest (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/lib/router-server.js:447:24)\n' +
+    '    at async requestHandlerImpl (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/lib/router-server.js:496:13)\n' +
+    '    at async Server.requestListener (/Users/adi/Programming/19-01/analytics-dashboard-next/node_modules/next/dist/server/lib/start-server.js:226:13)'
+}
+ POST /api/reports/query 500 in 37ms (compile: 33ms, render: 4ms)
+ GET / 200 in 170ms (compile: 9ms, render: 161ms)
+⨯ ./analytics-dashboard-next/lib/server/db.ts:50:23
+Ecmascript file had an error
+[0m [90m 48 |[39m [90m * Test database connection[39m
+ [90m 49 |[39m [90m */[39m
+[31m[1m>[22m[39m[90m 50 |[39m [36mexport[39m [36masync[39m [36mfunction[39m testConnection()[33m:[39m [33mPromise[39m[33m<[39m[33mboolean[39m[33m>[39m {
+ [90m    |[39m                       [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 51 |[39m   [36mtry[39m {
+ [90m 52 |[39m     [36mconst[39m result [33m=[39m [36mawait[39m sql[32m`SELECT NOW() as current_time`[39m[33m;[39m
+ [90m 53 |[39m     console[33m.[39mlog([32m'Database connected:'[39m[33m,[39m result[[35m0[39m][33m.[39mcurrent_time)[33m;[39m[0m
+
+the name `testConnection` is defined multiple times
+
+Import trace:
+  App Route:
+    ./analytics-dashboard-next/lib/server/db.ts
+    ./analytics-dashboard-next/app/api/test-db/route.ts
+
+
+ GET /api/test-db 500 in 779ms (compile: 702ms, render: 77ms)
+ GET / 200 in 177ms (compile: 13ms, render: 163ms)
+ GET / 200 in 100ms (compile: 12ms, render: 89ms)
+Database connected: 2026-01-19T17:01:38.124Z
+ GET /api/test-db 200 in 368ms (compile: 84ms, render: 283ms)
+Database connected: 2026-01-19T17:01:46.889Z
+ GET /api/test-db 200 in 78ms (compile: 3ms, render: 76ms)
+ GET / 200 in 102ms (compile: 7ms, render: 95ms)
+ GET / 200 in 85ms (compile: 4ms, render: 81ms)
+ POST /api/reports/query 200 in 279ms (compile: 51ms, render: 229ms)
+✓ Compiled in 49ms
+✓ Compiled in 332ms
+ GET / 200 in 427ms (compile: 84ms, render: 344ms)
+ POST /api/reports/query 200 in 169ms (compile: 5ms, render: 164ms)
+ POST /api/reports/query 200 in 84ms (compile: 3ms, render: 81ms)
+ POST /api/reports/query 200 in 72ms (compile: 3ms, render: 69ms)
+ POST /api/reports/query 200 in 91ms (compile: 6ms, render: 85ms)
+ POST /api/reports/query 200 in 55ms (compile: 7ms, render: 48ms)
+ POST /api/reports/query 200 in 58ms (compile: 4ms, render: 54ms)
+ POST /api/reports/query 200 in 185ms (compile: 10ms, render: 174ms)
+ POST /api/reports/query 200 in 188ms (compile: 22ms, render: 166ms)
+ POST /api/reports/query 200 in 99ms (compile: 5ms, render: 94ms)
+ POST /api/reports/query 200 in 50ms (compile: 3ms, render: 47ms)
+ POST /api/reports/query 200 in 62ms (compile: 5ms, render: 57ms)
+ POST /api/reports/query 200 in 215ms (compile: 8ms, render: 207ms)
+ POST /api/reports/query 200 in 61ms (compile: 9ms, render: 52ms)
+ POST /api/reports/query 200 in 60ms (compile: 6ms, render: 54ms)
+ GET / 200 in 174ms (compile: 17ms, render: 157ms)
+ POST /api/reports/query 200 in 259ms (compile: 108ms, render: 151ms)
+ POST /api/reports/query 200 in 85ms (compile: 5ms, render: 80ms)
+ GET / 200 in 141ms (compile: 9ms, render: 132ms)
+ POST /api/reports/query 200 in 169ms (compile: 6ms, render: 163ms)
+ POST /api/reports/query 200 in 81ms (compile: 4ms, render: 76ms)
+✓ Compiled in 38ms
+ POST /api/reports/query 200 in 197ms (compile: 11ms, render: 187ms)
+ POST /api/reports/query 200 in 99ms (compile: 9ms, render: 91ms)
+ POST /api/reports/query 200 in 53ms (compile: 6ms, render: 47ms)
+ GET / 200 in 290ms (compile: 101ms, render: 189ms)
+ GET / 200 in 117ms (compile: 46ms, render: 71ms)
+ GET / 200 in 48ms (compile: 1086µs, render: 46ms)
+ GET / 200 in 49ms (compile: 839µs, render: 48ms)
+ GET / 200 in 52ms (compile: 1171µs, render: 51ms)
+ GET / 200 in 60ms (compile: 1821µs, render: 58ms)
+ GET / 200 in 52ms (compile: 918µs, render: 51ms)
+ GET / 200 in 64ms (compile: 1249µs, render: 62ms)
+ GET / 200 in 57ms (compile: 1499µs, render: 55ms)
+ GET / 200 in 63ms (compile: 1539µs, render: 62ms)
+ GET / 200 in 63ms (compile: 2ms, render: 61ms)
+ GET / 200 in 62ms (compile: 1497µs, render: 60ms)
+ GET / 200 in 61ms (compile: 1412µs, render: 59ms)
+ GET / 200 in 59ms (compile: 1887µs, render: 58ms)
+ GET / 200 in 51ms (compile: 1002µs, render: 50ms)
+ GET / 200 in 70ms (compile: 1058µs, render: 69ms)
+ GET / 200 in 62ms (compile: 1017µs, render: 61ms)
+ GET / 200 in 66ms (compile: 1182µs, render: 65ms)
+ GET / 200 in 71ms (compile: 3ms, render: 68ms)
+ GET / 200 in 60ms (compile: 1650µs, render: 59ms)
+ GET / 200 in 53ms (compile: 1779µs, render: 51ms)
+ GET / 200 in 40ms (compile: 1271µs, render: 39ms)
+ GET / 200 in 30ms (compile: 4ms, render: 26ms)
+ GET / 200 in 14ms (compile: 1921µs, render: 12ms)
+ GET /api/debug-query 200 in 508ms (compile: 205ms, render: 303ms)
+ GET / 200 in 384ms (compile: 14ms, render: 371ms)
+ GET / 200 in 91ms (compile: 4ms, render: 87ms)
+ POST /api/reports/query 200 in 263ms (compile: 57ms, render: 205ms)
+ POST /api/reports/query 200 in 218ms (compile: 52ms, render: 166ms)
+ GET / 200 in 138ms (compile: 25ms, render: 114ms)
+ GET / 200 in 108ms (compile: 4ms, render: 104ms)
+ POST /api/reports/query 200 in 195ms (compile: 6ms, render: 189ms)
+ GET / 200 in 227ms (compile: 149ms, render: 78ms)
+ GET / 200 in 50ms (compile: 1343µs, render: 48ms)
+ GET / 200 in 50ms (compile: 960µs, render: 49ms)
+ GET / 200 in 52ms (compile: 1056µs, render: 51ms)
+ GET / 200 in 60ms (compile: 1095µs, render: 59ms)
+ GET / 200 in 63ms (compile: 1146µs, render: 62ms)
+ GET / 200 in 52ms (compile: 1179µs, render: 51ms)
+ GET / 200 in 52ms (compile: 1248µs, render: 50ms)
+ GET / 200 in 53ms (compile: 1535µs, render: 51ms)
+ GET / 200 in 53ms (compile: 1072µs, render: 52ms)
+ GET / 200 in 61ms (compile: 1220µs, render: 59ms)
+ GET / 200 in 52ms (compile: 990µs, render: 51ms)
+ GET / 200 in 66ms (compile: 2ms, render: 63ms)
+ GET / 200 in 55ms (compile: 1030µs, render: 54ms)
+ GET / 200 in 56ms (compile: 1533µs, render: 55ms)
+ GET / 200 in 58ms (compile: 3ms, render: 56ms)
+ GET / 200 in 63ms (compile: 1553µs, render: 62ms)
+ GET / 200 in 66ms (compile: 1086µs, render: 65ms)
+ GET / 200 in 65ms (compile: 1640µs, render: 63ms)
+ GET / 200 in 58ms (compile: 2ms, render: 55ms)
+ GET / 200 in 67ms (compile: 1459µs, render: 66ms)
+ GET / 200 in 81ms (compile: 1176µs, render: 80ms)
+ GET / 200 in 88ms (compile: 1222µs, render: 87ms)
+ GET / 200 in 75ms (compile: 1307µs, render: 73ms)
+ GET / 200 in 77ms (compile: 2ms, render: 75ms)
+ GET / 200 in 60ms (compile: 2ms, render: 57ms)
+ GET / 200 in 46ms (compile: 1246µs, render: 44ms)
+ GET / 200 in 49ms (compile: 1076µs, render: 48ms)
+ GET / 200 in 56ms (compile: 1674µs, render: 54ms)
+ GET / 200 in 64ms (compile: 1206µs, render: 62ms)
+ GET / 200 in 64ms (compile: 1483µs, render: 62ms)
+ GET / 200 in 66ms (compile: 1441µs, render: 65ms)
+ GET / 200 in 56ms (compile: 1801µs, render: 54ms)
+ GET / 200 in 58ms (compile: 2ms, render: 56ms)
+ GET / 200 in 50ms (compile: 980µs, render: 49ms)
+ GET / 200 in 49ms (compile: 1133µs, render: 48ms)
+ GET / 200 in 58ms (compile: 967µs, render: 57ms)
+ GET / 200 in 46ms (compile: 1426µs, render: 45ms)
+ GET / 200 in 38ms (compile: 938µs, render: 38ms)
+ GET / 200 in 31ms (compile: 1270µs, render: 30ms)
+ GET / 200 in 24ms (compile: 1371µs, render: 23ms)
+ GET / 200 in 16ms (compile: 1001µs, render: 15ms)
+ GET / 200 in 370ms (compile: 9ms, render: 361ms)
+ POST /api/reports/query 200 in 221ms (compile: 50ms, render: 170ms)
+ POST /api/reports/query 200 in 52ms (compile: 5ms, render: 48ms)
+ GET /api/debug-request 405 in 294ms (compile: 280ms, render: 13ms)
+ GET / 200 in 110ms (compile: 14ms, render: 96ms)
+ GET / 200 in 102ms (compile: 3ms, render: 99ms)
+ POST /api/reports/query 200 in 299ms (compile: 18ms, render: 281ms)
+ POST /api/reports/query 200 in 60ms (compile: 6ms, render: 53ms)
+ POST /api/reports/query 200 in 168ms (compile: 6ms, render: 162ms)
+ POST /api/reports/query 200 in 55ms (compile: 3ms, render: 52ms)
+ GET /api/debug-request 405 in 89ms (compile: 19ms, render: 70ms)
