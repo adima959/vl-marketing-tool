@@ -112,9 +112,33 @@ export const useReportStore = create<ReportState>((set, get) => ({
     const state = get();
 
     try {
-      // Build parent filters from parent row
-      const parentFilters: Record<string, string> = {};
-      parentFilters[state.loadedDimensions[parentDepth]] = parentValue;
+      // Build complete parent filter chain by traversing up the tree
+      const buildParentFilters = (
+        rows: ReportRow[],
+        targetKey: string,
+        filters: Record<string, string> = {}
+      ): Record<string, string> | null => {
+        for (const row of rows) {
+          if (row.key === targetKey) {
+            // Found the target row, add its filter
+            filters[state.loadedDimensions[row.depth]] = row.attribute;
+            return filters;
+          }
+          if (row.children && row.children.length > 0) {
+            // Recursively search in children
+            const childFilters = buildParentFilters(row.children, targetKey, {
+              ...filters,
+              [state.loadedDimensions[row.depth]]: row.attribute,
+            });
+            if (childFilters) {
+              return childFilters;
+            }
+          }
+        }
+        return null;
+      };
+
+      const parentFilters = buildParentFilters(state.reportData, parentKey) || {};
 
       const children = await fetchReportData({
         dateRange: state.loadedDateRange,

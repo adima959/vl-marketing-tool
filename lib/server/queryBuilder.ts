@@ -27,6 +27,8 @@ export class QueryBuilder {
     cpc: 'cpc',
     cpm: 'cpm',
     conversionRate: 'conversion_rate',
+    crmSubscriptions: 'crm_subscriptions',
+    approvedSales: 'approved_sales',
   };
 
   /**
@@ -114,7 +116,9 @@ export class QueryBuilder {
         ROUND(SUM(clicks::integer)::numeric / NULLIF(SUM(impressions::integer), 0), 4) AS ctr_percent,
         ROUND(SUM(cost::numeric) / NULLIF(SUM(clicks::integer), 0), 2) AS cpc,
         ROUND(SUM(cost::numeric) / NULLIF(SUM(impressions::integer), 0) * 1000, 2) AS cpm,
-        ROUND(SUM(conversions::numeric) / NULLIF(SUM(impressions::integer), 0), 6) AS conversion_rate
+        ROUND(SUM(conversions::numeric) / NULLIF(SUM(impressions::integer), 0), 6) AS conversion_rate,
+        COALESCE(SUM(crm_subscriptions::integer), 0) AS crm_subscriptions,
+        COALESCE(SUM(approved_sales::integer), 0) AS approved_sales
       FROM merged_ads_spending
       WHERE date BETWEEN $1 AND $2
         ${whereClause}

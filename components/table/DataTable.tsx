@@ -101,6 +101,7 @@ export function DataTable() {
         align: col.align,
         sorter: true,
         sortOrder: sortColumn === col.id ? sortDirection : null,
+        showSorterTooltip: false,
         render: (value: number) => <MetricCell value={value ?? 0} format={col.format} />,
       }));
 
@@ -153,7 +154,7 @@ export function DataTable() {
         loading={isLoading}
         pagination={false}
         size="middle"
-        scroll={{ x: 'max-content', y: 'calc(100vh - 280px)' }}
+        scroll={{ x: 'max-content', y: 'calc(100vh - 250px)' }}
         rowKey="key"
         expandable={{
           expandedRowKeys,

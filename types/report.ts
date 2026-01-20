@@ -13,6 +13,10 @@ export interface ReportRow {
     cpc: number;
     cpm: number;
     conversionRate: number;
+    crmSubscriptions: number;
+    approvedSales: number;
+    approvalRate: number;
+    realCpa: number;
   };
 }
 

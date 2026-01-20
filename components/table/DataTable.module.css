@@ -1,8 +1,26 @@
+/* Full height container */
+.dataTable {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
 /* Clean white background */
 .dataTable :global(.ant-table) {
   background: #fff;
   font-size: 13px;
 }
+
+.dataTable :global(.ant-table-container) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Table body should not have its own scroll - let parent container handle it */
 
 /* Header styling */
 .dataTable :global(.ant-table-thead > tr > th) {
@@ -11,7 +29,31 @@
   font-size: 12px;
   font-weight: 500;
   color: #5f6368;
-  padding: 4px 16px !important;
+  padding: 4px 8px !important;
+  white-space: nowrap;
+}
+
+/* Remove default padding from sorter container */
+.dataTable :global(.ant-table-thead > tr > th .ant-table-column-sorters) {
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+}
+
+/* Ensure equal spacing around column content */
+.dataTable :global(.ant-table-column-title) {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Sort icons - fixed width to balance spacing */
+.dataTable :global(.ant-table-column-sorter) {
+  flex: none;
+  width: 14px;
+  margin-inline-start: 0 !important;
+  margin-left: 0 !important;
 }
 
 /* Row styling - compact */
@@ -19,7 +61,7 @@
   border-bottom: 1px solid #e8eaed;
   color: #202124;
   background: #fff;
-  padding: 4px 16px !important;
+  padding: 4px 8px !important;
 }
 
 /* Hover effect - more prominent blue */
@@ -41,5 +83,20 @@
 
 /* Hide default indent spacing */
 .dataTable :global(.ant-table-row-indent) {
+  display: none !important;
+}
+
+/* Hide measurement row (tiny row after header) */
+.dataTable :global(.ant-table-measure-row) {
+  display: none !important;
+}
+
+/* Hide any empty expand rows */
+.dataTable :global(.ant-table-expanded-row:empty) {
+  display: none !important;
+}
+
+/* Hide placeholder rows */
+.dataTable :global(.ant-table-placeholder) {
   display: none !important;
 }

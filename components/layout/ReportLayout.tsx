@@ -10,7 +10,7 @@ interface ReportLayoutProps {
 
 export function ReportLayout({ children }: ReportLayoutProps) {
   return (
-    <Layout style={{ minHeight: '100vh', background: '#f5f5f5' }}>
+    <Layout style={{ height: '100vh', background: '#f5f5f5' }}>
       <Header
         style={{
           background: '#fff',
@@ -33,6 +33,7 @@ export function ReportLayout({ children }: ReportLayoutProps) {
           flexDirection: 'column',
           flex: 1,
           minHeight: 0,
+          overflow: 'hidden',
         }}
       >
         {children}

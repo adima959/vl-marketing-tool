@@ -86,6 +86,48 @@ export const METRIC_COLUMNS: MetricColumn[] = [
     width: 90,
     align: 'right',
   },
+
+  // CRM Metrics
+  {
+    id: 'crmSubscriptions',
+    label: 'CRM Subscriptions',
+    shortLabel: 'CRM Subs',
+    format: 'number',
+    category: 'conversions',
+    defaultVisible: true,
+    width: 110,
+    align: 'right',
+  },
+  {
+    id: 'approvedSales',
+    label: 'Approved Subs',
+    shortLabel: 'Approved Subs',
+    format: 'number',
+    category: 'conversions',
+    defaultVisible: true,
+    width: 120,
+    align: 'right',
+  },
+  {
+    id: 'approvalRate',
+    label: 'Approval Rate',
+    shortLabel: 'Approval Rate',
+    format: 'percentage',
+    category: 'conversions',
+    defaultVisible: true,
+    width: 120,
+    align: 'right',
+  },
+  {
+    id: 'realCpa',
+    label: 'Real CPA',
+    shortLabel: 'Real CPA',
+    format: 'currency',
+    category: 'conversions',
+    defaultVisible: true,
+    width: 110,
+    align: 'right',
+  },
 ];
 
 export const DEFAULT_VISIBLE_COLUMNS = METRIC_COLUMNS

@@ -37,6 +37,10 @@ interface QueryResponse {
       cpc: number;
       cpm: number;
       conversionRate: number;
+      crmSubscriptions: number;
+      approvedSales: number;
+      approvalRate: number;
+      realCpa: number;
     };
   }>;
   error?: string;
@@ -95,23 +99,44 @@ export async function POST(
     // Check if there are more dimensions (children available)
     const hasMoreDimensions = body.depth < body.dimensions.length - 1;
 
+    // Build key prefix from parent filters to ensure uniqueness
+    const parentKeyParts = body.parentFilters
+      ? Object.entries(body.parentFilters)
+          .sort(([a], [b]) => a.localeCompare(b)) // Sort for consistency
+          .map(([_, value]) => value)
+          .join('::')
+      : '';
+    const keyPrefix = parentKeyParts ? `${parentKeyParts}::` : '';
+
     // Transform database rows to frontend format
-    const data = rows.map((row, index) => ({
-      key: `depth-${body.depth}-${index}`,
-      attribute: row.dimension_value || '(not set)',
-      depth: body.depth,
-      hasChildren: hasMoreDimensions,
-      metrics: {
-        cost: Number(row.cost) || 0,
-        clicks: Number(row.clicks) || 0,
-        impressions: Number(row.impressions) || 0,
-        conversions: Number(row.conversions) || 0,
-        ctr: Number(row.ctr_percent) || 0,
-        cpc: Number(row.cpc) || 0,
-        cpm: Number(row.cpm) || 0,
-        conversionRate: Number(row.conversion_rate) || 0,
-      },
-    }));
+    const data = rows.map((row) => {
+      const cost = Number(row.cost) || 0;
+      const crmSubscriptions = Number(row.crm_subscriptions) || 0;
+      const approvedSales = Number(row.approved_sales) || 0;
+      const realCpa = approvedSales > 0 ? cost / approvedSales : 0;
+      const approvalRate = crmSubscriptions > 0 ? approvedSales / crmSubscriptions : 0;
+
+      return {
+        key: `${keyPrefix}${row.dimension_value || '(not set)'}`,
+        attribute: row.dimension_value || '(not set)',
+        depth: body.depth,
+        hasChildren: hasMoreDimensions,
+        metrics: {
+          cost,
+          clicks: Number(row.clicks) || 0,
+          impressions: Number(row.impressions) || 0,
+          conversions: Number(row.conversions) || 0,
+          ctr: Number(row.ctr_percent) || 0,
+          cpc: Number(row.cpc) || 0,
+          cpm: Number(row.cpm) || 0,
+          conversionRate: Number(row.conversion_rate) || 0,
+          crmSubscriptions,
+          approvedSales,
+          approvalRate,
+          realCpa,
+        },
+      };
+    });
 
     return NextResponse.json({
       success: true,

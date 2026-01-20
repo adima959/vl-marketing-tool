@@ -18,6 +18,8 @@ export interface RawAdDataRow {
   cpc: string;               // Numeric stored as string
   cpm: string;               // Numeric stored as string
   conversions: string;       // Numeric stored as string
+  crm_subscriptions: string; // Numeric stored as string
+  approved_sales: string;    // Numeric stored as string
 }
 
 /**
@@ -33,6 +35,8 @@ export interface AggregatedMetrics {
   cpc: number;
   cpm: number;
   conversion_rate: number;
+  crm_subscriptions: number;
+  approved_sales: number;
 }
 
 /**
