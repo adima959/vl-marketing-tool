@@ -76,16 +76,6 @@ export const METRIC_COLUMNS: MetricColumn[] = [
     width: 90,
     align: 'right',
   },
-  {
-    id: 'conversionRate',
-    label: 'Conversion Rate',
-    shortLabel: 'CVR',
-    format: 'percentage',
-    category: 'conversions',
-    defaultVisible: true,
-    width: 90,
-    align: 'right',
-  },
 
   // CRM Metrics
   {

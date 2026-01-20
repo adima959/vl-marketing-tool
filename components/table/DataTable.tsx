@@ -77,9 +77,12 @@ export function DataTable() {
       },
     };
 
-    // Metric columns based on visibility
-    const metricColumns: ColumnsType<ReportRow> = METRIC_COLUMNS
-      .filter((col) => visibleColumns.includes(col.id))
+    // Get visible metric columns
+    const visibleMetrics = METRIC_COLUMNS.filter((col) => visibleColumns.includes(col.id));
+
+    // Marketing Data columns (Impr to Conv)
+    const marketingDataColumns = visibleMetrics
+      .filter((col) => ['impressions', 'clicks', 'ctr', 'cost', 'cpc', 'cpm', 'conversions'].includes(col.id))
       .map((col) => ({
         title: col.shortLabel,
         dataIndex: ['metrics', col.id],
@@ -92,7 +95,39 @@ export function DataTable() {
         render: (value: number) => <MetricCell value={value ?? 0} format={col.format} />,
       }));
 
-    return [attributeColumn, ...metricColumns];
+    // CRM Data columns (CRM Subs to Real CPA)
+    const crmDataColumns = visibleMetrics
+      .filter((col) => ['crmSubscriptions', 'approvedSales', 'approvalRate', 'realCpa'].includes(col.id))
+      .map((col) => ({
+        title: col.shortLabel,
+        dataIndex: ['metrics', col.id],
+        key: col.id,
+        width: col.width,
+        align: col.align,
+        sorter: true,
+        sortOrder: sortColumn === col.id ? sortDirection : null,
+        showSorterTooltip: false,
+        render: (value: number) => <MetricCell value={value ?? 0} format={col.format} />,
+      }));
+
+    // Create grouped columns
+    const groupedColumns: ColumnsType<ReportRow> = [];
+
+    if (marketingDataColumns.length > 0) {
+      groupedColumns.push({
+        title: 'Marketing Data',
+        children: marketingDataColumns,
+      });
+    }
+
+    if (crmDataColumns.length > 0) {
+      groupedColumns.push({
+        title: 'CRM Data',
+        children: crmDataColumns,
+      });
+    }
+
+    return [attributeColumn, ...groupedColumns];
   }, [visibleColumns, sortColumn, sortDirection, expandedRowKeys, setExpandedRowKeys, loadChildData]);
 
   // Handle sort change
