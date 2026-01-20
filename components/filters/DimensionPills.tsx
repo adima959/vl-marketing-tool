@@ -22,6 +22,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useReportStore } from '@/stores/reportStore';
 import { getDimensionLabel } from '@/config/dimensions';
+import styles from './DimensionPills.module.css';
 
 interface SortableTagProps {
   dimId: string;
@@ -42,17 +43,6 @@ function SortableTag({ dimId, onRemove, canRemove }: SortableTagProps) {
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    backgroundColor: '#4096ff',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 4,
-    padding: '6px 12px',
-    fontSize: 14,
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 8,
-    cursor: isDragging ? 'grabbing' : 'grab',
-    opacity: isDragging ? 0.5 : 1,
   };
 
   const handleRemove = (e: React.MouseEvent) => {
@@ -62,12 +52,17 @@ function SortableTag({ dimId, onRemove, canRemove }: SortableTagProps) {
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
-      <HolderOutlined style={{ fontSize: 12, color: '#fff' }} {...listeners} />
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`${styles.sortableTag} ${isDragging ? styles.sortableTagDragging : ''}`}
+      {...attributes}
+    >
+      <HolderOutlined className={styles.dragHandle} {...listeners} />
       <span {...listeners}>{getDimensionLabel(dimId)}</span>
       {canRemove && (
         <CloseOutlined
-          style={{ fontSize: 11, color: '#fff', marginLeft: 4, cursor: 'pointer' }}
+          className={styles.closeIcon}
           onClick={handleRemove}
           onMouseDown={(e) => e.stopPropagation()}
         />
@@ -111,7 +106,7 @@ export function DimensionPills() {
           <Tag
             key={dimId}
             color="blue"
-            style={{ padding: '6px 12px', fontSize: 14 }}
+            className={styles.ssrTag}
           >
             {getDimensionLabel(dimId)}
           </Tag>

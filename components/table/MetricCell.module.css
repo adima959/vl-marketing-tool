@@ -1,0 +1,9 @@
+/* Metric cell base styling */
+.metricCell {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Negative value styling */
+.metricCellNegative {
+  color: #ff4d4f;
+}

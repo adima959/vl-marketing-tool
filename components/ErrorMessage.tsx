@@ -1,6 +1,7 @@
 'use client';
 
 import { Alert, Button } from 'antd';
+import styles from './ErrorMessage.module.css';
 
 interface ErrorMessageProps {
   error: string;
@@ -9,7 +10,7 @@ interface ErrorMessageProps {
 
 export function ErrorMessage({ error, onRetry }: ErrorMessageProps) {
   return (
-    <div style={{ padding: 24 }}>
+    <div className={styles.errorContainer}>
       <Alert
         type="error"
         title="Error Loading Data"

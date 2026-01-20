@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { METRIC_COLUMNS } from '@/config/columns';
 import { useColumnStore } from '@/stores/columnStore';
 import type { MetricColumn, MetricCategory } from '@/types';
+import styles from './ColumnSettingsModal.module.css';
 
 interface ColumnSettingsModalProps {
   open: boolean;
@@ -77,15 +78,15 @@ export function ColumnSettingsModal({ open, onClose }: ColumnSettingsModalProps)
       ),
     },
     {
-      title: <span style={{ fontWeight: 600 }}>Metric</span>,
+      title: <span className={styles.columnHeader}>Metric</span>,
       dataIndex: 'label',
       width: 220,
-      render: (text: string) => <span style={{ fontWeight: 500 }}>{text}</span>,
+      render: (text: string) => <span className={styles.metricName}>{text}</span>,
     },
     {
-      title: <span style={{ fontWeight: 600 }}>Column Label</span>,
+      title: <span className={styles.columnHeader}>Column Label</span>,
       dataIndex: 'shortLabel',
-      render: (text: string) => <span style={{ color: '#595959' }}>{text}</span>,
+      render: (text: string) => <span className={styles.columnLabel}>{text}</span>,
     },
   ];
 
@@ -97,7 +98,7 @@ export function ColumnSettingsModal({ open, onClose }: ColumnSettingsModalProps)
 
   return (
     <Modal
-      title={<span style={{ fontSize: 16, fontWeight: 600 }}>Column Settings</span>}
+      title={<span className={styles.modalTitle}>Column Settings</span>}
       open={open}
       onCancel={handleCancel}
       width={750}
@@ -106,7 +107,7 @@ export function ColumnSettingsModal({ open, onClose }: ColumnSettingsModalProps)
         body: { paddingTop: 24 },
       }}
       footer={
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className={styles.footer}>
           <Button onClick={resetToDefaults} size="middle">
             Reset to Defaults
           </Button>
@@ -121,9 +122,9 @@ export function ColumnSettingsModal({ open, onClose }: ColumnSettingsModalProps)
         </div>
       }
     >
-      <div style={{ display: 'flex', gap: 24 }}>
+      <div className={styles.content}>
         {/* Content area */}
-        <div style={{ flex: 1 }}>
+        <div className={styles.contentArea}>
           <Table
             dataSource={tabColumns}
             columns={tableColumns}
@@ -137,11 +138,11 @@ export function ColumnSettingsModal({ open, onClose }: ColumnSettingsModalProps)
 
         {/* Tab navigation (right side) */}
         <Tabs
+          className={styles.tabs}
           tabPosition="right"
           activeKey={activeTab}
           onChange={(key) => setActiveTab(key as MetricCategory)}
           items={tabItems}
-          style={{ minWidth: 180 }}
         />
       </div>
     </Modal>

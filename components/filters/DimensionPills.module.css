@@ -1,0 +1,39 @@
+/* Sortable tag base styling */
+.sortableTag {
+  background-color: #4096ff;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: var(--font-size-md);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: grab;
+}
+
+/* Dragging state */
+.sortableTagDragging {
+  cursor: grabbing;
+  opacity: 0.5;
+}
+
+/* Drag handle icon */
+.dragHandle {
+  font-size: var(--font-size-xs);
+  color: #fff;
+}
+
+/* Close icon */
+.closeIcon {
+  font-size: 11px;
+  color: #fff;
+  margin-left: var(--spacing-xs);
+  cursor: pointer;
+}
+
+/* SSR tag styling */
+.ssrTag {
+  padding: 6px 12px;
+  font-size: var(--font-size-md);
+}

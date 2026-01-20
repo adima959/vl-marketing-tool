@@ -1,0 +1,9 @@
+/* Table footer container */
+.footer {
+  padding: var(--spacing-md);
+  background-color: var(--color-background-white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  gap: var(--spacing-md);
+}

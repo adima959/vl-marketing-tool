@@ -3,6 +3,7 @@ import {
   ExportOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
+import styles from './TableFooter.module.css';
 
 interface TableFooterProps {
   onColumnSettings: () => void;
@@ -15,16 +16,7 @@ export function TableFooter({ onColumnSettings }: TableFooterProps) {
   };
 
   return (
-    <div
-      style={{
-        padding: '12px 16px',
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
-        display: 'flex',
-        gap: 12,
-      }}
-    >
+    <div className={styles.footer}>
       <Button type="text" icon={<ExportOutlined />} size="middle">
         Export
       </Button>

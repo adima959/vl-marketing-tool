@@ -41,24 +41,12 @@ export function DataTable() {
 
         return (
           <div
-            style={{
-              paddingLeft: `${indent}px`,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
+            className={styles.attributeCell}
+            style={{ paddingLeft: `${indent}px` }}
           >
             {record.hasChildren ? (
               <span
-                style={{
-                  cursor: 'pointer',
-                  color: '#5f6368',
-                  fontSize: '12px',
-                  width: '16px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                className={styles.expandIcon}
                 onClick={async (e) => {
                   e.stopPropagation();
                   if (isExpanded) {
@@ -74,14 +62,12 @@ export function DataTable() {
                 {isExpanded ? '▼' : '▶'}
               </span>
             ) : (
-              <span style={{ width: '16px', display: 'inline-block' }} />
+              <span className={styles.expandSpacer} />
             )}
             <span
-              style={{
-                fontWeight: record.depth === 0 ? 500 : 400,
-                color: '#202124',
-                fontSize: '13px',
-              }}
+              className={`${styles.attributeText} ${
+                record.depth === 0 ? styles.attributeTextBold : ''
+              }`}
             >
               {value}
             </span>

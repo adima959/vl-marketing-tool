@@ -1,5 +1,6 @@
 import { formatMetric } from '../../lib/formatters';
 import type { MetricFormat } from '@/types';
+import styles from './MetricCell.module.css';
 
 interface MetricCellProps {
   value: number;
@@ -11,10 +12,9 @@ export function MetricCell({ value, format }: MetricCellProps) {
 
   // Determine color for negative values (only for currency/percentage that can be negative)
   const isNegative = value < 0;
-  const color = isNegative ? '#ff4d4f' : undefined;
 
   return (
-    <span style={{ color, fontVariantNumeric: 'tabular-nums' }}>
+    <span className={`${styles.metricCell} ${isNegative ? styles.metricCellNegative : ''}`}>
       {formatted}
     </span>
   );

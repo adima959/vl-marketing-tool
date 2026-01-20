@@ -100,3 +100,38 @@
 .dataTable :global(.ant-table-placeholder) {
   display: none !important;
 }
+
+/* Attribute cell container */
+.attributeCell {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+/* Expand/collapse icon */
+.expandIcon {
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  width: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Spacer for rows without children */
+.expandSpacer {
+  width: 16px;
+  display: inline-block;
+}
+
+/* Attribute text */
+.attributeText {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+/* Bold text for top-level items */
+.attributeTextBold {
+  font-weight: var(--font-weight-medium);
+}

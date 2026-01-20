@@ -1,0 +1,49 @@
+/* Modal title */
+.modalTitle {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Table column headers */
+.columnHeader {
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Table cell metric name */
+.metricName {
+  font-weight: var(--font-weight-medium);
+}
+
+/* Table cell column label */
+.columnLabel {
+  color: #595959;
+}
+
+/* Modal content wrapper */
+.content {
+  display: flex;
+  gap: var(--spacing-lg);
+}
+
+/* Content area (table) */
+.contentArea {
+  flex: 1;
+}
+
+/* Tab navigation */
+.tabs {
+  min-width: 180px;
+}
+
+/* Footer layout */
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Footer button group */
+.footerButtons {
+  display: flex;
+  gap: var(--spacing-sm);
+}

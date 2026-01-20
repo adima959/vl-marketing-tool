@@ -1,0 +1,4 @@
+/* Error message container */
+.errorContainer {
+  padding: var(--spacing-lg);
+}

@@ -1,0 +1,22 @@
+/* Dimension picker select */
+.dimensionPicker {
+  width: 180px;
+}
+
+/* Group label styling */
+.groupLabel {
+  font-size: var(--font-size-xs);
+}
+
+/* Option label container */
+.optionLabel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Check icon for selected dimensions */
+.checkIcon {
+  color: var(--color-primary);
+  font-size: var(--font-size-xs);
+}

@@ -1,0 +1,9 @@
+/* Date range picker wrapper */
+.rangePicker {
+  width: 320px;
+}
+
+/* Separator icon styling */
+.separator {
+  color: #bfbfbf;
+}

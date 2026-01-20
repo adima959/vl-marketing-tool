@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import type { Dayjs } from 'dayjs';
 import { useReportStore } from '@/stores/reportStore';
+import styles from './DateRangePicker.module.css';
 
 // Extend dayjs with UTC plugin
 dayjs.extend(utc);
@@ -50,14 +51,14 @@ export function DateRangePicker() {
 
   return (
     <RangePicker
+      className={styles.rangePicker}
       size="large"
       format="DD/MM/YYYY"
       value={[dayjs(dateRange.start), dayjs(dateRange.end)]}
       onChange={handleChange}
-      separator={<SwapRightOutlined style={{ color: '#bfbfbf' }} />}
+      separator={<SwapRightOutlined className={styles.separator} />}
       allowClear={false}
       presets={rangePresets}
-      style={{ width: 320 }}
     />
   );
 }

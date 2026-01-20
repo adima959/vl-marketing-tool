@@ -2,6 +2,7 @@ import { Select, Typography } from 'antd';
 import { PlusOutlined, CheckOutlined } from '@ant-design/icons';
 import { DIMENSION_GROUPS, ALL_DIMENSIONS } from '@/config/dimensions';
 import { useReportStore } from '@/stores/reportStore';
+import styles from './DimensionPicker.module.css';
 
 const { Text } = Typography;
 
@@ -14,14 +15,14 @@ export function DimensionPicker() {
 
   // Build options with group labels
   const options = DIMENSION_GROUPS.map((group) => ({
-    label: <Text type="secondary" style={{ fontSize: 12 }}>{group.label}</Text>,
+    label: <Text type="secondary" className={styles.groupLabel}>{group.label}</Text>,
     options: group.dimensions.map((dim) => ({
       value: dim.id,
       label: (
-        <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span className={styles.optionLabel}>
           {dim.label}
           {dimensions.includes(dim.id) && (
-            <CheckOutlined style={{ color: '#00B96B', fontSize: 12 }} />
+            <CheckOutlined className={styles.checkIcon} />
           )}
         </span>
       ),
@@ -31,9 +32,9 @@ export function DimensionPicker() {
 
   return (
     <Select
+      className={styles.dimensionPicker}
       placeholder="Add Dimension"
       size="large"
-      style={{ width: 180 }}
       options={options}
       onSelect={handleSelect}
       value={null}
