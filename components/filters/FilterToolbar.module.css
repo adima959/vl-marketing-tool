@@ -1,7 +1,7 @@
 .toolbar {
   padding: var(--spacing-md) 20px;
-  background-color: var(--color-background-white);
-  border-bottom: 1px solid var(--color-border-medium);
+  background-color: var(--color-background-primary);
+  border-bottom: 1px solid var(--color-gray-200);
   box-shadow: var(--shadow-sm);
   flex-shrink: 0;
 }
@@ -10,10 +10,173 @@
   margin-bottom: var(--spacing-md);
 }
 
+/* Load button wrapper with unsaved indicator */
+.loadButtonWrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.unsavedDot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-warning);
+  border: 2px solid var(--color-background-primary);
+  animation: pulseOrange 2s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes pulseOrange {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.2);
+  }
+}
+
+/* Reset button */
+.resetButton {
+  padding: 0 var(--spacing-4);
+  height: 40px;
+  background: transparent;
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.resetButton:hover {
+  background: var(--color-gray-50);
+  border-color: var(--color-gray-400);
+  color: var(--color-text-primary);
+}
+
+/* Preset button */
+.presetButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: 0 var(--spacing-4);
+  height: 40px;
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.presetButton:hover {
+  background: var(--color-gray-50);
+  border-color: var(--color-primary-500);
+  color: var(--color-primary-600);
+}
+
+/* Save button (icon only) */
+.saveButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
+  color: var(--color-warning);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.saveButton:hover {
+  background: #fffbeb;
+  border-color: var(--color-warning);
+  transform: scale(1.05);
+}
+
+.saveButton:active {
+  transform: scale(0.95);
+}
+
+/* Quick access row */
+.quickAccessRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-3);
+  padding: var(--spacing-2) 0;
+}
+
+.quickAccessLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.quickAccessPresets {
+  display: flex;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.quickAccessPresets::-webkit-scrollbar {
+  display: none;
+}
+
+.quickAccessChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--color-primary-50);
+  border: 1px solid var(--color-primary-200);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary-700);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.quickAccessChip:hover {
+  background: var(--color-primary-100);
+  border-color: var(--color-primary-300);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.quickAccessChip:active {
+  transform: translateY(0);
+}
+
+.quickAccessChip svg {
+  width: 12px;
+  height: 12px;
+  color: var(--color-warning);
+}
+
+/* Select report */
 .selectReport {
   width: 160px;
 }
 
+/* Bottom row */
 .bottomRow {
   display: flex;
   align-items: center;
@@ -23,10 +186,18 @@
 .dimensionsLabel {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
-  color: #595959;
+  color: var(--color-text-secondary);
   min-width: 80px;
 }
 
 .dimensionsContent {
   flex: 1;
+}
+
+/* Focus states for all buttons */
+.resetButton:focus-visible,
+.presetButton:focus-visible,
+.saveButton:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
 }

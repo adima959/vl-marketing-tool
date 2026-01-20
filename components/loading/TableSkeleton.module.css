@@ -1,0 +1,85 @@
+/* Container */
+.container {
+  background: var(--color-background-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  border: 1px solid var(--color-gray-200);
+}
+
+/* Header */
+.header {
+  display: flex;
+  background: var(--color-gray-50);
+  border-bottom: 1px solid var(--color-gray-200);
+  padding: var(--spacing-3) var(--spacing-4);
+  gap: var(--spacing-2);
+}
+
+.headerCell {
+  display: flex;
+  align-items: center;
+}
+
+/* Body */
+.body {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  padding: var(--spacing-3) var(--spacing-4);
+  gap: var(--spacing-2);
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+.row:nth-child(even) {
+  background: var(--color-gray-50);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+}
+
+/* Skeleton element with shimmer animation */
+.skeleton {
+  height: 16px;
+  background: linear-gradient(
+    90deg,
+    var(--color-gray-200) 0%,
+    var(--color-gray-100) 50%,
+    var(--color-gray-200) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Fade in animation for the whole skeleton */
+.container {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

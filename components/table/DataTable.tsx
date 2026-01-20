@@ -7,6 +7,7 @@ import { useReportStore } from '@/stores/reportStore';
 import { useColumnStore } from '@/stores/columnStore';
 import { ErrorMessage } from '@/components/ErrorMessage';
 import { EmptyState } from '@/components/EmptyState';
+import { TableSkeleton } from '@/components/loading/TableSkeleton';
 import type { ReportRow } from '@/types';
 import styles from './DataTable.module.css';
 
@@ -127,6 +128,11 @@ export function DataTable() {
     return <ErrorMessage error={error} onRetry={loadData} />;
   }
 
+  // Show loading skeleton on initial load
+  if (isLoading && reportData.length === 0) {
+    return <TableSkeleton rows={10} columns={visibleColumns.length + 1} />;
+  }
+
   // Show empty state when not loading and no data
   if (!isLoading && reportData.length === 0) {
     return <EmptyState onLoadData={loadData} />;
@@ -137,7 +143,7 @@ export function DataTable() {
       <Table<ReportRow>
         columns={columns}
         dataSource={reportData}
-        loading={isLoading}
+        loading={isLoading && reportData.length > 0}
         pagination={false}
         size="middle"
         scroll={{ x: 'max-content', y: 'calc(100vh - 250px)' }}

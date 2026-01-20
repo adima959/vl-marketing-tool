@@ -28,6 +28,8 @@ interface ReportState {
   reorderDimensions: (newOrder: string[]) => void;
   setExpandedRowKeys: (keys: string[]) => void;
   setSort: (column: string | null, direction: 'ascend' | 'descend' | null) => void;
+  setLoadedDimensions: (dimensions: string[]) => void;
+  resetFilters: () => void;
   loadData: () => Promise<void>;
   loadChildData: (parentKey: string, parentValue: string, parentDepth: number) => Promise<void>;
 }
@@ -78,6 +80,18 @@ export const useReportStore = create<ReportState>((set, get) => ({
   setExpandedRowKeys: (keys) => set({ expandedRowKeys: keys }),
 
   setSort: (column, direction) => set({ sortColumn: column, sortDirection: direction }),
+
+  setLoadedDimensions: (dimensions) => set({ dimensions, loadedDimensions: dimensions, hasUnsavedChanges: false }),
+
+  resetFilters: () => {
+    const defaultDateRange = getDefaultDateRange();
+    const state = get();
+    set({
+      dateRange: state.loadedDateRange,
+      dimensions: state.loadedDimensions,
+      hasUnsavedChanges: false,
+    });
+  },
 
   loadData: async () => {
     const state = get();
