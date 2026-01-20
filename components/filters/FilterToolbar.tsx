@@ -4,22 +4,15 @@ import { DateRangePicker } from './DateRangePicker';
 import { DimensionPicker } from './DimensionPicker';
 import { DimensionPills } from './DimensionPills';
 import { useReportStore } from '@/stores/reportStore';
+import styles from './FilterToolbar.module.css';
 
 export function FilterToolbar() {
   const { loadData, isLoading, hasUnsavedChanges } = useReportStore();
 
   return (
-    <div
-      style={{
-        padding: '16px 20px',
-        backgroundColor: '#fff',
-        borderBottom: '1px solid #e0e0e0',
-        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
-        flexShrink: 0,
-      }}
-    >
+    <div className={styles.toolbar}>
       {/* Row 1: Date and Load Data button */}
-      <Space size={12} wrap style={{ marginBottom: 16 }}>
+      <Space size={12} wrap className={styles.topRow}>
         <DateRangePicker />
 
         <Button
@@ -36,7 +29,7 @@ export function FilterToolbar() {
         <Select
           defaultValue="standard"
           size="large"
-          style={{ width: 160 }}
+          className={styles.selectReport}
           options={[
             { value: 'standard', label: 'Standard Report' },
             { value: 'conversion', label: 'Conversion' },
@@ -46,11 +39,11 @@ export function FilterToolbar() {
       </Space>
 
       {/* Row 2: Dimension pills and add dimension */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span style={{ fontSize: 13, fontWeight: 500, color: '#595959', minWidth: 80 }}>
+      <div className={styles.bottomRow}>
+        <span className={styles.dimensionsLabel}>
           Dimensions:
         </span>
-        <Space size={10} wrap style={{ flex: 1 }}>
+        <Space size={10} wrap className={styles.dimensionsContent}>
           <DimensionPills />
           <DimensionPicker />
         </Space>

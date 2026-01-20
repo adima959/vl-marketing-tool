@@ -1,0 +1,32 @@
+.toolbar {
+  padding: var(--spacing-md) 20px;
+  background-color: var(--color-background-white);
+  border-bottom: 1px solid var(--color-border-medium);
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+
+.topRow {
+  margin-bottom: var(--spacing-md);
+}
+
+.selectReport {
+  width: 160px;
+}
+
+.bottomRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dimensionsLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: #595959;
+  min-width: 80px;
+}
+
+.dimensionsContent {
+  flex: 1;
+}
