@@ -29,13 +29,16 @@ export function DataTable() {
 
   // Build columns from config
   const columns: ColumnsType<ReportRow> = useMemo(() => {
-    // First column: Attributes (always visible)
+    // First column: Attributes (always visible) - no grouping, so it spans both header rows
     const attributeColumn: ColumnsType<ReportRow>[0] = {
       title: 'Attributes',
       dataIndex: 'attribute',
       key: 'attribute',
       fixed: 'left',
       width: 400,
+      onHeaderCell: () => ({
+        rowSpan: 2,
+      }),
       render: (value: string, record: ReportRow) => {
         const indent = record.depth * 20; // 20px per level
         const isExpanded = expandedRowKeys.includes(record.key);

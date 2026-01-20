@@ -24,7 +24,7 @@
 
 /* Group headers (first row) - elevated treatment */
 .dataTable :global(.ant-table-thead > tr:first-child > th) {
-  background: linear-gradient(180deg, #f8f9fa 0%, #f1f3f5 100%) !important;
+  background: #f8f9fa !important;
   border-bottom: 2px solid var(--color-gray-300) !important;
   border-right: 1px solid var(--color-gray-200) !important;
   font-size: 11px !important;
@@ -44,13 +44,13 @@
 
 /* Marketing Data group - cool blue tint */
 .dataTable :global(.ant-table-thead > tr:first-child > th:nth-child(2)) {
-  background: linear-gradient(180deg, #f0f7ff 0%, #e3f2ff 100%) !important;
+  background: #e3f2ff !important;
   border-bottom: 2px solid #bfdbfe !important;
 }
 
 /* CRM Data group - warm green tint */
 .dataTable :global(.ant-table-thead > tr:first-child > th:nth-child(3)) {
-  background: linear-gradient(180deg, #f0fdf4 0%, #dcfce7 100%) !important;
+  background: #dcfce7 !important;
   border-bottom: 2px solid #bbf7d0 !important;
 }
 
@@ -96,7 +96,7 @@
 
 /* Attributes column - distinct styling */
 .dataTable :global(.ant-table-thead > tr > th:first-child) {
-  background: linear-gradient(90deg, #ffffff 0%, #fafbfc 100%) !important;
+  background: #fafbfc !important;
   border-right: 2px solid var(--color-gray-200) !important;
   font-weight: var(--font-weight-bold) !important;
   color: var(--color-gray-900) !important;
