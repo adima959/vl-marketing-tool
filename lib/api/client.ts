@@ -1,51 +1,26 @@
-export interface ReportQueryRequest {
-  dateRange: { start: Date; end: Date };
-  dimensions: string[];
-  depth: number;
-  parentFilters?: Record<string, string>;
-  sortBy?: string;
-  sortDirection?: 'ASC' | 'DESC';
-}
-
-export interface ReportRow {
-  key: string;
-  attribute: string;
-  depth: number;
-  hasChildren: boolean;
-  children?: ReportRow[];
-  metrics: {
-    cost: number;
-    clicks: number;
-    impressions: number;
-    conversions: number;
-    ctr: number;
-    cpc: number;
-    cpm: number;
-    conversionRate: number;
-  };
-}
+import { serializeQueryParams } from '@/lib/types/api';
+import type { QueryParams, QueryResponse } from '@/lib/types/api';
+import type { ReportRow } from '@/types/report';
+import { normalizeError, createTimeoutError, createNetworkError } from '@/lib/types/errors';
 
 /**
  * Fetch report data from API with timeout support
  */
 export async function fetchReportData(
-  request: ReportQueryRequest,
+  params: QueryParams,
   timeoutMs: number = 30000
 ): Promise<ReportRow[]> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    // Serialize params to request format (Date -> ISO string)
+    const requestBody = serializeQueryParams(params);
+
     const response = await fetch('/api/reports/query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...request,
-        dateRange: {
-          start: request.dateRange.start.toISOString(),
-          end: request.dateRange.end.toISOString(),
-        },
-      }),
+      body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
 
@@ -53,21 +28,28 @@ export async function fetchReportData(
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || `API request failed: ${response.statusText}`);
+      throw createNetworkError(
+        error.error || `API request failed: ${response.statusText}`,
+        { statusCode: response.status }
+      );
     }
 
-    const result = await response.json();
+    const result: QueryResponse = await response.json();
 
     if (!result.success) {
       throw new Error(result.error || 'Unknown error');
     }
 
     return result.data || [];
-  } catch (error: any) {
+  } catch (error: unknown) {
     clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
-      throw new Error('Request timeout - please try a shorter date range');
+
+    // Handle timeout specifically
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw createTimeoutError();
     }
-    throw error;
+
+    // Normalize and re-throw
+    throw normalizeError(error);
   }
 }

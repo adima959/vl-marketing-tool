@@ -2,50 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/server/db';
 import { queryBuilder } from '@/lib/server/queryBuilder';
 import type { AggregatedMetrics } from '@/lib/server/types';
-
-/**
- * Request body interface
- */
-interface QueryRequest {
-  dateRange: {
-    start: string; // ISO date string
-    end: string;
-  };
-  dimensions: string[];
-  depth: number;
-  parentFilters?: Record<string, string>;
-  sortBy?: string;
-  sortDirection?: 'ASC' | 'DESC';
-}
-
-/**
- * Response interface
- */
-interface QueryResponse {
-  success: boolean;
-  data?: Array<{
-    key: string;
-    attribute: string;
-    depth: number;
-    hasChildren: boolean;
-    metrics: {
-      cost: number;
-      clicks: number;
-      impressions: number;
-      conversions: number;
-      ctr: number;
-      cpc: number;
-      cpm: number;
-      conversionRate: number;
-      crmSubscriptions: number;
-      approvedSales: number;
-      approvalRate: number;
-      realCpa: number;
-    };
-  }>;
-  error?: string;
-  cached?: boolean;
-}
+import type { QueryRequest, QueryResponse } from '@/lib/types/api';
+import { parseQueryRequest } from '@/lib/types/api';
+import { createValidationError, normalizeError } from '@/lib/types/errors';
 
 /**
  * POST /api/reports/query
@@ -60,38 +19,32 @@ export async function POST(
 
     // Validate required fields
     if (!body.dateRange?.start || !body.dateRange?.end) {
+      const error = createValidationError('dateRange is required');
       return NextResponse.json(
-        { success: false, error: 'dateRange is required' },
-        { status: 400 }
+        { success: false, error: error.message },
+        { status: error.statusCode }
       );
     }
 
     if (!Array.isArray(body.dimensions) || body.dimensions.length === 0) {
+      const error = createValidationError('dimensions array is required');
       return NextResponse.json(
-        { success: false, error: 'dimensions array is required' },
-        { status: 400 }
+        { success: false, error: error.message },
+        { status: error.statusCode }
       );
     }
 
     if (typeof body.depth !== 'number' || body.depth < 0) {
+      const error = createValidationError('depth must be a non-negative number');
       return NextResponse.json(
-        { success: false, error: 'depth must be a non-negative number' },
-        { status: 400 }
+        { success: false, error: error.message },
+        { status: error.statusCode }
       );
     }
 
-    // Build SQL query
-    const { query, params } = queryBuilder.buildQuery({
-      dateRange: {
-        start: new Date(body.dateRange.start),
-        end: new Date(body.dateRange.end),
-      },
-      dimensions: body.dimensions,
-      depth: body.depth,
-      parentFilters: body.parentFilters,
-      sortBy: body.sortBy,
-      sortDirection: body.sortDirection,
-    });
+    // Parse and build SQL query
+    const queryParams = parseQueryRequest(body);
+    const { query, params } = queryBuilder.buildQuery(queryParams);
 
     // Execute query
     const rows = await executeQuery<AggregatedMetrics>(query, params);
@@ -142,18 +95,22 @@ export async function POST(
       success: true,
       data,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const appError = normalizeError(error);
+
     console.error('API error:', {
-      message: error.message,
-      stack: error.stack,
+      code: appError.code,
+      message: appError.message,
+      statusCode: appError.statusCode,
+      details: appError.details,
     });
 
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'Internal server error',
+        error: appError.message,
       },
-      { status: 500 }
+      { status: appError.statusCode }
     );
   }
 }

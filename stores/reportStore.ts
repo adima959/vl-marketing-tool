@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { fetchReportData } from '@/lib/api/client';
 import type { DateRange, ReportRow } from '@/types';
+import { normalizeError } from '@/lib/types/errors';
 
 interface ReportState {
   // Filters
@@ -99,11 +100,15 @@ export const useReportStore = create<ReportState>((set, get) => ({
         reportData: data,
         expandedRowKeys: [],
       });
-    } catch (error: any) {
-      console.error('Failed to load data:', error);
+    } catch (error: unknown) {
+      const appError = normalizeError(error);
+      console.error('Failed to load data:', {
+        code: appError.code,
+        message: appError.message,
+      });
       set({
         isLoading: false,
-        error: error.message || 'Failed to load data',
+        error: appError.message,
       });
     }
   },
@@ -163,9 +168,13 @@ export const useReportStore = create<ReportState>((set, get) => ({
       };
 
       set({ reportData: updateTree(state.reportData) });
-    } catch (error: any) {
-      console.error('Failed to load child data:', error);
-      set({ error: error.message || 'Failed to load child data' });
+    } catch (error: unknown) {
+      const appError = normalizeError(error);
+      console.error('Failed to load child data:', {
+        code: appError.code,
+        message: appError.message,
+      });
+      set({ error: appError.message });
     }
   },
 }));

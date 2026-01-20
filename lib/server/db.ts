@@ -1,4 +1,5 @@
 import { Pool } from '@neondatabase/serverless';
+import { createDatabaseError, normalizeError } from '@/lib/types/errors';
 
 if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL environment variable is required');
@@ -13,20 +14,25 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
  * @param params Array of parameter values
  * @returns Query results as array of objects
  */
-export async function executeQuery<T = any>(
+export async function executeQuery<T = unknown>(
   query: string,
-  params: any[] = []
+  params: unknown[] = []
 ): Promise<T[]> {
   try {
     const result = await pool.query(query, params);
     return result.rows as T[];
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const appError = normalizeError(error);
     console.error('Database query error:', {
-      error: error.message,
+      code: appError.code,
+      message: appError.message,
       query: query.substring(0, 200), // Log first 200 chars
       params,
     });
-    throw new Error(`Database query failed: ${error.message}`);
+    throw createDatabaseError(`Database query failed: ${appError.message}`, {
+      query: query.substring(0, 200),
+      originalError: appError.message,
+    });
   }
 }
 
@@ -38,8 +44,12 @@ export async function testConnection(): Promise<boolean> {
     const result = await pool.query('SELECT NOW() as current_time');
     console.log('Database connected:', result.rows[0].current_time);
     return true;
-  } catch (error: any) {
-    console.error('Database connection failed:', error.message);
+  } catch (error: unknown) {
+    const appError = normalizeError(error);
+    console.error('Database connection failed:', {
+      code: appError.code,
+      message: appError.message,
+    });
     return false;
   }
 }
