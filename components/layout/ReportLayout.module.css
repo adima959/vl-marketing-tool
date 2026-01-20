@@ -1,0 +1,29 @@
+.layout {
+  height: 100vh;
+  background: var(--color-background-lighter);
+}
+
+.header {
+  background: var(--color-background-white);
+  padding: 0 var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border-medium);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  height: 56px;
+  flex-shrink: 0;
+}
+
+.title {
+  margin: 0 !important;
+  font-weight: var(--font-weight-semibold) !important;
+  color: var(--color-text-heading) !important;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
