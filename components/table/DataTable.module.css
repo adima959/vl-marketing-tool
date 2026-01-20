@@ -22,10 +22,43 @@
   flex-direction: column;
 }
 
-/* Header styling - refined and modern */
-.dataTable :global(.ant-table-thead > tr > th) {
+/* Group headers (first row) - elevated treatment */
+.dataTable :global(.ant-table-thead > tr:first-child > th) {
+  background: linear-gradient(180deg, #f8f9fa 0%, #f1f3f5 100%) !important;
+  border-bottom: 2px solid var(--color-gray-300) !important;
+  border-right: 1px solid var(--color-gray-200) !important;
+  font-size: 11px !important;
+  font-weight: var(--font-weight-bold) !important;
+  color: var(--color-gray-800) !important;
+  padding: 10px 16px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-align: center;
+  position: relative;
+}
+
+/* Remove right border from last group header */
+.dataTable :global(.ant-table-thead > tr:first-child > th:last-child) {
+  border-right: none !important;
+}
+
+/* Marketing Data group - cool blue tint */
+.dataTable :global(.ant-table-thead > tr:first-child > th:nth-child(2)) {
+  background: linear-gradient(180deg, #f0f7ff 0%, #e3f2ff 100%) !important;
+  border-bottom: 2px solid #bfdbfe !important;
+}
+
+/* CRM Data group - warm green tint */
+.dataTable :global(.ant-table-thead > tr:first-child > th:nth-child(3)) {
+  background: linear-gradient(180deg, #f0fdf4 0%, #dcfce7 100%) !important;
+  border-bottom: 2px solid #bbf7d0 !important;
+}
+
+/* Metric column headers (second row) */
+.dataTable :global(.ant-table-thead > tr:last-child > th) {
   background: var(--color-gray-50) !important;
   border-bottom: 1px solid var(--color-gray-200) !important;
+  border-right: 1px solid rgba(0, 0, 0, 0.02) !important;
   font-size: var(--font-size-xs) !important;
   font-weight: var(--font-weight-semibold) !important;
   color: var(--color-gray-700) !important;
@@ -33,11 +66,40 @@
   white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  transition: background var(--transition-fast);
+  transition: all var(--transition-fast);
+  position: relative;
 }
 
-.dataTable :global(.ant-table-thead > tr > th:hover) {
-  background: var(--color-gray-100) !important;
+/* Remove right border from last column */
+.dataTable :global(.ant-table-thead > tr:last-child > th:last-child) {
+  border-right: none !important;
+}
+
+/* Marketing Data columns - subtle blue accent */
+.dataTable :global(.ant-table-thead > tr:last-child > th:nth-child(n+2):nth-child(-n+8)) {
+  background: #fafcff !important;
+}
+
+/* CRM Data columns - subtle green accent */
+.dataTable :global(.ant-table-thead > tr:last-child > th:nth-child(n+9)) {
+  background: #fafdf9 !important;
+}
+
+/* Enhanced hover for metric columns */
+.dataTable :global(.ant-table-thead > tr:last-child > th:hover) {
+  background: #f0f4ff !important;
+  border-right: 1px solid rgba(59, 130, 246, 0.2) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  z-index: 1;
+}
+
+/* Attributes column - distinct styling */
+.dataTable :global(.ant-table-thead > tr > th:first-child) {
+  background: linear-gradient(90deg, #ffffff 0%, #fafbfc 100%) !important;
+  border-right: 2px solid var(--color-gray-200) !important;
+  font-weight: var(--font-weight-bold) !important;
+  color: var(--color-gray-900) !important;
 }
 
 /* Remove default padding from sorter container */
@@ -66,10 +128,37 @@
 /* Row styling - modern and clean */
 .dataTable :global(.ant-table-tbody > tr > td) {
   border-bottom: 1px solid var(--color-gray-100) !important;
+  border-right: 1px solid rgba(0, 0, 0, 0.01) !important;
   color: var(--color-text-primary);
   background: var(--color-background-primary);
   padding: 6px 12px !important;
   transition: background var(--transition-fast);
+}
+
+/* Remove right border from last cell */
+.dataTable :global(.ant-table-tbody > tr > td:last-child) {
+  border-right: none !important;
+}
+
+/* Attributes column - stronger right border */
+.dataTable :global(.ant-table-tbody > tr > td:first-child) {
+  border-right: 1px solid var(--color-gray-200) !important;
+  background: #fafbfc;
+}
+
+/* Marketing Data cells - very subtle blue tint */
+.dataTable :global(.ant-table-tbody > tr > td:nth-child(n+2):nth-child(-n+8)) {
+  background: rgba(240, 247, 255, 0.3);
+}
+
+/* CRM Data cells - very subtle green tint */
+.dataTable :global(.ant-table-tbody > tr > td:nth-child(n+9)) {
+  background: rgba(240, 253, 244, 0.3);
+}
+
+/* Stronger border between Marketing and CRM groups */
+.dataTable :global(.ant-table-tbody > tr > td:nth-child(8)) {
+  border-right: 1px solid rgba(191, 219, 254, 0.4) !important;
 }
 
 /* Enhanced hover effect with slide indicator - no layout shift */
@@ -78,8 +167,22 @@
 }
 
 .dataTable :global(.ant-table-tbody > tr:hover > td) {
-  background: var(--color-background-hover) !important;
   cursor: pointer;
+}
+
+/* Attributes column hover */
+.dataTable :global(.ant-table-tbody > tr:hover > td:first-child) {
+  background: #f0f3f5 !important;
+}
+
+/* Marketing Data cells hover - enhanced blue */
+.dataTable :global(.ant-table-tbody > tr:hover > td:nth-child(n+2):nth-child(-n+8)) {
+  background: rgba(219, 234, 254, 0.5) !important;
+}
+
+/* CRM Data cells hover - enhanced green */
+.dataTable :global(.ant-table-tbody > tr:hover > td:nth-child(n+9)) {
+  background: rgba(220, 252, 231, 0.5) !important;
 }
 
 /* Slide indicator on hover using inset box-shadow - zero layout shift */
