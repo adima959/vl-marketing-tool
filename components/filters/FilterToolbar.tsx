@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button, Select, Space } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { DateRangePicker } from './DateRangePicker';
@@ -10,6 +10,7 @@ import { FilterPresetMenu } from './FilterPresetMenu';
 import { SavePresetModal } from './SavePresetModal';
 import { useReportStore } from '@/stores/reportStore';
 import { useFilterPresetStore } from '@/stores/filterPresetStore';
+import type { FilterPreset } from '@/stores/filterPresetStore';
 import styles from './FilterToolbar.module.css';
 
 const StarIcon = () => (
@@ -37,8 +38,14 @@ export function FilterToolbar() {
   const { getQuickAccessPresets } = useFilterPresetStore();
   const [isPresetMenuOpen, setIsPresetMenuOpen] = useState(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [quickAccessPresets, setQuickAccessPresets] = useState<FilterPreset[]>([]);
+  const [mounted, setMounted] = useState(false);
 
-  const quickAccessPresets = getQuickAccessPresets();
+  // Only access localStorage after mounting on client to prevent hydration errors
+  useEffect(() => {
+    setMounted(true);
+    setQuickAccessPresets(getQuickAccessPresets());
+  }, [getQuickAccessPresets]);
 
   return (
     <div className={styles.toolbar}>
@@ -97,8 +104,8 @@ export function FilterToolbar() {
         />
       </Space>
 
-      {/* Quick Access Presets */}
-      {quickAccessPresets.length > 0 && (
+      {/* Quick Access Presets - only render after mount to prevent hydration errors */}
+      {mounted && quickAccessPresets.length > 0 && (
         <div className={styles.quickAccessRow}>
           <span className={styles.quickAccessLabel}>Quick:</span>
           <div className={styles.quickAccessPresets}>

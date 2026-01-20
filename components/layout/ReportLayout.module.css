@@ -25,7 +25,7 @@
 .title {
   margin: 0 !important;
   font-weight: var(--font-weight-bold) !important;
-  color: var(--color-text-heading) !important;
+  color: var(--color-background-primary) !important;
   font-size: 20px !important;
   letter-spacing: -0.02em;
 }
