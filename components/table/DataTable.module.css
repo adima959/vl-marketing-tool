@@ -72,11 +72,6 @@
   transition: background var(--transition-fast);
 }
 
-/* Subtle zebra striping */
-.dataTable :global(.ant-table-tbody > tr:nth-child(even) > td) {
-  background: var(--color-gray-50);
-}
-
 /* Enhanced hover effect with slide indicator - no layout shift */
 .dataTable :global(.ant-table-tbody > tr) {
   transition: box-shadow var(--transition-fast);
