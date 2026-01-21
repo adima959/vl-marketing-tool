@@ -130,6 +130,27 @@ ReportRow {
 
 ---
 
-**Database**: Neon PostgreSQL (`enhanced_merged_view`), accessed via `@neondatabase/serverless`
+**Databases**:
+- PostgreSQL (Neon): Ad campaign data → `lib/server/db.ts` (uses `$1` placeholders)
+- MariaDB: CRM data → `lib/server/mariadb.ts` (uses `?` placeholders)
+
 **Scripts**: `npm run dev`, `npm run build`, `npm run lint`
 **Known Issues**: No tests, large bundle (Ant + shadcn), no dark mode, no virtualization
+
+---
+
+## MariaDB Usage
+
+```typescript
+import { executeMariaDBQuery } from '@/lib/server/mariadb';
+
+// Query with ? placeholders (not $1)
+const data = await executeMariaDBQuery<Type>(
+  'SELECT * FROM table WHERE date > ?',
+  ['2026-01-01']
+);
+```
+
+**Key View**: `real_time_subscriptions_view` - Contains subscription, customer, product, and tracking data (24 columns)
+**Test Endpoint**: `GET /api/test-mariadb` - Returns connection status and table list
+**Config**: `.env.local` contains MariaDB credentials (MARIADB_HOST, MARIADB_USER, etc.)
