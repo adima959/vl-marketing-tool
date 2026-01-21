@@ -100,8 +100,8 @@ export const useReportStore = create<ReportState>((set, get) => ({
           dateRange: state.dateRange,
           dimensions: state.dimensions,
           depth: 0,
-          sortBy: state.sortColumn || 'clicks',
-          sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
+          sortBy: column || 'clicks',
+          sortDirection: direction === 'ascend' ? 'ASC' : 'DESC',
         });
 
         set({
@@ -135,10 +135,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
         }
       } catch (error: unknown) {
         const appError = normalizeError(error);
-        console.error('Failed to load data:', {
-          code: appError.code,
-          message: appError.message,
-        });
+        console.error('Failed to load data:', appError);
         set({
           isLoading: false,
           error: appError.message,

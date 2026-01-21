@@ -29,6 +29,8 @@ export class QueryBuilder {
     conversionRate: 'conversion_rate',
     crmSubscriptions: 'crm_subscriptions',
     approvedSales: 'approved_sales',
+    approvalRate: 'approval_rate',
+    realCpa: 'real_cpa',
   };
 
   /**
@@ -112,26 +114,60 @@ export class QueryBuilder {
     // Build final query using merged_ads_spending view
     // Note: We only sum raw metrics (cost, clicks, impressions, conversions)
     // and recalculate derived metrics (CTR, CPC, CPM) from the sums
-    const query = `
-      SELECT
-        ${sqlColumn} AS dimension_value,
-        ROUND(SUM(cost::numeric), 2) AS cost,
-        SUM(clicks::integer) AS clicks,
-        SUM(impressions::integer) AS impressions,
-        ROUND(SUM(conversions::numeric), 0) AS conversions,
-        ROUND(SUM(clicks::integer)::numeric / NULLIF(SUM(impressions::integer), 0), 4) AS ctr_percent,
-        ROUND(SUM(cost::numeric) / NULLIF(SUM(clicks::integer), 0), 2) AS cpc,
-        ROUND(SUM(cost::numeric) / NULLIF(SUM(impressions::integer), 0) * 1000, 2) AS cpm,
-        ROUND(SUM(conversions::numeric) / NULLIF(SUM(impressions::integer), 0), 6) AS conversion_rate,
-        COALESCE(SUM(crm_subscriptions::integer), 0) AS crm_subscriptions,
-        COALESCE(SUM(approved_sales::integer), 0) AS approved_sales
-      FROM merged_ads_spending
-      WHERE date BETWEEN $1 AND $2
-        ${whereClause}
-      GROUP BY ${sqlColumn}
-      ORDER BY ${finalSortColumn} ${finalSortDirection}
-      LIMIT ${safeLimit}
-    `;
+    // For realCpa and approvalRate sorting, we use CASE to convert 0 to NULL and put them last
+    const isRatioMetricSort = sortBy === 'realCpa' || sortBy === 'approvalRate';
+
+    let query: string;
+    if (isRatioMetricSort) {
+      // Use a subquery so we can use NULLIF on the calculated column in ORDER BY
+      query = `
+        SELECT * FROM (
+          SELECT
+            ${sqlColumn} AS dimension_value,
+            ROUND(SUM(cost::numeric), 2) AS cost,
+            SUM(clicks::integer) AS clicks,
+            SUM(impressions::integer) AS impressions,
+            ROUND(SUM(conversions::numeric), 0) AS conversions,
+            ROUND(SUM(clicks::integer)::numeric / NULLIF(SUM(impressions::integer), 0), 4) AS ctr_percent,
+            ROUND(SUM(cost::numeric) / NULLIF(SUM(clicks::integer), 0), 2) AS cpc,
+            ROUND(SUM(cost::numeric) / NULLIF(SUM(impressions::integer), 0) * 1000, 2) AS cpm,
+            ROUND(SUM(conversions::numeric) / NULLIF(SUM(impressions::integer), 0), 6) AS conversion_rate,
+            COALESCE(SUM(crm_subscriptions::integer), 0) AS crm_subscriptions,
+            COALESCE(SUM(approved_sales::integer), 0) AS approved_sales,
+            ROUND(COALESCE(SUM(approved_sales::integer), 0)::numeric / NULLIF(COALESCE(SUM(crm_subscriptions::integer), 0), 0), 4) AS approval_rate,
+            ROUND(SUM(cost::numeric) / NULLIF(COALESCE(SUM(approved_sales::integer), 0), 0), 2) AS real_cpa
+          FROM merged_ads_spending
+          WHERE date BETWEEN $1 AND $2
+            ${whereClause}
+          GROUP BY ${sqlColumn}
+        ) AS subquery
+        ORDER BY NULLIF(${finalSortColumn}, 0) ${finalSortDirection} NULLS LAST
+        LIMIT ${safeLimit}
+      `;
+    } else {
+      query = `
+        SELECT
+          ${sqlColumn} AS dimension_value,
+          ROUND(SUM(cost::numeric), 2) AS cost,
+          SUM(clicks::integer) AS clicks,
+          SUM(impressions::integer) AS impressions,
+          ROUND(SUM(conversions::numeric), 0) AS conversions,
+          ROUND(SUM(clicks::integer)::numeric / NULLIF(SUM(impressions::integer), 0), 4) AS ctr_percent,
+          ROUND(SUM(cost::numeric) / NULLIF(SUM(clicks::integer), 0), 2) AS cpc,
+          ROUND(SUM(cost::numeric) / NULLIF(SUM(impressions::integer), 0) * 1000, 2) AS cpm,
+          ROUND(SUM(conversions::numeric) / NULLIF(SUM(impressions::integer), 0), 6) AS conversion_rate,
+          COALESCE(SUM(crm_subscriptions::integer), 0) AS crm_subscriptions,
+          COALESCE(SUM(approved_sales::integer), 0) AS approved_sales,
+          ROUND(COALESCE(SUM(approved_sales::integer), 0)::numeric / NULLIF(COALESCE(SUM(crm_subscriptions::integer), 0), 0), 4) AS approval_rate,
+          ROUND(SUM(cost::numeric) / NULLIF(COALESCE(SUM(approved_sales::integer), 0), 0), 2) AS real_cpa
+        FROM merged_ads_spending
+        WHERE date BETWEEN $1 AND $2
+          ${whereClause}
+        GROUP BY ${sqlColumn}
+        ORDER BY ${finalSortColumn} ${finalSortDirection}
+        LIMIT ${safeLimit}
+      `;
+    }
 
     return { query, params };
   }
