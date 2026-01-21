@@ -1,7 +1,8 @@
-import { Select, Typography } from 'antd';
+import { Button, Dropdown, Typography } from 'antd';
 import { PlusOutlined, CheckOutlined } from '@ant-design/icons';
-import { DIMENSION_GROUPS, ALL_DIMENSIONS } from '@/config/dimensions';
+import { DIMENSION_GROUPS } from '@/config/dimensions';
 import { useReportStore } from '@/stores/reportStore';
+import type { MenuProps } from 'antd';
 import styles from './DimensionPicker.module.css';
 
 const { Text } = Typography;
@@ -9,15 +10,16 @@ const { Text } = Typography;
 export function DimensionPicker() {
   const { dimensions, addDimension } = useReportStore();
 
-  const handleSelect = (value: string) => {
-    addDimension(value);
+  const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
+    addDimension(key);
   };
 
-  // Build options with group labels
-  const options = DIMENSION_GROUPS.map((group) => ({
+  // Build menu items with group labels
+  const items: MenuProps['items'] = DIMENSION_GROUPS.map((group) => ({
+    type: 'group',
     label: <Text type="secondary" className={styles.groupLabel}>{group.label}</Text>,
-    options: group.dimensions.map((dim) => ({
-      value: dim.id,
+    children: group.dimensions.map((dim) => ({
+      key: dim.id,
       label: (
         <span className={styles.optionLabel}>
           {dim.label}
@@ -31,19 +33,17 @@ export function DimensionPicker() {
   }));
 
   return (
-    <Select
-      className={styles.dimensionPicker}
-      placeholder="Add Dimension"
-      size="large"
-      options={options}
-      onSelect={handleSelect}
-      value={null}
-      suffixIcon={<PlusOutlined />}
-      showSearch
-      filterOption={(input, option) => {
-        const dim = ALL_DIMENSIONS.find((d) => d.id === option?.value);
-        return dim?.label.toLowerCase().includes(input.toLowerCase()) ?? false;
-      }}
-    />
+    <Dropdown
+      menu={{ items, onClick: handleMenuClick }}
+      trigger={['click']}
+      placement="bottomLeft"
+    >
+      <Button
+        type="default"
+        icon={<PlusOutlined />}
+        size="middle"
+        className={styles.dimensionPicker}
+      />
+    </Dropdown>
   );
 }

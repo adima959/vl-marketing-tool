@@ -40,12 +40,13 @@ export const useToastStore = create<ToastState>((set) => ({
     }));
 
     // Auto-dismiss after duration
-    if (newToast.duration > 0) {
+    const duration = newToast.duration ?? 5000;
+    if (duration > 0) {
       setTimeout(() => {
         set((state) => ({
           toasts: state.toasts.filter((t) => t.id !== id),
         }));
-      }, newToast.duration);
+      }, duration);
     }
 
     return id;

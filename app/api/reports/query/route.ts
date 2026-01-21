@@ -53,10 +53,11 @@ export async function POST(
     const hasMoreDimensions = body.depth < body.dimensions.length - 1;
 
     // Build key prefix from parent filters to ensure uniqueness
+    // IMPORTANT: Must maintain dimension order from body.dimensions array, not alphabetical
     const parentKeyParts = body.parentFilters
-      ? Object.entries(body.parentFilters)
-          .sort(([a], [b]) => a.localeCompare(b)) // Sort for consistency
-          .map(([_, value]) => value)
+      ? body.dimensions
+          .map((dim) => body.parentFilters?.[dim])
+          .filter((val): val is string => val !== undefined)
           .join('::')
       : '';
     const keyPrefix = parentKeyParts ? `${parentKeyParts}::` : '';

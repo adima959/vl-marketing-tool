@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useReportStore } from '@/stores/reportStore';
+import { useUrlState } from './useUrlState';
 
 /**
- * Hook to sync Zustand store state with URL query parameters
+ * Simplified hook to sync Zustand store state with URL query parameters
  * This enables sharing and bookmarking of dashboard state
  */
 export function useUrlSync() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const urlState = useUrlState();
   const isInitialized = useRef(false);
   const isUpdatingFromUrl = useRef(false);
   const savedExpandedKeys = useRef<string[]>([]);
@@ -26,144 +27,106 @@ export function useUrlSync() {
     sortColumn,
     sortDirection,
     reportData,
-    setDateRange,
-    reorderDimensions,
-    setExpandedRowKeys,
     setSort,
     loadData,
+    setExpandedRowKeys,
     loadChildData,
   } = useReportStore();
 
   // Initialize state from URL on mount
   useEffect(() => {
-    if (!isMounted) return;
-    if (isInitialized.current) return;
+    if (!isMounted || isInitialized.current) return;
+
     isInitialized.current = true;
     isUpdatingFromUrl.current = true;
 
-    let shouldLoadData = false;
-    let hasUrlParams = false;
-
     try {
-      // Parse date range from URL
-      const startDate = searchParams.get('start');
-      const endDate = searchParams.get('end');
-      if (startDate && endDate) {
-        setDateRange({
-          start: new Date(startDate),
-          end: new Date(endDate),
-        });
-        hasUrlParams = true;
-      }
+      let shouldLoadData = false;
 
-      // Parse dimensions from URL
-      const dimensionsParam = searchParams.get('dimensions');
-      if (dimensionsParam) {
-        const dims = dimensionsParam.split(',');
-        if (dims.length > 0) {
-          reorderDimensions(dims);
-          hasUrlParams = true;
-        }
-      }
-
-      // Parse expanded rows from URL (save for later restoration)
-      const expandedParam = searchParams.get('expanded');
-      if (expandedParam) {
-        const expanded = expandedParam.split(',');
-        savedExpandedKeys.current = expanded;
-        hasUrlParams = true;
-      }
-
-      // Parse sort from URL
-      const sortCol = searchParams.get('sortBy');
-      const sortDir = searchParams.get('sortDir');
-      if (sortCol) {
-        setSort(
-          sortCol,
-          sortDir === 'ascend' || sortDir === 'descend' ? sortDir : null
-        );
-        hasUrlParams = true;
-      }
-
-      // If we have URL params, automatically load the data
-      if (hasUrlParams) {
+      // Parse and apply date range
+      const urlDateRange = urlState.getDateRangeFromUrl();
+      if (urlDateRange) {
+        // Directly update store without triggering hasUnsavedChanges
+        useReportStore.setState({ dateRange: urlDateRange });
         shouldLoadData = true;
+      }
+
+      // Parse and apply dimensions
+      const urlDimensions = urlState.getDimensionsFromUrl();
+      if (urlDimensions) {
+        // Directly update store without triggering hasUnsavedChanges
+        useReportStore.setState({ dimensions: urlDimensions });
+        shouldLoadData = true;
+      }
+
+      // Save expanded keys for later restoration
+      const urlExpandedKeys = urlState.getExpandedKeysFromUrl();
+      if (urlExpandedKeys) {
+        savedExpandedKeys.current = urlExpandedKeys;
+        shouldLoadData = true;
+      }
+
+      // Parse and apply sort
+      const urlSort = urlState.getSortFromUrl();
+      if (urlSort.column) {
+        setSort(urlSort.column, urlSort.direction);
+        shouldLoadData = true;
+      }
+
+      // Auto-load if we have URL params
+      if (shouldLoadData) {
+        // Use queueMicrotask instead of setTimeout(0) for better performance
+        queueMicrotask(() => {
+          loadData();
+        });
       }
     } finally {
       isUpdatingFromUrl.current = false;
     }
-
-    // Load data after state is initialized
-    if (shouldLoadData) {
-      setTimeout(() => {
-        loadData();
-      }, 0);
-    }
-  }, [isMounted, searchParams, setDateRange, reorderDimensions, setExpandedRowKeys, setSort, loadData]);
+  }, [isMounted]);
 
   // Restore expanded rows after data loads
   useEffect(() => {
-    if (!isMounted) return;
-    if (!isInitialized.current || isUpdatingFromUrl.current) return;
-    if (savedExpandedKeys.current.length === 0) return;
-    if (reportData.length === 0) return;
+    if (!isMounted || !isInitialized.current || isUpdatingFromUrl.current) return;
+    if (savedExpandedKeys.current.length === 0 || reportData.length === 0) return;
 
-    const restoreExpandedRows = async () => {
+    const restoreRows = async () => {
       const keysToRestore = savedExpandedKeys.current;
       savedExpandedKeys.current = []; // Clear to prevent re-running
 
-      // Sort keys by depth (number of '::' separators) to load parents before children
-      const sortedKeys = keysToRestore.sort((a, b) => {
-        const depthA = (a.match(/::/g) || []).length;
-        const depthB = (b.match(/::/g) || []).length;
-        return depthA - depthB;
-      });
-
-      // Helper to find a row by key in the current reportData
-      const findRow = (rows: any[], targetKey: string): any => {
-        for (const row of rows) {
-          if (row.key === targetKey) return row;
-          if (row.children) {
-            const found = findRow(row.children, targetKey);
-            if (found) return found;
-          }
-        }
-        return null;
-      };
-
-      // Process keys level by level
+      // Import dynamically to avoid circular deps
+      const { findRowByKey, sortKeysByDepth } = await import('@/lib/treeUtils');
+      const sortedKeys = sortKeysByDepth(keysToRestore);
       const expandedKeys: string[] = [];
 
       for (const key of sortedKeys) {
-        // Wait a bit to let the store update propagate
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        // Get fresh data from store each iteration
         const currentData = useReportStore.getState().reportData;
-        const row = findRow(currentData, key);
+        const row = findRowByKey(currentData, key);
 
         if (row) {
-          // Add to expanded keys
           expandedKeys.push(key);
           setExpandedRowKeys([...expandedKeys]);
 
-          // Load children if needed
           if (row.hasChildren && (!row.children || row.children.length === 0)) {
-            await loadChildData(key, row.attribute, row.depth);
-            // Wait for data to be loaded and state to update
-            await new Promise(resolve => setTimeout(resolve, 200));
+            try {
+              await loadChildData(key, row.attribute, row.depth);
+              // Small delay for state propagation
+              await new Promise((resolve) => setTimeout(resolve, 100));
+            } catch (error) {
+              // Skip this row on error, but continue with others
+              console.warn(`Failed to restore expanded row ${key}:`, error);
+            }
           }
         }
       }
     };
 
-    restoreExpandedRows();
-  }, [isMounted, reportData, loadChildData, setExpandedRowKeys, isUpdatingFromUrl]);
+    restoreRows();
+  }, [reportData.length, isMounted]);
 
   // Update URL when store state changes
   useEffect(() => {
-    if (!isMounted) return;
-    if (!isInitialized.current || isUpdatingFromUrl.current) return;
+    if (!isMounted || !isInitialized.current || isUpdatingFromUrl.current) return;
 
     const params = new URLSearchParams();
 

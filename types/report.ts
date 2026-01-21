@@ -24,10 +24,3 @@ export interface DateRange {
   start: Date;
   end: Date;
 }
-
-export interface ReportFilters {
-  dateRange: DateRange;
-  timezone: string;
-  dimensions: string[];
-  useEntranceTime: boolean;
-}

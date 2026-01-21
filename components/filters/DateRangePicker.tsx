@@ -1,4 +1,4 @@
-import { DatePicker, Space } from 'antd';
+import { DatePicker } from 'antd';
 import { SwapRightOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -6,7 +6,7 @@ import type { Dayjs } from 'dayjs';
 import { useReportStore } from '@/stores/reportStore';
 import styles from './DateRangePicker.module.css';
 
-// Extend dayjs with UTC plugin
+// Extend dayjs with plugins
 dayjs.extend(utc);
 
 const { RangePicker } = DatePicker;
@@ -50,15 +50,17 @@ export function DateRangePicker() {
   ];
 
   return (
-    <RangePicker
-      className={styles.rangePicker}
-      size="large"
-      format="DD/MM/YYYY"
-      value={[dayjs(dateRange.start), dayjs(dateRange.end)]}
-      onChange={handleChange}
-      separator={<SwapRightOutlined className={styles.separator} />}
-      allowClear={false}
-      presets={rangePresets}
-    />
+    <div className={styles.datePickerWrapper}>
+      <RangePicker
+        className={styles.rangePicker}
+        size="large"
+        format="DD/MM/YYYY"
+        value={[dayjs(dateRange.start), dayjs(dateRange.end)]}
+        onChange={handleChange}
+        separator={<SwapRightOutlined className={styles.separator} />}
+        allowClear={false}
+        presets={rangePresets}
+      />
+    </div>
   );
 }

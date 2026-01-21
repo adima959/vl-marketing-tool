@@ -1,6 +1,12 @@
-/* Dimension picker select */
+/* Dimension picker button - icon only */
 .dimensionPicker {
-  width: 180px;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 32px !important;
 }
 
 /* Group label styling */

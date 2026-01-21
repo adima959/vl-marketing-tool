@@ -1,6 +1,6 @@
 'use client';
 
-import { Tag, Space } from 'antd';
+import { Space } from 'antd';
 import { CloseOutlined, HolderOutlined } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
 import {
@@ -98,21 +98,9 @@ export function DimensionPills() {
     }
   };
 
-  // Show simple version during SSR
+  // Show nothing during SSR - will hydrate immediately on client
   if (!mounted) {
-    return (
-      <Space size={10} wrap>
-        {dimensions.map((dimId) => (
-          <Tag
-            key={dimId}
-            color="blue"
-            className={styles.ssrTag}
-          >
-            {getDimensionLabel(dimId)}
-          </Tag>
-        ))}
-      </Space>
-    );
+    return null;
   }
 
   return (
@@ -122,7 +110,7 @@ export function DimensionPills() {
       onDragEnd={handleDragEnd}
     >
       <SortableContext items={dimensions} strategy={horizontalListSortingStrategy}>
-        <Space size={10} wrap>
+        <Space size={6} wrap>
           {dimensions.map((dimId) => (
             <SortableTag
               key={dimId}

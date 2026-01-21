@@ -108,7 +108,7 @@ export function SavePresetModal({ isOpen, onClose }: SavePresetModalProps) {
             <ul className={styles.previewList}>
               {dateRange && (
                 <li>
-                  <strong>Date Range:</strong> {dateRange.startDate} to {dateRange.endDate}
+                  <strong>Date Range:</strong> {new Date(dateRange.start).toLocaleDateString()} to {new Date(dateRange.end).toLocaleDateString()}
                 </li>
               )}
               <li>

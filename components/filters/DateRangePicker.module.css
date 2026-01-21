@@ -1,4 +1,10 @@
-/* Date range picker wrapper */
+/* Date picker wrapper */
+.datePickerWrapper {
+  position: relative;
+  display: inline-block;
+}
+
+/* Date range picker */
 .rangePicker {
   width: 320px;
 }
@@ -6,4 +12,64 @@
 /* Separator icon styling */
 .separator {
   color: #bfbfbf;
+}
+
+/* Delay Indicator */
+.delayIndicator {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1px solid #fbbf24;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #92400e;
+  white-space: nowrap;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.15);
+  animation: slideDown 0.3s ease-out;
+}
+
+/* Delay Icon */
+.delayIcon {
+  color: #f59e0b;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+/* Delay Text */
+.delayText {
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+/* Slide down animation */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Pulse animation for icon */
+.delayIcon {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }

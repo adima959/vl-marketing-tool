@@ -32,25 +32,11 @@ const PlayIcon = () => (
 );
 
 export function EmptyState({ onLoadData }: EmptyStateProps) {
-  const { loadedDimensions, dateRange } = useReportStore();
-
-  // Generate contextual message based on current filters
-  const hasFilters = loadedDimensions.length > 0 || dateRange;
-  const message = hasFilters
-    ? 'No data found for the selected filters. Try adjusting your date range or dimensions.'
-    : 'Get started by selecting dimensions and a date range, then load your data.';
-
-  const suggestions = hasFilters
-    ? [
-        'Expand your date range',
-        'Try different dimension combinations',
-        'Check if data exists for this period',
-      ]
-    : [
-        'Select 1-3 dimensions to analyze',
-        'Choose a date range',
-        'Click "Load Data" to begin',
-      ];
+  const suggestions = [
+    'Expand your date range',
+    'Try different dimension combinations',
+    'Check if data exists for this period',
+  ];
 
   return (
     <div className={styles.emptyContainer}>
@@ -58,29 +44,20 @@ export function EmptyState({ onLoadData }: EmptyStateProps) {
         <EmptyIcon />
       </div>
 
-      <h3 className={styles.title}>
-        {hasFilters ? 'No Data Available' : 'Ready to Explore Your Data?'}
-      </h3>
+      <h3 className={styles.title}>No Data Available</h3>
 
-      <p className={styles.message}>{message}</p>
+      <p className={styles.message}>
+        No data found for the selected filters. Try adjusting your date range or dimensions.
+      </p>
 
       <div className={styles.suggestions}>
-        <p className={styles.suggestionsTitle}>
-          {hasFilters ? 'Try this:' : 'Quick start:'}
-        </p>
+        <p className={styles.suggestionsTitle}>Try this:</p>
         <ul className={styles.suggestionsList}>
           {suggestions.map((suggestion, index) => (
             <li key={index}>{suggestion}</li>
           ))}
         </ul>
       </div>
-
-      {onLoadData && (
-        <button className={styles.loadButton} onClick={onLoadData}>
-          <PlayIcon />
-          <span>Load Data</span>
-        </button>
-      )}
     </div>
   );
 }

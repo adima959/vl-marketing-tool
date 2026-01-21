@@ -1,81 +1,46 @@
-/* Sortable tag base styling */
+/* Sortable tag base styling - compact version */
 .sortableTag {
   position: relative;
   background: var(--color-gray-100);
   color: var(--color-text-primary);
   border: 1px solid var(--color-gray-300);
-  border-radius: var(--radius-lg);
-  padding: 8px 14px;
-  font-size: var(--font-size-md);
+  border-radius: var(--radius-md);
+  padding: 4px 10px;
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   display: inline-flex;
   align-items: center;
-  gap: var(--spacing-2);
+  gap: 6px;
   cursor: grab;
-  transition: all var(--transition-base);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  animation: pillEnter 300ms cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
-}
-
-/* Enter animation */
-@keyframes pillEnter {
-  from {
-    opacity: 0;
-    transform: scale(0.8) translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-/* Shimmer effect on hover */
-.sortableTag::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(0, 0, 0, 0.03),
-    transparent
-  );
-  transition: left 500ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.sortableTag:hover::before {
-  left: 100%;
+  transition: all var(--transition-fast);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .sortableTag:hover {
   background: var(--color-gray-200);
   border-color: var(--color-gray-400);
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
 }
 
 /* Active state (when being clicked) */
 .sortableTag:active {
   transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 /* Dragging state */
 .sortableTagDragging {
   cursor: grabbing;
   opacity: 0.7;
-  transform: rotate(3deg) scale(1.05);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  transform: rotate(2deg) scale(1.03);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
   z-index: 1000;
 }
 
 /* Drag handle icon */
 .dragHandle {
-  font-size: var(--font-size-xs);
+  font-size: 10px;
   color: var(--color-gray-500);
   transition: color var(--transition-fast);
 }
@@ -86,13 +51,13 @@
 
 /* Close icon */
 .closeIcon {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--color-gray-500);
-  margin-left: var(--spacing-1);
+  margin-left: 2px;
   cursor: pointer;
   transition: all var(--transition-fast);
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -103,30 +68,4 @@
   color: var(--color-error);
   background: rgba(239, 68, 68, 0.1);
   transform: rotate(90deg);
-}
-
-/* SSR tag styling */
-.ssrTag {
-  padding: 8px 14px;
-  font-size: var(--font-size-md);
-  border-radius: var(--radius-lg);
-  background: var(--color-gray-100);
-  border: 1px solid var(--color-gray-300);
-}
-
-/* Unsaved state (pulse effect) */
-.sortableTag.unsaved {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05),
-                0 0 0 0 rgba(59, 130, 246, 0.4);
-  }
-  50% {
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05),
-                0 0 0 4px rgba(59, 130, 246, 0);
-  }
 }

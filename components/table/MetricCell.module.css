@@ -1,6 +1,8 @@
 /* Metric cell base styling */
 .metricCell {
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 /* Negative value styling */

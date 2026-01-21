@@ -9,7 +9,7 @@ export const METRIC_COLUMNS: MetricColumn[] = [
     format: 'number',
     category: 'basic',
     defaultVisible: true,
-    width: 100,
+    width: 110,
     align: 'right',
   },
   {

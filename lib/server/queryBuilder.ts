@@ -79,6 +79,9 @@ export class QueryBuilder {
       throw new Error(`Depth ${depth} exceeds dimensions length ${dimensions.length}`);
     }
 
+    // Validate limit to prevent SQL injection
+    const safeLimit = Math.max(1, Math.min(10000, Math.floor(limit)));
+
     // Get current dimension
     const currentDimension = dimensions[depth];
     const sqlColumn = this.dimensionMap[currentDimension];
@@ -87,8 +90,11 @@ export class QueryBuilder {
       throw new Error(`Unknown dimension: ${currentDimension}`);
     }
 
-    // Get sort column
-    const sortColumn = this.metricMap[sortBy] || 'cost';
+    // Get sort column and direction
+    // Special case: if current dimension is 'date', always sort by date DESC (newest first)
+    const sortColumn = this.metricMap[sortBy] || 'clicks';
+    const finalSortColumn = currentDimension === 'date' ? sqlColumn : sortColumn;
+    const finalSortDirection = currentDimension === 'date' ? 'DESC' : sortDirection;
 
     // Build parameters
     const params: any[] = [
@@ -123,8 +129,8 @@ export class QueryBuilder {
       WHERE date BETWEEN $1 AND $2
         ${whereClause}
       GROUP BY ${sqlColumn}
-      ORDER BY ${sortColumn} ${sortDirection}
-      LIMIT ${limit}
+      ORDER BY ${finalSortColumn} ${finalSortDirection}
+      LIMIT ${safeLimit}
     `;
 
     return { query, params };

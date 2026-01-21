@@ -1,49 +1,162 @@
-/* Modal title */
+/* Modal Title */
 .modalTitle {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-gray-900);
+  letter-spacing: -0.01em;
 }
 
-/* Table column headers */
-.columnHeader {
-  font-weight: var(--font-weight-semibold);
-}
-
-/* Table cell metric name */
-.metricName {
-  font-weight: var(--font-weight-medium);
-}
-
-/* Table cell column label */
-.columnLabel {
-  color: #595959;
-}
-
-/* Modal content wrapper */
+/* Content Container */
 .content {
   display: flex;
-  gap: var(--spacing-lg);
+  flex-direction: column;
+  gap: 16px;
 }
 
-/* Content area (table) */
-.contentArea {
+/* Column Group */
+.columnGroup {
+  border-radius: 6px;
+  border: 1px solid var(--color-gray-200);
+  padding: 14px 16px;
+  transition: all var(--transition-base);
+  background: var(--color-background-primary);
+}
+
+.columnGroup:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* Marketing Group - Blue Accent */
+.marketingGroup {
+  background: linear-gradient(to bottom, #fafcff 0%, #ffffff 100%);
+  border-left: 3px solid #3b82f6;
+}
+
+/* CRM Group - Green Accent */
+.crmGroup {
+  background: linear-gradient(to bottom, #f9fdf9 0%, #ffffff 100%);
+  border-left: 3px solid #10b981;
+}
+
+/* Group Title */
+.groupTitle {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-gray-700);
+  margin: 0 0 10px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+.marketingGroup .groupTitle {
+  color: #1e40af;
+}
+
+.crmGroup .groupTitle {
+  color: #047857;
+}
+
+/* Column List */
+.columnList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Column Item */
+.columnItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+}
+
+.columnItem:hover {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: var(--color-gray-200);
+}
+
+.columnItem:active {
+  transform: scale(0.99);
+}
+
+/* Checkbox */
+.checkbox {
+  flex-shrink: 0;
+}
+
+/* Column Info */
+.columnInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   flex: 1;
 }
 
-/* Tab navigation */
-.tabs {
-  min-width: 180px;
+/* Metric Name */
+.metricName {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  line-height: 1.3;
 }
 
-/* Footer layout */
+/* Column Label */
+.columnLabel {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-mono);
+  letter-spacing: 0.02em;
+}
+
+/* Footer */
 .footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 12px 24px;
+  border-top: 1px solid var(--color-gray-100);
+  margin: -8px -24px 0 -24px;
 }
 
-/* Footer button group */
-.footerButtons {
-  display: flex;
-  gap: var(--spacing-sm);
+/* Reset Button */
+.resetButton {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.resetButton:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-gray-300);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.columnGroup {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.marketingGroup {
+  animation-delay: 0.05s;
+}
+
+.crmGroup {
+  animation-delay: 0.1s;
 }

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { fetchReportData } from '@/lib/api/client';
 import type { DateRange, ReportRow } from '@/types';
 import { normalizeError } from '@/lib/types/errors';
+import { findRowByKey } from '@/lib/treeUtils';
 
 interface ReportState {
   // Filters
@@ -19,6 +20,7 @@ interface ReportState {
   sortDirection: 'ascend' | 'descend' | null;
   isLoading: boolean;
   hasUnsavedChanges: boolean;
+  hasLoadedOnce: boolean;
   error: string | null;
 
   // Actions
@@ -27,7 +29,7 @@ interface ReportState {
   removeDimension: (id: string) => void;
   reorderDimensions: (newOrder: string[]) => void;
   setExpandedRowKeys: (keys: string[]) => void;
-  setSort: (column: string | null, direction: 'ascend' | 'descend' | null) => void;
+  setSort: (column: string | null, direction: 'ascend' | 'descend' | null) => Promise<void>;
   setLoadedDimensions: (dimensions: string[]) => void;
   resetFilters: () => void;
   loadData: () => Promise<void>;
@@ -36,26 +38,27 @@ interface ReportState {
 
 const getDefaultDateRange = (): DateRange => {
   const today = new Date();
-  const start = new Date(today);
-  start.setDate(start.getDate() - 30); // Last 30 days
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(today);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  yesterday.setHours(0, 0, 0, 0);
+  const end = new Date(yesterday);
   end.setHours(23, 59, 59, 999);
-  return { start, end };
+  return { start: yesterday, end };
 };
 
 export const useReportStore = create<ReportState>((set, get) => ({
   // Initial state
   dateRange: getDefaultDateRange(),
-  dimensions: ['network', 'campaign'],
-  loadedDimensions: ['network', 'campaign'],
+  dimensions: ['network', 'campaign', 'adset'],
+  loadedDimensions: ['network', 'campaign', 'adset'],
   loadedDateRange: getDefaultDateRange(),
   reportData: [],
   expandedRowKeys: [],
-  sortColumn: 'cost',
+  sortColumn: 'clicks',
   sortDirection: 'descend',
   isLoading: false,
   hasUnsavedChanges: false,
+  hasLoadedOnce: false,
   error: null,
 
   // Actions
@@ -79,7 +82,70 @@ export const useReportStore = create<ReportState>((set, get) => ({
 
   setExpandedRowKeys: (keys) => set({ expandedRowKeys: keys }),
 
-  setSort: (column, direction) => set({ sortColumn: column, sortDirection: direction }),
+  setSort: async (column, direction) => {
+    const state = get();
+    // Update sort state
+    set({ sortColumn: column, sortDirection: direction });
+
+    // Only reload if data has been loaded at least once
+    if (state.hasLoadedOnce) {
+      // Save expanded keys before reload
+      const savedExpandedKeys = [...state.expandedRowKeys];
+
+      // Load top-level data
+      set({ isLoading: true, error: null });
+
+      try {
+        const data = await fetchReportData({
+          dateRange: state.dateRange,
+          dimensions: state.dimensions,
+          depth: 0,
+          sortBy: state.sortColumn || 'clicks',
+          sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
+        });
+
+        set({
+          isLoading: false,
+          hasUnsavedChanges: false,
+          hasLoadedOnce: true,
+          loadedDimensions: state.dimensions,
+          loadedDateRange: state.dateRange,
+          reportData: data,
+          expandedRowKeys: savedExpandedKeys, // Keep expanded keys
+        });
+
+        // Reload child data for all previously expanded rows
+        if (savedExpandedKeys.length > 0) {
+          const { sortKeysByDepth } = await import('@/lib/treeUtils');
+          const sortedKeys = sortKeysByDepth(savedExpandedKeys);
+
+          for (const key of sortedKeys) {
+            const currentData = get().reportData;
+            const { findRowByKey } = await import('@/lib/treeUtils');
+            const row = findRowByKey(currentData, key);
+
+            if (row && row.hasChildren) {
+              try {
+                await get().loadChildData(key, row.attribute, row.depth);
+              } catch (error) {
+                console.warn(`Failed to reload expanded row ${key}:`, error);
+              }
+            }
+          }
+        }
+      } catch (error: unknown) {
+        const appError = normalizeError(error);
+        console.error('Failed to load data:', {
+          code: appError.code,
+          message: appError.message,
+        });
+        set({
+          isLoading: false,
+          error: appError.message,
+        });
+      }
+    }
+  },
 
   setLoadedDimensions: (dimensions) => set({ dimensions, loadedDimensions: dimensions, hasUnsavedChanges: false }),
 
@@ -102,18 +168,62 @@ export const useReportStore = create<ReportState>((set, get) => ({
         dateRange: state.dateRange,
         dimensions: state.dimensions,
         depth: 0,
-        sortBy: state.sortColumn || 'cost',
+        sortBy: state.sortColumn || 'clicks',
         sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
       });
+
+      // Auto-expand first level rows if there are more dimensions
+      const shouldAutoExpand = state.dimensions.length > 1 && data.length > 0;
+      const firstLevelKeys = shouldAutoExpand ? data.map(row => row.key) : [];
 
       set({
         isLoading: false,
         hasUnsavedChanges: false,
+        hasLoadedOnce: true,
         loadedDimensions: state.dimensions,
         loadedDateRange: state.dateRange,
         reportData: data,
-        expandedRowKeys: [],
+        expandedRowKeys: firstLevelKeys,
       });
+
+      // Load child data for all first-level rows
+      if (shouldAutoExpand) {
+        // Use setTimeout to ensure state has been updated
+        setTimeout(async () => {
+          const currentState = get();
+          for (const row of data) {
+            if (row.hasChildren) {
+              try {
+                const children = await fetchReportData({
+                  dateRange: currentState.loadedDateRange,
+                  dimensions: currentState.loadedDimensions,
+                  depth: row.depth + 1,
+                  parentFilters: { [currentState.loadedDimensions[0]]: row.attribute },
+                  sortBy: currentState.sortColumn || 'clicks',
+                  sortDirection: currentState.sortDirection === 'ascend' ? 'ASC' : 'DESC',
+                });
+
+                // Update tree with children
+                const updateTree = (rows: ReportRow[]): ReportRow[] => {
+                  return rows.map((r) => {
+                    if (r.key === row.key) {
+                      return { ...r, children };
+                    }
+                    if (r.children && r.children.length > 0) {
+                      return { ...r, children: updateTree(r.children) };
+                    }
+                    return r;
+                  });
+                };
+
+                set({ reportData: updateTree(get().reportData) });
+              } catch (error) {
+                console.warn(`Failed to auto-expand row ${row.key}:`, error);
+              }
+            }
+          }
+        }, 0);
+      }
     } catch (error: unknown) {
       const appError = normalizeError(error);
       console.error('Failed to load data:', {
@@ -131,40 +241,24 @@ export const useReportStore = create<ReportState>((set, get) => ({
     const state = get();
 
     try {
-      // Build complete parent filter chain by traversing up the tree
-      const buildParentFilters = (
-        rows: ReportRow[],
-        targetKey: string,
-        filters: Record<string, string> = {}
-      ): Record<string, string> | null => {
-        for (const row of rows) {
-          if (row.key === targetKey) {
-            // Found the target row, add its filter
-            filters[state.loadedDimensions[row.depth]] = row.attribute;
-            return filters;
-          }
-          if (row.children && row.children.length > 0) {
-            // Recursively search in children
-            const childFilters = buildParentFilters(row.children, targetKey, {
-              ...filters,
-              [state.loadedDimensions[row.depth]]: row.attribute,
-            });
-            if (childFilters) {
-              return childFilters;
-            }
-          }
-        }
-        return null;
-      };
+      // Build complete parent filter chain by parsing the key hierarchy
+      // Key format: "value1::value2::value3" corresponds to dimensions in order
+      const keyParts = parentKey.split('::');
+      const parentFilters: Record<string, string> = {};
 
-      const parentFilters = buildParentFilters(state.reportData, parentKey) || {};
+      keyParts.forEach((value, index) => {
+        const dimension = state.loadedDimensions[index];
+        if (dimension) {
+          parentFilters[dimension] = value;
+        }
+      });
 
       const children = await fetchReportData({
         dateRange: state.loadedDateRange,
         dimensions: state.loadedDimensions,
         depth: parentDepth + 1,
         parentFilters,
-        sortBy: state.sortColumn || 'cost',
+        sortBy: state.sortColumn || 'clicks',
         sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
       });
 
@@ -188,7 +282,8 @@ export const useReportStore = create<ReportState>((set, get) => ({
         code: appError.code,
         message: appError.message,
       });
-      set({ error: appError.message });
+      // Re-throw error so UI can handle it with toast
+      throw appError;
     }
   },
 }));

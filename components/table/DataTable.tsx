@@ -1,10 +1,11 @@
 import { Table } from 'antd';
 import type { ColumnsType, TableProps } from 'antd/es/table';
-import { useMemo } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import { MetricCell } from './MetricCell';
 import { METRIC_COLUMNS } from '@/config/columns';
 import { useReportStore } from '@/stores/reportStore';
 import { useColumnStore } from '@/stores/columnStore';
+import { useToast } from '@/hooks/useToast';
 import { ErrorMessage } from '@/components/ErrorMessage';
 import { EmptyState } from '@/components/EmptyState';
 import { TableSkeleton } from '@/components/loading/TableSkeleton';
@@ -21,11 +22,13 @@ export function DataTable() {
     sortDirection,
     setSort,
     isLoading,
+    hasLoadedOnce,
     loadChildData,
     loadData,
     error,
   } = useReportStore();
   const { visibleColumns } = useColumnStore();
+  const toast = useToast();
 
   // Build columns from config
   const columns: ColumnsType<ReportRow> = useMemo(() => {
@@ -43,6 +46,19 @@ export function DataTable() {
         const indent = record.depth * 20; // 20px per level
         const isExpanded = expandedRowKeys.includes(record.key);
 
+        // Format date values to dd/MM/yyyy
+        const formatAttributeValue = (val: string): string => {
+          // Check if value looks like an ISO date string
+          if (val.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+            const date = new Date(val);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+          }
+          return val;
+        };
+
         return (
           <div
             className={styles.attributeCell}
@@ -58,7 +74,13 @@ export function DataTable() {
                   } else {
                     setExpandedRowKeys([...expandedRowKeys, record.key]);
                     if (!record.children || record.children.length === 0) {
-                      await loadChildData(record.key, record.attribute, record.depth);
+                      try {
+                        await loadChildData(record.key, record.attribute, record.depth);
+                      } catch (error) {
+                        // Revert expansion on error
+                        setExpandedRowKeys(expandedRowKeys.filter((k) => k !== record.key));
+                        toast.error('Failed to load child data. Please try again.');
+                      }
                     }
                   }
                 }}
@@ -73,7 +95,7 @@ export function DataTable() {
                 record.depth === 0 ? styles.attributeTextBold : ''
               }`}
             >
-              {value}
+              {formatAttributeValue(value)}
             </span>
           </div>
         );
@@ -161,30 +183,114 @@ export function DataTable() {
     }
   };
 
+  // Ref for table container
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  // Implement native drag scrolling and scroll synchronization
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const tableContainer = tableRef.current;
+      if (!tableContainer) return;
+
+      const header = tableContainer.querySelector('.ant-table-header') as HTMLElement;
+      const body = tableContainer.querySelector('.ant-table-body') as HTMLElement;
+
+      if (!header || !body) return;
+
+      // Sync header scroll with body
+      const syncScroll = () => {
+        header.scrollLeft = body.scrollLeft;
+      };
+      body.addEventListener('scroll', syncScroll);
+
+      // Drag scrolling implementation
+      let isDown = false;
+      let startX: number;
+      let scrollLeft: number;
+
+      const handleMouseDown = (e: MouseEvent) => {
+        // Don't interfere with interactive elements
+        const target = e.target as HTMLElement;
+        if (target.closest('button, a, .ant-table-column-sorters')) return;
+
+        isDown = true;
+        body.style.cursor = 'grabbing';
+        startX = e.pageX - body.offsetLeft;
+        scrollLeft = body.scrollLeft;
+      };
+
+      const handleMouseLeave = () => {
+        isDown = false;
+        body.style.cursor = 'grab';
+      };
+
+      const handleMouseUp = () => {
+        isDown = false;
+        body.style.cursor = 'grab';
+      };
+
+      const handleMouseMove = (e: MouseEvent) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - body.offsetLeft;
+        const walk = (x - startX) * 2; // Scroll speed multiplier
+        body.scrollLeft = scrollLeft - walk;
+      };
+
+      body.addEventListener('mousedown', handleMouseDown);
+      body.addEventListener('mouseleave', handleMouseLeave);
+      body.addEventListener('mouseup', handleMouseUp);
+      body.addEventListener('mousemove', handleMouseMove);
+
+      // Cleanup
+      return () => {
+        body.removeEventListener('scroll', syncScroll);
+        body.removeEventListener('mousedown', handleMouseDown);
+        body.removeEventListener('mouseleave', handleMouseLeave);
+        body.removeEventListener('mouseup', handleMouseUp);
+        body.removeEventListener('mousemove', handleMouseMove);
+      };
+    }, 0); // Run immediately on next tick
+
+    return () => clearTimeout(timer);
+  }, [reportData, isLoading]);
+
   // Show error state
   if (error) {
     return <ErrorMessage error={error} onRetry={loadData} />;
   }
 
-  // Show loading skeleton on initial load
+  // Show loading skeleton when loading and no data
   if (isLoading && reportData.length === 0) {
     return <TableSkeleton rows={10} columns={visibleColumns.length + 1} />;
   }
 
-  // Show empty state when not loading and no data
-  if (!isLoading && reportData.length === 0) {
+  // Show initial prompt if data has never been loaded
+  if (!hasLoadedOnce && !isLoading && reportData.length === 0) {
+    return (
+      <div className={styles.initialPrompt}>
+        <h3 className={styles.promptTitle}>Ready to analyze your data?</h3>
+        <p className={styles.promptText}>
+          Select your dimensions and date range above, then click "Load Data" to get started.
+        </p>
+      </div>
+    );
+  }
+
+  // Show empty state when data has been loaded but no results found
+  if (hasLoadedOnce && !isLoading && reportData.length === 0) {
     return <EmptyState onLoadData={loadData} />;
   }
 
   return (
-    <div className={styles.dataTable}>
+    <div ref={tableRef} className={styles.dataTable}>
       <Table<ReportRow>
         columns={columns}
         dataSource={reportData}
         loading={isLoading && reportData.length > 0}
         pagination={false}
         size="middle"
-        scroll={{ x: 'max-content', y: 'calc(100vh - 250px)' }}
+        scroll={{ x: 1530 }}
         rowKey="key"
         expandable={{
           expandedRowKeys,

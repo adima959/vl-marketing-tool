@@ -8,6 +8,14 @@ interface TableSkeletonProps {
 }
 
 export function TableSkeleton({ rows = 10, columns = 8 }: TableSkeletonProps) {
+  // Generate deterministic widths based on column index to avoid hydration mismatches
+  const getColumnWidth = (colIndex: number): string => {
+    if (colIndex === 0) return '400px';
+    // Use deterministic widths based on column index
+    const widths = [110, 120, 130, 115, 125, 135, 120];
+    return `${widths[colIndex % widths.length]}px`;
+  };
+
   return (
     <div className={styles.container}>
       {/* Header row */}
@@ -17,7 +25,7 @@ export function TableSkeleton({ rows = 10, columns = 8 }: TableSkeletonProps) {
             key={`header-${colIndex}`}
             className={styles.headerCell}
             style={{
-              width: colIndex === 0 ? '400px' : `${100 + Math.random() * 50}px`,
+              width: getColumnWidth(colIndex),
             }}
           >
             <div className={styles.skeleton} style={{ width: '60%' }} />
@@ -34,7 +42,7 @@ export function TableSkeleton({ rows = 10, columns = 8 }: TableSkeletonProps) {
                 key={`cell-${rowIndex}-${colIndex}`}
                 className={styles.cell}
                 style={{
-                  width: colIndex === 0 ? '400px' : `${100 + Math.random() * 50}px`,
+                  width: getColumnWidth(colIndex),
                 }}
               >
                 <div
