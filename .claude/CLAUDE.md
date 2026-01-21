@@ -152,5 +152,5 @@ const data = await executeMariaDBQuery<Type>(
 ```
 
 **Key View**: `real_time_subscriptions_view` - Contains subscription, customer, product, and tracking data (24 columns)
-**Test Endpoint**: `GET /api/test-mariadb` - Returns connection status and table list
 **Config**: `.env.local` contains MariaDB credentials (MARIADB_HOST, MARIADB_USER, etc.)
+**Test Connection**: Use `testMariaDBConnection()` function from the module
