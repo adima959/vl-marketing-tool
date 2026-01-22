@@ -1,0 +1,318 @@
+/* Main container - full width */
+.container {
+  padding: var(--spacing-5);
+  background: var(--color-background-secondary);
+  min-height: calc(100vh - 64px);
+}
+
+.loadingContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 64px);
+  background: var(--color-background-secondary);
+}
+
+/* Breadcrumb */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-500);
+}
+
+.breadcrumbLink {
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.breadcrumbLink:hover {
+  color: var(--color-primary-500);
+}
+
+.breadcrumbCurrent {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Main grid - sidebar layout */
+.mainGrid {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: var(--spacing-5);
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .mainGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .contextSidebar {
+    order: -1;
+  }
+}
+
+.mainContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+
+/* Angle Card */
+.angleCard {
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-5);
+}
+
+.angleHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--spacing-4);
+}
+
+.angleInfo {
+  flex: 1;
+}
+
+.angleTitle {
+  font-size: 24px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-heading);
+  margin: 0 0 var(--spacing-4) 0;
+}
+
+.angleActions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+/* Core Hook */
+.coreHook {
+  margin-bottom: var(--spacing-4);
+}
+
+.hookLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--spacing-2);
+}
+
+.hookValue {
+  font-size: var(--font-size-lg);
+  font-style: italic;
+  color: var(--color-text-heading);
+  margin: 0;
+  padding-left: var(--spacing-3);
+  border-left: 3px solid var(--color-primary-500);
+  line-height: 1.5;
+}
+
+/* Strategy Section */
+.strategySection {
+  margin-top: var(--spacing-4);
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--color-gray-100);
+}
+
+.strategyLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--spacing-2);
+}
+
+.strategyText {
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.strategyText p {
+  margin: 0;
+}
+
+/* Context Sidebar */
+.contextSidebar {
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-5);
+}
+
+.sidebarTitle {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-heading);
+  margin: 0 0 var(--spacing-4) 0;
+}
+
+.contextBlock {
+  margin-bottom: var(--spacing-4);
+}
+
+.contextBlock:last-child {
+  margin-bottom: 0;
+}
+
+.contextLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--spacing-2);
+}
+
+.contextLabel svg {
+  color: var(--color-gray-400);
+}
+
+.contextValue {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+  padding: var(--spacing-3);
+  background: var(--color-background-tertiary);
+  border-radius: var(--radius-md);
+  line-height: 1.5;
+}
+
+/* Sub-Angles Section */
+.subAnglesSection {
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-4) var(--spacing-5);
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+.sectionTitleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.sectionIcon {
+  color: var(--color-gray-500);
+}
+
+.sectionTitle {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-heading);
+  margin: 0;
+}
+
+/* Sub-Angles Table */
+.subAnglesTable {
+  width: 100%;
+}
+
+.subAnglesTable :global(.ant-table-thead > tr > th) {
+  background: var(--color-background-tertiary) !important;
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: var(--spacing-3) var(--spacing-4) !important;
+  border-bottom: 1px solid var(--color-gray-200) !important;
+}
+
+.subAnglesTable :global(.ant-table-tbody > tr > td) {
+  padding: var(--spacing-4) !important;
+  border-bottom: 1px solid var(--color-gray-100) !important;
+  vertical-align: middle;
+}
+
+.subAnglesTable :global(.ant-table-tbody > tr:hover > td) {
+  background: var(--color-background-hover) !important;
+}
+
+.tableRow {
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+/* Sub-Angle cells */
+.subAngleLink {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.subAngleNameCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.subAngleName {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-heading);
+}
+
+.hookCell {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.countBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 var(--spacing-2);
+  background: var(--color-gray-100);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.rowChevron {
+  color: var(--color-gray-400);
+  transition: all var(--transition-fast);
+}
+
+.tableRow:hover .rowChevron {
+  color: var(--color-primary-500);
+  transform: translateX(2px);
+}
+
+/* Empty state */
+.emptyState {
+  padding: var(--spacing-8);
+}
+
+.container :global(.ant-empty) {
+  padding: var(--spacing-8);
+}

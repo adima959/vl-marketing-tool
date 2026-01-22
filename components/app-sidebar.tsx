@@ -6,6 +6,7 @@ import {
   BarChart3,
   FileSearch,
   BarChart,
+  Target,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -36,6 +37,11 @@ const data = {
       title: "On Page Analysis",
       url: "/on-page-analysis",
       icon: FileSearch,
+    },
+    {
+      title: "Marketing Tracker",
+      url: "/marketing-tracker",
+      icon: Target,
     },
   ],
 }
