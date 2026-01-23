@@ -17,8 +17,6 @@ export const ON_PAGE_DIMENSION_GROUPS: DimensionGroupConfig[] = [
       { id: 'campaign', label: 'Campaign', group: 'advertising' },
       { id: 'adset', label: 'Ad Set', group: 'advertising' },
       { id: 'ad', label: 'Ad', group: 'advertising' },
-      { id: 'utmContent', label: 'Content', group: 'advertising' },
-      { id: 'utmMedium', label: 'Medium', group: 'advertising' },
     ],
   },
   {

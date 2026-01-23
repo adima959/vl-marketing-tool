@@ -15,8 +15,6 @@ export class OnPageQueryBuilder {
     campaign: 'utm_campaign',
     adset: 'adset_id',
     ad: 'ad_id',
-    utmContent: 'utm_content',
-    utmMedium: 'utm_medium',
     deviceType: 'device_type',
     osName: 'os_name',
     browserName: 'browser_name',

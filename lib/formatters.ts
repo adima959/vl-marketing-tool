@@ -1,22 +1,22 @@
 import type { MetricFormat } from '@/types';
 
 export function formatNumber(value: number): string {
-  return new Intl.NumberFormat('en-US').format(value);
+  return new Intl.NumberFormat('en-US').format(value).replace(/,/g, ' ');
 }
 
 export function formatPercentage(value: number): string {
-  return `${(value * 100).toFixed(2)}%`;
+  return `${(value * 100).toFixed(1)}%`;
 }
 
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(value);
+  }).format(value).replace(/,/g, ' ');
 }
 
 export function formatDecimal(value: number): string {
-  return value.toFixed(4);
+  return formatNumber(Number(value.toFixed(1)));
 }
 
 export function formatMetric(value: number, format: MetricFormat): string {
