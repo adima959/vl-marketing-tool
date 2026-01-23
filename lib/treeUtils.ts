@@ -1,8 +1,11 @@
-import type { ReportRow } from '@/types';
-
 /**
  * Tree traversal utilities for hierarchical report data
  */
+
+interface TreeRow {
+  key: string;
+  children?: TreeRow[];
+}
 
 /**
  * Recursively finds a row in the tree by its key
@@ -10,16 +13,16 @@ import type { ReportRow } from '@/types';
  * @param targetKey Key to find
  * @returns Found row or null
  */
-export function findRowByKey(
-  rows: ReportRow[],
+export function findRowByKey<T extends TreeRow>(
+  rows: T[],
   targetKey: string
-): ReportRow | null {
+): T | null {
   for (const row of rows) {
     if (row.key === targetKey) {
       return row;
     }
     if (row.children) {
-      const found = findRowByKey(row.children, targetKey);
+      const found = findRowByKey(row.children as T[], targetKey);
       if (found) {
         return found;
       }

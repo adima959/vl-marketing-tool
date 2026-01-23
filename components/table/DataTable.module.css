@@ -106,13 +106,13 @@
 }
 
 /* Marketing Data group - cool blue tint */
-.dataTable :global(.ant-table-thead > tr:first-child > th:nth-child(2)) {
+.marketingColors :global(.ant-table-thead > tr:first-child > th:nth-child(2)) {
   background: #e3f2ff !important;
   border-bottom: 2px solid #bfdbfe !important;
 }
 
 /* CRM Data group - warm green tint */
-.dataTable :global(.ant-table-thead > tr:first-child > th:nth-child(3)) {
+.marketingColors :global(.ant-table-thead > tr:first-child > th:nth-child(3)) {
   background: #dcfce7 !important;
   border-bottom: 2px solid #bbf7d0 !important;
 }
@@ -143,21 +143,21 @@
 }
 
 /* Marketing Data columns - subtle blue accent */
-.dataTable :global(.ant-table-thead > tr:last-child > th:nth-child(2)),
-.dataTable :global(.ant-table-thead > tr:last-child > th:nth-child(3)),
-.dataTable :global(.ant-table-thead > tr:last-child > th:nth-child(4)),
-.dataTable :global(.ant-table-thead > tr:last-child > th:nth-child(5)),
-.dataTable :global(.ant-table-thead > tr:last-child > th:nth-child(6)),
-.dataTable :global(.ant-table-thead > tr:last-child > th:nth-child(7)),
-.dataTable :global(.ant-table-thead > tr:last-child > th:nth-child(8)) {
+.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(2)),
+.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(3)),
+.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(4)),
+.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(5)),
+.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(6)),
+.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(7)),
+.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(8)) {
   background: #fafcff !important;
 }
 
 /* CRM Data columns - subtle green accent */
-.dataTable :global(.ant-table-thead > tr:last-child > th:nth-child(9)),
-.dataTable :global(.ant-table-thead > tr:last-child > th:nth-child(10)),
-.dataTable :global(.ant-table-thead > tr:last-child > th:nth-child(11)),
-.dataTable :global(.ant-table-thead > tr:last-child > th:nth-child(12)) {
+.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(9)),
+.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(10)),
+.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(11)),
+.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(12)) {
   background: #fafdf9 !important;
 }
 
@@ -246,26 +246,26 @@
 }
 
 /* Marketing Data cells - very subtle blue tint */
-.dataTable :global(.ant-table-tbody > tr > td:nth-child(2)),
-.dataTable :global(.ant-table-tbody > tr > td:nth-child(3)),
-.dataTable :global(.ant-table-tbody > tr > td:nth-child(4)),
-.dataTable :global(.ant-table-tbody > tr > td:nth-child(5)),
-.dataTable :global(.ant-table-tbody > tr > td:nth-child(6)),
-.dataTable :global(.ant-table-tbody > tr > td:nth-child(7)),
-.dataTable :global(.ant-table-tbody > tr > td:nth-child(8)) {
+.marketingColors :global(.ant-table-tbody > tr > td:nth-child(2)),
+.marketingColors :global(.ant-table-tbody > tr > td:nth-child(3)),
+.marketingColors :global(.ant-table-tbody > tr > td:nth-child(4)),
+.marketingColors :global(.ant-table-tbody > tr > td:nth-child(5)),
+.marketingColors :global(.ant-table-tbody > tr > td:nth-child(6)),
+.marketingColors :global(.ant-table-tbody > tr > td:nth-child(7)),
+.marketingColors :global(.ant-table-tbody > tr > td:nth-child(8)) {
   background: rgba(240, 247, 255, 0.3);
 }
 
 /* CRM Data cells - very subtle green tint */
-.dataTable :global(.ant-table-tbody > tr > td:nth-child(9)),
-.dataTable :global(.ant-table-tbody > tr > td:nth-child(10)),
-.dataTable :global(.ant-table-tbody > tr > td:nth-child(11)),
-.dataTable :global(.ant-table-tbody > tr > td:nth-child(12)) {
+.marketingColors :global(.ant-table-tbody > tr > td:nth-child(9)),
+.marketingColors :global(.ant-table-tbody > tr > td:nth-child(10)),
+.marketingColors :global(.ant-table-tbody > tr > td:nth-child(11)),
+.marketingColors :global(.ant-table-tbody > tr > td:nth-child(12)) {
   background: rgba(240, 253, 244, 0.3);
 }
 
 /* Stronger border between Marketing and CRM groups */
-.dataTable :global(.ant-table-tbody > tr > td:nth-child(8)) {
+.marketingColors :global(.ant-table-tbody > tr > td:nth-child(8)) {
   border-right: 1px solid rgba(191, 219, 254, 0.4) !important;
 }
 
@@ -283,21 +283,21 @@
 }
 
 /* Marketing Data cells hover - enhanced blue */
-.dataTable :global(.ant-table-tbody > tr:hover > td:nth-child(2)),
-.dataTable :global(.ant-table-tbody > tr:hover > td:nth-child(3)),
-.dataTable :global(.ant-table-tbody > tr:hover > td:nth-child(4)),
-.dataTable :global(.ant-table-tbody > tr:hover > td:nth-child(5)),
-.dataTable :global(.ant-table-tbody > tr:hover > td:nth-child(6)),
-.dataTable :global(.ant-table-tbody > tr:hover > td:nth-child(7)),
-.dataTable :global(.ant-table-tbody > tr:hover > td:nth-child(8)) {
+.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(2)),
+.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(3)),
+.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(4)),
+.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(5)),
+.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(6)),
+.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(7)),
+.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(8)) {
   background: rgba(219, 234, 254, 0.5) !important;
 }
 
 /* CRM Data cells hover - enhanced green */
-.dataTable :global(.ant-table-tbody > tr:hover > td:nth-child(9)),
-.dataTable :global(.ant-table-tbody > tr:hover > td:nth-child(10)),
-.dataTable :global(.ant-table-tbody > tr:hover > td:nth-child(11)),
-.dataTable :global(.ant-table-tbody > tr:hover > td:nth-child(12)) {
+.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(9)),
+.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(10)),
+.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(11)),
+.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(12)) {
   background: rgba(220, 252, 231, 0.5) !important;
 }
 

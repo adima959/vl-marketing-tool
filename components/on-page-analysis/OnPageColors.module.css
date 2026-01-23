@@ -1,0 +1,67 @@
+/* Engagement group header - blue tint */
+.onPageColors :global(.ant-table-thead > tr:first-child > th:nth-child(2)) {
+  background: #e3f2ff !important;
+  border-bottom: 2px solid #bfdbfe !important;
+}
+
+/* Interactions group header - green tint */
+.onPageColors :global(.ant-table-thead > tr:first-child > th:nth-child(3)) {
+  background: #dcfce7 !important;
+  border-bottom: 2px solid #bbf7d0 !important;
+}
+
+/* Engagement metric headers - subtle blue */
+.onPageColors :global(.ant-table-thead > tr:last-child > th:nth-child(2)),
+.onPageColors :global(.ant-table-thead > tr:last-child > th:nth-child(3)),
+.onPageColors :global(.ant-table-thead > tr:last-child > th:nth-child(4)),
+.onPageColors :global(.ant-table-thead > tr:last-child > th:nth-child(5)) {
+  background: #fafcff !important;
+}
+
+/* Interactions metric headers - subtle green */
+.onPageColors :global(.ant-table-thead > tr:last-child > th:nth-child(6)),
+.onPageColors :global(.ant-table-thead > tr:last-child > th:nth-child(7)),
+.onPageColors :global(.ant-table-thead > tr:last-child > th:nth-child(8)),
+.onPageColors :global(.ant-table-thead > tr:last-child > th:nth-child(9)),
+.onPageColors :global(.ant-table-thead > tr:last-child > th:nth-child(10)) {
+  background: #fafdf9 !important;
+}
+
+/* Engagement data cells - very subtle blue */
+.onPageColors :global(.ant-table-tbody > tr > td:nth-child(2)),
+.onPageColors :global(.ant-table-tbody > tr > td:nth-child(3)),
+.onPageColors :global(.ant-table-tbody > tr > td:nth-child(4)),
+.onPageColors :global(.ant-table-tbody > tr > td:nth-child(5)) {
+  background: rgba(240, 247, 255, 0.3);
+}
+
+/* Interactions data cells - very subtle green */
+.onPageColors :global(.ant-table-tbody > tr > td:nth-child(6)),
+.onPageColors :global(.ant-table-tbody > tr > td:nth-child(7)),
+.onPageColors :global(.ant-table-tbody > tr > td:nth-child(8)),
+.onPageColors :global(.ant-table-tbody > tr > td:nth-child(9)),
+.onPageColors :global(.ant-table-tbody > tr > td:nth-child(10)) {
+  background: rgba(240, 253, 244, 0.3);
+}
+
+/* Border between Engagement and Interactions groups */
+.onPageColors :global(.ant-table-tbody > tr > td:nth-child(5)) {
+  border-right: 1px solid rgba(191, 219, 254, 0.4) !important;
+}
+
+/* Engagement hover - enhanced blue */
+.onPageColors :global(.ant-table-tbody > tr:hover > td:nth-child(2)),
+.onPageColors :global(.ant-table-tbody > tr:hover > td:nth-child(3)),
+.onPageColors :global(.ant-table-tbody > tr:hover > td:nth-child(4)),
+.onPageColors :global(.ant-table-tbody > tr:hover > td:nth-child(5)) {
+  background: rgba(219, 234, 254, 0.5) !important;
+}
+
+/* Interactions hover - enhanced green */
+.onPageColors :global(.ant-table-tbody > tr:hover > td:nth-child(6)),
+.onPageColors :global(.ant-table-tbody > tr:hover > td:nth-child(7)),
+.onPageColors :global(.ant-table-tbody > tr:hover > td:nth-child(8)),
+.onPageColors :global(.ant-table-tbody > tr:hover > td:nth-child(9)),
+.onPageColors :global(.ant-table-tbody > tr:hover > td:nth-child(10)) {
+  background: rgba(220, 252, 231, 0.5) !important;
+}

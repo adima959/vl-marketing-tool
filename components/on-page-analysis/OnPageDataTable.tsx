@@ -1,18 +1,19 @@
 import { Table } from 'antd';
 import type { ColumnsType, TableProps } from 'antd/es/table';
 import { useMemo, useEffect, useRef } from 'react';
-import { MetricCell } from './MetricCell';
-import { METRIC_COLUMNS } from '@/config/columns';
-import { useReportStore } from '@/stores/reportStore';
-import { useColumnStore } from '@/stores/columnStore';
+import { MetricCell } from '@/components/table/MetricCell';
+import { ON_PAGE_METRIC_COLUMNS } from '@/config/onPageColumns';
+import { useOnPageStore } from '@/stores/onPageStore';
+import { useOnPageColumnStore } from '@/stores/onPageColumnStore';
 import { useToast } from '@/hooks/useToast';
 import { ErrorMessage } from '@/components/ErrorMessage';
 import { EmptyState } from '@/components/EmptyState';
 import { TableSkeleton } from '@/components/loading/TableSkeleton';
-import type { ReportRow } from '@/types';
-import styles from './DataTable.module.css';
+import type { OnPageReportRow } from '@/types/onPageReport';
+import styles from '@/components/table/DataTable.module.css';
+import colorStyles from './OnPageColors.module.css';
 
-export function DataTable() {
+export function OnPageDataTable() {
   const {
     reportData,
     loadedDimensions,
@@ -26,14 +27,14 @@ export function DataTable() {
     loadChildData,
     loadData,
     error,
-  } = useReportStore();
-  const { visibleColumns } = useColumnStore();
+  } = useOnPageStore();
+  const { visibleColumns } = useOnPageColumnStore();
   const toast = useToast();
 
   // Build columns from config
-  const columns: ColumnsType<ReportRow> = useMemo(() => {
-    // First column: Attributes (always visible) - no grouping, so it spans both header rows
-    const attributeColumn: ColumnsType<ReportRow>[0] = {
+  const columns: ColumnsType<OnPageReportRow> = useMemo(() => {
+    // First column: Attributes (always visible) - spans both header rows
+    const attributeColumn: ColumnsType<OnPageReportRow>[0] = {
       title: 'Attributes',
       dataIndex: 'attribute',
       key: 'attribute',
@@ -42,13 +43,11 @@ export function DataTable() {
       onHeaderCell: () => ({
         rowSpan: 2,
       }),
-      render: (value: string, record: ReportRow) => {
-        const indent = record.depth * 20; // 20px per level
+      render: (value: string, record: OnPageReportRow) => {
+        const indent = record.depth * 20;
         const isExpanded = expandedRowKeys.includes(record.key);
 
-        // Format date values to dd/MM/yyyy
         const formatAttributeValue = (val: string): string => {
-          // Check if value looks like an ISO date string
           if (val.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
             const date = new Date(val);
             const day = String(date.getDate()).padStart(2, '0');
@@ -77,7 +76,6 @@ export function DataTable() {
                       try {
                         await loadChildData(record.key, record.attribute, record.depth);
                       } catch (error) {
-                        // Revert expansion on error
                         setExpandedRowKeys(expandedRowKeys.filter((k) => k !== record.key));
                         toast.error('Failed to load child data. Please try again.');
                       }
@@ -103,11 +101,11 @@ export function DataTable() {
     };
 
     // Get visible metric columns
-    const visibleMetrics = METRIC_COLUMNS.filter((col) => visibleColumns.includes(col.id));
+    const visibleMetrics = ON_PAGE_METRIC_COLUMNS.filter((col) => visibleColumns.includes(col.id));
 
-    // Marketing Data columns (Impr to Conv)
-    const marketingDataColumns = visibleMetrics
-      .filter((col) => ['impressions', 'clicks', 'ctr', 'cost', 'cpc', 'cpm', 'conversions'].includes(col.id))
+    // Engagement columns: pageViews, uniqueVisitors, bounceRate, avgActiveTime
+    const engagementColumns = visibleMetrics
+      .filter((col) => ['pageViews', 'uniqueVisitors', 'bounceRate', 'avgActiveTime'].includes(col.id))
       .map((col) => ({
         title: col.shortLabel,
         dataIndex: ['metrics', col.id],
@@ -120,9 +118,9 @@ export function DataTable() {
         render: (value: number) => <MetricCell value={value ?? 0} format={col.format} />,
       }));
 
-    // CRM Data columns (CRM Subs to Real CPA)
-    const crmDataColumns = visibleMetrics
-      .filter((col) => ['crmSubscriptions', 'approvedSales', 'approvalRate', 'realCpa'].includes(col.id))
+    // Interaction columns: scrollPastHero, scrollRate, formViews, formStarters, ctaClicks
+    const interactionColumns = visibleMetrics
+      .filter((col) => ['scrollPastHero', 'scrollRate', 'formViews', 'formStarters', 'ctaClicks'].includes(col.id))
       .map((col) => ({
         title: col.shortLabel,
         dataIndex: ['metrics', col.id],
@@ -136,19 +134,19 @@ export function DataTable() {
       }));
 
     // Create grouped columns
-    const groupedColumns: ColumnsType<ReportRow> = [];
+    const groupedColumns: ColumnsType<OnPageReportRow> = [];
 
-    if (marketingDataColumns.length > 0) {
+    if (engagementColumns.length > 0) {
       groupedColumns.push({
-        title: 'Marketing Data',
-        children: marketingDataColumns,
+        title: 'Engagement',
+        children: engagementColumns,
       });
     }
 
-    if (crmDataColumns.length > 0) {
+    if (interactionColumns.length > 0) {
       groupedColumns.push({
-        title: 'CRM Data',
-        children: crmDataColumns,
+        title: 'Interactions',
+        children: interactionColumns,
       });
     }
 
@@ -156,7 +154,7 @@ export function DataTable() {
   }, [visibleColumns, sortColumn, sortDirection, expandedRowKeys, setExpandedRowKeys, loadChildData]);
 
   // Handle sort change
-  const handleTableChange: TableProps<ReportRow>['onChange'] = (
+  const handleTableChange: TableProps<OnPageReportRow>['onChange'] = (
     _pagination,
     _filters,
     sorter
@@ -166,20 +164,6 @@ export function DataTable() {
         sorter.columnKey as string ?? null,
         sorter.order ?? null
       );
-    }
-  };
-
-  // Handle row expansion with lazy loading
-  const handleExpand = async (expanded: boolean, record: ReportRow) => {
-    if (expanded) {
-      setExpandedRowKeys([...expandedRowKeys, record.key]);
-
-      // Lazy load children if they haven't been loaded yet
-      if ((!record.children || record.children.length === 0) && record.hasChildren) {
-        await loadChildData(record.key, record.attribute, record.depth);
-      }
-    } else {
-      setExpandedRowKeys(expandedRowKeys.filter((k) => k !== record.key));
     }
   };
 
@@ -209,7 +193,6 @@ export function DataTable() {
       let scrollLeft: number;
 
       const handleMouseDown = (e: MouseEvent) => {
-        // Don't interfere with interactive elements
         const target = e.target as HTMLElement;
         if (target.closest('button, a, .ant-table-column-sorters')) return;
 
@@ -233,7 +216,7 @@ export function DataTable() {
         if (!isDown) return;
         e.preventDefault();
         const x = e.pageX - body.offsetLeft;
-        const walk = (x - startX) * 2; // Scroll speed multiplier
+        const walk = (x - startX) * 2;
         body.scrollLeft = scrollLeft - walk;
       };
 
@@ -242,7 +225,6 @@ export function DataTable() {
       body.addEventListener('mouseup', handleMouseUp);
       body.addEventListener('mousemove', handleMouseMove);
 
-      // Cleanup
       return () => {
         body.removeEventListener('scroll', syncScroll);
         body.removeEventListener('mousedown', handleMouseDown);
@@ -250,7 +232,7 @@ export function DataTable() {
         body.removeEventListener('mouseup', handleMouseUp);
         body.removeEventListener('mousemove', handleMouseMove);
       };
-    }, 0); // Run immediately on next tick
+    }, 0);
 
     return () => clearTimeout(timer);
   }, [reportData, isLoading]);
@@ -271,7 +253,7 @@ export function DataTable() {
       <div className={styles.initialPrompt}>
         <h3 className={styles.promptTitle}>Ready to analyze your data?</h3>
         <p className={styles.promptText}>
-          Select your dimensions and date range above, then click "Load Data" to get started.
+          Select your dimensions and date range above, then click &quot;Load Data&quot; to get started.
         </p>
       </div>
     );
@@ -283,8 +265,8 @@ export function DataTable() {
   }
 
   return (
-    <div ref={tableRef} className={`${styles.dataTable} ${styles.marketingColors}`}>
-      <Table<ReportRow>
+    <div ref={tableRef} className={`${styles.dataTable} ${colorStyles.onPageColors}`}>
+      <Table<OnPageReportRow>
         columns={columns}
         dataSource={reportData}
         loading={isLoading && reportData.length > 0}
