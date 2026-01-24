@@ -1,6 +1,6 @@
 import { Modal, Checkbox, Button, Space } from 'antd';
 import { useMemo, useState, useEffect } from 'react';
-import { METRIC_COLUMNS } from '@/config/columns';
+import { METRIC_COLUMNS, MARKETING_METRIC_IDS, CRM_METRIC_IDS } from '@/config/columns';
 import { useColumnStore } from '@/stores/columnStore';
 import type { MetricColumn } from '@/types';
 import styles from './ColumnSettingsModal.module.css';
@@ -21,21 +21,13 @@ export function ColumnSettingsModal({ open, onClose }: ColumnSettingsModalProps)
     }
   }, [open, visibleColumns]);
 
-  // Marketing Data: impressions, clicks, ctr, cost, cpc, cpm, conversions
   const marketingColumns = useMemo(
-    () =>
-      METRIC_COLUMNS.filter((col) =>
-        ['impressions', 'clicks', 'ctr', 'cost', 'cpc', 'cpm', 'conversions'].includes(col.id)
-      ),
+    () => METRIC_COLUMNS.filter((col) => (MARKETING_METRIC_IDS as readonly string[]).includes(col.id)),
     []
   );
 
-  // CRM Data: crmSubscriptions, approvedSales, approvalRate, realCpa
   const crmColumns = useMemo(
-    () =>
-      METRIC_COLUMNS.filter((col) =>
-        ['crmSubscriptions', 'approvedSales', 'approvalRate', 'realCpa'].includes(col.id)
-      ),
+    () => METRIC_COLUMNS.filter((col) => (CRM_METRIC_IDS as readonly string[]).includes(col.id)),
     []
   );
 

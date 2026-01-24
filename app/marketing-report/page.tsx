@@ -1,24 +1,25 @@
 'use client';
 
-import { useState, Suspense, useEffect, useRef, useMemo } from 'react';
-import { Button, Alert } from 'antd';
+import { useState, Suspense, useEffect, useRef, useMemo, lazy } from 'react';
+import { Button } from 'antd';
 import { SettingOutlined, WarningOutlined } from '@ant-design/icons';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { ReportLayout } from '@/components/layout/ReportLayout';
 import { FilterToolbar } from '@/components/filters/FilterToolbar';
 import { DataTable } from '@/components/table/DataTable';
-import { ColumnSettingsModal } from '@/components/modals/ColumnSettingsModal';
 import { useUrlSync } from '@/hooks/useUrlSync';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useReportStore } from '@/stores/reportStore';
 import { BarChart3 } from 'lucide-react';
 
+const ColumnSettingsModal = lazy(() =>
+  import('@/components/modals/ColumnSettingsModal').then((mod) => ({ default: mod.ColumnSettingsModal }))
+);
+
 function MarketingReportContent() {
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
   const { setOpen } = useSidebar();
   const hasCollapsed = useRef(false);
-  const hasAutoLoaded = useRef(false);
-  const { hasUnsavedChanges, resetFilters, dateRange, loadData, hasLoadedOnce } = useReportStore();
+  const { hasUnsavedChanges, resetFilters, dateRange } = useReportStore();
 
   // Check if today's date is in the selected range
   const includesToday = useMemo(() => {
@@ -39,16 +40,8 @@ function MarketingReportContent() {
     }
   }, [setOpen]);
 
-  // Sync store state with URL parameters
+  // Sync store state with URL parameters and auto-load data
   useUrlSync();
-
-  // Auto-load data on page mount (only once, if not already loaded)
-  useEffect(() => {
-    if (!hasAutoLoaded.current && !hasLoadedOnce) {
-      hasAutoLoaded.current = true;
-      loadData();
-    }
-  }, [loadData, hasLoadedOnce]);
 
   const headerActions = (
     <>
@@ -102,10 +95,14 @@ function MarketingReportContent() {
           <FilterToolbar />
           <DataTable />
         </div>
-        <ColumnSettingsModal
-          open={columnSettingsOpen}
-          onClose={() => setColumnSettingsOpen(false)}
-        />
+        {columnSettingsOpen && (
+          <Suspense fallback={null}>
+            <ColumnSettingsModal
+              open={columnSettingsOpen}
+              onClose={() => setColumnSettingsOpen(false)}
+            />
+          </Suspense>
+        )}
       </div>
     </>
   );

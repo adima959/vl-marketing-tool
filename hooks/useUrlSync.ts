@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useReportStore } from '@/stores/reportStore';
 import { useUrlState } from './useUrlState';
 
@@ -8,7 +7,6 @@ import { useUrlState } from './useUrlState';
  * This enables sharing and bookmarking of dashboard state
  */
 export function useUrlSync() {
-  const router = useRouter();
   const urlState = useUrlState();
   const isInitialized = useRef(false);
   const isUpdatingFromUrl = useRef(false);
@@ -41,45 +39,34 @@ export function useUrlSync() {
     isUpdatingFromUrl.current = true;
 
     try {
-      let shouldLoadData = false;
-
       // Parse and apply date range
       const urlDateRange = urlState.getDateRangeFromUrl();
       if (urlDateRange) {
-        // Directly update store without triggering hasUnsavedChanges
         useReportStore.setState({ dateRange: urlDateRange });
-        shouldLoadData = true;
       }
 
       // Parse and apply dimensions
       const urlDimensions = urlState.getDimensionsFromUrl();
       if (urlDimensions) {
-        // Directly update store without triggering hasUnsavedChanges
         useReportStore.setState({ dimensions: urlDimensions });
-        shouldLoadData = true;
       }
 
       // Save expanded keys for later restoration
       const urlExpandedKeys = urlState.getExpandedKeysFromUrl();
       if (urlExpandedKeys) {
         savedExpandedKeys.current = urlExpandedKeys;
-        shouldLoadData = true;
       }
 
       // Parse and apply sort
       const urlSort = urlState.getSortFromUrl();
       if (urlSort.column) {
         setSort(urlSort.column, urlSort.direction);
-        shouldLoadData = true;
       }
 
-      // Auto-load if we have URL params
-      if (shouldLoadData) {
-        // Use queueMicrotask instead of setTimeout(0) for better performance
-        queueMicrotask(() => {
-          loadData();
-        });
-      }
+      // Always load data on mount (URL params restore state, then load)
+      queueMicrotask(() => {
+        loadData();
+      });
     } finally {
       isUpdatingFromUrl.current = false;
     }
@@ -152,9 +139,9 @@ export function useUrlSync() {
       }
     }
 
-    // Update URL without navigation
+    // Update URL without triggering Next.js navigation/RSC refetch
     const newUrl = `${window.location.pathname}?${params.toString()}`;
-    router.replace(newUrl, { scroll: false });
+    window.history.replaceState(null, '', newUrl);
   }, [
     isMounted,
     dateRange,
@@ -162,6 +149,5 @@ export function useUrlSync() {
     expandedRowKeys,
     sortColumn,
     sortDirection,
-    router,
   ]);
 }

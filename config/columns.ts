@@ -120,6 +120,9 @@ export const METRIC_COLUMNS: MetricColumn[] = [
   },
 ];
 
+export const MARKETING_METRIC_IDS = ['impressions', 'clicks', 'ctr', 'cost', 'cpc', 'cpm', 'conversions'] as const;
+export const CRM_METRIC_IDS = ['crmSubscriptions', 'approvedSales', 'approvalRate', 'realCpa'] as const;
+
 export const DEFAULT_VISIBLE_COLUMNS = METRIC_COLUMNS
   .filter((col) => col.defaultVisible)
   .map((col) => col.id);

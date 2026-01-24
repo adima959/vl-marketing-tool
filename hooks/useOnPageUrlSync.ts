@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useOnPageStore } from '@/stores/onPageStore';
 import { useUrlState } from './useUrlState';
 
@@ -7,7 +6,6 @@ import { useUrlState } from './useUrlState';
  * Hook to sync on-page analysis store state with URL query parameters
  */
 export function useOnPageUrlSync() {
-  const router = useRouter();
   const urlState = useUrlState();
   const isInitialized = useRef(false);
   const isUpdatingFromUrl = useRef(false);
@@ -134,7 +132,7 @@ export function useOnPageUrlSync() {
     }
 
     const newUrl = `${window.location.pathname}?${params.toString()}`;
-    router.replace(newUrl, { scroll: false });
+    window.history.replaceState(null, '', newUrl);
   }, [
     isMounted,
     dateRange,
@@ -142,6 +140,5 @@ export function useOnPageUrlSync() {
     expandedRowKeys,
     sortColumn,
     sortDirection,
-    router,
   ]);
 }

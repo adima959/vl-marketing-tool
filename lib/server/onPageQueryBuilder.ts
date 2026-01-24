@@ -24,12 +24,38 @@ export class OnPageQueryBuilder {
 
   /**
    * Enriched dimensions that produce a dimension_id column alongside dimension_value.
-   * Maps dimension ID to the name column used for display.
+   * - dimColumnPrefix: table prefix for SELECT/GROUP BY (mas. = from spending table)
+   * - parentFilterExpr: SQL expression to use when this dimension appears in parent filters
+   * - joinLevel: determines how specific the JOIN subquery needs to be
    */
-  private readonly enrichedDimensions: Record<string, { nameExpression: string; needsJoin: boolean }> = {
-    campaign: { nameExpression: 'MAX(mas.campaign_name)', needsJoin: true },
-    adset: { nameExpression: 'MAX(pv.adset_name)', needsJoin: false },
-    ad: { nameExpression: 'MAX(pv.ad_name)', needsJoin: false },
+  private readonly enrichedDimensions: Record<string, {
+    nameExpression: string;
+    needsJoin: boolean;
+    dimColumnPrefix: string;
+    parentFilterExpr: string;
+    joinLevel: 'campaign' | 'adset' | 'ad';
+  }> = {
+    campaign: {
+      nameExpression: 'MAX(mas.campaign_name)',
+      needsJoin: true,
+      dimColumnPrefix: 'pv.',
+      parentFilterExpr: 'pv.utm_campaign::text',
+      joinLevel: 'campaign',
+    },
+    adset: {
+      nameExpression: 'MAX(mas.adset_name)',
+      needsJoin: true,
+      dimColumnPrefix: 'mas.',
+      parentFilterExpr: 'pv.utm_content::text',
+      joinLevel: 'adset',
+    },
+    ad: {
+      nameExpression: 'MAX(mas.ad_name)',
+      needsJoin: true,
+      dimColumnPrefix: 'mas.',
+      parentFilterExpr: 'mas.ad_id::text',
+      joinLevel: 'ad',
+    },
   };
 
   /**
@@ -68,12 +94,12 @@ export class OnPageQueryBuilder {
         throw new Error(`Unknown dimension in parent filter: ${dimId}`);
       }
       params.push(value);
-      // Handle date dimension specially since it's an expression
       if (dimId === 'date') {
         conditions.push(`${columnPrefix}created_at::date = $${paramOffset + params.length}`);
       } else if (this.enrichedDimensions[dimId]) {
-        // Enriched dimensions compare as text to avoid type mismatches
-        conditions.push(`${columnPrefix}${sqlColumn}::text = $${paramOffset + params.length}`);
+        // Enriched dimensions use their specific filter expression
+        const dimEnriched = this.enrichedDimensions[dimId];
+        conditions.push(`${dimEnriched.parentFilterExpr} = $${paramOffset + params.length}`);
       } else {
         conditions.push(`${columnPrefix}${sqlColumn} = $${paramOffset + params.length}`);
       }
@@ -115,15 +141,31 @@ export class OnPageQueryBuilder {
       throw new Error(`Unknown dimension: ${currentDimension}`);
     }
 
-    // Determine if this is an enriched dimension
+    // Determine if this is an enriched dimension and what JOIN level is needed
     const enriched = this.enrichedDimensions[currentDimension];
-    const tableAlias = enriched ? 'pv' : '';
+    const allInvolvedDims = [currentDimension, ...Object.keys(parentFilters || {})];
+    const involvedEnriched = allInvolvedDims
+      .map((d) => this.enrichedDimensions[d])
+      .filter(Boolean);
+
+    // Determine the deepest JOIN level needed
+    const joinLevelOrder = { campaign: 1, adset: 2, ad: 3 };
+    let joinLevel: 'campaign' | 'adset' | 'ad' | null = null;
+    for (const dim of involvedEnriched) {
+      if (!joinLevel || joinLevelOrder[dim.joinLevel] > joinLevelOrder[joinLevel]) {
+        joinLevel = dim.joinLevel;
+      }
+    }
+
+    const anyJoinNeeded = joinLevel !== null;
+    const tableAlias = anyJoinNeeded ? 'pv' : '';
     const columnPrefix = tableAlias ? `${tableAlias}.` : '';
 
-    // For the SELECT/GROUP BY, use the expression directly for date, column name for others
+    // For SELECT/GROUP BY, use dimension-specific prefix
+    const dimPrefix = enriched?.dimColumnPrefix ?? columnPrefix;
     const selectExpression = currentDimension === 'date'
       ? 'created_at::date'
-      : `${columnPrefix}${sqlColumn}`;
+      : `${dimPrefix}${sqlColumn}`;
     const groupByExpression = selectExpression;
 
     // Get sort column
@@ -155,16 +197,31 @@ export class OnPageQueryBuilder {
       dimensionSelect = `${selectExpression} AS dimension_value`;
     }
 
-    // Build FROM clause (with optional JOIN)
+    // Build FROM clause with JOIN tailored to the required level
     let fromClause: string;
-    if (enriched?.needsJoin) {
+    if (joinLevel) {
+      let distinctColumns: string;
+      let extraJoinCondition = '';
+
+      switch (joinLevel) {
+        case 'campaign':
+          distinctColumns = 'campaign_id, campaign_name';
+          break;
+        case 'adset':
+          distinctColumns = 'campaign_id, campaign_name, adset_id, adset_name';
+          extraJoinCondition = ' AND pv.utm_content::text = mas.adset_id::text';
+          break;
+        case 'ad':
+          distinctColumns = 'campaign_id, campaign_name, adset_id, adset_name, ad_id, ad_name';
+          extraJoinCondition = ' AND pv.utm_content::text = mas.adset_id::text';
+          break;
+      }
+
       fromClause = `
       FROM remote_session_tracker.event_page_view_enriched_v2 pv
       LEFT JOIN (
-        SELECT DISTINCT campaign_id, campaign_name FROM merged_ads_spending
-      ) mas ON pv.utm_campaign::text = mas.campaign_id::text`;
-    } else if (enriched) {
-      fromClause = `FROM remote_session_tracker.event_page_view_enriched_v2 pv`;
+        SELECT DISTINCT ${distinctColumns} FROM merged_ads_spending
+      ) mas ON pv.utm_campaign::text = mas.campaign_id::text${extraJoinCondition}`;
     } else {
       fromClause = `FROM remote_session_tracker.event_page_view_enriched_v2`;
     }

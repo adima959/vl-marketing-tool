@@ -2,7 +2,7 @@ import { Table } from 'antd';
 import type { ColumnsType, TableProps } from 'antd/es/table';
 import { useMemo, useEffect, useRef } from 'react';
 import { MetricCell } from './MetricCell';
-import { METRIC_COLUMNS } from '@/config/columns';
+import { METRIC_COLUMNS, MARKETING_METRIC_IDS, CRM_METRIC_IDS } from '@/config/columns';
 import { useReportStore } from '@/stores/reportStore';
 import { useColumnStore } from '@/stores/columnStore';
 import { useToast } from '@/hooks/useToast';
@@ -107,7 +107,7 @@ export function DataTable() {
 
     // Marketing Data columns (Impr to Conv)
     const marketingDataColumns = visibleMetrics
-      .filter((col) => ['impressions', 'clicks', 'ctr', 'cost', 'cpc', 'cpm', 'conversions'].includes(col.id))
+      .filter((col) => (MARKETING_METRIC_IDS as readonly string[]).includes(col.id))
       .map((col) => ({
         title: col.shortLabel,
         dataIndex: ['metrics', col.id],
@@ -122,7 +122,7 @@ export function DataTable() {
 
     // CRM Data columns (CRM Subs to Real CPA)
     const crmDataColumns = visibleMetrics
-      .filter((col) => ['crmSubscriptions', 'approvedSales', 'approvalRate', 'realCpa'].includes(col.id))
+      .filter((col) => (CRM_METRIC_IDS as readonly string[]).includes(col.id))
       .map((col) => ({
         title: col.shortLabel,
         dataIndex: ['metrics', col.id],
