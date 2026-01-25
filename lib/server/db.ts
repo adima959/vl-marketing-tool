@@ -1,12 +1,18 @@
 import { Pool } from '@neondatabase/serverless';
 import { createDatabaseError, normalizeError } from '@/lib/types/errors';
 
-if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL environment variable is required');
-}
+// Lazy initialization of database pool
+let pool: Pool | null = null;
 
-// Create connection pool for parameterized queries
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+function getPool(): Pool {
+  if (!pool) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL environment variable is required');
+    }
+    pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  }
+  return pool;
+}
 
 /**
  * Execute a SQL query with parameters
@@ -19,7 +25,7 @@ export async function executeQuery<T = unknown>(
   params: unknown[] = []
 ): Promise<T[]> {
   try {
-    const result = await pool.query(query, params);
+    const result = await getPool().query(query, params);
     return result.rows as T[];
   } catch (error: unknown) {
     const appError = normalizeError(error);
@@ -41,7 +47,7 @@ export async function executeQuery<T = unknown>(
  */
 export async function testConnection(): Promise<boolean> {
   try {
-    const result = await pool.query('SELECT NOW() as current_time');
+    const result = await getPool().query('SELECT NOW() as current_time');
     console.log('Database connected:', result.rows[0].current_time);
     return true;
   } catch (error: unknown) {

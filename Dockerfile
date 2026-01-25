@@ -46,6 +46,15 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Increase Node.js memory limit for build (4GB)
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
+# Set dummy database URLs for build time (actual values provided at runtime)
+# Next.js 16 with Turbopack validates API routes during build, so we need these
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
+ENV MARIADB_HOST="localhost"
+ENV MARIADB_USER="dummy"
+ENV MARIADB_PASSWORD="dummy"
+ENV MARIADB_DATABASE="dummy"
+ENV MARIADB_PORT="3306"
+
 # Build Next.js application
 RUN npm run build
 

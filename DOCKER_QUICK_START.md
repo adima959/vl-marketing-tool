@@ -2,14 +2,15 @@
 
 ## What Changed
 
-The Dockerfile has been **simplified** to avoid the standalone mode issues. It now uses a traditional Next.js Docker deployment approach that is more reliable and widely tested.
+The Dockerfile has been **optimized** for Next.js 16 with Turbopack. It uses a traditional Docker deployment approach that is reliable and well-tested.
 
 ### Key Changes:
 
-1. **Removed standalone output mode** - No longer required in next.config.js
-2. **Simpler Dockerfile** - Copies full .next directory and node_modules
-3. **Uses `npm run start`** - Standard Next.js production start command
-4. **More reliable** - Works consistently across different environments
+1. **Lazy database initialization** - Database connections only created at runtime
+2. **Dummy build-time env vars** - Next.js 16 validates API routes during build
+3. **Multi-stage build** - Optimized layers for better caching
+4. **Memory optimizations** - 4GB memory limit for Next.js build process
+5. **Native module support** - Includes python3, make, g++ for mysql2 and other native modules
 
 ## File Structure in Container:
 
