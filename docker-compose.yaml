@@ -9,6 +9,7 @@ services:
         # Only NEXT_PUBLIC_ variables are needed at build time
         - NEXT_PUBLIC_CRM_LOGIN_URL=${NEXT_PUBLIC_CRM_LOGIN_URL:-https://vitaliv.no/admin/site/marketing}
         - NEXT_PUBLIC_CRM_LOGOUT_URL=${NEXT_PUBLIC_CRM_LOGOUT_URL:-https://vitaliv.no/admin}
+        - NEXT_PUBLIC_APP_CALLBACK_URL=${NEXT_PUBLIC_APP_CALLBACK_URL}
 
     container_name: vitaliv-marketing-tool
 

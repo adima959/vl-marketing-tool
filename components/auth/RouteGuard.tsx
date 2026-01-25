@@ -33,8 +33,10 @@ export function RouteGuard({ children }: RouteGuardProps) {
     // If not loading and not authenticated, redirect to CRM login
     if (!isLoading && !isAuthenticated) {
       const crmLoginUrl = process.env.NEXT_PUBLIC_CRM_LOGIN_URL;
-      // Use window.location.origin to dynamically get the correct domain in production
-      const callbackUrl = `${window.location.origin}/api/auth/callback`;
+
+      // Use explicit callback URL from env var, or fall back to window.location.origin
+      const appUrl = process.env.NEXT_PUBLIC_APP_CALLBACK_URL || window.location.origin;
+      const callbackUrl = `${appUrl}/api/auth/callback`;
       const returnUrl = encodeURIComponent(window.location.href);
 
       window.location.href = `${crmLoginUrl}?callback_url=${callbackUrl}&returnUrl=${returnUrl}`;

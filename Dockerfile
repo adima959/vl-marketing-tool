@@ -35,10 +35,12 @@ COPY . .
 # Build arguments - only NEXT_PUBLIC_ variables are needed at build time
 ARG NEXT_PUBLIC_CRM_LOGIN_URL=https://vitaliv.no/admin/site/marketing
 ARG NEXT_PUBLIC_CRM_LOGOUT_URL=https://vitaliv.no/admin
+ARG NEXT_PUBLIC_APP_CALLBACK_URL
 
 # Set NEXT_PUBLIC environment variables for build (embedded in client bundle)
 ENV NEXT_PUBLIC_CRM_LOGIN_URL=${NEXT_PUBLIC_CRM_LOGIN_URL}
 ENV NEXT_PUBLIC_CRM_LOGOUT_URL=${NEXT_PUBLIC_CRM_LOGOUT_URL}
+ENV NEXT_PUBLIC_APP_CALLBACK_URL=${NEXT_PUBLIC_APP_CALLBACK_URL}
 
 # Disable Next.js telemetry
 ENV NEXT_TELEMETRY_DISABLED=1
