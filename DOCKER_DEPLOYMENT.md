@@ -46,7 +46,7 @@ Check if the application is running:
 docker-compose ps
 
 # Check health
-curl http://localhost:3000/api/health
+curl http://localhost:3991/api/health
 ```
 
 You should see a JSON response with `"status": "ok"`.
@@ -73,7 +73,7 @@ docker-compose up -d
 docker run -d \
   --name vitaliv-marketing-tool \
   --env-file .env.production.local \
-  -p 3000:3000 \
+  -p 3000:3991 \
   --restart unless-stopped \
   vitaliv-marketing-tool:latest
 ```
@@ -111,7 +111,7 @@ server {
     server_name your-domain.com;
 
     location / {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:3991;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -260,5 +260,5 @@ Application state is stored in databases only. No persistent volumes are needed 
 
 For issues or questions:
 - Check logs: `docker-compose logs -f`
-- Verify health: `curl http://localhost:3000/api/health`
+- Verify health: `curl http://localhost:3991/api/health`
 - Review environment variables: `docker-compose config`

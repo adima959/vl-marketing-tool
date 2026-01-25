@@ -93,15 +93,15 @@ COPY --from=builder /app/next.config.js* ./
 USER nextjs
 
 # Expose port
-EXPOSE 3000
+EXPOSE 3991
 
 # Set hostname and port
 ENV HOSTNAME="0.0.0.0"
-ENV PORT=3000
+ENV PORT=3991
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3991/api/health || exit 1
 
 # Start Next.js in production mode
 CMD ["npm", "run", "start"]

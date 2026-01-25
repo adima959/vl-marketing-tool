@@ -30,7 +30,7 @@ ENV NEXT_PUBLIC_CRM_LOGIN_URL=${NEXT_PUBLIC_CRM_LOGIN_URL}
 ENV NEXT_PUBLIC_CRM_LOGOUT_URL=${NEXT_PUBLIC_CRM_LOGOUT_URL}
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV HOSTNAME="0.0.0.0"
-ENV PORT=3000
+ENV PORT=3991
 
 # Set dummy database URLs for build time (actual values provided at runtime)
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
@@ -52,9 +52,9 @@ RUN groupadd --system --gid 1001 nodejs && \
 
 USER nextjs
 
-EXPOSE 3000
+EXPOSE 3991
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3991/api/health || exit 1
 
 CMD ["npm", "run", "start"]

@@ -32,13 +32,13 @@ services:
       - NEXT_PUBLIC_CRM_LOGOUT_URL=${NEXT_PUBLIC_CRM_LOGOUT_URL}
 
     ports:
-      - "3000:3000"
+      - "3991:3991"
 
     restart: unless-stopped
 
     # Health check
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3991/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3

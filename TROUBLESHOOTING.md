@@ -106,7 +106,7 @@ If you see `standalone` directory listed, the build is successful.
 
 1. **Check if app is actually running**:
    ```bash
-   docker exec vitaliv-marketing-tool wget -O- http://localhost:3000/api/health
+   docker exec vitaliv-marketing-tool wget -O- http://localhost:3991/api/health
    ```
 
 2. **Increase start_period**:
@@ -175,7 +175,7 @@ deploy:
 ```bash
 netstat -tulpn | grep 3000
 # or
-lsof -i :3000
+lsof -i :3991
 ```
 
 **Solutions:**
@@ -183,7 +183,7 @@ lsof -i :3000
 2. Change port in docker-compose.yaml:
    ```yaml
    ports:
-     - "3001:3000"  # Map to different external port
+     - "3001:3991"  # Map to different external port
    ```
 
 ---
@@ -232,7 +232,7 @@ After deployment, verify everything works:
 
 2. **Health check passes:**
    ```bash
-   curl http://localhost:3000/api/health
+   curl http://localhost:3991/api/health
    ```
    Should return:
    ```json
@@ -245,7 +245,7 @@ After deployment, verify everything works:
    ```
 
 3. **Application loads:**
-   - Open browser to `http://your-server:3000`
+   - Open browser to `http://your-server:3991`
    - Should redirect to CRM login if not authenticated
 
 4. **Database connections work:**

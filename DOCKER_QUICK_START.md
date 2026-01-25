@@ -73,7 +73,7 @@ Click **Deploy the stack** and wait for the build to complete (3-5 minutes).
 
 Check health endpoint:
 ```bash
-curl http://your-server:3000/api/health
+curl http://your-server:3991/api/health
 ```
 
 Expected response:
@@ -137,7 +137,7 @@ docker logs vitaliv-marketing-tool
 Common issues:
 - Missing environment variables
 - Database connection failed
-- Port 3000 already in use
+- Port 3991 already in use
 
 ### Health Check Failing
 

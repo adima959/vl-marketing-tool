@@ -93,12 +93,12 @@ services:
       - NEXT_PUBLIC_CRM_LOGOUT_URL=${NEXT_PUBLIC_CRM_LOGOUT_URL:-https://vitaliv.no/admin}
 
     ports:
-      - "3000:3000"
+      - "3000:3991"
 
     restart: unless-stopped
 
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3991/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -161,7 +161,7 @@ services:
       # ... add all other environment variables
 
     ports:
-      - "3000:3000"
+      - "3000:3991"
 
     restart: unless-stopped
 ```
@@ -219,7 +219,7 @@ environment:
 
 From Portainer Console or your browser:
 ```bash
-curl http://your-server:3000/api/health
+curl http://your-server:3991/api/health
 ```
 
 Expected response:
@@ -266,7 +266,7 @@ Expected response:
 ### Health Check Failing
 
 1. Check if port 3000 is accessible inside container
-2. Verify health endpoint works: `docker exec vitaliv-marketing-tool wget -O- http://localhost:3000/api/health`
+2. Verify health endpoint works: `docker exec vitaliv-marketing-tool wget -O- http://localhost:3991/api/health`
 
 ### Build Errors in Portainer
 
