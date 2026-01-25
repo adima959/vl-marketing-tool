@@ -1,0 +1,179 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Table, Button, Tag, message } from 'antd';
+import { EditOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Users } from 'lucide-react';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { useAuth } from '@/contexts/AuthContext';
+import { EditRoleDialog } from '@/components/users/EditRoleDialog';
+import type { AppUser } from '@/types/user';
+import type { ColumnsType } from 'antd/es/table';
+
+export default function UsersPage() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const [users, setUsers] = useState<AppUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/users', {
+        credentials: 'same-origin',
+      });
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          message.error('You do not have permission to view users');
+          return;
+        }
+        throw new Error('Failed to fetch users');
+      }
+
+      const data = await response.json();
+      setUsers(data.users || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      message.error('Failed to load users');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      fetchUsers();
+    }
+  }, [isAuthenticated, authLoading]);
+
+  const handleEditRole = (record: AppUser) => {
+    setSelectedUser(record);
+    setDialogOpen(true);
+  };
+
+  const handleDialogClose = () => {
+    setDialogOpen(false);
+    setSelectedUser(null);
+  };
+
+  const handleDialogSuccess = () => {
+    fetchUsers();
+  };
+
+  const columns: ColumnsType<AppUser> = [
+    {
+      title: 'External ID',
+      dataIndex: 'external_id',
+      key: 'external_id',
+      width: 200,
+    },
+    {
+      title: 'Name',
+      dataIndex: 'name',
+      key: 'name',
+      width: 200,
+    },
+    {
+      title: 'Email',
+      dataIndex: 'email',
+      key: 'email',
+      width: 250,
+    },
+    {
+      title: 'Role',
+      dataIndex: 'role',
+      key: 'role',
+      width: 120,
+      render: (role: string) => (
+        <Tag color={role === 'admin' ? 'red' : 'blue'}>
+          {role.toUpperCase()}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Created At',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 200,
+      render: (date: string) => new Date(date).toLocaleString(),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 120,
+      render: (_: any, record: AppUser) => (
+        <Button
+          type="link"
+          size="small"
+          icon={<EditOutlined />}
+          onClick={() => handleEditRole(record)}
+        >
+          Edit Role
+        </Button>
+      ),
+    },
+  ];
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div style={{ padding: '24px' }}>
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  // Non-admin users should not see this page (handled by RouteGuard, but double check)
+  if (!isAuthenticated) {
+    return (
+      <div style={{ padding: '24px' }}>
+        <p>Please log in to access this page.</p>
+      </div>
+    );
+  }
+
+  const headerActions = (
+    <Button
+      type="text"
+      icon={<ReloadOutlined />}
+      onClick={fetchUsers}
+      loading={loading}
+      size="small"
+    >
+      Refresh
+    </Button>
+  );
+
+  return (
+    <>
+      <PageHeader
+        title="User Management"
+        icon={<Users className="h-5 w-5" />}
+        actions={headerActions}
+      />
+      <div className="flex flex-col h-full">
+        <div className="flex flex-col gap-3 p-3 bg-white flex-1 overflow-auto">
+          <Table
+            columns={columns}
+            dataSource={users}
+            loading={loading}
+            rowKey="id"
+            pagination={{
+              pageSize: 20,
+              showTotal: (total) => `Total ${total} users`,
+            }}
+          />
+
+          <EditRoleDialog
+            user={selectedUser}
+            open={dialogOpen}
+            onClose={handleDialogClose}
+            onSuccess={handleDialogSuccess}
+          />
+        </div>
+      </div>
+    </>
+  );
+}

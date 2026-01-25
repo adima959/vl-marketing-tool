@@ -7,12 +7,17 @@ import {
   FileSearch,
   BarChart,
   Target,
+  Users,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
+import { LogoutButton } from "@/components/auth/LogoutButton"
+import { useAuth } from "@/contexts/AuthContext"
+import { UserRole } from "@/types/user"
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarHeader,
   SidebarRail,
   SidebarMenu,
@@ -20,9 +25,11 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar"
 
-// Navigation data for Vitaliv Analytics
-const data = {
-  navMain: [
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { user } = useAuth();
+
+  // Base navigation items (available to all users)
+  const baseNavItems = [
     {
       title: "Dashboard",
       url: "/",
@@ -43,10 +50,22 @@ const data = {
       url: "/marketing-tracker",
       icon: Target,
     },
-  ],
-}
+  ];
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  // Admin-only navigation items
+  const adminNavItems = [
+    {
+      title: "User Management",
+      url: "/users",
+      icon: Users,
+    },
+  ];
+
+  // Combine nav items based on user role from database
+  // Role is checked in real-time on every auth validation
+  const isAdmin = user?.role === UserRole.ADMIN;
+  const navItems = isAdmin ? [...baseNavItems, ...adminNavItems] : baseNavItems;
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -67,8 +86,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={navItems} />
       </SidebarContent>
+      <SidebarFooter>
+        <div className="p-4">
+          <LogoutButton type="default" block size="middle" />
+        </div>
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )
