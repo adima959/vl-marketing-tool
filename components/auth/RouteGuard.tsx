@@ -32,14 +32,21 @@ export function RouteGuard({ children }: RouteGuardProps) {
 
     // If not loading and not authenticated, redirect to CRM login
     if (!isLoading && !isAuthenticated) {
-      const crmLoginUrl = process.env.NEXT_PUBLIC_CRM_LOGIN_URL;
-
-      // Use explicit callback URL from env var, or fall back to window.location.origin
-      const appUrl = process.env.NEXT_PUBLIC_APP_CALLBACK_URL || window.location.origin;
-      const callbackUrl = `${appUrl}/api/auth/callback`;
-      const returnUrl = encodeURIComponent(window.location.href);
-
-      window.location.href = `${crmLoginUrl}?callback_url=${callbackUrl}&returnUrl=${returnUrl}`;
+      // Fetch callback URL from server at runtime
+      fetch('/api/auth/config')
+        .then(res => res.json())
+        .then(config => {
+          const returnUrl = encodeURIComponent(window.location.href);
+          window.location.href = `${config.loginUrl}?callback_url=${config.callbackUrl}&returnUrl=${returnUrl}`;
+        })
+        .catch(error => {
+          console.error('Failed to fetch auth config:', error);
+          // Fallback to build-time values
+          const crmLoginUrl = process.env.NEXT_PUBLIC_CRM_LOGIN_URL;
+          const callbackUrl = `${window.location.origin}/api/auth/callback`;
+          const returnUrl = encodeURIComponent(window.location.href);
+          window.location.href = `${crmLoginUrl}?callback_url=${callbackUrl}&returnUrl=${returnUrl}`;
+        });
     }
   }, [isAuthenticated, isLoading, isLoggingOut, pathname]);
 

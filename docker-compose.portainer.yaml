@@ -36,6 +36,8 @@ services:
       # Public URLs
       - NEXT_PUBLIC_CRM_LOGIN_URL=https://vitaliv.no/admin/site/marketing
       - NEXT_PUBLIC_CRM_LOGOUT_URL=https://vitaliv.no/admin
+      # Callback URL (set to your production domain, e.g., https://subdomain.domain.com:3991)
+      - APP_CALLBACK_URL=
 
     ports:
       - "3991:3991"
