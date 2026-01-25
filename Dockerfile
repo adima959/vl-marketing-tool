@@ -11,8 +11,8 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json* ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies (use npm install instead of npm ci for better compatibility)
+RUN npm install
 
 # ===================================
 # Stage 2: Builder
@@ -27,27 +27,11 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy application code
 COPY . .
 
-# Build arguments for environment variables (optional - can use docker-compose env instead)
-ARG DATABASE_URL
-ARG CRM_BASE_URL
-ARG CRM_LOGIN_URL
-ARG CRM_VALIDATE_ENDPOINT
-ARG AUTH_COOKIE_NAME
-ARG AUTH_COOKIE_MAX_AGE
-ARG SESSION_WIPE_API_KEY
-ARG USER_MANAGEMENT_API_KEY
-ARG NEXT_PUBLIC_CRM_LOGIN_URL
-ARG NEXT_PUBLIC_CRM_LOGOUT_URL
+# Build arguments - only NEXT_PUBLIC_ variables are needed at build time
+ARG NEXT_PUBLIC_CRM_LOGIN_URL=https://vitaliv.no/admin/site/marketing
+ARG NEXT_PUBLIC_CRM_LOGOUT_URL=https://vitaliv.no/admin
 
-# Set environment variables for build
-ENV DATABASE_URL=${DATABASE_URL}
-ENV CRM_BASE_URL=${CRM_BASE_URL}
-ENV CRM_LOGIN_URL=${CRM_LOGIN_URL}
-ENV CRM_VALIDATE_ENDPOINT=${CRM_VALIDATE_ENDPOINT}
-ENV AUTH_COOKIE_NAME=${AUTH_COOKIE_NAME}
-ENV AUTH_COOKIE_MAX_AGE=${AUTH_COOKIE_MAX_AGE}
-ENV SESSION_WIPE_API_KEY=${SESSION_WIPE_API_KEY}
-ENV USER_MANAGEMENT_API_KEY=${USER_MANAGEMENT_API_KEY}
+# Set NEXT_PUBLIC environment variables for build (embedded in client bundle)
 ENV NEXT_PUBLIC_CRM_LOGIN_URL=${NEXT_PUBLIC_CRM_LOGIN_URL}
 ENV NEXT_PUBLIC_CRM_LOGOUT_URL=${NEXT_PUBLIC_CRM_LOGOUT_URL}
 
@@ -55,7 +39,11 @@ ENV NEXT_PUBLIC_CRM_LOGOUT_URL=${NEXT_PUBLIC_CRM_LOGOUT_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build Next.js application
-RUN npm run build
+RUN npm run build && \
+    echo "Build completed. Listing .next directory:" && \
+    ls -la .next/ && \
+    echo "Checking for standalone directory:" && \
+    ls -la .next/standalone/ || echo "Standalone directory not found"
 
 # ===================================
 # Stage 3: Runner (Production)
@@ -72,13 +60,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy built application from builder
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-
-# Set ownership to nextjs user
-RUN chown -R nextjs:nodejs /app
+# Copy built application from builder with correct ownership
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Switch to non-root user
 USER nextjs
@@ -90,9 +75,9 @@ EXPOSE 3000
 ENV HOSTNAME="0.0.0.0"
 ENV PORT=3000
 
-# Health check
+# Health check (using wget which is available in Alpine)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
 # Start the application
 CMD ["node", "server.js"]
