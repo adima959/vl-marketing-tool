@@ -71,17 +71,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Load auth config on mount
   useEffect(() => {
     fetch('/api/auth/config')
-      .then(res => res.json())
+      .then(res => {
+        console.log('[AuthContext] Config response status:', res.status);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        return res.json();
+      })
       .then(config => {
+        console.log('[AuthContext] Config loaded:', config);
         setAuthConfig(config);
       })
       .catch(error => {
-        console.error('Failed to load auth config:', error);
+        console.error('[AuthContext] Failed to load auth config:', error);
         // Set fallback config
-        setAuthConfig({
+        const fallbackConfig = {
           callbackUrl: `${window.location.origin}/api/auth/callback`,
           loginUrl: process.env.NEXT_PUBLIC_CRM_LOGIN_URL || 'https://vitaliv.no/admin/site/marketing',
-        });
+        };
+        console.log('[AuthContext] Using fallback config:', fallbackConfig);
+        setAuthConfig(fallbackConfig);
       });
   }, []);
 
