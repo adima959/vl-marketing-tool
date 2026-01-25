@@ -20,9 +20,24 @@ services:
 
     container_name: vitaliv-marketing-tool
 
-    # Use .env file for environment variables
-    env_file:
-      - .env.production
+    # Environment variables (set these in Portainer UI or uncomment and fill in)
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - MARIADB_HOST=${MARIADB_HOST}
+      - MARIADB_USER=${MARIADB_USER}
+      - MARIADB_PASSWORD=${MARIADB_PASSWORD}
+      - MARIADB_DATABASE=${MARIADB_DATABASE}
+      - MARIADB_PORT=${MARIADB_PORT:-3306}
+      - CRM_BASE_URL=${CRM_BASE_URL}
+      - CRM_LOGIN_URL=${CRM_LOGIN_URL}
+      - CRM_VALIDATE_ENDPOINT=${CRM_VALIDATE_ENDPOINT}
+      - AUTH_COOKIE_NAME=${AUTH_COOKIE_NAME:-crm_auth_token}
+      - AUTH_COOKIE_MAX_AGE=${AUTH_COOKIE_MAX_AGE:-86400}
+      - SESSION_WIPE_API_KEY=${SESSION_WIPE_API_KEY}
+      - USER_MANAGEMENT_API_KEY=${USER_MANAGEMENT_API_KEY}
+      - NEXT_PUBLIC_CRM_LOGIN_URL=${NEXT_PUBLIC_CRM_LOGIN_URL}
+      - NEXT_PUBLIC_CRM_LOGOUT_URL=${NEXT_PUBLIC_CRM_LOGOUT_URL}
 
     ports:
       - "3000:3000"
@@ -56,8 +71,8 @@ services:
 
     # Network (optional - for connecting to other services)
     networks:
-      - vitaliv-network
+      - newCustom
 
 networks:
-  vitaliv-network:
-    driver: bridge
+  newCustom:
+    external: true

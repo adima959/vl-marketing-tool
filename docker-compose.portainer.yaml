@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  vitaliv-marketing-tool:
+    # For Portainer: Use pre-built image or build from git repository
+    # Option 1: Build from current directory
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # Option 2: Use pre-built image (uncomment if you push to a registry)
+    # image: your-registry/vitaliv-marketing-tool:latest
+
+    container_name: vitaliv-marketing-tool
+
+    # Set environment variables in Portainer UI under "Environment variables"
+    # Or uncomment and set them here directly
+    environment:
+      - NODE_ENV=production
+      # Database
+      - DATABASE_URL=
+      - MARIADB_HOST=
+      - MARIADB_USER=
+      - MARIADB_PASSWORD=
+      - MARIADB_DATABASE=
+      - MARIADB_PORT=3306
+      # CRM Authentication
+      - CRM_BASE_URL=https://vitaliv.no/admin
+      - CRM_LOGIN_URL=https://vitaliv.no/admin/site/marketing
+      - CRM_VALIDATE_ENDPOINT=/site/marketing
+      - AUTH_COOKIE_NAME=crm_auth_token
+      - AUTH_COOKIE_MAX_AGE=86400
+      # API Keys (IMPORTANT: Set these in Portainer UI for security)
+      - SESSION_WIPE_API_KEY=
+      - USER_MANAGEMENT_API_KEY=
+      # Public URLs
+      - NEXT_PUBLIC_CRM_LOGIN_URL=https://vitaliv.no/admin/site/marketing
+      - NEXT_PUBLIC_CRM_LOGOUT_URL=https://vitaliv.no/admin
+
+    ports:
+      - "3000:3000"
+
+    restart: unless-stopped
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - vitaliv-network
+
+networks:
+  vitaliv-network:
+    driver: bridge
