@@ -187,9 +187,24 @@ export async function validateTokenWithCRM(token: string): Promise<AuthValidatio
     console.error('CRM validation error:', error);
     validationCache.delete(token);
 
+    // Check if it's a database connection error
+    if (error instanceof Error) {
+      if (error.message.includes('ECONNREFUSED') || error.message.includes('localhost') || error.message.includes('dummy')) {
+        console.error('❌ DATABASE_URL is not configured! Set it in Portainer environment variables.');
+        return {
+          success: false,
+          error: 'Database configuration error - DATABASE_URL not set',
+        };
+      }
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown validation error',
+      error: 'Unknown validation error',
     };
   }
 }

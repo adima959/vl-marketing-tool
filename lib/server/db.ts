@@ -6,10 +6,21 @@ let pool: Pool | null = null;
 
 function getPool(): Pool {
   if (!pool) {
-    if (!process.env.DATABASE_URL) {
+    const dbUrl = process.env.DATABASE_URL;
+
+    if (!dbUrl) {
       throw new Error('DATABASE_URL environment variable is required');
     }
-    pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+    // Check if it's still the dummy build-time value
+    if (dbUrl.includes('dummy') || dbUrl.includes('localhost')) {
+      console.error('❌ DATABASE_URL is not configured properly!');
+      console.error('Current value:', dbUrl);
+      throw new Error('DATABASE_URL is set to dummy/localhost value. Please configure real database URL in environment variables.');
+    }
+
+    console.log('✅ Initializing PostgreSQL connection to:', dbUrl.split('@')[1]?.split('/')[0] || 'unknown host');
+    pool = new Pool({ connectionString: dbUrl });
   }
   return pool;
 }
