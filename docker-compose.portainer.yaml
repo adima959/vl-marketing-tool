@@ -68,8 +68,9 @@ services:
         max-file: "3"
 
     networks:
-      - vitaliv-network
+      - newCustom
 
 networks:
-  vitaliv-network:
-    driver: bridge
+  newCustom:
+    external: true
+

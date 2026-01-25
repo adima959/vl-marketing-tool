@@ -110,6 +110,22 @@ docker-compose down
 - First build will take 3-5 minutes (downloading dependencies)
 - Subsequent builds are faster (cached layers)
 
+### Build Fails with "npm run build" Error
+
+If you see `exit code: 1` during build in Portainer:
+
+**Memory Issue**: Next.js builds require significant memory (2-4GB). The Dockerfile is configured with 4GB memory limit, but Portainer might have build resource limits.
+
+**Solutions**:
+1. Check Portainer settings → Increase build memory limits
+2. Build locally and push to registry:
+   ```bash
+   docker build -t your-registry/vitaliv-marketing-tool:latest .
+   docker push your-registry/vitaliv-marketing-tool:latest
+   ```
+   Then update docker-compose.yaml to use the pre-built image
+3. Use a build server with more resources
+
 ### Container Won't Start
 
 Check logs:

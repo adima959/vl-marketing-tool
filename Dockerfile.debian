@@ -5,11 +5,19 @@ FROM node:20-slim AS deps
 
 WORKDIR /app
 
+# Install build dependencies for native modules
+RUN apt-get update && \
+    apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy package files
 COPY package.json package-lock.json* ./
 
-# Install dependencies
-RUN npm install --legacy-peer-deps
+# Install dependencies with legacy peer deps flag for compatibility
+RUN npm install --legacy-peer-deps --no-audit --no-fund
 
 # ===================================
 # Stage 2: Builder
@@ -34,6 +42,9 @@ ENV NEXT_PUBLIC_CRM_LOGOUT_URL=${NEXT_PUBLIC_CRM_LOGOUT_URL}
 
 # Disable Next.js telemetry
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Increase Node.js memory limit for build (4GB)
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Build Next.js application
 RUN npm run build
