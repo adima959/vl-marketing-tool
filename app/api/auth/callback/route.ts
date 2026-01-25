@@ -28,11 +28,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // Add token to session whitelist FIRST (so validation can check it)
-  console.log('[Callback] Adding token to whitelist');
-  addSessionToWhitelist(token);
-
-  // Validate token with CRM
+  // Validate token with CRM first to get user info
   console.log('[Callback] Validating token with CRM');
   const validation = await validateTokenWithCRM(token);
 
@@ -45,6 +41,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   console.log('[Callback] Token validation successful, user:', validation.user?.email);
+
+  // Add token to session whitelist with user ID (for revocation by user)
+  console.log('[Callback] Adding token to whitelist');
+  addSessionToWhitelist(token, validation.user?.id);
 
   // Get the base URL from APP_CALLBACK_URL environment variable
   // This is needed for nginx proxy - request.url would be localhost

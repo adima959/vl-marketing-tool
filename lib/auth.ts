@@ -15,6 +15,9 @@ const AUTH_COOKIE_MAX_AGE = parseInt(process.env.AUTH_COOKIE_MAX_AGE || '86400',
 const SESSION_WHITELIST_TTL_MS = AUTH_COOKIE_MAX_AGE * 1000;
 const sessionWhitelist = new Map<string, number>();
 
+// User to tokens mapping - tracks which tokens belong to which user (by external_id)
+const userTokensMap = new Map<string, Set<string>>();
+
 // Validation result cache (5 minutes TTL for CRM API call caching)
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const validationCache = new Map<string, CachedValidation>();
@@ -45,10 +48,21 @@ async function getActiveUserFromDatabase(externalId: string): Promise<AppUser | 
 
 /**
  * Adds a session token to the whitelist
+ * @param token - The session token
+ * @param userId - Optional external_id of the user (for revocation by user ID)
  */
-export function addSessionToWhitelist(token: string): void {
+export function addSessionToWhitelist(token: string, userId?: string): void {
   const expiresAt = Date.now() + SESSION_WHITELIST_TTL_MS;
   sessionWhitelist.set(token, expiresAt);
+
+  // Track token for this user
+  if (userId) {
+    if (!userTokensMap.has(userId)) {
+      userTokensMap.set(userId, new Set());
+    }
+    userTokensMap.get(userId)!.add(token);
+    console.log(`[Auth] Tracking token for user ${userId} (total: ${userTokensMap.get(userId)!.size})`);
+  }
 }
 
 /**
@@ -57,6 +71,17 @@ export function addSessionToWhitelist(token: string): void {
 export function removeSessionFromWhitelist(token: string): void {
   sessionWhitelist.delete(token);
   validationCache.delete(token);
+
+  // Remove from user tokens map
+  for (const [userId, tokens] of userTokensMap.entries()) {
+    if (tokens.has(token)) {
+      tokens.delete(token);
+      if (tokens.size === 0) {
+        userTokensMap.delete(userId);
+      }
+      break;
+    }
+  }
 }
 
 /**
@@ -65,6 +90,35 @@ export function removeSessionFromWhitelist(token: string): void {
 export function clearAllSessions(): void {
   sessionWhitelist.clear();
   validationCache.clear();
+  userTokensMap.clear();
+}
+
+/**
+ * Removes all sessions for a specific user from the whitelist
+ * @param userId - The external_id of the user (CRM user ID)
+ * @returns Number of sessions removed
+ */
+export function revokeUserSessions(userId: string): number {
+  const tokens = userTokensMap.get(userId);
+
+  if (!tokens || tokens.size === 0) {
+    console.log(`[Auth] No sessions found for user ${userId}`);
+    return 0;
+  }
+
+  // Remove all tokens from whitelist and cache
+  let removedCount = 0;
+  for (const token of tokens) {
+    sessionWhitelist.delete(token);
+    validationCache.delete(token);
+    removedCount++;
+  }
+
+  // Clear the user's token set
+  userTokensMap.delete(userId);
+
+  console.log(`[Auth] Revoked ${removedCount} sessions for user ${userId}`);
+  return removedCount;
 }
 
 /**
@@ -179,7 +233,7 @@ export async function validateTokenWithCRM(token: string): Promise<AuthValidatio
     // Auto-recovery: If token is valid but not in whitelist, add it
     if (!isWhitelisted && validationResult.user) {
       console.log(`[Auth] Auto-recovering session for user ${validationResult.user.email}`);
-      addSessionToWhitelist(token);
+      addSessionToWhitelist(token, validationResult.user.id);
     }
 
     return validationResult;
