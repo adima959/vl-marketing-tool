@@ -46,8 +46,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   console.log('[Callback] Token validation successful, user:', validation.user?.email);
 
-  // Create redirect response to original URL
-  const response = NextResponse.redirect(new URL("/", request.url));
+  // Get the base URL from APP_CALLBACK_URL environment variable
+  // This is needed for nginx proxy - request.url would be localhost
+  const appCallbackUrl = process.env.APP_CALLBACK_URL;
+
+  let redirectUrl: URL;
+
+  if (appCallbackUrl) {
+    // Extract base URL from callback URL (remove /api/auth/callback)
+    const baseUrl = appCallbackUrl.replace('/api/auth/callback', '');
+    console.log('[Callback] Using base URL from APP_CALLBACK_URL:', baseUrl);
+    redirectUrl = new URL('/', baseUrl);
+  } else {
+    // Fallback to request.url (will be localhost behind proxy)
+    console.warn('[Callback] APP_CALLBACK_URL not set - using request.url (may be localhost behind proxy)');
+    redirectUrl = new URL('/', request.url);
+  }
+
+  console.log('[Callback] Redirect URL:', redirectUrl.toString());
+
+  // Create redirect response to home page
+  const response = NextResponse.redirect(redirectUrl);
 
   // Set HTTP-only auth cookie with the session token
   console.log('[Callback] Setting auth cookie');
