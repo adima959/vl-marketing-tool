@@ -16,7 +16,7 @@ const PUBLIC_PATHS = ['/api/auth/callback', '/api/auth/logout'];
  * Redirects to CRM login if not authenticated
  */
 export function RouteGuard({ children }: RouteGuardProps) {
-  const { isAuthenticated, isLoading, isLoggingOut } = useAuth();
+  const { isAuthenticated, isLoading, isLoggingOut, authConfig } = useAuth();
   const pathname = usePathname();
 
   useEffect(() => {
@@ -30,25 +30,17 @@ export function RouteGuard({ children }: RouteGuardProps) {
       return;
     }
 
+    // Wait for auth config to load
+    if (!authConfig) {
+      return;
+    }
+
     // If not loading and not authenticated, redirect to CRM login
     if (!isLoading && !isAuthenticated) {
-      // Fetch callback URL from server at runtime
-      fetch('/api/auth/config')
-        .then(res => res.json())
-        .then(config => {
-          const returnUrl = encodeURIComponent(window.location.href);
-          window.location.href = `${config.loginUrl}?callback_url=${config.callbackUrl}&returnUrl=${returnUrl}`;
-        })
-        .catch(error => {
-          console.error('Failed to fetch auth config:', error);
-          // Fallback to build-time values
-          const crmLoginUrl = process.env.NEXT_PUBLIC_CRM_LOGIN_URL;
-          const callbackUrl = `${window.location.origin}/api/auth/callback`;
-          const returnUrl = encodeURIComponent(window.location.href);
-          window.location.href = `${crmLoginUrl}?callback_url=${callbackUrl}&returnUrl=${returnUrl}`;
-        });
+      const returnUrl = encodeURIComponent(window.location.href);
+      window.location.href = `${authConfig.loginUrl}?callback_url=${authConfig.callbackUrl}&returnUrl=${returnUrl}`;
     }
-  }, [isAuthenticated, isLoading, isLoggingOut, pathname]);
+  }, [isAuthenticated, isLoading, isLoggingOut, pathname, authConfig]);
 
   // Show loading spinner while checking auth or logging out
   if (isLoading || isLoggingOut) {

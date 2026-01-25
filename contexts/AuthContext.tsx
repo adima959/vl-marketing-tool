@@ -3,11 +3,17 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import type { CRMUser } from '@/types/auth';
 
+interface AuthConfig {
+  callbackUrl: string;
+  loginUrl: string;
+}
+
 interface AuthContextType {
   user: CRMUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   isLoggingOut: boolean;
+  authConfig: AuthConfig | null;
   checkAuth: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -22,6 +28,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<CRMUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [authConfig, setAuthConfig] = useState<AuthConfig | null>(null);
 
   const checkAuth = async () => {
     try {
@@ -61,6 +68,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
     window.location.href = crmLogoutUrl;
   };
 
+  // Load auth config on mount
+  useEffect(() => {
+    fetch('/api/auth/config')
+      .then(res => res.json())
+      .then(config => {
+        setAuthConfig(config);
+      })
+      .catch(error => {
+        console.error('Failed to load auth config:', error);
+        // Set fallback config
+        setAuthConfig({
+          callbackUrl: `${window.location.origin}/api/auth/callback`,
+          loginUrl: process.env.NEXT_PUBLIC_CRM_LOGIN_URL || 'https://vitaliv.no/admin/site/marketing',
+        });
+      });
+  }, []);
+
   // Check auth status on mount
   useEffect(() => {
     checkAuth();
@@ -71,6 +95,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isAuthenticated: !!user,
     isLoading,
     isLoggingOut,
+    authConfig,
     checkAuth,
     logout,
   };
