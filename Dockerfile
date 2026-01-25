@@ -11,7 +11,7 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json* ./
 
-# Install dependencies (use npm install instead of npm ci for better compatibility)
+# Install dependencies
 RUN npm install
 
 # ===================================
@@ -39,11 +39,7 @@ ENV NEXT_PUBLIC_CRM_LOGOUT_URL=${NEXT_PUBLIC_CRM_LOGOUT_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build Next.js application
-RUN npm run build && \
-    echo "Build completed. Listing .next directory:" && \
-    ls -la .next/ && \
-    echo "Checking for standalone directory:" && \
-    ls -la .next/standalone/ || echo "Standalone directory not found"
+RUN npm run build
 
 # ===================================
 # Stage 3: Runner (Production)
@@ -60,10 +56,18 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy built application from builder with correct ownership
+# Copy package files
+COPY --from=builder /app/package*.json ./
+
+# Copy node_modules from deps (production dependencies only)
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy built Next.js application
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Copy next.config.js if it exists
+COPY --from=builder /app/next.config.js* ./
 
 # Switch to non-root user
 USER nextjs
@@ -71,13 +75,13 @@ USER nextjs
 # Expose port
 EXPOSE 3000
 
-# Set hostname
+# Set hostname and port
 ENV HOSTNAME="0.0.0.0"
 ENV PORT=3000
 
-# Health check (using wget which is available in Alpine)
+# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
-# Start the application
-CMD ["node", "server.js"]
+# Start Next.js in production mode
+CMD ["npm", "run", "start"]
