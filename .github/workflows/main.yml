@@ -2,7 +2,10 @@ name: Deploy via Portainer Webhook
 
 on:
   push:
-    branches: [ "main" ]   # adjust
+    branches:
+      - "main"
+    tags:
+      - "v*"
 
 jobs:
   deploy:
