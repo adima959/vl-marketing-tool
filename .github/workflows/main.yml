@@ -13,4 +13,4 @@ jobs:
     steps:
       - name: Trigger Portainer stack redeploy
         run: |
-          curl -sS -X GET "${{ secrets.PORTAINER_MARKETING_WEBHOOK_URL }}"
+          curl -sS -X POST "${{ secrets.PORTAINER_MARKETING_WEBHOOK_URL }}"
