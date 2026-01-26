@@ -4,7 +4,7 @@ services:
   vitaliv-marketing-tool:
     # For Portainer: Use pre-built image or build from git repository
     # Option 1: Build from current directory
-    # Testing Github Actions, v0.1
+    # Testing Github Actions, v0.0.1
     build:
       context: .
       dockerfile: Dockerfile
