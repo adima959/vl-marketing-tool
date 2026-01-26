@@ -32,9 +32,9 @@ function hasValidApiKey(request: NextRequest): boolean {
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
-  const { id } = params;
+  const { id } = await params;
 
   // Check for API key authentication first
   if (hasValidApiKey(request)) {
@@ -95,11 +95,11 @@ export async function PATCH(
 
   // No API key - fall back to cookie-based admin authentication
   console.log('[API /users/[id] PATCH] Using cookie authentication (admin required)');
-  return withAdminPatch(request, { params });
+  return withAdminPatch(request, { params: { id } });
 }
 
 // Cookie-based admin handler for PATCH
-const withAdminPatch = withAdmin(async (request, user, { params }: { params: { id: string } }) => {
+const withAdminPatch = withAdmin(async (request, _user, { params }: { params: { id: string } }) => {
   const { id } = params;
 
   // Parse request body
@@ -167,9 +167,9 @@ const withAdminPatch = withAdmin(async (request, user, { params }: { params: { i
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
-  const { id } = params;
+  const { id } = await params;
 
   // Check for API key authentication first
   if (hasValidApiKey(request)) {
@@ -212,11 +212,11 @@ export async function DELETE(
 
   // No API key - fall back to cookie-based admin authentication
   console.log('[API /users/[id] DELETE] Using cookie authentication (admin required)');
-  return withAdminDelete(request, { params });
+  return withAdminDelete(request, { params: { id } });
 }
 
 // Cookie-based admin handler for DELETE
-const withAdminDelete = withAdmin(async (request, user, { params }: { params: { id: string } }) => {
+const withAdminDelete = withAdmin(async (_request, _user, { params }: { params: { id: string } }) => {
   const { id } = params;
 
   const client = await pool.connect();
