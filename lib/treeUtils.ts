@@ -49,24 +49,3 @@ export function sortKeysByDepth(keys: string[]): string[] {
     return depthA - depthB;
   });
 }
-
-/**
- * Builds parent filters from a row key by parsing its hierarchy
- * Example: "network::campaign::adset" => { network: "network", campaign: "campaign" }
- */
-export function buildParentFiltersFromKey(
-  key: string,
-  dimensions: string[]
-): Record<string, string> {
-  const parts = key.split('::');
-  const filters: Record<string, string> = {};
-
-  parts.slice(0, -1).forEach((value, index) => {
-    const dimension = dimensions[index];
-    if (dimension) {
-      filters[dimension] = value;
-    }
-  });
-
-  return filters;
-}

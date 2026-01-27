@@ -1,11 +1,6 @@
 'use client';
 
-import { useReportStore } from '@/stores/reportStore';
 import styles from './EmptyState.module.css';
-
-interface EmptyStateProps {
-  onLoadData?: () => void;
-}
 
 const EmptyIcon = () => (
   <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -22,16 +17,7 @@ const EmptyIcon = () => (
   </svg>
 );
 
-const PlayIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path
-      d="M3 2.5C3 1.67157 3.9174 1.15311 4.6 1.6L13.2 7.1C13.8627 7.53431 13.8627 8.46569 13.2 8.9L4.6 14.4C3.9174 14.8469 3 14.3284 3 13.5V2.5Z"
-      fill="currentColor"
-    />
-  </svg>
-);
-
-export function EmptyState({ onLoadData }: EmptyStateProps) {
+export function EmptyState() {
   const suggestions = [
     'Expand your date range',
     'Try different dimension combinations',

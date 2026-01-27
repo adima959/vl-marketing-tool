@@ -29,6 +29,21 @@ export const useOnPageColumnStore = create<OnPageColumnState>()(
     }),
     {
       name: 'on-page-column-settings',
+      version: 4, // Increment to reset stored settings
+      migrate: (persistedState: any) => {
+        // Auto-add new columns if they're missing, remove old ones
+        const currentColumns = persistedState?.visibleColumns || [];
+        const validColumns = currentColumns.filter((col: string) =>
+          ON_PAGE_DEFAULT_VISIBLE_COLUMNS.includes(col)
+        );
+        const newColumns = ON_PAGE_DEFAULT_VISIBLE_COLUMNS.filter(
+          (col) => !validColumns.includes(col)
+        );
+        return {
+          ...persistedState,
+          visibleColumns: [...validColumns, ...newColumns],
+        };
+      },
     }
   )
 );

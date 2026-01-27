@@ -19,6 +19,16 @@ export function formatDecimal(value: number): string {
   return formatNumber(Number(value.toFixed(1)));
 }
 
+export function formatTime(seconds: number): string {
+  if (seconds < 60) {
+    return `${Math.round(seconds)}s`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.round(seconds % 60);
+  return `${minutes}m ${remainingSeconds.toString().padStart(2, '0')}s`;
+}
+
 export function formatMetric(value: number, format: MetricFormat): string {
   switch (format) {
     case 'number':
@@ -29,6 +39,8 @@ export function formatMetric(value: number, format: MetricFormat): string {
       return formatCurrency(value);
     case 'decimal':
       return formatDecimal(value);
+    case 'time':
+      return formatTime(value);
     default:
       return String(value);
   }

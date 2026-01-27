@@ -46,7 +46,7 @@ export class OnPageQueryBuilder {
       nameExpression: 'MAX(mas.adset_name)',
       needsJoin: true,
       dimColumnPrefix: 'mas.',
-      parentFilterExpr: 'pv.utm_content::text',
+      parentFilterExpr: 'mas.adset_id::text',  // Use mas.adset_id when adset is a parent filter
       joinLevel: 'adset',
     },
     ad: {
@@ -69,8 +69,9 @@ export class OnPageQueryBuilder {
     scrollPastHero: 'scroll_past_hero',
     scrollRate: 'scroll_rate',
     formViews: 'form_views',
+    formViewRate: 'form_view_rate',
     formStarters: 'form_starters',
-    ctaClicks: 'cta_clicks',
+    formStartRate: 'form_start_rate',
   };
 
   /**
@@ -213,7 +214,7 @@ export class OnPageQueryBuilder {
           break;
         case 'ad':
           distinctColumns = 'campaign_id, campaign_name, adset_id, adset_name, ad_id, ad_name';
-          extraJoinCondition = ' AND pv.utm_content::text = mas.adset_id::text';
+          extraJoinCondition = ' AND pv.utm_content::text = mas.adset_id::text AND pv.utm_medium::text = mas.ad_id::text';
           break;
       }
 
@@ -247,14 +248,17 @@ export class OnPageQueryBuilder {
           4
         ) AS scroll_rate,
         COUNT(*) FILTER (WHERE ${colRef('form_view')} = true) AS form_views,
+        ROUND(
+          COUNT(*) FILTER (WHERE ${colRef('form_view')} = true)::numeric
+          / NULLIF(COUNT(*), 0),
+          4
+        ) AS form_view_rate,
         COUNT(*) FILTER (WHERE ${colRef('form_started')} = true) AS form_starters,
-        COUNT(*) FILTER (WHERE ${colRef('page_elements')} IS NOT NULL
-          AND ${colRef('page_elements')}::text LIKE '%cta%'
-          AND EXISTS (
-            SELECT 1 FROM jsonb_each(${colRef('page_elements')}) AS pe(k, v)
-            WHERE k ILIKE '%cta%' AND v->>'clicked' = 'true'
-          )
-        ) AS cta_clicks
+        ROUND(
+          COUNT(*) FILTER (WHERE ${colRef('form_started')} = true)::numeric
+          / NULLIF(COUNT(*) FILTER (WHERE ${colRef('form_view')} = true), 0),
+          4
+        ) AS form_start_rate
       ${fromClause}
       WHERE ${colRef('created_at')} >= $1::date AND ${colRef('created_at')} < ($2::date + interval '1 day')
         ${whereClause}

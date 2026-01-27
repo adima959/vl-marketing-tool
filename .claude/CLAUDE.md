@@ -28,19 +28,38 @@ stores/       - reportStore (data/filters), columnStore (visibility/order)
 types/        - report.ts, dimensions.ts, metrics.ts
 styles/       - tokens.ts, tokens.css, theme.ts (Ant Design config)
 lib/          - queryBuilder, treeUtils
+.claude/docs/ - Detailed pattern documentation (api, design, state, css, features)
 ```
 
-**Key Types** (types/report.ts)
-```typescript
-ReportRow {
-  key: string              // Unique ID
-  attribute: string        // Dimension value
-  depth: number           // Hierarchy level (0-3)
-  hasChildren?: boolean
-  children?: ReportRow[]
-  metrics: { cost, clicks, impressions, conversions, ctr, cpc, ... }
-}
-```
+**Key Types**: See `types/report.ts` (ReportRow, DateRange), `types/dimensions.ts`, `types/metrics.ts`
+
+---
+
+## Quick Reference
+
+**API Patterns** ([details](.claude/docs/api.md)):
+- Response format: `{ success, data, error }` envelope
+- Database clients: PostgreSQL (`$1`) vs MariaDB (`?`) - never mix
+- Hierarchical keys: `parent::child::value` format
+- Dimension order: array position = hierarchy depth
+
+**State Patterns** ([details](.claude/docs/state.md)):
+- Dual-state: active (editing) vs loaded (server truth)
+- URL sync: filters persist in URL params for shareability
+- Persistence: columnStore only, not reportStore (data fetched fresh)
+- Store independence: no inter-store imports, components orchestrate
+
+**Design Patterns** ([details](.claude/docs/design.md)):
+- Tables: Two-row headers, 20px indent per depth, fixed layout
+- Filters: Draggable pills + date picker + "Load Data" button (only trigger)
+- Component split: Ant Design (data) vs shadcn/ui (layout)
+- Design tokens: `styles/tokens.css` - never hardcode
+
+**CSS Patterns** ([details](.claude/docs/css.md)):
+- Strategy: Ant theme + CSS Modules + Tailwind + CSS variables
+- Token categories: color, spacing, radius, shadow, font
+- Ant overrides: CSS Modules with :global() + !important
+- Table numbers: use `tabular-nums`, not monospace
 
 ---
 
@@ -119,6 +138,19 @@ ReportRow {
 
 ---
 
+## Documentation
+
+Detailed patterns in `.claude/docs/`:
+- `api.md` - API routes, database queries, error handling, query builders
+- `design.md` - UI components, layouts, visual patterns, component library split
+- `state.md` - Zustand stores, persistence, URL sync, loading states
+- `css.md` - Styling approach, design tokens, Ant overrides, typography
+- `features.md` - Feature-specific implementations (New Orders dashboard, etc.)
+
+**When to read**: Check relevant docs when working in that area (e.g., read `api.md` when building API routes).
+
+---
+
 ## Working Principles
 
 1. **Data tool first** - Prioritize clarity, scannability, density
@@ -130,11 +162,28 @@ ReportRow {
 
 ---
 
+## Documentation Maintenance
+
+**IMPORTANT**: These documentation files (`.claude/CLAUDE.md` and `.claude/docs/*.md`) must stay synchronized with the codebase.
+
+**Auto-Update Rule**: When you make changes that affect how we work with this project (new patterns, architectural decisions, conventions), immediately update the relevant documentation file:
+- New API patterns → Update `.claude/docs/api.md`
+- New UI patterns → Update `.claude/docs/design.md`
+- New state patterns → Update `.claude/docs/state.md`
+- New styling patterns → Update `.claude/docs/css.md`
+- Feature changes → Update `.claude/docs/features.md`
+- Core workflow changes → Update `.claude/CLAUDE.md`
+
+Document changes right after implementing them, not later. This ensures documentation never drifts from reality.
+
+---
+
 **Databases**:
 - PostgreSQL (Neon): Ad campaign data → `lib/server/db.ts` (uses `$1` placeholders)
 - MariaDB: CRM data → `lib/server/mariadb.ts` (uses `?` placeholders)
 
 **Scripts**: `npm run dev`, `npm run build`, `npm run lint`
+**Deployment**: See `DOCKER_DEPLOYMENT.md`, `PORTAINER_DEPLOYMENT.md`, and `DOCKER_QUICK_START.md`
 **Known Issues**: No tests, large bundle (Ant + shadcn), no dark mode, no virtualization
 
 ---

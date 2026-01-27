@@ -12,7 +12,8 @@ export interface OnPageReportRow {
     scrollPastHero: number;
     scrollRate: number;
     formViews: number;
+    formViewRate: number;
     formStarters: number;
-    ctaClicks: number;
+    formStartRate: number;
   };
 }
