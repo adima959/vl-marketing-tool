@@ -23,15 +23,16 @@ Marketing analytics dashboard for visualizing performance metrics across dimensi
 
 ```
 app/          - Next.js routes, API endpoints
-components/   - table/, filters/, modals/, ui/
-stores/       - reportStore (data/filters), columnStore (visibility/order)
-types/        - report.ts, dimensions.ts, metrics.ts
+components/   - table/ (GenericDataTable), filters/, modals/, ui/
+hooks/        - useGenericUrlSync, useUrlSync, useOnPageUrlSync
+stores/       - reportStore, onPageStore, columnStore, onPageColumnStore
+types/        - report.ts, table.ts, dimensions.ts, metrics.ts
 styles/       - tokens.ts, tokens.css, theme.ts (Ant Design config)
-lib/          - queryBuilder, treeUtils
+lib/          - queryBuilder, treeUtils, formatters
 .claude/docs/ - Detailed pattern documentation (api, design, state, css, features)
 ```
 
-**Key Types**: See `types/report.ts` (ReportRow, DateRange), `types/dimensions.ts`, `types/metrics.ts`
+**Key Types**: See `types/report.ts` (ReportRow, DateRange), `types/table.ts` (BaseTableRow, GenericDataTableConfig), `types/dimensions.ts`, `types/metrics.ts`
 
 ---
 
@@ -63,6 +64,61 @@ lib/          - queryBuilder, treeUtils
 
 ---
 
+## Generic Components & Patterns
+
+**IMPORTANT**: Before building new features, **ALWAYS review existing generic components** to avoid duplication.
+
+### Available Generic Components:
+
+**GenericDataTable** (`components/table/GenericDataTable.tsx`)
+- Type-safe hierarchical table with expand/collapse
+- Configurable column groups and tooltips
+- Handles: loading, errors, empty states, drag scrolling
+- **Use for**: Any report/analytics table with drill-down
+- **Example wrappers**: DataTable.tsx, OnPageDataTable.tsx
+
+**useGenericUrlSync** (`hooks/useGenericUrlSync.ts`)
+- Syncs Zustand store state with URL query parameters
+- Handles: date range, dimensions, sort, expanded rows
+- Supports parallel expansion restoration
+- **Use for**: Any dashboard page with shareable state
+- **Example wrappers**: useUrlSync.ts, useOnPageUrlSync.ts
+
+### When Building New Features:
+
+**REQUIRED STEPS** (follow in order):
+1. **Review Existing Components**
+   - Check `components/table/GenericDataTable.tsx` for table needs
+   - Check `hooks/useGenericUrlSync.ts` for URL sync needs
+   - Check existing stores (reportStore, onPageStore) for patterns
+   - Search codebase for similar functionality
+
+2. **Plan Reuse Strategy**
+   - Can you use GenericDataTable? → Create thin wrapper with config
+   - Can you use useGenericUrlSync? → Create wrapper hook
+   - Need new generic? → Extract common logic, create generic version
+   - Truly unique? → Build custom, but document why
+
+3. **Avoid Duplication**
+   - Never copy-paste from existing features
+   - Never recreate what generics already provide
+   - If 80%+ similar → use/extend generic
+   - If creating similar → refactor into generic first
+
+4. **Document Patterns**
+   - Update `.claude/docs/` with new patterns
+   - Add usage examples to CLAUDE.md
+   - Update Common Workflows section
+
+**Code Review Checklist**:
+- [ ] Searched for existing components solving this problem
+- [ ] Checked if GenericDataTable/useGenericUrlSync apply
+- [ ] Reviewed similar features for patterns
+- [ ] Planned to reuse (not recreate) existing code
+- [ ] Documented any new patterns created
+
+---
+
 ## Styling Strategy
 
 **Hybrid approach** - Use the right tool for the job:
@@ -79,29 +135,44 @@ lib/          - queryBuilder, treeUtils
 
 ## State (Zustand)
 
-**reportStore** - Report data, filters, loading, expansion
-- State: `reportData`, `loadedDimensions`, `dateRange`, `expandedRowKeys`, `isLoading`, `hasUnsavedChanges`
-- Actions: `loadData()`, `loadChildData()`, `setDimensions()`, `setDateRange()`, `setSort()`
+**Report Stores** (follow same pattern - see reportStore/onPageStore for examples)
+- **reportStore** - Marketing campaign data
+- **onPageStore** - Website visitor behavior data
+- Common state: `reportData`, `loadedDimensions`, `dateRange`, `expandedRowKeys`, `isLoading`, `hasUnsavedChanges`
+- Common actions: `loadData()`, `loadChildData()`, `setDimensions()`, `setDateRange()`, `setSort()`
+- **Pattern**: Domain-specific stores with identical structure (98% same implementation)
 
-**columnStore** - Column visibility and ordering
+**Column Stores** (visibility and ordering)
+- **columnStore** - For marketing reports
+- **onPageColumnStore** - For on-page analysis
 - State: `visibleColumns`, `columnOrder`
 - Actions: `toggleColumn()`, `reorderColumns()`, `resetColumns()`
 
-**API**: POST /api/reports/query (dimensions, dateRange, parentKey → ReportRow[])
+**Store Usage with Generics**:
+- GenericDataTable accepts any store matching `TableStore<TRow>` interface
+- useGenericUrlSync accepts any store matching `StoreHook<TRow>` type
+- See `types/table.ts` for generic store interfaces
+
+**API**: POST /api/reports/query, POST /api/on-page-analysis/query (dimensions, dateRange, parentKey → ReportRow[])
 
 ---
 
 ## Key Patterns
 
-**Tables** (DataTable.tsx + CSS Modules)
+**Tables** (Use GenericDataTable - see Generic Components section)
 - Fixed "Attributes" column (left), grouped metric headers
-- Expandable rows, lazy child loading
-- Hover: #f0f9ff, Expanded: #e6f7ed
+- Expandable rows (▶/▼ icons), lazy child loading, drag scrolling
+- Hover: #f0f9ff, Expanded: #e6f7ed, 20px indent per depth
+- Two-row headers for grouped columns
 
 **Filters** (FilterToolbar.tsx)
-- Left: Dimension pills (#00B96B, draggable)
+- Left: Dimension pills (#00B96B, draggable via dnd-kit)
 - Right: Date picker + "Load Data" button
 - 12px gaps, sticky position
+
+**URL State** (Use useGenericUrlSync - see Generic Components section)
+- All filter state persists in URL for sharing/bookmarking
+- Format: `?start=YYYY-MM-DD&end=YYYY-MM-DD&dimensions=a,b&sortBy=col&expanded=keys`
 
 **Cards/Modals**
 - White bg, 1px #e8eaed border, 8px radius, md shadow
@@ -111,21 +182,35 @@ lib/          - queryBuilder, treeUtils
 
 ## Common Workflows
 
-**Add Metric Column**
+**Build New Dashboard/Report Page**
+1. **Review existing code first** (See "Generic Components & Patterns" section)
+   - Check if GenericDataTable + useGenericUrlSync apply (90% of cases)
+   - Review existing stores (reportStore, onPageStore) for patterns
+2. Create types: Add to `types/` (extend BaseTableRow if using GenericDataTable)
+3. Create column config: Add to `config/` (MetricColumn[], ColumnGroup[])
+4. Create store: Follow reportStore pattern (or reuse if same domain)
+5. Create API route: Follow `/api/reports/query` pattern
+6. Create wrapper components:
+   - Table: Thin wrapper around GenericDataTable with config
+   - URL sync: Thin wrapper around useGenericUrlSync with store
+7. Create page: Use wrappers in `app/[page-name]/page.tsx`
+
+**Add Metric Column (to existing report)**
 1. `types/report.ts` - add to `ReportRow['metrics']`
 2. `config/columns.ts` - add to `METRIC_COLUMNS`
 3. `lib/server/queryBuilder.ts` - update SQL SELECT
 4. `columnStore.ts` - update defaults if needed
 
-**Add Dimension**
+**Add Dimension (to existing report)**
 1. `types/dimensions.ts` - add to `AVAILABLE_DIMENSIONS`
 2. `lib/server/queryBuilder.ts` - update GROUP BY logic
 3. `DimensionPicker.tsx` - add dropdown option
 
-**Create Component**
-1. Choose: Ant Design (data-heavy) vs shadcn/ui (structural) vs custom
-2. Custom: Create in `components/`, use CSS Modules
-3. Import design tokens, add TypeScript types
+**Create Standalone Component** (when generics don't apply)
+1. **Check existing components first** - search for similar functionality
+2. Choose library: Ant Design (data-heavy) vs shadcn/ui (structural) vs custom
+3. Custom: Create in `components/`, use CSS Modules + design tokens
+4. Add TypeScript types, follow naming conventions
 
 ---
 
@@ -153,12 +238,14 @@ Detailed patterns in `.claude/docs/`:
 
 ## Working Principles
 
-1. **Data tool first** - Prioritize clarity, scannability, density
-2. **Hierarchical core** - Expansion/collapse is critical
-3. **Follow existing patterns** - Don't introduce new ways
-4. **Use design tokens** - Never hardcode colors/spacing
-5. **Test with real data** - Large numbers, dates, long text
-6. **Accessibility** - Keyboard nav, focus states (2px #00B96B outline)
+1. **Review before building** - **ALWAYS check existing components/patterns first** (See "Generic Components & Patterns")
+2. **Don't Repeat Yourself (DRY)** - Reuse GenericDataTable, useGenericUrlSync, and existing patterns
+3. **Data tool first** - Prioritize clarity, scannability, density
+4. **Hierarchical core** - Expansion/collapse is critical
+5. **Follow existing patterns** - Don't introduce new ways without documented reason
+6. **Use design tokens** - Never hardcode colors/spacing
+7. **Test with real data** - Large numbers, dates, long text
+8. **Accessibility** - Keyboard nav, focus states (2px #00B96B outline)
 
 ---
 
@@ -183,7 +270,6 @@ Document changes right after implementing them, not later. This ensures document
 - MariaDB: CRM data → `lib/server/mariadb.ts` (uses `?` placeholders)
 
 **Scripts**: `npm run dev`, `npm run build`, `npm run lint`
-**Deployment**: See `DOCKER_DEPLOYMENT.md`, `PORTAINER_DEPLOYMENT.md`, and `DOCKER_QUICK_START.md`
 **Known Issues**: No tests, large bundle (Ant + shadcn), no dark mode, no virtualization
 
 ---
