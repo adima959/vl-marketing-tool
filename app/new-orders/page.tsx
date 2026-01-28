@@ -1,19 +1,34 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useNewOrdersUrlSync } from '@/hooks/useNewOrdersUrlSync';
 import { NewOrdersDataTable } from '@/components/new-orders/NewOrdersDataTable';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { ShoppingCart } from 'lucide-react';
 
-export default function NewOrdersPage() {
+function NewOrdersContent() {
   // Automatically syncs URL state with store and loads data
   useNewOrdersUrlSync();
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">New Orders</h1>
+    <>
+      <PageHeader
+        title="New Orders"
+        icon={<ShoppingCart className="h-5 w-5" />}
+      />
+      <div className="flex flex-col h-full">
+        <div className="flex flex-col gap-3 p-3 bg-white flex-1 overflow-auto">
+          <NewOrdersDataTable />
+        </div>
       </div>
+    </>
+  );
+}
 
-      <NewOrdersDataTable />
-    </div>
+export default function NewOrdersPage() {
+  return (
+    <Suspense fallback={<div />}>
+      <NewOrdersContent />
+    </Suspense>
   );
 }
