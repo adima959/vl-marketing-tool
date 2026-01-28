@@ -23,72 +23,7 @@ The Dockerfile has been **optimized** for Next.js 16 with Turbopack. It uses a t
 └── next.config.js    (Next.js configuration)
 ```
 
-## Deploy to Portainer
-
-### Step 1: Create Stack
-
-1. Open Portainer
-2. Go to **Stacks** → **Add Stack**
-3. Name: `vitaliv-marketing-tool`
-4. Choose **Repository** or **Web editor**
-
-### Step 2: Set Environment Variables
-
-Add these in Portainer's **Environment variables** section:
-
-```env
-# Database
-DATABASE_URL=postgresql://user:password@host/database?sslmode=require
-
-# MariaDB
-MARIADB_HOST=your-mariadb-host
-MARIADB_USER=your-user
-MARIADB_PASSWORD=your-password
-MARIADB_DATABASE=your-database
-MARIADB_PORT=3306
-
-# CRM URLs (optional - defaults provided)
-CRM_BASE_URL=https://vitaliv.no/admin
-CRM_LOGIN_URL=https://vitaliv.no/admin/site/marketing
-CRM_VALIDATE_ENDPOINT=/site/marketing
-
-# Auth Settings (optional - defaults provided)
-AUTH_COOKIE_NAME=crm_auth_token
-AUTH_COOKIE_MAX_AGE=86400
-
-# API Keys (REQUIRED)
-SESSION_WIPE_API_KEY=your-session-wipe-key
-USER_MANAGEMENT_API_KEY=your-user-management-key
-
-# Public URLs (optional - defaults provided)
-NEXT_PUBLIC_CRM_LOGIN_URL=https://vitaliv.no/admin/site/marketing
-NEXT_PUBLIC_CRM_LOGOUT_URL=https://vitaliv.no/admin
-```
-
-### Step 3: Deploy
-
-Click **Deploy the stack** and wait for the build to complete (3-5 minutes).
-
-### Step 4: Verify
-
-Check health endpoint:
-```bash
-curl http://your-server:3991/api/health
-```
-
-Expected response:
-```json
-{
-  "status": "ok",
-  "timestamp": "2024-01-25T...",
-  "uptime": 123.45,
-  "environment": "production"
-}
-```
-
-## Local Docker Build (Optional)
-
-Test the build locally before deploying to Portainer:
+## Local Docker Build
 
 ```bash
 # Build the image
@@ -113,19 +48,18 @@ docker-compose down
 
 ### Build Fails with "npm run build" Error
 
-If you see `exit code: 1` during build in Portainer:
+If you see `exit code: 1` during build:
 
-**Memory Issue**: Next.js builds require significant memory (2-4GB). The Dockerfile is configured with 4GB memory limit, but Portainer might have build resource limits.
+**Memory Issue**: Next.js builds require significant memory (2-4GB). The Dockerfile is configured with 4GB memory limit.
 
 **Solutions**:
-1. Check Portainer settings → Increase build memory limits
-2. Build locally and push to registry:
+1. Build locally and push to registry:
    ```bash
    docker build -t your-registry/vitaliv-marketing-tool:latest .
    docker push your-registry/vitaliv-marketing-tool:latest
    ```
    Then update docker-compose.yaml to use the pre-built image
-3. Use a build server with more resources
+2. Use a build server with more resources
 
 ### Container Won't Start
 
@@ -180,5 +114,4 @@ For issues:
 ## Related Documentation
 
 - [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) - Full deployment guide
-- [PORTAINER_DEPLOYMENT.md](PORTAINER_DEPLOYMENT.md) - Portainer-specific guide
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common issues and fixes

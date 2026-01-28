@@ -244,7 +244,7 @@ export async function validateTokenWithCRM(token: string): Promise<AuthValidatio
     // Check if it's a database connection error
     if (error instanceof Error) {
       if (error.message.includes('ECONNREFUSED') || error.message.includes('localhost') || error.message.includes('dummy')) {
-        console.error('❌ DATABASE_URL is not configured! Set it in Portainer environment variables.');
+        console.error('❌ DATABASE_URL is not configured! Set it in environment variables.');
         return {
           success: false,
           error: 'Database configuration error - DATABASE_URL not set',
