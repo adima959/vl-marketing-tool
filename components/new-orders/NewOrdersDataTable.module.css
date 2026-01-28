@@ -1,0 +1,16 @@
+/* New Orders table theming */
+.newOrdersColors :global(.ant-table-row-expand-icon) {
+  color: var(--color-accent);
+}
+
+.newOrdersColors :global(.ant-table-row-expand-icon:hover) {
+  color: var(--color-accent-hover);
+}
+
+.newOrdersColors :global(.ant-table-expanded-row) {
+  background: var(--color-expanded-row);
+}
+
+.newOrdersColors :global(.ant-table-row:hover) {
+  background: var(--color-row-hover);
+}

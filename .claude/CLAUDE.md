@@ -611,6 +611,92 @@ import { MyComponent } from '@/components/my-feature';
 
 ---
 
+## Development Workflow
+
+### File Edit Permissions
+
+**Rule**: Ask for permission ONCE per file, not per edit
+
+**Pattern**:
+```
+✅ GOOD: Batch multiple edits to same file
+"I'll make 3 edits to CLAUDE.md" → [makes 3 edits] → done
+
+❌ BAD: Ask before each edit
+"Edit CLAUDE.md (1/3)" → [permission prompt]
+"Edit CLAUDE.md (2/3)" → [permission prompt] ← unnecessary
+"Edit CLAUDE.md (3/3)" → [permission prompt] ← unnecessary
+```
+
+**Implementation**: Group related changes to the same file into a single editing session.
+
+---
+
+### When to Run Builds
+
+**Rule**: Only run `npm run build` after **code changes**, never after **documentation changes**
+
+| Change Type | Examples | Run Build? |
+|-------------|----------|-----------|
+| **Code** | `.ts`, `.tsx`, `.js`, `.jsx`, `.css` files | ✅ YES |
+| **Config** | `package.json`, `tsconfig.json`, `.env` | ✅ YES |
+| **Documentation** | `.md` files, comments only | ❌ NO |
+| **Assets** | Images, fonts, static files | ❌ NO |
+
+**Decision Tree**:
+```
+Made changes? → YES
+  ↓
+Changed any .ts/.tsx/.js/.jsx files? → NO
+  ↓
+Changed package.json or configs? → NO
+  ↓
+→ SKIP BUILD (docs/assets only)
+```
+
+**Verification**: If uncertain, ask yourself: "Could this change cause TypeScript errors or break the app?" If no, skip build.
+
+---
+
+### Git Commit & Push Strategy
+
+**Rule**: Ask before pushing to remote, or batch multiple commits
+
+**When to Commit** (automatic):
+- After completing a logical unit of work
+- After fixing a bug
+- After adding a feature
+- After documentation updates
+
+**When to Push** (ask first):
+- ❌ DON'T: Auto-push after every commit
+- ✅ DO: Ask user first: "Push now or continue working?"
+- ✅ DO: Batch multiple commits, then push once
+
+**Pattern**:
+```bash
+# ✅ GOOD: Multiple commits, ask once
+git commit -m "feat: Add GenericDataTable"
+git commit -m "docs: Update CLAUDE.md with table patterns"
+git commit -m "fix: Type error in store"
+# → ASK: "Push 3 commits to remote?"
+
+# ❌ BAD: Auto-push after each commit
+git commit && git push  # ← Don't do this every time
+git commit && git push  # ← Interrupts workflow
+git commit && git push  # ← Annoying
+```
+
+**Ask User**:
+```
+"I've committed [description]. Push now or continue working?"
+Options:
+1. Push now
+2. Continue (I'll push later)
+```
+
+---
+
 ## Documentation
 
 Detailed patterns in `.claude/docs/`:
