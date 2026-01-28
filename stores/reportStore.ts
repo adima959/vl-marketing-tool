@@ -65,16 +65,66 @@ export const useReportStore = create<ReportState>((set, get) => ({
   setDateRange: (range) => set({ dateRange: range, hasUnsavedChanges: true }),
 
   addDimension: (id) => {
-    const { dimensions } = get();
+    const { dimensions, reportData, loadedDimensions } = get();
     if (!dimensions.includes(id)) {
-      set({ dimensions: [...dimensions, id], hasUnsavedChanges: true });
+      const newDimensions = [...dimensions, id];
+
+      // Update hasChildren for all existing rows based on new dimension count
+      const updateHasChildren = (rows: ReportRow[], currentDimensions: string[]): ReportRow[] => {
+        return rows.map(row => {
+          const newHasChildren = row.depth < currentDimensions.length - 1;
+          const updatedRow = { ...row, hasChildren: newHasChildren };
+
+          if (row.children && row.children.length > 0) {
+            updatedRow.children = updateHasChildren(row.children, currentDimensions);
+          }
+
+          return updatedRow;
+        });
+      };
+
+      // Only update reportData if it's already been loaded
+      if (reportData.length > 0 && loadedDimensions.length > 0) {
+        set({
+          dimensions: newDimensions,
+          hasUnsavedChanges: true,
+          reportData: updateHasChildren(reportData, newDimensions)
+        });
+      } else {
+        set({ dimensions: newDimensions, hasUnsavedChanges: true });
+      }
     }
   },
 
   removeDimension: (id) => {
-    const { dimensions } = get();
+    const { dimensions, reportData, loadedDimensions } = get();
     if (dimensions.length > 1) {
-      set({ dimensions: dimensions.filter((d) => d !== id), hasUnsavedChanges: true });
+      const newDimensions = dimensions.filter((d) => d !== id);
+
+      // Update hasChildren for all existing rows based on new dimension count
+      const updateHasChildren = (rows: ReportRow[], currentDimensions: string[]): ReportRow[] => {
+        return rows.map(row => {
+          const newHasChildren = row.depth < currentDimensions.length - 1;
+          const updatedRow = { ...row, hasChildren: newHasChildren };
+
+          if (row.children && row.children.length > 0) {
+            updatedRow.children = updateHasChildren(row.children, currentDimensions);
+          }
+
+          return updatedRow;
+        });
+      };
+
+      // Only update reportData if it's already been loaded
+      if (reportData.length > 0 && loadedDimensions.length > 0) {
+        set({
+          dimensions: newDimensions,
+          hasUnsavedChanges: true,
+          reportData: updateHasChildren(reportData, newDimensions)
+        });
+      } else {
+        set({ dimensions: newDimensions, hasUnsavedChanges: true });
+      }
     }
   },
 
@@ -89,10 +139,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
 
     // Only reload if data has been loaded at least once
     if (state.hasLoadedOnce) {
-      // Save expanded keys before reload
-      const savedExpandedKeys = [...state.expandedRowKeys];
-
-      // Load top-level data
+      // Load top-level data with new sort
       set({ isLoading: true, error: null });
 
       try {
@@ -111,28 +158,8 @@ export const useReportStore = create<ReportState>((set, get) => ({
           loadedDimensions: state.dimensions,
           loadedDateRange: state.dateRange,
           reportData: data,
-          expandedRowKeys: savedExpandedKeys, // Keep expanded keys
+          expandedRowKeys: [], // Clear expanded rows on sort change
         });
-
-        // Reload child data for all previously expanded rows
-        if (savedExpandedKeys.length > 0) {
-          const { sortKeysByDepth } = await import('@/lib/treeUtils');
-          const sortedKeys = sortKeysByDepth(savedExpandedKeys);
-
-          for (const key of sortedKeys) {
-            const currentData = get().reportData;
-            const { findRowByKey } = await import('@/lib/treeUtils');
-            const row = findRowByKey(currentData, key);
-
-            if (row && row.hasChildren) {
-              try {
-                await get().loadChildData(key, row.attribute, row.depth);
-              } catch (error) {
-                console.warn(`Failed to reload expanded row ${key}:`, error);
-              }
-            }
-          }
-        }
       } catch (error: unknown) {
         const appError = normalizeError(error);
         console.error('Failed to load data:', appError);
@@ -158,6 +185,9 @@ export const useReportStore = create<ReportState>((set, get) => ({
 
   loadData: async () => {
     const state = get();
+    // Save expanded keys to restore after reload
+    const savedExpandedKeys = [...state.expandedRowKeys];
+
     set({ isLoading: true, error: null });
 
     try {
@@ -169,10 +199,6 @@ export const useReportStore = create<ReportState>((set, get) => ({
         sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
       });
 
-      // Auto-expand first level rows if there are more dimensions
-      const shouldAutoExpand = state.dimensions.length > 1 && data.length > 0;
-      const firstLevelKeys = shouldAutoExpand ? data.map(row => row.key) : [];
-
       set({
         isLoading: false,
         hasUnsavedChanges: false,
@@ -180,46 +206,101 @@ export const useReportStore = create<ReportState>((set, get) => ({
         loadedDimensions: state.dimensions,
         loadedDateRange: state.dateRange,
         reportData: data,
-        expandedRowKeys: firstLevelKeys,
+        expandedRowKeys: savedExpandedKeys, // Keep expanded state
       });
 
-      // Load child data for all first-level rows
-      if (shouldAutoExpand) {
-        // Use setTimeout to ensure state has been updated
-        setTimeout(async () => {
-          const currentState = get();
-          for (const row of data) {
-            if (row.hasChildren) {
-              try {
-                const children = await fetchReportData({
-                  dateRange: currentState.loadedDateRange,
-                  dimensions: currentState.loadedDimensions,
-                  depth: row.depth + 1,
-                  parentFilters: { [currentState.loadedDimensions[0]]: row.attribute },
-                  sortBy: currentState.sortColumn || 'clicks',
-                  sortDirection: currentState.sortDirection === 'ascend' ? 'ASC' : 'DESC',
-                });
+      // Reload child data for previously expanded rows level-by-level
+      if (savedExpandedKeys.length > 0) {
+        const { sortKeysByDepth, findRowByKey } = await import('@/lib/treeUtils');
+        const sortedKeys = sortKeysByDepth(savedExpandedKeys);
 
-                // Update tree with children
-                const updateTree = (rows: ReportRow[]): ReportRow[] => {
-                  return rows.map((r) => {
-                    if (r.key === row.key) {
-                      return { ...r, children };
-                    }
-                    if (r.children && r.children.length > 0) {
-                      return { ...r, children: updateTree(r.children) };
-                    }
-                    return r;
-                  });
-                };
+        // Group keys by depth for level-by-level processing
+        const keysByDepth = new Map<number, string[]>();
+        for (const key of sortedKeys) {
+          const depth = key.split('::').length - 1;
+          if (!keysByDepth.has(depth)) {
+            keysByDepth.set(depth, []);
+          }
+          keysByDepth.get(depth)!.push(key);
+        }
 
-                set({ reportData: updateTree(get().reportData) });
-              } catch (error) {
-                console.warn(`Failed to auto-expand row ${row.key}:`, error);
+        const depths = Array.from(keysByDepth.keys()).sort((a, b) => a - b);
+        const allValidKeys: string[] = [];
+
+        // Process each depth level sequentially
+        for (const depth of depths) {
+          const keysAtDepth = keysByDepth.get(depth)!;
+          const rowsToLoad: Array<{ key: string; row: ReportRow }> = [];
+
+          for (const key of keysAtDepth) {
+            const currentData = get().reportData;
+            const row = findRowByKey(currentData, key);
+            if (row) {
+              allValidKeys.push(key);
+              if (row.hasChildren) {
+                rowsToLoad.push({ key, row });
               }
             }
           }
-        }, 0);
+
+          // Load all rows at this depth in parallel, then update tree once
+          if (rowsToLoad.length > 0) {
+            // Fetch all children data in parallel
+            const childDataPromises = rowsToLoad.map(({ key, row }) => {
+              const keyParts = key.split('::');
+              const parentFilters: Record<string, string> = {};
+              keyParts.forEach((value, index) => {
+                const dimension = state.dimensions[index];  // Use current dimensions, not loaded
+                if (dimension) {
+                  parentFilters[dimension] = value;
+                }
+              });
+
+              return fetchReportData({
+                dateRange: state.dateRange,  // Use current dateRange, not loaded
+                dimensions: state.dimensions,  // Use current dimensions, not loaded
+                depth: row.depth + 1,
+                parentFilters,
+                sortBy: state.sortColumn || 'clicks',
+                sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
+              })
+                .then((children) => ({ success: true, key, children }))
+                .catch((error) => {
+                  console.warn(`Failed to reload expanded row ${key}:`, error);
+                  return { success: false, key, children: [] };
+                });
+            });
+
+            const results = await Promise.allSettled(childDataPromises);
+
+            // Update tree once with all children for this depth level
+            const updateTree = (rows: ReportRow[]): ReportRow[] => {
+              return rows.map((row) => {
+                // Check if this row has new children data
+                for (const result of results) {
+                  if (result.status === 'fulfilled' && result.value.success && result.value.key === row.key) {
+                    return { ...row, children: result.value.children };
+                  }
+                }
+                // Recursively update children
+                if (row.children && row.children.length > 0) {
+                  return { ...row, children: updateTree(row.children) };
+                }
+                return row;
+              });
+            };
+
+            set({ reportData: updateTree(get().reportData) });
+
+            // Small delay for state propagation
+            await new Promise((resolve) => setTimeout(resolve, 50));
+          }
+        }
+
+        // Update to only valid keys (some may not exist after filter change)
+        if (allValidKeys.length !== savedExpandedKeys.length) {
+          set({ expandedRowKeys: allValidKeys });
+        }
       }
     } catch (error: unknown) {
       const appError = normalizeError(error);

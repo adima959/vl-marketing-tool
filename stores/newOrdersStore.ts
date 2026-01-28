@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import { fetchOnPageData } from '@/lib/api/onPageClient';
-import type { DateRange } from '@/types';
-import type { OnPageReportRow } from '@/types/onPageReport';
+import { fetchNewOrdersData } from '@/lib/api/newOrdersClient';
+import type { DateRange, NewOrdersRow } from '@/types/newOrders';
 import { normalizeError } from '@/lib/types/errors';
+import { findRowByKey } from '@/lib/treeUtils';
 
-interface OnPageState {
+interface NewOrdersState {
   // Filters
   dateRange: DateRange;
   dimensions: string[];
@@ -12,7 +12,7 @@ interface OnPageState {
   // Loaded state
   loadedDimensions: string[];
   loadedDateRange: DateRange;
-  reportData: OnPageReportRow[];
+  reportData: NewOrdersRow[];
 
   // UI state
   expandedRowKeys: string[];
@@ -38,23 +38,21 @@ interface OnPageState {
 
 const getDefaultDateRange = (): DateRange => {
   const today = new Date();
-  const sevenDaysAgo = new Date(today);
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  sevenDaysAgo.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
   const end = new Date(today);
   end.setHours(23, 59, 59, 999);
-  return { start: sevenDaysAgo, end };
+  return { start: today, end };
 };
 
-export const useOnPageStore = create<OnPageState>((set, get) => ({
+export const useNewOrdersStore = create<NewOrdersState>((set, get) => ({
   // Initial state
   dateRange: getDefaultDateRange(),
-  dimensions: ['urlPath', 'campaign'],
-  loadedDimensions: ['urlPath', 'campaign'],
+  dimensions: ['country', 'product'],
+  loadedDimensions: ['country', 'product'],
   loadedDateRange: getDefaultDateRange(),
   reportData: [],
   expandedRowKeys: [],
-  sortColumn: 'pageViews',
+  sortColumn: 'subscriptions',
   sortDirection: 'descend',
   isLoading: false,
   hasUnsavedChanges: false,
@@ -69,8 +67,7 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
     if (!dimensions.includes(id)) {
       const newDimensions = [...dimensions, id];
 
-      // Update hasChildren for all existing rows based on new dimension count
-      const updateHasChildren = (rows: OnPageReportRow[], currentDimensions: string[]): OnPageReportRow[] => {
+      const updateHasChildren = (rows: NewOrdersRow[], currentDimensions: string[]): NewOrdersRow[] => {
         return rows.map(row => {
           const newHasChildren = row.depth < currentDimensions.length - 1;
           const updatedRow = { ...row, hasChildren: newHasChildren };
@@ -83,7 +80,6 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
         });
       };
 
-      // Only update reportData if it's already been loaded
       if (reportData.length > 0 && loadedDimensions.length > 0) {
         set({
           dimensions: newDimensions,
@@ -101,8 +97,7 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
     if (dimensions.length > 1) {
       const newDimensions = dimensions.filter((d) => d !== id);
 
-      // Update hasChildren for all existing rows based on new dimension count
-      const updateHasChildren = (rows: OnPageReportRow[], currentDimensions: string[]): OnPageReportRow[] => {
+      const updateHasChildren = (rows: NewOrdersRow[], currentDimensions: string[]): NewOrdersRow[] => {
         return rows.map(row => {
           const newHasChildren = row.depth < currentDimensions.length - 1;
           const updatedRow = { ...row, hasChildren: newHasChildren };
@@ -115,7 +110,6 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
         });
       };
 
-      // Only update reportData if it's already been loaded
       if (reportData.length > 0 && loadedDimensions.length > 0) {
         set({
           dimensions: newDimensions,
@@ -140,11 +134,11 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
       set({ isLoading: true, error: null });
 
       try {
-        const data = await fetchOnPageData({
+        const data = await fetchNewOrdersData({
           dateRange: state.dateRange,
           dimensions: state.dimensions,
           depth: 0,
-          sortBy: column || 'pageViews',
+          sortBy: column || 'subscriptions',
           sortDirection: direction === 'ascend' ? 'ASC' : 'DESC',
         });
 
@@ -155,7 +149,7 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
           loadedDimensions: state.dimensions,
           loadedDateRange: state.dateRange,
           reportData: data,
-          expandedRowKeys: [], // Clear expanded rows on sort change
+          expandedRowKeys: [],
         });
       } catch (error: unknown) {
         const appError = normalizeError(error);
@@ -181,17 +175,16 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
 
   loadData: async () => {
     const state = get();
-    // Save expanded keys to restore after reload
     const savedExpandedKeys = [...state.expandedRowKeys];
 
     set({ isLoading: true, error: null });
 
     try {
-      const data = await fetchOnPageData({
+      const data = await fetchNewOrdersData({
         dateRange: state.dateRange,
         dimensions: state.dimensions,
         depth: 0,
-        sortBy: state.sortColumn || 'pageViews',
+        sortBy: state.sortColumn || 'subscriptions',
         sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
       });
 
@@ -202,15 +195,13 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
         loadedDimensions: state.dimensions,
         loadedDateRange: state.dateRange,
         reportData: data,
-        expandedRowKeys: savedExpandedKeys, // Keep expanded state
+        expandedRowKeys: savedExpandedKeys,
       });
 
-      // Reload child data for previously expanded rows level-by-level
       if (savedExpandedKeys.length > 0) {
         const { sortKeysByDepth, findRowByKey } = await import('@/lib/treeUtils');
         const sortedKeys = sortKeysByDepth(savedExpandedKeys);
 
-        // Group keys by depth for level-by-level processing
         const keysByDepth = new Map<number, string[]>();
         for (const key of sortedKeys) {
           const depth = key.split('::').length - 1;
@@ -223,10 +214,9 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
         const depths = Array.from(keysByDepth.keys()).sort((a, b) => a - b);
         const allValidKeys: string[] = [];
 
-        // Process each depth level sequentially
         for (const depth of depths) {
           const keysAtDepth = keysByDepth.get(depth)!;
-          const rowsToLoad: Array<{ key: string; row: OnPageReportRow }> = [];
+          const rowsToLoad: Array<{ key: string; row: NewOrdersRow }> = [];
 
           for (const key of keysAtDepth) {
             const currentData = get().reportData;
@@ -239,25 +229,23 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
             }
           }
 
-          // Load all rows at this depth in parallel, then update tree once
           if (rowsToLoad.length > 0) {
-            // Fetch all children data in parallel
             const childDataPromises = rowsToLoad.map(({ key, row }) => {
               const keyParts = key.split('::');
               const parentFilters: Record<string, string> = {};
               keyParts.forEach((value, index) => {
-                const dimension = state.dimensions[index];  // Use current dimensions, not loaded
+                const dimension = state.dimensions[index];
                 if (dimension) {
                   parentFilters[dimension] = value;
                 }
               });
 
-              return fetchOnPageData({
-                dateRange: state.dateRange,  // Use current dateRange, not loaded
-                dimensions: state.dimensions,  // Use current dimensions, not loaded
+              return fetchNewOrdersData({
+                dateRange: state.dateRange,
+                dimensions: state.dimensions,
                 depth: row.depth + 1,
                 parentFilters,
-                sortBy: state.sortColumn || 'pageViews',
+                sortBy: state.sortColumn || 'subscriptions',
                 sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
               })
                 .then((children) => ({ success: true, key, children }))
@@ -269,16 +257,13 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
 
             const results = await Promise.allSettled(childDataPromises);
 
-            // Update tree once with all children for this depth level
-            const updateTree = (rows: OnPageReportRow[]): OnPageReportRow[] => {
+            const updateTree = (rows: NewOrdersRow[]): NewOrdersRow[] => {
               return rows.map((row) => {
-                // Check if this row has new children data
                 for (const result of results) {
                   if (result.status === 'fulfilled' && result.value.success && result.value.key === row.key) {
                     return { ...row, children: result.value.children };
                   }
                 }
-                // Recursively update children
                 if (row.children && row.children.length > 0) {
                   return { ...row, children: updateTree(row.children) };
                 }
@@ -287,20 +272,17 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
             };
 
             set({ reportData: updateTree(get().reportData) });
-
-            // Small delay for state propagation
             await new Promise((resolve) => setTimeout(resolve, 50));
           }
         }
 
-        // Update to only valid keys (some may not exist after filter change)
         if (allValidKeys.length !== savedExpandedKeys.length) {
           set({ expandedRowKeys: allValidKeys });
         }
       }
     } catch (error: unknown) {
       const appError = normalizeError(error);
-      console.error('Failed to load on-page data:', {
+      console.error('Failed to load data:', {
         code: appError.code,
         message: appError.message,
       });
@@ -325,17 +307,16 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
         }
       });
 
-      const children = await fetchOnPageData({
+      const children = await fetchNewOrdersData({
         dateRange: state.loadedDateRange,
         dimensions: state.loadedDimensions,
         depth: parentDepth + 1,
         parentFilters,
-        sortBy: state.sortColumn || 'pageViews',
+        sortBy: state.sortColumn || 'subscriptions',
         sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
       });
 
-      // Update reportData tree with children
-      const updateTree = (rows: OnPageReportRow[]): OnPageReportRow[] => {
+      const updateTree = (rows: NewOrdersRow[]): NewOrdersRow[] => {
         return rows.map((row) => {
           if (row.key === parentKey) {
             return { ...row, children };

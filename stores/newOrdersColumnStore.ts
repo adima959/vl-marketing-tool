@@ -1,18 +1,18 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { ON_PAGE_DEFAULT_VISIBLE_COLUMNS } from '@/config/onPageColumns';
+import { NEW_ORDERS_DEFAULT_VISIBLE_COLUMNS } from '@/config/newOrdersColumns';
 
-interface OnPageColumnState {
+interface NewOrdersColumnState {
   visibleColumns: string[];
   toggleColumn: (id: string) => void;
   setVisibleColumns: (ids: string[]) => void;
   resetToDefaults: () => void;
 }
 
-export const useOnPageColumnStore = create<OnPageColumnState>()(
+export const useNewOrdersColumnStore = create<NewOrdersColumnState>()(
   persist(
     (set, get) => ({
-      visibleColumns: ON_PAGE_DEFAULT_VISIBLE_COLUMNS,
+      visibleColumns: NEW_ORDERS_DEFAULT_VISIBLE_COLUMNS,
 
       toggleColumn: (id) => {
         const { visibleColumns } = get();
@@ -25,18 +25,17 @@ export const useOnPageColumnStore = create<OnPageColumnState>()(
 
       setVisibleColumns: (ids) => set({ visibleColumns: ids }),
 
-      resetToDefaults: () => set({ visibleColumns: ON_PAGE_DEFAULT_VISIBLE_COLUMNS }),
+      resetToDefaults: () => set({ visibleColumns: NEW_ORDERS_DEFAULT_VISIBLE_COLUMNS }),
     }),
     {
-      name: 'on-page-column-settings',
-      version: 4, // Increment to reset stored settings
+      name: 'new-orders-column-settings',
+      version: 1,
       migrate: (persistedState: any) => {
-        // Auto-add new columns if they're missing, remove old ones
         const currentColumns = persistedState?.visibleColumns || [];
         const validColumns = currentColumns.filter((col: string) =>
-          ON_PAGE_DEFAULT_VISIBLE_COLUMNS.includes(col)
+          NEW_ORDERS_DEFAULT_VISIBLE_COLUMNS.includes(col)
         );
-        const newColumns = ON_PAGE_DEFAULT_VISIBLE_COLUMNS.filter(
+        const newColumns = NEW_ORDERS_DEFAULT_VISIBLE_COLUMNS.filter(
           (col) => !validColumns.includes(col)
         );
         return {

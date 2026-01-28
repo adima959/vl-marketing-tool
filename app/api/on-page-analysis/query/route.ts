@@ -15,8 +15,9 @@ interface OnPageAggregatedRow {
   scroll_past_hero: number;
   scroll_rate: number;
   form_views: number;
+  form_view_rate: number;
   form_starters: number;
-  cta_clicks: number;
+  form_start_rate: number;
 }
 
 /**
@@ -96,8 +97,9 @@ export async function POST(
           scrollPastHero: Number(row.scroll_past_hero) || 0,
           scrollRate: Number(row.scroll_rate) || 0,
           formViews: Number(row.form_views) || 0,
+          formViewRate: Number(row.form_view_rate) || 0,
           formStarters: Number(row.form_starters) || 0,
-          ctaClicks: Number(row.cta_clicks) || 0,
+          formStartRate: Number(row.form_start_rate) || 0,
         },
       };
     });

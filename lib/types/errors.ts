@@ -20,9 +20,9 @@ export interface AppError extends Error {
 }
 
 /**
- * Type guard to check if error is an AppError
+ * Type guard to check if error is an AppError (internal use only)
  */
-export function isAppError(error: unknown): error is AppError {
+function isAppError(error: unknown): error is AppError {
   return (
     error instanceof Error &&
     'code' in error &&
