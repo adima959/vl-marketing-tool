@@ -29,7 +29,7 @@ export default function RootLayout({
               <RouteGuard>
                 <SidebarProvider>
                   <AppSidebar />
-                  <SidebarInset className="flex flex-col overflow-hidden">
+                  <SidebarInset className="flex flex-col overflow-hidden isolate">
                     {children}
                   </SidebarInset>
                 </SidebarProvider>
