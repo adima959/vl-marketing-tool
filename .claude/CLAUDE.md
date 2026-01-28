@@ -156,7 +156,7 @@ export async function POST(request: Request) {
 
 ## Generic Components & Patterns
 
-**CRITICAL**: Before building ANY feature, review these components. 90% of dashboard features use these.
+**CRITICAL**: Before building ANY feature, review these components. Most dashboard features use these.
 
 ### 1. GenericDataTable - Hierarchical Tables
 
@@ -336,23 +336,23 @@ export const useMyStore = create<MyStoreState>((set, get) => ({
 
 ### When Building New Features - Checklist
 
-**Step 1: Review** (5 minutes)
+**Step 1: Review**
 - [ ] Search for existing component: `grep -r "similar pattern" .`
 - [ ] Check if GenericDataTable applies (hierarchical table?)
 - [ ] Check if useGenericUrlSync applies (shareable state?)
 - [ ] Review similar features: DataTable, OnPageDataTable
 
-**Step 2: Decide** (2 minutes)
+**Step 2: Decide**
 - [ ] Can reuse generic? → Create thin wrapper (preferred)
 - [ ] 80%+ similar? → Use/extend generic
 - [ ] Truly unique? → Build custom (document why in PR)
 
-**Step 3: Implement** (varies)
+**Step 3: Implement**
 - [ ] Copy template from above
 - [ ] Customize domain-specific logic only
 - [ ] Test with real data
 
-**Step 4: Document** (5 minutes)
+**Step 4: Document**
 - [ ] Update `.claude/docs/` if new pattern
 - [ ] Add usage example to CLAUDE.md
 - [ ] Update Common Workflows if needed
@@ -424,14 +424,14 @@ export const useMyStore = create<MyStoreState>((set, get) => ({
 
 ### Workflow 1: Build New Dashboard/Report Page
 
-**Time**: ~2-3 hours | **Files**: 7-8 new files
+**Files**: 7-8 new files
 
 ```bash
-# Step 1: Review (5 min)
+# Step 1: Review
 grep -r "GenericDataTable" components/
 grep -r "useGenericUrlSync" hooks/
 
-# Step 2: Create types (10 min)
+# Step 2: Create types
 # types/myReport.ts
 export interface MyReportRow extends BaseTableRow {
   key: string;
@@ -440,23 +440,23 @@ export interface MyReportRow extends BaseTableRow {
   metrics: { metric1: number; metric2: number };
 }
 
-# Step 3: Create column config (15 min)
+# Step 3: Create column config
 # config/myColumns.ts
 export const MY_METRIC_COLUMNS: MetricColumn[] = [...]
 export const MY_COLUMN_GROUPS: ColumnGroup[] = [...]
 
-# Step 4: Create store (30 min - copy reportStore.ts)
+# Step 4: Create store (copy reportStore.ts)
 # stores/myStore.ts
 export const useMyStore = create<MyStoreState>((set, get) => ({...}))
 
-# Step 5: Create API route (30 min)
+# Step 5: Create API route
 # app/api/my-report/query/route.ts
 export async function POST(request: Request) {
   const { dimensions, dateRange, parentKey } = await request.json();
   // Query database, return { success: true, data: [...] }
 }
 
-# Step 6: Create wrapper components (15 min)
+# Step 6: Create wrapper components
 # components/my-report/MyDataTable.tsx
 export function MyDataTable() {
   return <GenericDataTable<MyReportRow> ... />
@@ -467,7 +467,7 @@ export function useMyUrlSync() {
   return useGenericUrlSync<MyReportRow>({...})
 }
 
-# Step 7: Create page (10 min)
+# Step 7: Create page
 # app/my-report/page.tsx
 'use client';
 export default function MyReportPage() {
@@ -484,7 +484,7 @@ npm run dev    # Test in browser
 
 ### Workflow 2: Add Metric Column (Existing Report)
 
-**Time**: ~15 minutes | **Files**: 3-4 files
+**Files**: 3-4 files
 
 ```typescript
 // Step 1: Add to type definition (types/report.ts or types/onPageReport.ts)
@@ -532,7 +532,7 @@ visibleColumns: ['existingMetric', 'newMetric'], // ← Add 'newMetric' if defau
 
 ### Workflow 3: Add Dimension (Existing Report)
 
-**Time**: ~20 minutes | **Files**: 3 files
+**Files**: 3 files
 
 ```typescript
 // Step 1: Add to available dimensions (types/dimensions.ts)
@@ -565,10 +565,10 @@ const dimensionOptions = [
 
 ### Workflow 4: Create Standalone Component
 
-**Time**: ~30-60 minutes | **When**: Generics don't apply (not a table/report)
+**When**: Generics don't apply (not a table/report)
 
 ```bash
-# Step 1: Check existing components (5 min)
+# Step 1: Check existing components
 find components/ -name "*.tsx" | xargs grep -l "similar pattern"
 
 # Step 2: Decide library
