@@ -9,10 +9,10 @@ import {
   Target,
   Users,
   ShoppingCart,
+  LogOut,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
-import { LogoutButton } from "@/components/auth/LogoutButton"
 import { useAuth } from "@/contexts/AuthContext"
 import { UserRole } from "@/types/user"
 import {
@@ -27,7 +27,13 @@ import {
 } from "@/components/ui/sidebar"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    await logout();
+  };
 
   // Base navigation items (available to all users)
   const baseNavItems = [
@@ -95,9 +101,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={navItems} />
       </SidebarContent>
       <SidebarFooter>
-        <div className="p-4">
-          <LogoutButton type="default" block size="middle" />
-        </div>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              tooltip="Logout"
+            >
+              <LogOut className="size-4" />
+              <span>{isLoggingOut ? 'Logging out...' : 'Logout'}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
