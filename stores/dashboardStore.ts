@@ -47,8 +47,8 @@ const getDefaultDateRange = (): DateRange => {
 export const useDashboardStore = create<DashboardState>((set, get) => ({
   // Initial state
   dateRange: getDefaultDateRange(),
-  dimensions: ['country', 'product'],
-  loadedDimensions: ['country', 'product'],
+  dimensions: ['country', 'product', 'source'],
+  loadedDimensions: ['country', 'product', 'source'],
   loadedDateRange: getDefaultDateRange(),
   reportData: [],
   expandedRowKeys: [],
@@ -180,6 +180,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
+      // Load depth 0 (countries)
       const data = await fetchDashboardData({
         dateRange: state.dateRange,
         dimensions: state.dimensions,
@@ -198,7 +199,114 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         expandedRowKeys: savedExpandedKeys,
       });
 
-      if (savedExpandedKeys.length > 0) {
+      // Auto-expand all levels if this is a fresh load (no saved expanded keys)
+      if (savedExpandedKeys.length === 0 && data.length > 0) {
+        const allExpandedKeys: string[] = [];
+        let currentReportData = data;
+
+        // Load depth 1 (products) for all countries
+        const depth1Promises = data.map((countryRow) => {
+          if (countryRow.hasChildren) {
+            allExpandedKeys.push(countryRow.key);
+            const parentFilters: Record<string, string> = {
+              [state.dimensions[0]]: countryRow.attribute,
+            };
+
+            return fetchDashboardData({
+              dateRange: state.dateRange,
+              dimensions: state.dimensions,
+              depth: 1,
+              parentFilters,
+              sortBy: state.sortColumn || 'subscriptions',
+              sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
+            })
+              .then((children) => ({ success: true, key: countryRow.key, children }))
+              .catch((error) => {
+                console.warn(`Failed to load products for ${countryRow.key}:`, error);
+                return { success: false, key: countryRow.key, children: [] };
+              });
+          }
+          return Promise.resolve({ success: false, key: countryRow.key, children: [] });
+        });
+
+        const depth1Results = await Promise.allSettled(depth1Promises);
+
+        // Update tree with depth 1 data (products)
+        const updateTreeDepth1 = (rows: DashboardRow[]): DashboardRow[] => {
+          return rows.map((row) => {
+            for (const result of depth1Results) {
+              if (result.status === 'fulfilled' && result.value.success && result.value.key === row.key) {
+                return { ...row, children: result.value.children };
+              }
+            }
+            return row;
+          });
+        };
+
+        currentReportData = updateTreeDepth1(currentReportData);
+        set({ reportData: currentReportData });
+        await new Promise((resolve) => setTimeout(resolve, 50));
+
+        // Load depth 2 (sources) for all products
+        const depth2Promises: Promise<{ success: boolean; key: string; children: DashboardRow[] }>[] = [];
+
+        for (const result of depth1Results) {
+          if (result.status === 'fulfilled' && result.value.success) {
+            const countryKey = result.value.key;
+            const countryAttribute = countryKey.split('::')[0];
+
+            for (const productRow of result.value.children) {
+              if (productRow.hasChildren) {
+                allExpandedKeys.push(productRow.key);
+                const parentFilters: Record<string, string> = {
+                  [state.dimensions[0]]: countryAttribute,
+                  [state.dimensions[1]]: productRow.attribute,
+                };
+
+                depth2Promises.push(
+                  fetchDashboardData({
+                    dateRange: state.dateRange,
+                    dimensions: state.dimensions,
+                    depth: 2,
+                    parentFilters,
+                    sortBy: state.sortColumn || 'subscriptions',
+                    sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
+                  })
+                    .then((children) => ({ success: true, key: productRow.key, children }))
+                    .catch((error) => {
+                      console.warn(`Failed to load sources for ${productRow.key}:`, error);
+                      return { success: false, key: productRow.key, children: [] };
+                    })
+                );
+              }
+            }
+          }
+        }
+
+        const depth2Results = await Promise.allSettled(depth2Promises);
+
+        // Update tree with depth 2 data (sources)
+        const updateTreeDepth2 = (rows: DashboardRow[]): DashboardRow[] => {
+          return rows.map((row) => {
+            // Check if this row matches any depth 2 result
+            for (const result of depth2Results) {
+              if (result.status === 'fulfilled' && result.value.success && result.value.key === row.key) {
+                return { ...row, children: result.value.children };
+              }
+            }
+            // Recursively update children
+            if (row.children && row.children.length > 0) {
+              return { ...row, children: updateTreeDepth2(row.children) };
+            }
+            return row;
+          });
+        };
+
+        currentReportData = updateTreeDepth2(currentReportData);
+        set({ reportData: currentReportData, expandedRowKeys: allExpandedKeys });
+      }
+      // If there are saved expanded keys, restore them
+      else if (savedExpandedKeys.length > 0) {
         const { sortKeysByDepth, findRowByKey } = await import('@/lib/treeUtils');
         const sortedKeys = sortKeysByDepth(savedExpandedKeys);
 
