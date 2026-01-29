@@ -42,7 +42,7 @@ export function GenericDataTable<TRow extends BaseTableRow>({
       dataIndex: 'attribute',
       key: 'attribute',
       fixed: 'left',
-      width: 250,
+      width: '35%',
       onHeaderCell: () => ({
         rowSpan: 2,
       }),
