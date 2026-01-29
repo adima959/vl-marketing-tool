@@ -288,7 +288,7 @@ export function GenericDataTable<TRow extends BaseTableRow>({
         loading={isLoading && reportData.length > 0}
         pagination={false}
         size="middle"
-        scroll={{ x: 1530 }}
+        scroll={{ x: 'max-content' }}
         rowKey="key"
         expandable={{
           expandedRowKeys,
