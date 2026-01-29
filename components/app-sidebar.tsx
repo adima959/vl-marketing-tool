@@ -8,7 +8,6 @@ import {
   BarChart,
   Target,
   Users,
-  ShoppingCart,
   LogOut,
 } from "lucide-react"
 
@@ -56,11 +55,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "Marketing Tracker",
       url: "/marketing-tracker",
       icon: Target,
-    },
-    {
-      title: "New Orders",
-      url: "/new-orders",
-      icon: ShoppingCart,
     },
   ];
 

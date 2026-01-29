@@ -20,6 +20,9 @@ const poolConfig: mysql.PoolOptions = {
   idleTimeout: 60000,            // Close idle connections after 60s
   queueLimit: 0,                 // No limit on queued connection requests
 
+  // Timeout settings (important for VPN/remote connections)
+  connectTimeout: 30000,         // 30 seconds to establish connection
+
   // Keep-alive settings
   enableKeepAlive: true,
   keepAliveInitialDelay: 0,
