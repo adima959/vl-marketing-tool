@@ -10,6 +10,7 @@ export const DASHBOARD_METRIC_COLUMNS: MetricColumn[] = [
     format: 'number',
     category: 'basic',
     defaultVisible: true,
+    width: '13%',
     align: 'right',
   },
   {
@@ -20,6 +21,7 @@ export const DASHBOARD_METRIC_COLUMNS: MetricColumn[] = [
     format: 'number',
     category: 'basic',
     defaultVisible: true,
+    width: '13%',
     align: 'right',
   },
   {
@@ -30,6 +32,7 @@ export const DASHBOARD_METRIC_COLUMNS: MetricColumn[] = [
     format: 'number',
     category: 'basic',
     defaultVisible: true,
+    width: '13%',
     align: 'right',
   },
   {
@@ -40,6 +43,7 @@ export const DASHBOARD_METRIC_COLUMNS: MetricColumn[] = [
     format: 'number',
     category: 'basic',
     defaultVisible: true,
+    width: '13%',
     align: 'right',
   },
   {
@@ -50,6 +54,7 @@ export const DASHBOARD_METRIC_COLUMNS: MetricColumn[] = [
     format: 'number',
     category: 'basic',
     defaultVisible: true,
+    width: '13%',
     align: 'right',
   },
 ];
