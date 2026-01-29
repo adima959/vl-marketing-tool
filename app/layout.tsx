@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { RouteGuard } from '@/components/auth/RouteGuard';
+import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import './globals.css';
 import type { Metadata } from 'next';
 
@@ -27,14 +28,16 @@ export default function RootLayout({
           <ConfigProvider theme={theme}>
             <AuthProvider>
               <RouteGuard>
-                <SidebarProvider>
-                  <AppSidebar />
-                  <SidebarInset className="flex flex-col overflow-hidden isolate">
-                    {children}
-                  </SidebarInset>
-                </SidebarProvider>
-                <ToastContainer />
-                <KeyboardShortcuts />
+                <NuqsAdapter>
+                  <SidebarProvider>
+                    <AppSidebar />
+                    <SidebarInset className="flex flex-col overflow-hidden isolate">
+                      {children}
+                    </SidebarInset>
+                  </SidebarProvider>
+                  <ToastContainer />
+                  <KeyboardShortcuts />
+                </NuqsAdapter>
               </RouteGuard>
             </AuthProvider>
           </ConfigProvider>

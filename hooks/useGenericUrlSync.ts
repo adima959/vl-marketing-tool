@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { useUrlState } from './useUrlState';
+import {
+  useQueryStates,
+  parseAsIsoDate,
+  parseAsArrayOf,
+  parseAsString,
+  parseAsStringLiteral,
+} from 'nuqs';
 
 /**
  * Base row interface that report types must extend
@@ -58,7 +64,27 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
   fetchData,
   defaultSortColumn,
 }: UseGenericUrlSyncConfig<TRow>) {
-  const urlState = useUrlState();
+  // Define URL parsers with defaults
+  const getDefaultDateRange = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  };
+
+  const urlParsers = {
+    start: parseAsIsoDate.withDefault(getDefaultDateRange()),
+    end: parseAsIsoDate.withDefault(getDefaultDateRange()),
+    dimensions: parseAsArrayOf(parseAsString).withDefault([]),
+    expanded: parseAsArrayOf(parseAsString).withDefault([]),
+    sortBy: parseAsString.withDefault(defaultSortColumn),
+    sortDir: parseAsStringLiteral(['ascend', 'descend'] as const).withDefault('descend'),
+  } as const;
+
+  const [urlState, setUrlState] = useQueryStates(urlParsers, {
+    history: 'replace',
+    shallow: true,
+  });
+
   const isInitialized = useRef(false);
   const isUpdatingFromUrl = useRef(false);
   const savedExpandedKeys = useRef<string[]>([]);
@@ -89,28 +115,26 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
     isUpdatingFromUrl.current = true;
 
     try {
-      // Parse and apply date range
-      const urlDateRange = urlState.getDateRangeFromUrl();
-      if (urlDateRange) {
-        useStore.setState({ dateRange: urlDateRange });
+      // Parse and apply date range from URL
+      if (urlState.start && urlState.end) {
+        useStore.setState({
+          dateRange: { start: urlState.start, end: urlState.end }
+        });
       }
 
-      // Parse and apply dimensions
-      const urlDimensions = urlState.getDimensionsFromUrl();
-      if (urlDimensions) {
-        useStore.setState({ dimensions: urlDimensions });
+      // Parse and apply dimensions from URL
+      if (urlState.dimensions && urlState.dimensions.length > 0) {
+        useStore.setState({ dimensions: urlState.dimensions });
       }
 
       // Save expanded keys for later restoration
-      const urlExpandedKeys = urlState.getExpandedKeysFromUrl();
-      if (urlExpandedKeys) {
-        savedExpandedKeys.current = urlExpandedKeys;
+      if (urlState.expanded && urlState.expanded.length > 0) {
+        savedExpandedKeys.current = urlState.expanded;
       }
 
-      // Parse and apply sort
-      const urlSort = urlState.getSortFromUrl();
-      if (urlSort.column) {
-        setSort(urlSort.column, urlSort.direction);
+      // Parse and apply sort from URL
+      if (urlState.sortBy) {
+        setSort(urlState.sortBy, urlState.sortDir || 'descend');
       }
 
       // Always load data on mount (URL params restore state, then load)
@@ -233,33 +257,14 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
   useEffect(() => {
     if (!isMounted || !isInitialized.current || isUpdatingFromUrl.current) return;
 
-    const params = new URLSearchParams();
-
-    // Add date range
-    params.set('start', dateRange.start.toISOString().split('T')[0]);
-    params.set('end', dateRange.end.toISOString().split('T')[0]);
-
-    // Add dimensions
-    if (dimensions.length > 0) {
-      params.set('dimensions', dimensions.join(','));
-    }
-
-    // Add expanded rows (only if there are any)
-    if (expandedRowKeys.length > 0) {
-      params.set('expanded', expandedRowKeys.join(','));
-    }
-
-    // Add sort
-    if (sortColumn) {
-      params.set('sortBy', sortColumn);
-      if (sortDirection) {
-        params.set('sortDir', sortDirection);
-      }
-    }
-
-    // Update URL without triggering Next.js navigation/RSC refetch
-    const newUrl = `${window.location.pathname}?${params.toString()}`;
-    window.history.replaceState(null, '', newUrl);
+    setUrlState({
+      start: dateRange.start,
+      end: dateRange.end,
+      dimensions: dimensions.length > 0 ? dimensions : null, // null removes param
+      expanded: expandedRowKeys.length > 0 ? expandedRowKeys : null,
+      sortBy: sortColumn || defaultSortColumn,
+      sortDir: sortDirection || 'descend',
+    });
   }, [
     isMounted,
     dateRange,
@@ -267,5 +272,7 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
     expandedRowKeys,
     sortColumn,
     sortDirection,
+    setUrlState,
+    defaultSortColumn,
   ]);
 }
