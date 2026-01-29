@@ -2,9 +2,9 @@ import type { DateRange } from '@/types/dashboard';
 
 interface QueryOptions {
   dateRange: DateRange;
-  dimensions: string[]; // ['country', 'product']
+  dimensions: string[]; // ['country', 'product', 'source']
   depth: number;        // 0, 1, or 2
-  parentFilters?: Record<string, string>; // { country: 'DENMARK' } or { country: 'DENMARK', product: 'T-Formula' }
+  parentFilters?: Record<string, string>; // { country: 'DENMARK' } or { country: 'DENMARK', product: 'T-Formula' } or { country: 'DENMARK', product: 'T-Formula', source: 'Google' }
   sortBy?: string;
   sortDirection?: 'ASC' | 'DESC';
   limit?: number;
@@ -15,7 +15,7 @@ interface QueryOptions {
  *
  * Depth 0: Group by country
  * Depth 1: Group by country + product (filtered by parent country)
- * Depth 2: Individual subscription rows (filtered by parent country + product)
+ * Depth 2: Group by country + product + source (filtered by parent country + product)
  */
 export class DashboardQueryBuilder {
   /**
@@ -24,16 +24,18 @@ export class DashboardQueryBuilder {
   private readonly dimensionMap: Record<string, string> = {
     country: 'c.country',
     product: 'p.product_name',
+    source: 'sr.source',
   };
 
   /**
    * Maps dashboard metric IDs to SQL expressions (for sorting)
    */
   private readonly metricMap: Record<string, string> = {
-    subscriptions: 'subscription_count',
-    ots: 'ots_count',
-    trials: 'trial_count',
     customers: 'customer_count',
+    subscriptions: 'subscription_count',
+    trials: 'trial_count',
+    trialsApproved: 'trials_approved_count',
+    upsells: 'upsell_count',
   };
 
   /**
@@ -58,6 +60,11 @@ export class DashboardQueryBuilder {
     if (parentFilters.product !== undefined) {
       conditions.push('p.product_name = ?');
       params.push(parentFilters.product);
+    }
+
+    if (parentFilters.source !== undefined) {
+      conditions.push('sr.source = ?');
+      params.push(parentFilters.source);
     }
 
     return {
@@ -95,10 +102,11 @@ export class DashboardQueryBuilder {
     const query = `
       SELECT
         c.country,
+        COUNT(DISTINCT CASE WHEN DATE(c.date_registered) = DATE(s.date_create) THEN s.customer_id END) AS customer_count,
         COUNT(DISTINCT s.id) AS subscription_count,
-        SUM(CASE WHEN uo.type = 3 THEN 1 ELSE 0 END) AS ots_count,
         COUNT(DISTINCT CASE WHEN i.type = 1 THEN i.id END) AS trial_count,
-        COUNT(DISTINCT s.customer_id) AS customer_count
+        COUNT(DISTINCT CASE WHEN i.type = 1 AND i.is_marked = 1 THEN i.id END) AS trials_approved_count,
+        SUM(CASE WHEN uo.type = 3 THEN 1 ELSE 0 END) AS upsell_count
       FROM subscription s
       LEFT JOIN customer c ON s.customer_id = c.id
       LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
@@ -138,10 +146,11 @@ export class DashboardQueryBuilder {
       SELECT
         c.country,
         p.product_name,
+        COUNT(DISTINCT CASE WHEN DATE(c.date_registered) = DATE(s.date_create) THEN s.customer_id END) AS customer_count,
         COUNT(DISTINCT s.id) AS subscription_count,
-        SUM(CASE WHEN uo.type = 3 THEN 1 ELSE 0 END) AS ots_count,
         COUNT(DISTINCT CASE WHEN i.type = 1 THEN i.id END) AS trial_count,
-        COUNT(DISTINCT s.customer_id) AS customer_count
+        COUNT(DISTINCT CASE WHEN i.type = 1 AND i.is_marked = 1 THEN i.id END) AS trials_approved_count,
+        SUM(CASE WHEN uo.type = 3 THEN 1 ELSE 0 END) AS upsell_count
       FROM subscription s
       LEFT JOIN customer c ON s.customer_id = c.id
       LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
@@ -162,9 +171,7 @@ export class DashboardQueryBuilder {
   }
 
   /**
-   * Build query for depth 2 (individual subscriptions)
-   *
-   * At depth 2, we GROUP BY subscription_id to get actual counts per subscription
+   * Build query for depth 2 (source aggregation within country + product)
    */
   private buildDepth2Query(options: QueryOptions): { query: string; params: any[] } {
     const {
@@ -175,8 +182,7 @@ export class DashboardQueryBuilder {
       limit = 1000
     } = options;
 
-    // For depth 2, default to subscription_id descending (newest first)
-    const sortColumn = 'subscription_id';
+    const sortColumn = this.metricMap[sortBy] || 'subscription_count';
     const safeLimit = Math.max(1, Math.min(10000, Math.floor(limit)));
 
     const startDate = this.formatDateForMariaDB(dateRange.start, false);
@@ -186,12 +192,14 @@ export class DashboardQueryBuilder {
 
     const query = `
       SELECT
-        s.id AS subscription_id,
         c.country,
         p.product_name,
         sr.source,
-        COUNT(DISTINCT CASE WHEN uo.type = 3 THEN uo.id END) AS ots_count,
-        COUNT(DISTINCT CASE WHEN i.type = 1 THEN i.id END) AS trial_count
+        COUNT(DISTINCT CASE WHEN DATE(c.date_registered) = DATE(s.date_create) THEN s.customer_id END) AS customer_count,
+        COUNT(DISTINCT s.id) AS subscription_count,
+        COUNT(DISTINCT CASE WHEN i.type = 1 THEN i.id END) AS trial_count,
+        COUNT(DISTINCT CASE WHEN i.type = 1 AND i.is_marked = 1 THEN i.id END) AS trials_approved_count,
+        SUM(CASE WHEN uo.type = 3 THEN 1 ELSE 0 END) AS upsell_count
       FROM subscription s
       LEFT JOIN customer c ON s.customer_id = c.id
       LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
@@ -203,7 +211,7 @@ export class DashboardQueryBuilder {
         AND uo.type = 3
       WHERE s.date_create BETWEEN ? AND ?
         ${whereClause}
-      GROUP BY s.id, c.country, p.product_name, sr.source
+      GROUP BY c.country, p.product_name, sr.source
       ORDER BY ${sortColumn} ${sortDirection}
       LIMIT ${safeLimit}
     `;

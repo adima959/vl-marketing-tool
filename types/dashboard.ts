@@ -11,10 +11,11 @@ export interface DashboardRow extends BaseTableRow {
   hasChildren?: boolean;
   children?: DashboardRow[];
   metrics: {
+    customers: number;        // COUNT DISTINCT new customers (registration date = subscription date)
     subscriptions: number;    // COUNT of subscription IDs
-    ots: number;              // COUNT of upsells where upsell_type = 'ots'
     trials: number;           // COUNT of trial_order_id
-    customers: number;        // COUNT DISTINCT customer_id
+    trialsApproved: number;   // COUNT of approved trials (is_marked = 1)
+    upsells: number;          // COUNT of upsells where upsell_type = 'ots'
   };
 }
 

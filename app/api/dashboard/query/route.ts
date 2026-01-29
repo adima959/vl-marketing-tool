@@ -97,10 +97,11 @@ export async function POST(
           depth: body.depth,
           hasChildren: hasMoreDimensions,
           metrics: {
-            subscriptions: Number(row.subscription_count) || 0,
-            ots: Number(row.ots_count) || 0,
-            trials: Number(row.trial_count) || 0,
             customers: Number(row.customer_count) || 0,
+            subscriptions: Number(row.subscription_count) || 0,
+            trials: Number(row.trial_count) || 0,
+            trialsApproved: Number(row.trials_approved_count) || 0,
+            upsells: Number(row.upsell_count) || 0,
           },
         };
       });
@@ -112,10 +113,11 @@ export async function POST(
         depth: body.depth,
         hasChildren: hasMoreDimensions,
         metrics: {
-          subscriptions: Number(row.subscription_count) || 0,
-          ots: Number(row.ots_count) || 0,
-          trials: Number(row.trial_count) || 0,
           customers: Number(row.customer_count) || 0,
+          subscriptions: Number(row.subscription_count) || 0,
+          trials: Number(row.trial_count) || 0,
+          trialsApproved: Number(row.trials_approved_count) || 0,
+          upsells: Number(row.upsell_count) || 0,
         },
       }));
     } else {
@@ -126,10 +128,11 @@ export async function POST(
         depth: body.depth,
         hasChildren: false, // Leaf nodes (no depth 3)
         metrics: {
-          subscriptions: Number(row.subscription_count) || 0,
-          ots: Number(row.ots_count) || 0,
-          trials: Number(row.trial_count) || 0,
           customers: Number(row.customer_count) || 0,
+          subscriptions: Number(row.subscription_count) || 0,
+          trials: Number(row.trial_count) || 0,
+          trialsApproved: Number(row.trials_approved_count) || 0,
+          upsells: Number(row.upsell_count) || 0,
         },
       }));
     }
