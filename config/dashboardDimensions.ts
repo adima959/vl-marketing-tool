@@ -7,6 +7,7 @@ export const DASHBOARD_DIMENSION_GROUPS: DimensionGroupConfig[] = [
     dimensions: [
       { id: 'country', label: 'Country', group: 'orders' },
       { id: 'product', label: 'Product', group: 'orders' },
+      { id: 'source', label: 'Source', group: 'orders' },
     ],
   },
 ];
