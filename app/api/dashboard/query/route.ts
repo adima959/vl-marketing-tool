@@ -87,19 +87,23 @@ export async function POST(
     let data: DashboardRow[];
 
     if (body.depth === 0) {
-      // Depth 0: Country aggregation
-      data = rows.map((row) => ({
-        key: `${keyPrefix}${row.country || '(not set)'}`,
-        attribute: row.country || '(not set)',
-        depth: body.depth,
-        hasChildren: hasMoreDimensions,
-        metrics: {
-          subscriptions: Number(row.subscription_count) || 0,
-          ots: Number(row.ots_count) || 0,
-          trials: Number(row.trial_count) || 0,
-          customers: Number(row.customer_count) || 0,
-        },
-      }));
+      // Depth 0: Country aggregation (display in uppercase)
+      data = rows.map((row) => {
+        const country = row.country || '(not set)';
+        const countryUpper = country.toUpperCase();
+        return {
+          key: `${keyPrefix}${country}`,
+          attribute: countryUpper,
+          depth: body.depth,
+          hasChildren: hasMoreDimensions,
+          metrics: {
+            subscriptions: Number(row.subscription_count) || 0,
+            ots: Number(row.ots_count) || 0,
+            trials: Number(row.trial_count) || 0,
+            customers: Number(row.customer_count) || 0,
+          },
+        };
+      });
     } else if (body.depth === 1) {
       // Depth 1: Product aggregation
       data = rows.map((row) => ({
@@ -115,26 +119,19 @@ export async function POST(
         },
       }));
     } else {
-      // Depth 2: Individual orders
-      // Each row represents one subscription with its counts
-      data = rows.map((row) => {
-        // Format attribute: "ID: {id} {product_name} - {source}"
-        // Note: product_name includes campaign details from database
-        const attributeText = `ID: ${row.subscription_id} ${row.product_name || 'Unknown'} - ${row.source || 'Unknown'}`;
-
-        return {
-          key: `${keyPrefix}${row.subscription_id}`,
-          attribute: attributeText,
-          depth: body.depth,
-          hasChildren: false, // Leaf nodes
-          metrics: {
-            subscriptions: 1, // Each row is 1 subscription
-            ots: Number(row.ots_count) || 0, // Actual count per subscription
-            trials: Number(row.trial_count) || 0, // Actual count per subscription
-            customers: 1, // Each subscription = 1 customer at this level
-          },
-        };
-      });
+      // Depth 2: Source aggregation
+      data = rows.map((row) => ({
+        key: `${keyPrefix}${row.source || '(not set)'}`,
+        attribute: row.source || '(not set)',
+        depth: body.depth,
+        hasChildren: false, // Leaf nodes (no depth 3)
+        metrics: {
+          subscriptions: Number(row.subscription_count) || 0,
+          ots: Number(row.ots_count) || 0,
+          trials: Number(row.trial_count) || 0,
+          customers: Number(row.customer_count) || 0,
+        },
+      }));
     }
 
     return NextResponse.json({
