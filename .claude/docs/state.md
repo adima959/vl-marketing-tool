@@ -447,16 +447,30 @@ get: () => ({
 
 ### "Load Data" Button Logic
 
+**For detailed "Load Data" button behavior, see CLAUDE.md Key Patterns section.**
+
+**Summary:** Button syncs active filters → loaded filters and fetches new data.
+
+**Store integration:**
 ```typescript
 <Button
   type="primary"
-  onClick={loadData}
-  loading={isLoading}
+  onClick={loadData}           // Calls store's loadData() action
+  loading={isLoading}          // Shows spinner during fetch
   disabled={!hasUnsavedChanges} // Only enabled when changes exist
 >
   Load Data
 </Button>
 ```
+
+**State flow:**
+1. User clicks button → calls `loadData()` action
+2. Store sets `isLoading = true`
+3. Fetches data from API with active filters
+4. Updates `reportData` and syncs `loadedDimensions`/`loadedDateRange`
+5. Sets `hasUnsavedChanges = false`, `isLoading = false`
+
+See CLAUDE.md for complete behavior specification (8 steps).
 
 ---
 

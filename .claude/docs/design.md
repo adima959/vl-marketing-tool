@@ -526,24 +526,40 @@ import { DatePicker } from 'antd';
 
 ### "Load Data" Button
 
-**CRITICAL**: Only this button triggers data fetch (not dimension/date changes)
+**For "Load Data" button trigger behavior and state flow, see CLAUDE.md Key Patterns section.**
 
-**Styling**:
+**Visual Specs:**
+
+**Styling:**
 - Type: Primary button (Ant Design)
 - Background: `#00B96B` (brand accent)
 - Text: "Load Data", white, 14px, 600 weight
-- States: Enabled, Disabled (when loading), Loading (spinner)
+- Height: 32px (default Ant button)
+- Border radius: 6px
+
+**States:**
+- **Default**: `#00B96B` background, white text
+- **Hover**: `brightness(0.95)`, cursor `pointer`
+- **Disabled** (no unsaved changes): Gray background, cursor `not-allowed`
+- **Loading**: Show spinner, background `#00B96B`, disabled clicks
+- **Highlighted** (unsaved changes): Pulsing animation (optional), or brighter green
 
 ```typescript
 <Button
   type="primary"
-  onClick={loadData}
-  loading={isLoading}
-  disabled={!hasUnsavedChanges}
+  onClick={loadData}         // Triggers data fetch (see CLAUDE.md for 8-step flow)
+  loading={isLoading}        // Shows spinner during fetch
+  disabled={!hasUnsavedChanges} // Only enabled when changes exist
 >
   Load Data
 </Button>
 ```
+
+**Key Behavior:**
+- **CRITICAL**: Only this button triggers data fetch (not dimension/date changes)
+- Syncs active filters → loaded filters (see CLAUDE.md for complete specification)
+- Updates URL with new filter state
+- Collapses all expanded rows
 
 ---
 

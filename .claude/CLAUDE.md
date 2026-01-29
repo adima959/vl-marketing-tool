@@ -450,6 +450,30 @@ find . -name "*Report*" -o -name "*Analysis*"
 - Right: Date picker + "Load Data" button
 - 12px gaps, sticky position
 
+**"Load Data" Button Behavior** (Canonical Definition)
+
+**What it does (in order):**
+1. Validates active filters (dimensions, date range)
+2. Calls `loadData()` from store
+3. Fetches data from API via POST /api/reports/query (or equivalent)
+4. Updates `reportData` in store (replaces existing data)
+5. Syncs active → loaded state:
+   - `loadedDimensions` = `dimensions`
+   - `loadedDateRange` = `dateRange`
+6. Sets `hasUnsavedChanges` = false
+7. Updates URL with new filter state
+8. Clears `expandedRowKeys` (collapse all rows)
+
+**What triggers it:**
+- ✅ User clicks "Load Data" button
+- ❌ NOT triggered by dimension/date changes (those only update active state)
+- ❌ NOT triggered by URL changes on page load (useUrlSync handles that)
+
+**Visual feedback:**
+- Button shows loading spinner during fetch
+- Button disabled while loading
+- Button highlighted (green #00B96B) when hasUnsavedChanges = true
+
 **URL State** (Use useGenericUrlSync - see Generic Components section)
 - All filter state persists in URL for sharing/bookmarking
 - Format: `?start=YYYY-MM-DD&end=YYYY-MM-DD&dimensions=a,b&sortBy=col&expanded=keys`
