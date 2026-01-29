@@ -123,11 +123,11 @@ export default function VerifyPage() {
     // Aggregate to campaign level
     const campaignTotal = {
       campaign_name: matchedData[0]?.campaign_name || 'N/A',
-      total_cost: matchedData.reduce((sum, row) => sum + (row.cost || 0), 0),
-      total_clicks: matchedData.reduce((sum, row) => sum + (row.clicks || 0), 0),
-      total_impressions: matchedData.reduce((sum, row) => sum + (row.impressions || 0), 0),
-      crm_subscriptions: matchedData.reduce((sum, row) => sum + (row.crm_subscriptions || 0), 0),
-      approved_sales: matchedData.reduce((sum, row) => sum + (row.approved_sales || 0), 0)
+      total_cost: matchedData.reduce((sum, row) => sum + (Number(row.cost) || 0), 0),
+      total_clicks: matchedData.reduce((sum, row) => sum + (Number(row.clicks) || 0), 0),
+      total_impressions: matchedData.reduce((sum, row) => sum + (Number(row.impressions) || 0), 0),
+      crm_subscriptions: matchedData.reduce((sum, row) => sum + (Number(row.crm_subscriptions) || 0), 0),
+      approved_sales: matchedData.reduce((sum, row) => sum + (Number(row.approved_sales) || 0), 0)
     };
 
     return [campaignTotal];
@@ -223,7 +223,7 @@ export default function VerifyPage() {
                     </div>
                     <div className="p-3 bg-blue-50 border border-blue-200 rounded">
                       <p className="font-semibold text-blue-800">Approved Sales: {results.matched[0].approved_sales}</p>
-                      <p className="font-semibold text-blue-800">Cost: ${results.matched[0].total_cost?.toFixed(2)}</p>
+                      <p className="font-semibold text-blue-800">Cost: ${Number(results.matched[0].total_cost || 0).toFixed(2)}</p>
                       <p className="font-semibold text-blue-800">Clicks: {results.matched[0].total_clicks}</p>
                     </div>
                   </div>
