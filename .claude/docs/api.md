@@ -15,6 +15,13 @@ Dense reference for API routes, database queries, and error handling.
 
 ## Database Clients
 
+⚠️ **CRITICAL: Different databases use different placeholder syntax**
+- PostgreSQL (Neon): Use `$1, $2, $3` - positional
+- MariaDB (CRM): Use `?, ?, ?` - question marks
+- Using wrong syntax causes silent failures or SQL injection vulnerabilities
+
+---
+
 ### PostgreSQL (Neon) - Ad Campaign Data
 
 **File**: `lib/server/db.ts`
@@ -161,6 +168,43 @@ export async function POST(request: NextRequest) {
   error: string // Human-readable error message
 }
 ```
+
+**Response Format Requirements (REQUIRED, not optional):**
+
+**Success response:**
+```typescript
+// ✅ CORRECT - Always include 'data' key
+return NextResponse.json({ success: true, data: results });
+
+// ❌ WRONG - Missing 'data' key
+return NextResponse.json({ success: true, results });  // Will break client
+return NextResponse.json(results);  // Missing envelope entirely
+```
+
+**Error response:**
+```typescript
+// ✅ CORRECT - Always include 'error' message string
+return NextResponse.json(
+  { success: false, error: "Description of what went wrong" },
+  { status: 500 }
+);
+
+// ❌ WRONG - Missing error message
+return NextResponse.json({ success: false }, { status: 500 });  // No error details
+```
+
+**HTTP Status Codes:**
+- Success: Always use `200` (default)
+- Client error: Use `400` for validation errors, `401` for auth errors
+- Server error: Use `500` for unexpected errors
+
+**Why this format is required:**
+- Frontend expects consistent shape for error handling
+- TypeScript types rely on this structure (ApiResponse<T>)
+- Makes debugging easier (always check `.success` first)
+- Discriminated unions work correctly (`success` field is the discriminator)
+
+---
 
 **Type definitions**:
 ```typescript
@@ -335,9 +379,37 @@ export function buildHierarchicalQuery(params: QueryParams) {
   return { text: query, values };
 }
 
+/**
+ * Parent Filter Building
+ *
+ * What is a parent filter?
+ * When user expands a hierarchical row (e.g., "Campaign A"), the child data request
+ * needs to filter by that parent. The parent filter encodes the full hierarchy path.
+ *
+ * Format: `dimension::value::dimension::value`
+ * - Example: `campaign::Google Ads::adGroup::Retargeting`
+ * - This means: "show data for adGroup='Retargeting' under campaign='Google Ads'"
+ *
+ * Why build it?
+ * - Hierarchical queries need to filter at each depth level
+ * - Prevents showing children from other parents
+ * - Enables lazy loading of child data
+ *
+ * Usage in WHERE clause:
+ * ```typescript
+ * if (parentFilter.length >= 2) {
+ *   const dimension = parentFilter[0];    // "campaign"
+ *   const value = parentFilter[1];        // "Google Ads"
+ *   query += ` AND ${dimension} = $${paramIndex++}`;
+ *   params.push(value);
+ * }
+ * ```
+ */
+
 // Helper: Parse parent key
 function parseParentKey(parentKey: string, dimensions: string[]) {
-  // Format: "campaign::Google Ads::adGroup::Brand Campaign"
+  // parentKey = "campaign::Google Ads::adGroup::Retargeting"
+  // parentFilter = ["campaign", "Google Ads", "adGroup", "Retargeting"]
   const parts = parentKey.split('::');
   const filters = [];
 

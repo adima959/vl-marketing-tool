@@ -55,7 +55,8 @@ lib/          - queryBuilder, treeUtils, formatters
 
 | Pattern | PostgreSQL (Neon) | MariaDB (CRM) |
 |---------|-------------------|---------------|
-| **Placeholders** | `$1, $2, $3` | `?, ?, ?` |
+| **Placeholders** | `$1, $2, $3` (PostgreSQL ONLY) | `?, ?, ?` (MariaDB ONLY) |
+| **CRITICAL** | ⚠️ NEVER use `$1` with MariaDB | ⚠️ NEVER use `?` with PostgreSQL |
 | **Import** | `import { db } from '@/lib/server/db'` | `import { executeMariaDBQuery } from '@/lib/server/mariadb'` |
 | **Response** | `{ success: true, data: [...] }` OR `{ success: false, error: "msg" }` | Same |
 | **Hierarchical Keys** | `parent::child::value` format (use `::` separator) | Same |
@@ -336,11 +337,17 @@ export const useMyStore = create<MyStoreState>((set, get) => ({
 
 ### When Building New Features - Checklist
 
-**Step 1: Review**
+**Step 1: Review** (Do this BEFORE any other steps)
+
+**When to review:** Immediately after receiving the task, before reading files or planning.
+
+**Actions:**
 - [ ] Search for existing component: `grep -r "similar pattern" .`
 - [ ] Check if GenericDataTable applies (hierarchical table?)
 - [ ] Check if useGenericUrlSync applies (shareable state?)
 - [ ] Review similar features: DataTable, OnPageDataTable
+
+**Stop and use existing patterns if found** - Do not proceed to Step 2 if generic applies.
 
 **Step 2: Decide**
 - [ ] Can reuse generic? → Create thin wrapper (preferred)
@@ -660,7 +667,18 @@ Changed package.json or configs? → NO
 
 ### Git Commit & Push Strategy
 
-**Rule**: Ask before pushing to remote, or batch multiple commits
+**CRITICAL RULE: NEVER push to remote without explicit user permission**
+
+**Why this is CRITICAL:** Auto-pushing can:
+- Expose unfinished work to team members
+- Trigger CI/CD pipelines prematurely
+- Break production deployments
+- Violate user's workflow expectations
+- Cannot be undone easily (requires force push)
+
+Unlike other rules which affect code quality, violating this rule has immediate external consequences.
+
+---
 
 **When to Commit** (automatic):
 - After completing a logical unit of work
@@ -668,32 +686,52 @@ Changed package.json or configs? → NO
 - After adding a feature
 - After documentation updates
 
-**When to Push** (ask first):
-- ❌ DON'T: Auto-push after every commit
-- ✅ DO: Ask user first: "Push now or continue working?"
-- ✅ DO: Batch multiple commits, then push once
+**When to Push** (ALWAYS ask first):
+- ⛔ **NEVER auto-push** - regardless of number of commits
+- ⛔ **NEVER push without asking** - even after batching multiple commits
+- ✅ **ALWAYS ask before EVERY push** - no exceptions
+- ✅ "Commit" means create local commit only - NEVER includes push
+- ✅ If user says "commit and push", ask for confirmation before push step
+- ✅ Each new session starts with NO push permission - must ask again
+- ✅ Emergency hotfix = still ask before push
+
+**Clarification:**
+- User saying "commit this" = create local commit only
+- User saying "push" or "commit and push" = ask for confirmation first
+- Never assume permission carries across sessions
 
 **Pattern**:
 ```bash
-# ✅ GOOD: Multiple commits, ask once
+# ✅ CORRECT: Commits are automatic, but push ALWAYS requires permission
 git commit -m "feat: Add GenericDataTable"
 git commit -m "docs: Update CLAUDE.md with table patterns"
 git commit -m "fix: Type error in store"
-# → ASK: "Push 3 commits to remote?"
+# → STOP HERE
+# → ASK USER: "I've made 3 commits. Would you like me to push them now?"
+# → WAIT for user response
+# → Only push if user explicitly approves
 
-# ❌ BAD: Auto-push after each commit
-git commit && git push  # ← Don't do this every time
-git commit && git push  # ← Interrupts workflow
-git commit && git push  # ← Annoying
+# ❌ WRONG: Never do this
+git commit && git push  # ← NEVER auto-push
+git commit -m "..." && git push  # ← NEVER chain push with commit
+# Push after N commits without asking  # ← NEVER push based on commit count
 ```
 
-**Ask User**:
+**Required Ask Pattern**:
 ```
-"I've committed [description]. Push now or continue working?"
+"I've committed [description]. There are now [N] unpushed commits.
+Would you like me to push them to remote now?"
+
 Options:
-1. Push now
-2. Continue (I'll push later)
+1. Yes, push now
+2. No, I'll push later
 ```
+
+**Important:**
+- Commits can happen automatically after completing work
+- Push MUST ALWAYS be approved by user first
+- No threshold or batch size should trigger automatic push
+- User must explicitly say "yes" or "push" before running git push
 
 ---
 
