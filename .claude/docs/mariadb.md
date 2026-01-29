@@ -477,6 +477,58 @@ The CRM stores UTM parameters from marketing campaigns in the `tracking_id` fiel
 | `utm_campaign` | tracking fields | `tracking_id_4` | Campaign ID |
 | (click ID) | tracking fields | `tracking_id_5` | External click ID (fbclid, gclid) |
 
+**Tracking ID Field Naming - Important Clarification:**
+
+The CRM uses inconsistent naming for tracking fields across different tables, which can cause confusion.
+
+**Field name variations:**
+- `tracking_id` = Alias for `tracking_id_1` (same field, just different notation)
+- `tracking_id_1`, `tracking_id_2`, `tracking_id_3`, `tracking_id_4`, `tracking_id_5` = Explicit numbered fields
+
+**In different tables:**
+
+**subscription table:**
+- Uses `tracking_id` column name (shorthand notation)
+- Equivalent to `tracking_id_1` in other tables
+- Also has `tracking_id_2`, `tracking_id_3`, `tracking_id_4`, `tracking_id_5`
+
+**invoice table:**
+- Uses `tracking_id_1` column name (explicit notation) - NOT `tracking_id`
+- Also has `tracking_id_2`, `tracking_id_3`, `tracking_id_4`, `tracking_id_5`
+- More consistent naming than subscription table
+
+**customer table:**
+- Uses `tracking_id` column name (shorthand notation)
+- Equivalent to `tracking_id_1`
+- Also has numbered fields 2-5
+
+**Best practice in queries:**
+
+```sql
+-- ✅ CORRECT - Use explicit field names for clarity
+SELECT
+  s.tracking_id_1 as utm_medium,    -- Wait, subscription uses 'tracking_id'!
+  i.tracking_id_1 as utm_medium     -- Invoice uses 'tracking_id_1'
+
+-- Actually, this is correct for each table:
+SELECT
+  s.tracking_id as utm_medium,      -- subscription table (no _1)
+  i.tracking_id_1 as utm_medium,    -- invoice table (explicit _1)
+  c.tracking_id as utm_medium       -- customer table (no _1)
+FROM subscription s
+JOIN invoice i ON i.subscription_id = s.id
+JOIN customer c ON c.id = s.customer_id
+
+-- ⚠️ AVOID - Confusing when reading queries
+SELECT s.tracking_id as utm_medium  -- Is this tracking_id_1? (Yes, but not obvious)
+```
+
+**Summary:**
+- `subscription.tracking_id` = `invoice.tracking_id_1` = `customer.tracking_id` (same data, different column names)
+- Always check table schema before writing queries
+- Use the actual column name for each table (don't assume all use `tracking_id` or all use `tracking_id_1`)
+- This inconsistency is a quirk of the legacy schema - be aware when writing JOINs
+
 ---
 
 ### Platform-Specific Mapping
@@ -3194,6 +3246,140 @@ const invalidLengths = await executeMariaDBQuery(
   []
 );
 ```
+
+#### Validation Error Handling
+
+**Problem:** The validation queries above find invalid data - but what do you do with the results?
+
+**Three Approaches:**
+
+**Option A: Soft Validation (Log & Continue)**
+
+Use when: Background jobs, data audits, non-critical checks, monitoring
+
+```typescript
+// Step 1: Run validation query
+const invalidRecords = await executeMariaDBQuery<{ id: number; email: string }>(
+  `SELECT id, email FROM customer WHERE email NOT LIKE '%@%' OR email = '' LIMIT 100`,
+  []
+);
+
+// Step 2: Log and continue
+if (invalidRecords.length > 0) {
+  console.warn(`⚠️ Found ${invalidRecords.length} customers with invalid emails:`, {
+    sample: invalidRecords.slice(0, 5),  // First 5 examples
+    totalCount: invalidRecords.length
+  });
+
+  // Continue processing - don't halt execution
+  // Maybe send alert to monitoring system
+}
+
+// Continue with normal flow...
+```
+
+**Option B: Hard Validation (Throw Error)**
+
+Use when: Data imports, critical operations, payment processing, data integrity is paramount
+
+```typescript
+// Step 1: Run validation query
+const invalidRecords = await executeMariaDBQuery<{ id: number; amount: number }>(
+  `SELECT id, amount FROM invoice WHERE amount < 0 OR amount IS NULL`,
+  []
+);
+
+// Step 2: Throw error if any invalid data
+if (invalidRecords.length > 0) {
+  throw new Error(
+    `Data quality check failed: Found ${invalidRecords.length} invoices with invalid amounts. ` +
+    `Cannot proceed with payment processing. Sample IDs: ${invalidRecords.slice(0, 5).map(r => r.id).join(', ')}`
+  );
+}
+
+// Only continues if validation passed
+```
+
+**Option C: Return to Caller (Recommended for APIs)**
+
+Use when: API endpoints, user-facing validation, allow retry, client needs details
+
+```typescript
+// In API route
+export async function POST(request: Request) {
+  try {
+    const { customerId } = await request.json();
+
+    // Step 1: Validate customer data
+    const invalidData = await executeMariaDBQuery<{ field: string; value: string }>(
+      `SELECT
+         CASE
+           WHEN email NOT LIKE '%@%' THEN 'email'
+           WHEN country IS NULL OR country = '' THEN 'country'
+           WHEN first_name IS NULL OR first_name = '' THEN 'first_name'
+         END as field,
+         CASE
+           WHEN email NOT LIKE '%@%' THEN email
+           WHEN country IS NULL OR country = '' THEN '(empty)'
+           WHEN first_name IS NULL OR first_name = '' THEN '(empty)'
+         END as value
+       FROM customer
+       WHERE id = ?
+         AND (email NOT LIKE '%@%' OR country IS NULL OR country = '' OR first_name IS NULL OR first_name = '')`,
+      [customerId]
+    );
+
+    // Step 2: Return validation errors to client
+    if (invalidData.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Customer data validation failed',
+          validationErrors: invalidData.map(d => ({
+            field: d.field,
+            issue: `Invalid or missing ${d.field}`,
+            currentValue: d.value
+          }))
+        },
+        { status: 400 }  // Bad Request
+      );
+    }
+
+    // Step 3: Proceed with operation if validation passed
+    // ...
+
+    return NextResponse.json({ success: true, data: result });
+
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
+```
+
+**Decision Matrix:**
+
+| Scenario | Approach | Rationale |
+|----------|----------|-----------|
+| Daily data quality report | Soft (log) | Want visibility, not blocking |
+| Pre-payment validation | Hard (throw) | Cannot process invalid payments |
+| User registration API | Return to caller | User needs to fix specific fields |
+| Background sync job | Soft (log) | Don't halt entire sync for few bad records |
+| Data import from external system | Hard (throw) | Invalid data = reject entire batch |
+| Admin dashboard validation check | Return to caller | Display issues in UI for review |
+
+**Best Practices:**
+
+1. **Always validate before critical operations** (payments, data exports, external API calls)
+2. **Log validation failures** even in soft validation (for monitoring/alerting)
+3. **Include actionable details** in error messages (which records, which fields, why invalid)
+4. **Sample large result sets** (don't return 10,000 invalid records - return first 10-100)
+5. **Consider severity levels:**
+   - **Critical:** Missing required fields, data type mismatches → Hard validation
+   - **Warning:** Suspicious patterns, inconsistent formatting → Soft validation
+   - **Info:** Empty optional fields → Just log, don't block
 
 ---
 

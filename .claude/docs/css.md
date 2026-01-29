@@ -307,6 +307,49 @@ export function MyComponent() {
 
 ### Naming Convention
 
+**Design Token Naming:**
+
+**Prefix Rules:**
+- `--color-*` for all colors
+- `--spacing-*` for all spacing values
+- `--radius-*` for border radius
+- `--shadow-*` for box shadows
+- `--font-*` for font families
+- `--text-*` or `--font-size-*` for font sizes
+
+**Value Naming:**
+- Use semantic names, not values: `--color-bg-primary` not `--color-ffffff`
+- Use size scales: `-xs`, `-sm`, `-md`, `-lg`, `-xl` OR numeric `-1`, `-2`, `-3`
+- Use state suffixes: `-hover`, `-active`, `-disabled`
+- Use shade numbers for color scales: `-50`, `-100`, `-500`, `-900`
+
+**Examples:**
+```css
+/* ✅ CORRECT */
+--color-bg-primary: #ffffff;
+--color-border-hover: #d1d5db;
+--spacing-section: 24px;
+--shadow-card-hover: 0 8px 16px rgba(0,0,0,0.1);
+--color-primary-500: #00B96B;
+
+/* ❌ WRONG */
+--white: #ffffff;              /* Not semantic */
+--border-hover-color: #d1d5db; /* Wrong prefix */
+--space-24: 24px;              /* Value in name */
+--primary: #00B96B;            /* Missing shade number */
+```
+
+**Adding new tokens:**
+1. Check if existing token can be reused
+2. Follow prefix + semantic name pattern
+3. Add to `styles/tokens.css` (CSS vars)
+4. Add to `styles/tokens.ts` (TypeScript constants)
+5. Document in css.md
+
+---
+
+**CSS Classes & Files:**
+
 - **Classes**: camelCase (e.g., `.container`, `.headerTitle`, `.actionButton`)
 - **Files**: PascalCase.module.css (e.g., `DataTable.module.css`)
 
@@ -419,9 +462,62 @@ import styles from './DataTable.module.css';
 </div>
 ```
 
-### Why !important?
+### Specificity Rules - When to Use !important
 
-Ant Design uses high specificity and inline styles. `!important` ensures our overrides win.
+**Level 1 - Try without !important first:**
+```css
+/* Start here - often sufficient */
+.wrapper :global(.ant-table) {
+  background: var(--color-background-primary);
+}
+```
+
+**Level 2 - Increase specificity if Level 1 doesn't work:**
+```css
+/* Add more selector specificity */
+.wrapper :global(.ant-table.ant-table-wrapper) {
+  background: var(--color-background-primary);
+}
+
+/* Or increase parent specificity */
+.wrapper.wrapper :global(.ant-table) {
+  background: var(--color-background-primary);
+}
+```
+
+**Level 3 - Use !important only as last resort:**
+```css
+/* When Ant uses inline styles or !important */
+.wrapper :global(.ant-table) {
+  background: var(--color-background-primary) !important;
+}
+```
+
+**When to use !important:**
+- ✅ Ant component uses inline styles (rare but happens)
+- ✅ Ant's CSS already uses !important (check browser inspector)
+- ✅ Multiple Ant components conflict and specificity doesn't resolve it
+- ✅ Component prop doesn't provide customization option
+
+**When NOT to use !important:**
+- ❌ As first attempt (try specificity first - Levels 1 & 2)
+- ❌ Just to "make it work" (understand why override isn't working)
+- ❌ In global styles (affects entire app, hard to override later)
+- ❌ For styles Ant provides props for (use `className` or `style` props instead)
+
+**Debugging workflow:**
+1. Open browser DevTools inspector
+2. Find the Ant element you want to style
+3. Check "Computed" tab to see which styles are winning
+4. Check if Ant is using inline styles (shows in "element.style")
+5. Check if Ant's CSS uses !important
+6. Try Level 1 (no !important) → Level 2 (more specificity) → Level 3 (!important)
+
+**Why this matters:**
+- Ant Design uses high specificity selectors and sometimes inline styles
+- `!important` should be used strategically, not by default
+- Excessive !important makes future maintenance harder
+- Many Ant overrides work fine without !important
 
 ---
 
@@ -459,6 +555,50 @@ Without tabular-nums:  With tabular-nums:
 123,456                123,456
 (misaligned)           (perfectly aligned)
 ```
+
+**Difference - tabular-nums vs monospace vs default:**
+
+```css
+/* ✅ CORRECT - tabular-nums */
+.metric-cell {
+  font-variant-numeric: tabular-nums;
+  /* OR: font-feature-settings: 'tnum'; */
+  /* Numbers: 1,234.56 */
+  /*          9,876.54 */
+  /* Digits align vertically ↑ */
+  /* Preserves design system font (Inter, SF Pro) */
+}
+
+/* ❌ WRONG - monospace */
+.metric-cell {
+  font-family: monospace;
+  /* Numbers look like code, ugly in tables */
+  /* Loses design system font */
+  /* Entire character set is monospace, not just digits */
+  /* Use only for actual code snippets */
+}
+
+/* ❌ WRONG - default (proportional) */
+.metric-cell {
+  /* No tabular-nums applied */
+  /* Numbers: 1,234.56 */
+  /*          9,876.54 */
+  /* Misaligned because '1' is narrower than '9' */
+  /* Different digit widths cause column misalignment */
+}
+```
+
+**When to use each:**
+- **tabular-nums**: Data tables, metrics, financial dashboards, any columnar numbers
+- **monospace**: Code snippets, terminal output, technical documentation, log files
+- **default (proportional)**: Body text, labels, headings, prose
+
+**Why tabular-nums is better than monospace for tables:**
+1. Maintains design system typography (Inter/SF Pro)
+2. Only affects digits (0-9), not letters or symbols
+3. Looks professional and polished, not "code-like"
+4. Better readability for large datasets
+5. Consistent with overall design language
 
 ---
 

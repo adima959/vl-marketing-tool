@@ -647,7 +647,31 @@ import { MyComponent } from '@/components/my-feature';
 - TypeScript strict mode, explicit return types
 - React 19: Server Components default, `'use client'` only when needed
 - Naming: Components (PascalCase), hooks (useCamelCase), stores (camelStore), CSS classes (camelCase)
-- Imports: `@/components`, `@/lib`, `@/hooks`, `@/stores`, `@/types`, `@/styles`
+
+**Import Path Rules:**
+
+Always use absolute paths with @ alias:
+```typescript
+// ✅ CORRECT
+import { Button } from '@/components/ui/button';
+import { useReportStore } from '@/stores/reportStore';
+import type { ReportRow } from '@/types/report';
+
+// ❌ WRONG - relative paths
+import { Button } from '../../../components/ui/button';
+import { useReportStore } from '../../stores/reportStore';
+```
+
+**Exception:** Same directory imports can use relative
+```typescript
+// File: components/table/DataTable.tsx
+import { GenericDataTable } from './GenericDataTable';  // OK - same dir
+```
+
+**Why absolute paths?**
+- Easier to move files (paths don't break)
+- Clearer to read (know exact location)
+- TypeScript autocomplete works better
 
 ---
 
@@ -689,10 +713,16 @@ Session 2: "I need to edit CLAUDE.md again" → edit → commit
 
 | Change Type | Examples | Run Build? |
 |-------------|----------|-----------|
-| **Code** | `.ts`, `.tsx`, `.js`, `.jsx`, `.css` files | ✅ YES |
+| **TypeScript/JavaScript** | `.ts`, `.tsx`, `.js`, `.jsx` files | ✅ YES |
+| **Styles** | `.css`, `.module.css` files | ✅ YES |
 | **Config** | `package.json`, `tsconfig.json`, `.env` | ✅ YES |
 | **Documentation** | `.md` files, comments only | ❌ NO |
 | **Assets** | Images, fonts, static files | ❌ NO |
+
+**Clarification:**
+- CSS files are CODE, not documentation → Run build
+- Adding CSS comments only → Skip build
+- Changing token values in `tokens.css` → Run build (affects compilation)
 
 **Decision Tree**:
 ```
@@ -700,12 +730,32 @@ Made changes? → YES
   ↓
 Changed any .ts/.tsx/.js/.jsx files? → NO
   ↓
+Changed any .css files? → NO
+  ↓
 Changed package.json or configs? → NO
   ↓
 → SKIP BUILD (docs/assets only)
 ```
 
-**Verification**: If uncertain, ask yourself: "Could this change cause TypeScript errors or break the app?" If no, skip build.
+**Build Verification - Objective Rules:**
+
+**Run build if you changed ANY of these:**
+1. ✅ Added/removed/renamed any .ts/.tsx/.js/.jsx file
+2. ✅ Changed any function signature (parameters, return type)
+3. ✅ Modified imports/exports in any file
+4. ✅ Changed package.json dependencies
+5. ✅ Modified tsconfig.json or next.config.js
+6. ✅ Changed any .css file (including tokens)
+7. ✅ Modified environment variables in .env
+
+**Skip build if you ONLY changed:**
+1. ❌ Markdown files (.md)
+2. ❌ Comments in code (// or /* */)
+3. ❌ Console.log statements (for debugging)
+4. ❌ README or documentation
+5. ❌ Git-related files (.gitignore)
+
+**When truly uncertain:** Run the build (safer to over-build than under-build)
 
 ---
 
@@ -776,6 +826,51 @@ Options:
 - Push MUST ALWAYS be approved by user first
 - No threshold or batch size should trigger automatic push
 - User must explicitly say "yes" or "push" before running git push
+
+---
+
+### Creating Pull Requests
+
+**When to create PR:**
+- Feature is complete (not mid-development)
+- All tests passing (if applicable)
+- Code committed to feature branch
+- User explicitly requests PR creation
+
+**Workflow:**
+```bash
+# 1. Ensure on feature branch
+git branch  # Verify not on main
+
+# 2. Commit all changes
+git add .
+git commit -m "feat: Description"
+
+# 3. Push to remote
+git push -u origin feature-branch-name
+
+# 4. Create PR via gh CLI
+gh pr create --title "feat: Title" --body "$(cat <<'EOF'
+## Summary
+- Bullet point summary
+- Key changes
+
+## Test plan
+- [ ] Test case 1
+- [ ] Test case 2
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)"
+```
+
+**Never create PR:**
+- ❌ From main branch (create feature branch first)
+- ❌ With uncommitted changes
+- ❌ Before user approval
+- ❌ Mid-development (wait for completion)
+
+**View comments on a Github PR:** `gh api repos/owner/repo/pulls/123/comments`
 
 ---
 

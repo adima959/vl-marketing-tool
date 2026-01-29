@@ -192,6 +192,149 @@ Example routes (based on page structure):
 
 ## Adding New Features
 
+### Complete Workflow (All Features)
+
+Follow this workflow regardless of feature type. Use GenericDataTable patterns for hierarchical reports.
+
+**Step 1: Plan & Design**
+1. **Check if similar feature exists:**
+   ```bash
+   # Search for similar patterns
+   grep -r "similar pattern" components/
+   find . -name "*Report*" -o -name "*Analysis*"
+   ```
+2. **Decide architecture:**
+   - Hierarchical data? → Use GenericDataTable + useGenericUrlSync
+   - Custom UI? → Build standalone with Ant Design + CSS Modules
+3. **Write plan if complex:**
+   - Create plan in `.claude/plans/` if feature touches >3 files
+   - Document architectural decisions
+4. **Get user approval before coding**
+
+**Step 2: Implement**
+
+*For hierarchical dashboards (GenericDataTable pattern):*
+1. **Create types** (`types/myReport.ts`):
+   ```typescript
+   export interface MyReportRow extends BaseTableRow {
+     key: string;
+     attribute: string;
+     depth: number;
+     hasChildren?: boolean;
+     metrics: { metric1: number; metric2: number };
+   }
+   ```
+2. **Create column config** (`config/myColumns.ts`):
+   - Define `METRIC_COLUMNS` array
+   - Define `COLUMN_GROUPS` array
+3. **Create store** (`stores/myStore.ts`):
+   - Copy `reportStore.ts` or `onPageStore.ts` pattern
+   - Customize domain-specific logic only
+4. **Create API route** (`app/api/my-report/query/route.ts`):
+   - POST handler accepting `{ dimensions, dateRange, parentKey }`
+   - Return `{ success: true, data: [...] }`
+5. **Create wrapper components:**
+   - `components/my-report/MyDataTable.tsx` - Wrapper around GenericDataTable
+   - `components/my-report/MyFilterToolbar.tsx` - Filters (optional if custom needed)
+6. **Create page** (`app/my-report/page.tsx`):
+   - Use `useMyUrlSync()` hook
+   - Render DataTable + FilterToolbar
+7. **Test with real data:**
+   - Large numbers, dates, long text
+   - Deep hierarchies (3+ levels)
+
+*For custom features (non-hierarchical):*
+1. Create page in `app/[feature]/page.tsx`
+2. Build custom components in `components/[feature]/`
+3. Create API routes as needed in `app/api/[feature]/`
+4. Use Ant Design + CSS Modules for styling
+
+**Step 3: Document**
+
+1. **Add section to features.md** (this file):
+   - Feature name, route, purpose
+   - Data source (PostgreSQL/MariaDB)
+   - Configuration (dimensions, metrics, default state)
+   - Component table
+   - Unique features (if any)
+2. **Update CLAUDE.md** if new pattern introduced:
+   - Add to Table of Contents
+   - Document in Key Patterns section
+3. **Update api.md** if new API pattern:
+   - Document query builder logic
+   - Add example queries
+4. **Update design.md** if new UI pattern:
+   - Document visual patterns
+   - Add color schemes
+5. **Update this features.md section** with any learnings
+
+**Step 4: Verify**
+
+1. **Build check:**
+   ```bash
+   npm run build
+   ```
+   - Fix any TypeScript errors
+   - Verify no import cycles
+2. **Browser test:**
+   ```bash
+   npm run dev
+   ```
+   - Test all interactions (expand, sort, filter, load)
+   - Verify metrics calculate correctly
+3. **URL sync verification:**
+   - Change filters → verify URL updates
+   - Copy URL → paste in new tab → verify state restores
+   - Test expanded rows persist in URL
+4. **Persistence verification:**
+   - Toggle column visibility
+   - Refresh page
+   - Verify columns stay hidden/visible (localStorage)
+
+**Step 5: Commit & PR**
+
+1. **Commit code + docs together:**
+   ```bash
+   git add .
+   git commit -m "feat: Add [feature name]
+
+   - Implemented [key functionality]
+   - Added [components/stores/APIs]
+   - Updated documentation
+
+   Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+   ```
+2. **Create PR with summary:**
+   ```bash
+   gh pr create --title "feat: [Feature Name]" --body "$(cat <<'EOF'
+   ## Summary
+   - Implemented [feature] with [key details]
+   - Uses GenericDataTable pattern (or: Custom implementation)
+   - [Key metric/benefit]
+
+   ## Test plan
+   - [ ] Build passes without errors
+   - [ ] All interactions work (expand, sort, filter)
+   - [ ] URL sync works (shareable links)
+   - [ ] Column persistence works across reloads
+
+   🤖 Generated with [Claude Code](https://claude.com/claude-code)
+   EOF
+   )"
+   ```
+3. **Include screenshots** if UI change:
+   - Before/after comparisons
+   - Key features highlighted
+
+**Common Pitfalls:**
+- ❌ Forgetting to update documentation
+- ❌ Not testing with large datasets
+- ❌ Hardcoding colors/spacing (use design tokens)
+- ❌ Not verifying URL sync and persistence
+- ❌ Creating new patterns when generics would work
+
+---
+
 ### Dashboard with Hierarchical Data
 
 **When**: Need report-style view with drill-down, filters, metrics

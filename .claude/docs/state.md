@@ -222,14 +222,36 @@ async function restoreExpansionFromUrl() {
 }
 ```
 
-**Why level-by-level**:
+**Behavior: Level-by-level lazy restoration**
+
+1. **Page load:** Parse `?expanded=campaign::A,campaign::A::adgroup::B` from URL
+2. **Initial render:** All rows collapsed (data not loaded yet)
+3. **Restoration loop:**
+   - Processes depth 0 first, then depth 1, then depth 2, etc.
+   - Each depth waits for previous depth to complete
+   - All keys at same depth load in parallel (faster)
+4. **Result:** Tree expanded to saved state with proper parent-child hierarchy
+
+**Timing:**
+- Happens AFTER initial `loadData()` completes
+- Each level waits for parent data before expanding
+- May take several seconds for deep hierarchies
+
+**Edge cases:**
+- Row no longer exists: Skip that key (no error thrown)
+- Parent data load fails: Stop restoration at that level
+- Depth 0 rows: Expand immediately (data already loaded from initial fetch)
+- Child rows: Must call `loadChildData()` first, then expand
+
+**Why level-by-level:**
 - Depth 1 children depend on depth 0 parents being loaded
 - Depth 2 children depend on depth 1 parents being loaded
 - Can't load depth 2 before depth 1 exists in tree
 
-**Parallelization**:
+**Parallelization:**
 - All keys at same depth load simultaneously
 - Significantly faster than sequential loading
+- Example: 10 keywords at depth 2 load in parallel, not sequentially
 
 ---
 
