@@ -1,0 +1,14 @@
+.datePickerWrapper {
+  display: flex;
+  align-items: center;
+}
+
+.rangePicker {
+  font-size: 14px;
+  border-radius: var(--radius-md);
+}
+
+.separator {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}

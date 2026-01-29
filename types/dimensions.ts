@@ -1,4 +1,4 @@
-export type DimensionGroup = 'advertising' | 'general' | 'pages' | 'geo' | 'device';
+export type DimensionGroup = 'advertising' | 'general' | 'pages' | 'geo' | 'device' | 'orders';
 
 export interface Dimension {
   id: string;
