@@ -1,15 +1,15 @@
 'use client';
 
 import { Suspense } from 'react';
-import { useNewOrdersUrlSync } from '@/hooks/useNewOrdersUrlSync';
-import { NewOrdersDataTable } from '@/components/new-orders/NewOrdersDataTable';
-import { NewOrdersFilterToolbar } from '@/components/new-orders/NewOrdersFilterToolbar';
+import { useDashboardUrlSync } from '@/hooks/useDashboardUrlSync';
+import { DashboardDataTable } from '@/components/dashboard/DashboardDataTable';
+import { DashboardFilterToolbar } from '@/components/dashboard/DashboardFilterToolbar';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { LayoutDashboard } from 'lucide-react';
 
 function DashboardContent() {
   // Automatically syncs URL state with store and loads data
-  useNewOrdersUrlSync();
+  useDashboardUrlSync();
 
   return (
     <>
@@ -19,8 +19,8 @@ function DashboardContent() {
       />
       <div className="flex flex-col h-full">
         <div className="flex flex-col gap-3 p-3 bg-white flex-1 overflow-auto">
-          <NewOrdersFilterToolbar />
-          <NewOrdersDataTable />
+          <DashboardFilterToolbar />
+          <DashboardDataTable />
         </div>
       </div>
     </>

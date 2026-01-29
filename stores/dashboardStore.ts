@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import { fetchNewOrdersData } from '@/lib/api/newOrdersClient';
-import type { DateRange, NewOrdersRow } from '@/types/newOrders';
+import { fetchDashboardData } from '@/lib/api/dashboardClient';
+import type { DateRange, DashboardRow } from '@/types/dashboard';
 import { normalizeError } from '@/lib/types/errors';
 import { findRowByKey } from '@/lib/treeUtils';
 
-interface NewOrdersState {
+interface DashboardState {
   // Filters
   dateRange: DateRange;
   dimensions: string[];
@@ -12,7 +12,7 @@ interface NewOrdersState {
   // Loaded state
   loadedDimensions: string[];
   loadedDateRange: DateRange;
-  reportData: NewOrdersRow[];
+  reportData: DashboardRow[];
 
   // UI state
   expandedRowKeys: string[];
@@ -44,7 +44,7 @@ const getDefaultDateRange = (): DateRange => {
   return { start: today, end };
 };
 
-export const useNewOrdersStore = create<NewOrdersState>((set, get) => ({
+export const useDashboardStore = create<DashboardState>((set, get) => ({
   // Initial state
   dateRange: getDefaultDateRange(),
   dimensions: ['country', 'product'],
@@ -67,7 +67,7 @@ export const useNewOrdersStore = create<NewOrdersState>((set, get) => ({
     if (!dimensions.includes(id)) {
       const newDimensions = [...dimensions, id];
 
-      const updateHasChildren = (rows: NewOrdersRow[], currentDimensions: string[]): NewOrdersRow[] => {
+      const updateHasChildren = (rows: DashboardRow[], currentDimensions: string[]): DashboardRow[] => {
         return rows.map(row => {
           const newHasChildren = row.depth < currentDimensions.length - 1;
           const updatedRow = { ...row, hasChildren: newHasChildren };
@@ -97,7 +97,7 @@ export const useNewOrdersStore = create<NewOrdersState>((set, get) => ({
     if (dimensions.length > 1) {
       const newDimensions = dimensions.filter((d) => d !== id);
 
-      const updateHasChildren = (rows: NewOrdersRow[], currentDimensions: string[]): NewOrdersRow[] => {
+      const updateHasChildren = (rows: DashboardRow[], currentDimensions: string[]): DashboardRow[] => {
         return rows.map(row => {
           const newHasChildren = row.depth < currentDimensions.length - 1;
           const updatedRow = { ...row, hasChildren: newHasChildren };
@@ -134,7 +134,7 @@ export const useNewOrdersStore = create<NewOrdersState>((set, get) => ({
       set({ isLoading: true, error: null });
 
       try {
-        const data = await fetchNewOrdersData({
+        const data = await fetchDashboardData({
           dateRange: state.dateRange,
           dimensions: state.dimensions,
           depth: 0,
@@ -180,7 +180,7 @@ export const useNewOrdersStore = create<NewOrdersState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const data = await fetchNewOrdersData({
+      const data = await fetchDashboardData({
         dateRange: state.dateRange,
         dimensions: state.dimensions,
         depth: 0,
@@ -216,7 +216,7 @@ export const useNewOrdersStore = create<NewOrdersState>((set, get) => ({
 
         for (const depth of depths) {
           const keysAtDepth = keysByDepth.get(depth)!;
-          const rowsToLoad: Array<{ key: string; row: NewOrdersRow }> = [];
+          const rowsToLoad: Array<{ key: string; row: DashboardRow }> = [];
 
           for (const key of keysAtDepth) {
             const currentData = get().reportData;
@@ -240,7 +240,7 @@ export const useNewOrdersStore = create<NewOrdersState>((set, get) => ({
                 }
               });
 
-              return fetchNewOrdersData({
+              return fetchDashboardData({
                 dateRange: state.dateRange,
                 dimensions: state.dimensions,
                 depth: row.depth + 1,
@@ -257,7 +257,7 @@ export const useNewOrdersStore = create<NewOrdersState>((set, get) => ({
 
             const results = await Promise.allSettled(childDataPromises);
 
-            const updateTree = (rows: NewOrdersRow[]): NewOrdersRow[] => {
+            const updateTree = (rows: DashboardRow[]): DashboardRow[] => {
               return rows.map((row) => {
                 for (const result of results) {
                   if (result.status === 'fulfilled' && result.value.success && result.value.key === row.key) {
@@ -307,7 +307,7 @@ export const useNewOrdersStore = create<NewOrdersState>((set, get) => ({
         }
       });
 
-      const children = await fetchNewOrdersData({
+      const children = await fetchDashboardData({
         dateRange: state.loadedDateRange,
         dimensions: state.loadedDimensions,
         depth: parentDepth + 1,
@@ -316,7 +316,7 @@ export const useNewOrdersStore = create<NewOrdersState>((set, get) => ({
         sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
       });
 
-      const updateTree = (rows: NewOrdersRow[]): NewOrdersRow[] => {
+      const updateTree = (rows: DashboardRow[]): DashboardRow[] => {
         return rows.map((row) => {
           if (row.key === parentKey) {
             return { ...row, children };

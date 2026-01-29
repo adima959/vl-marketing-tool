@@ -1,15 +1,15 @@
 import type { BaseTableRow } from './table';
 
 /**
- * New Orders row structure for hierarchical table
+ * Dashboard row structure for hierarchical table
  * Extends BaseTableRow for use with GenericDataTable
  */
-export interface NewOrdersRow extends BaseTableRow {
+export interface DashboardRow extends BaseTableRow {
   key: string;          // Format: "DENMARK" or "DENMARK::T-Formula" or "DENMARK::T-Formula::4235"
   attribute: string;    // Display text for the row
   depth: number;        // 0 = country, 1 = product, 2 = individual order
   hasChildren?: boolean;
-  children?: NewOrdersRow[];
+  children?: DashboardRow[];
   metrics: {
     subscriptions: number;    // COUNT of subscription IDs
     ots: number;              // COUNT of upsells where upsell_type = 'ots'

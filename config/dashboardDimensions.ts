@@ -1,6 +1,6 @@
 import type { DimensionGroupConfig } from '@/types';
 
-export const NEW_ORDERS_DIMENSION_GROUPS: DimensionGroupConfig[] = [
+export const DASHBOARD_DIMENSION_GROUPS: DimensionGroupConfig[] = [
   {
     id: 'orders',
     label: 'Order Dimensions',
@@ -11,9 +11,9 @@ export const NEW_ORDERS_DIMENSION_GROUPS: DimensionGroupConfig[] = [
   },
 ];
 
-export const ALL_NEW_ORDERS_DIMENSIONS = NEW_ORDERS_DIMENSION_GROUPS.flatMap((g) => g.dimensions);
+export const ALL_DASHBOARD_DIMENSIONS = DASHBOARD_DIMENSION_GROUPS.flatMap((g) => g.dimensions);
 
-export const getNewOrdersDimensionLabel = (id: string): string => {
-  const dim = ALL_NEW_ORDERS_DIMENSIONS.find((d) => d.id === id);
+export const getDashboardDimensionLabel = (id: string): string => {
+  const dim = ALL_DASHBOARD_DIMENSIONS.find((d) => d.id === id);
   return dim?.label ?? id;
 };

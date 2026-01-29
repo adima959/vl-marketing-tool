@@ -1,4 +1,4 @@
-import type { DateRange } from '@/types/newOrders';
+import type { DateRange } from '@/types/dashboard';
 
 interface QueryOptions {
   dateRange: DateRange;
@@ -11,13 +11,13 @@ interface QueryOptions {
 }
 
 /**
- * Builds dynamic SQL queries for New Orders hierarchical reporting
+ * Builds dynamic SQL queries for Dashboard hierarchical reporting
  *
  * Depth 0: Group by country
  * Depth 1: Group by country + product (filtered by parent country)
  * Depth 2: Individual subscription rows (filtered by parent country + product)
  */
-export class NewOrdersQueryBuilder {
+export class DashboardQueryBuilder {
   /**
    * Maps dashboard dimension IDs to database columns
    */
@@ -242,4 +242,4 @@ export class NewOrdersQueryBuilder {
 }
 
 // Export singleton instance
-export const newOrdersQueryBuilder = new NewOrdersQueryBuilder();
+export const dashboardQueryBuilder = new DashboardQueryBuilder();

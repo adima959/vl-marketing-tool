@@ -3,16 +3,16 @@ import { SwapRightOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import type { Dayjs } from 'dayjs';
-import { useNewOrdersStore } from '@/stores/newOrdersStore';
-import styles from './NewOrdersDateRangePicker.module.css';
+import { useDashboardStore } from '@/stores/dashboardStore';
+import styles from './DashboardDateRangePicker.module.css';
 
 // Extend dayjs with plugins
 dayjs.extend(utc);
 
 const { RangePicker } = DatePicker;
 
-export function NewOrdersDateRangePicker() {
-  const { dateRange, setDateRange } = useNewOrdersStore();
+export function DashboardDateRangePicker() {
+  const { dateRange, setDateRange } = useDashboardStore();
 
   const handleChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
     if (dates && dates[0] && dates[1]) {

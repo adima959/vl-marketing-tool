@@ -1,12 +1,12 @@
 import { useGenericUrlSync } from './useGenericUrlSync';
-import { useNewOrdersStore } from '@/stores/newOrdersStore';
-import { fetchNewOrdersData } from '@/lib/api/newOrdersClient';
-import type { NewOrdersRow } from '@/types/newOrders';
+import { useDashboardStore } from '@/stores/dashboardStore';
+import { fetchDashboardData } from '@/lib/api/dashboardClient';
+import type { DashboardRow } from '@/types/dashboard';
 
-export function useNewOrdersUrlSync() {
-  return useGenericUrlSync<NewOrdersRow>({
-    useStore: useNewOrdersStore,
-    fetchData: fetchNewOrdersData,
+export function useDashboardUrlSync() {
+  return useGenericUrlSync<DashboardRow>({
+    useStore: useDashboardStore,
+    fetchData: fetchDashboardData,
     defaultSortColumn: 'subscriptions',
   });
 }

@@ -1,7 +1,7 @@
 import type { MetricColumn } from '@/types';
 import type { ColumnGroup } from '@/types/table';
 
-export const NEW_ORDERS_METRIC_COLUMNS: MetricColumn[] = [
+export const DASHBOARD_METRIC_COLUMNS: MetricColumn[] = [
   {
     id: 'subscriptions',
     label: 'Subscriptions',
@@ -48,13 +48,13 @@ export const NEW_ORDERS_METRIC_COLUMNS: MetricColumn[] = [
   },
 ];
 
-export const NEW_ORDERS_COLUMN_GROUPS: ColumnGroup[] = [
+export const DASHBOARD_COLUMN_GROUPS: ColumnGroup[] = [
   {
     title: 'Order Metrics',
     metricIds: ['subscriptions', 'ots', 'trials', 'customers']
   },
 ];
 
-export const NEW_ORDERS_DEFAULT_VISIBLE_COLUMNS = NEW_ORDERS_METRIC_COLUMNS
+export const DASHBOARD_DEFAULT_VISIBLE_COLUMNS = DASHBOARD_METRIC_COLUMNS
   .filter(col => col.defaultVisible)
   .map(col => col.id);

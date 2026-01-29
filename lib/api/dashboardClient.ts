@@ -1,21 +1,21 @@
 import { serializeQueryParams } from '@/lib/types/api';
 import type { QueryParams } from '@/lib/types/api';
-import type { NewOrdersRow } from '@/types/newOrders';
+import type { DashboardRow } from '@/types/dashboard';
 import { normalizeError, createTimeoutError, createNetworkError } from '@/lib/types/errors';
 
-interface NewOrdersQueryResponse {
+interface DashboardQueryResponse {
   success: boolean;
-  data?: NewOrdersRow[];
+  data?: DashboardRow[];
   error?: string;
 }
 
 /**
- * Fetch new orders data from API with timeout support
+ * Fetch dashboard data from API with timeout support
  */
-export async function fetchNewOrdersData(
+export async function fetchDashboardData(
   params: QueryParams,
   timeoutMs: number = 30000
-): Promise<NewOrdersRow[]> {
+): Promise<DashboardRow[]> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -23,7 +23,7 @@ export async function fetchNewOrdersData(
     // Serialize params to request format (Date -> ISO string)
     const requestBody = serializeQueryParams(params);
 
-    const response = await fetch('/api/new-orders/query', {
+    const response = await fetch('/api/dashboard/query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody),
@@ -40,7 +40,7 @@ export async function fetchNewOrdersData(
       );
     }
 
-    const result: NewOrdersQueryResponse = await response.json();
+    const result: DashboardQueryResponse = await response.json();
 
     if (!result.success) {
       throw new Error(result.error || 'Unknown error');

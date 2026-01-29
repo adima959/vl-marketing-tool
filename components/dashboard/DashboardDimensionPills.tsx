@@ -20,9 +20,9 @@ import {
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useNewOrdersStore } from '@/stores/newOrdersStore';
-import { getNewOrdersDimensionLabel } from '@/config/newOrdersDimensions';
-import styles from './NewOrdersDimensionPills.module.css';
+import { useDashboardStore } from '@/stores/dashboardStore';
+import { getDashboardDimensionLabel } from '@/config/dashboardDimensions';
+import styles from './DashboardDimensionPills.module.css';
 
 interface SortableTagProps {
   dimId: string;
@@ -59,7 +59,7 @@ function SortableTag({ dimId, onRemove, canRemove }: SortableTagProps) {
       {...attributes}
     >
       <HolderOutlined className={styles.dragHandle} {...listeners} />
-      <span {...listeners}>{getNewOrdersDimensionLabel(dimId)}</span>
+      <span {...listeners}>{getDashboardDimensionLabel(dimId)}</span>
       {canRemove && (
         <CloseOutlined
           className={styles.closeIcon}
@@ -71,8 +71,8 @@ function SortableTag({ dimId, onRemove, canRemove }: SortableTagProps) {
   );
 }
 
-export function NewOrdersDimensionPills() {
-  const { dimensions, removeDimension, reorderDimensions } = useNewOrdersStore();
+export function DashboardDimensionPills() {
+  const { dimensions, removeDimension, reorderDimensions } = useDashboardStore();
   const [mounted, setMounted] = useState(false);
 
   // Only render DnD after client-side mount to avoid hydration issues

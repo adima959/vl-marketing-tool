@@ -1,23 +1,23 @@
 'use client';
 
 import { GenericDataTable } from '@/components/table/GenericDataTable';
-import { useNewOrdersStore } from '@/stores/newOrdersStore';
-import { useNewOrdersColumnStore } from '@/stores/newOrdersColumnStore';
-import { NEW_ORDERS_METRIC_COLUMNS, NEW_ORDERS_COLUMN_GROUPS } from '@/config/newOrdersColumns';
-import type { NewOrdersRow } from '@/types/newOrders';
+import { useDashboardStore } from '@/stores/dashboardStore';
+import { useDashboardColumnStore } from '@/stores/dashboardColumnStore';
+import { DASHBOARD_METRIC_COLUMNS, DASHBOARD_COLUMN_GROUPS } from '@/config/dashboardColumns';
+import type { DashboardRow } from '@/types/dashboard';
 import type { ColumnGroup } from '@/types/table';
-import styles from './NewOrdersDataTable.module.css';
+import styles from './DashboardDataTable.module.css';
 
-const COLUMN_GROUPS: ColumnGroup[] = NEW_ORDERS_COLUMN_GROUPS;
+const COLUMN_GROUPS: ColumnGroup[] = DASHBOARD_COLUMN_GROUPS;
 
-export function NewOrdersDataTable() {
+export function DashboardDataTable() {
   return (
-    <GenericDataTable<NewOrdersRow>
-      useStore={useNewOrdersStore}
-      useColumnStore={useNewOrdersColumnStore}
-      metricColumns={NEW_ORDERS_METRIC_COLUMNS}
+    <GenericDataTable<DashboardRow>
+      useStore={useDashboardStore}
+      useColumnStore={useDashboardColumnStore}
+      metricColumns={DASHBOARD_METRIC_COLUMNS}
       columnGroups={COLUMN_GROUPS}
-      colorClassName={styles.newOrdersColors}
+      colorClassName={styles.dashboardColors}
       showColumnTooltips={true}
     />
   );

@@ -2,17 +2,17 @@
 
 import { Button } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
-import { NewOrdersDateRangePicker } from './NewOrdersDateRangePicker';
-import { useNewOrdersStore } from '@/stores/newOrdersStore';
-import styles from './NewOrdersFilterToolbar.module.css';
+import { DashboardDateRangePicker } from './DashboardDateRangePicker';
+import { useDashboardStore } from '@/stores/dashboardStore';
+import styles from './DashboardFilterToolbar.module.css';
 
-export function NewOrdersFilterToolbar() {
-  const { loadData, isLoading, hasUnsavedChanges, hasLoadedOnce } = useNewOrdersStore();
+export function DashboardFilterToolbar() {
+  const { loadData, isLoading, hasUnsavedChanges, hasLoadedOnce } = useDashboardStore();
 
   return (
     <div className={styles.toolbar}>
       <div className={styles.mainRow}>
-        <NewOrdersDateRangePicker />
+        <DashboardDateRangePicker />
 
         <div className={styles.loadButtonWrapper}>
           <Button
