@@ -849,6 +849,56 @@ WHERE s.tracking_id_1 IS NOT NULL
 
 ---
 
+#### 6. Soft Delete Semantics
+
+**What is soft delete?**
+- Records marked `deleted = 1` are hidden from normal queries but not physically removed from the database
+- Allows data recovery and audit trails
+- Maintains referential integrity (foreign keys remain valid)
+
+**deleted field values:**
+- `0` = Active (normal records, shown in standard queries)
+- `1` = Soft-deleted (hidden from standard queries, but data preserved)
+
+**When to filter:**
+- ✅ **ALWAYS filter in production queries:** Add `WHERE deleted = 0`
+- ❌ **Don't filter in admin/audit queries:** Need to see deleted records
+- ❌ **Don't filter in recovery queries:** Need to restore deleted data
+
+**Can deleted records be restored?**
+- Yes, by setting `deleted = 0` via UPDATE query
+- Restore should verify data integrity first (check foreign keys still valid)
+- May need to revalidate relationships before restoration
+
+**Example patterns:**
+```sql
+-- ✅ CORRECT: Standard query (exclude deleted)
+SELECT * FROM invoice
+WHERE subscription_id = ? AND deleted = 0
+
+-- Admin query (show all including deleted)
+SELECT *, IF(deleted = 1, 'DELETED', 'ACTIVE') as status
+FROM invoice
+WHERE subscription_id = ?
+
+-- Restore deleted record
+UPDATE invoice
+SET deleted = 0
+WHERE id = ? AND deleted = 1
+
+-- Soft delete a record
+UPDATE subscription
+SET deleted = 1, date_deleted = NOW()
+WHERE id = ?
+```
+
+**Important:**
+- Never use `DELETE FROM` unless you intend permanent removal
+- Always include `deleted = 0` in WHERE clauses for production queries
+- Log who deleted what and when (add date_deleted, deleted_by_user_id columns if needed)
+
+---
+
 ### TypeScript Interface
 
 ```typescript

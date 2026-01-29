@@ -342,7 +342,26 @@ export const useMyStore = create<MyStoreState>((set, get) => ({
 **When to review:** Immediately after receiving the task, before reading files or planning.
 
 **Actions:**
-- [ ] Search for existing component: `grep -r "similar pattern" .`
+- [ ] Search for existing component matching ANY of these similarity criteria:
+  - **Same data structure:** Hierarchical rows, expandable tables
+  - **Same interaction:** Drill-down, filtering, sorting
+  - **Same domain:** Reports, analytics, dashboards
+  - **Same UI pattern:** Two-row headers, fixed columns, grouped metrics
+
+**Search commands:**
+```bash
+# Search by component type
+grep -r "GenericDataTable" components/
+grep -r "useGenericUrlSync" hooks/
+
+# Search by feature
+grep -r "expandable" components/
+grep -r "hierarchical" components/
+
+# Search by domain
+find . -name "*Report*" -o -name "*Analysis*"
+```
+
 - [ ] Check if GenericDataTable applies (hierarchical table?)
 - [ ] Check if useGenericUrlSync applies (shareable state?)
 - [ ] Review similar features: DataTable, OnPageDataTable
@@ -351,7 +370,21 @@ export const useMyStore = create<MyStoreState>((set, get) => ({
 
 **Step 2: Decide**
 - [ ] Can reuse generic? → Create thin wrapper (preferred)
-- [ ] 80%+ similar? → Use/extend generic
+- [ ] Calculate similarity score using this checklist (each = 20%):
+
+  **Similarity Checklist (5 items = 100%):**
+  1. [ ] Same data structure (hierarchical rows with children) = 20%
+  2. [ ] Same interactions (expand/collapse, sorting, filtering) = 20%
+  3. [ ] Same column structure (attributes + metric groups) = 20%
+  4. [ ] Same state management needs (URL sync, persistence) = 20%
+  5. [ ] Same loading patterns (parent data + lazy children) = 20%
+
+  **Decision:**
+  - 80-100% (4-5 checkboxes): Use/extend generic ✅
+  - 60-80% (3 checkboxes): Strongly consider generic with customization
+  - 40-60% (2 checkboxes): Evaluate case-by-case
+  - 0-40% (0-1 checkboxes): Build custom component
+
 - [ ] Truly unique? → Build custom (document why in PR)
 
 **Step 3: Implement**
@@ -622,20 +655,31 @@ import { MyComponent } from '@/components/my-feature';
 
 ### File Edit Permissions
 
-**Rule**: Ask for permission ONCE per file, not per edit
+**Rule**: Ask for permission ONCE per file per editing session
+
+**What is an "editing session"?**
+- Starts: When you first mention needing to edit a file
+- Ends: When you commit changes OR switch to different task
+- Permission valid for: All related edits within that session
+
+**Edge cases:**
+- Edit → Commit → Edit again = NEW session (ask again)
+- Edit 100 times before commit = SAME session (no re-ask)
+- Edit file A, switch to file B, return to file A = NEW session (ask again)
 
 **Pattern**:
 ```
-✅ GOOD: Batch multiple edits to same file
-"I'll make 3 edits to CLAUDE.md" → [makes 3 edits] → done
+✅ GOOD: One session with multiple edits
+"I'll make 3 edits to CLAUDE.md" → [makes 3 edits] → commit → done
 
-❌ BAD: Ask before each edit
+✅ GOOD: Multiple sessions with explicit re-asking
+Session 1: "I'll edit CLAUDE.md" → edit → commit
+Session 2: "I need to edit CLAUDE.md again" → edit → commit
+
+❌ BAD: Re-asking within same session
 "Edit CLAUDE.md (1/3)" → [permission prompt]
 "Edit CLAUDE.md (2/3)" → [permission prompt] ← unnecessary
-"Edit CLAUDE.md (3/3)" → [permission prompt] ← unnecessary
 ```
-
-**Implementation**: Group related changes to the same file into a single editing session.
 
 ---
 
@@ -774,7 +818,25 @@ Detailed patterns in `.claude/docs/`:
 - Feature changes → Update `.claude/docs/features.md`
 - Core workflow changes → Update `.claude/CLAUDE.md`
 
-Document changes right after implementing them, not later. This ensures documentation never drifts from reality.
+**Documentation Update Timing (Specific Order):**
+
+1. **Implement the code change** (write/edit files)
+2. **Test the change works** (build, run, verify)
+3. **Update documentation immediately** (before commit)
+4. **Commit code + docs together** (one commit for both)
+
+**Why this order?**
+- Ensures docs match code exactly
+- Prevents forgetting to document
+- Keeps git history clean (code + docs in same commit)
+- Makes PR reviews easier
+
+**Do NOT:**
+- ❌ Commit code first, docs later (can forget)
+- ❌ Document before testing (might change during debugging)
+- ❌ Skip docs "for now" (always leads to drift)
+
+**Exception:** If debugging and unsure of final approach, document AFTER solution is stable.
 
 ---
 

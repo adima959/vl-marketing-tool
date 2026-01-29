@@ -261,6 +261,27 @@ import styles from './DataTable.module.css';
 - **Mouse down + drag**: Horizontal scroll (for wide tables)
 - **Cursor**: Changes to grab/grabbing during drag
 
+#### Data Loading Behavior
+
+**Initial load:**
+- Calls `loadData()` from store
+- **Replaces** all existing data (clears previous state)
+- Loads only top-level rows (depth = 0)
+- Sets `hasLoadedOnce = true`
+
+**Lazy load children:**
+- User clicks expand icon (▶)
+- Calls `loadChildData(key, value, depth)` from store
+- **Behavior:** Appends children to parent row (does NOT replace if called twice)
+- **Idempotency:** NOT idempotent - calling twice loads duplicates (store should prevent)
+- **Cache responsibility:** Store must track which rows have children loaded
+- **Example:** Expanding "Campaign A" calls `loadChildData("campaign::Campaign A", "Campaign A", 1)`
+
+**Collapse behavior:**
+- Clicking collapse icon (▼) does NOT remove children from data
+- Only hides them visually via `expandedRowKeys` state
+- Children remain in memory for instant re-expansion
+
 #### Loading States
 
 - **Initial load** (`!hasLoadedOnce`): Shows full-page spinner
@@ -288,6 +309,32 @@ import styles from './DataTable.module.css';
 │   ▶ Row 1.1│    234   │   12.3%  │  $234  │    23    │    $89   │
 └────────────┴──────────┴──────────┴────────┴──────────┴──────────┘
 ```
+
+**Header Structure Rules:**
+
+**Row 1 - Column Groups (optional):**
+- Groups metrics into categories (e.g., "Performance", "Attribution", "Quality")
+- Only spans columns within that group (no cross-group spanning)
+- If metric has no group: Show empty cell OR group title "Other"
+- Group defined in `COLUMN_GROUPS` config array
+
+**Row 2 - Column Labels (required):**
+- Individual metric labels (e.g., "Clicks", "CTR", "Conversions")
+- Always appears, even if no groups in Row 1
+- Defined in `METRIC_COLUMNS` config array
+
+**Valid configurations:**
+```typescript
+// With groups (two-row header)
+COLUMN_GROUPS = [
+  { title: 'Performance', metricIds: ['clicks', 'impressions'] }
+]
+
+// Without groups (single-row header, but still shows Row 2)
+COLUMN_GROUPS = []  // Row 1 empty, Row 2 shows metric labels
+```
+
+---
 
 ### Attributes Column (Fixed Left)
 
@@ -340,14 +387,27 @@ function renderMetric(value: number, format: MetricFormat) {
 - Alignment: Right-aligned
 - Color: `--color-text-primary`
 
-### Row States
+### Row States & Interactive Cursor Specifications
+
+**Row States:**
 
 | State | Background | Border | Cursor |
 |-------|------------|--------|--------|
 | Default | `#ffffff` | None | default |
-| Hover | `#f0f9ff` | None | pointer (if expandable) |
-| Expanded | `var(--group-color-N)` | None | default |
+| Hover row | `#f0f9ff` | None | pointer (entire row clickable) |
+| Expanded row | `var(--group-color-N)` | None | default |
 | Loading | `#ffffff` | None | wait |
+
+**Interactive Element Cursors:**
+
+| Element | Cursor | Hover Behavior | Notes |
+|---------|--------|----------------|-------|
+| Expand/collapse icon (▶/▼) | pointer | scale `1.1` | Interactive button |
+| Metric cells | default | none | Not clickable (unless drilldown enabled) |
+| Draggable dimension pills | grab | active: `grabbing` | FilterToolbar pills |
+| Column headers (sortable) | pointer | underline | Shows sort indicator |
+| Column headers (non-sortable) | default | none | Static label |
+| "Load Data" button | pointer | brightness `0.95` | Primary action |
 
 ### Sort Indicators
 

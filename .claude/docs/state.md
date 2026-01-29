@@ -386,6 +386,7 @@ export const useColumnStore = create<ColumnStoreState>()(
 
 ### hasUnsavedChanges Computation
 
+**Computation Logic:**
 ```typescript
 get: () => ({
   // ... state
@@ -393,23 +394,34 @@ get: () => ({
   get hasUnsavedChanges() {
     const state = get();
 
-    // Compare dimensions
-    if (JSON.stringify(state.dimensions) !== JSON.stringify(state.loadedDimensions)) {
-      return true;
-    }
+    // Compare dimensions (array order matters)
+    const dimensionsChanged =
+      JSON.stringify(state.dimensions) !== JSON.stringify(state.loadedDimensions);
 
-    // Compare date range
-    if (
+    // Compare date range (timestamps must match exactly)
+    const dateRangeChanged =
       state.dateRange.start.getTime() !== state.loadedDateRange.start.getTime() ||
-      state.dateRange.end.getTime() !== state.loadedDateRange.end.getTime()
-    ) {
-      return true;
-    }
+      state.dateRange.end.getTime() !== state.loadedDateRange.end.getTime();
 
-    return false;
+    return dimensionsChanged || dateRangeChanged;
   },
 }),
 ```
+
+**When this becomes true:**
+- User adds/removes dimension pill (not committed to URL yet)
+- User changes date range in picker (not loaded yet)
+- User reorders dimensions (changes hierarchy)
+
+**When this becomes false:**
+- User clicks "Load Data" button
+- `loadData()` completes successfully
+- Active state synced to loaded state (`loadedDimensions = dimensions`, `loadedDateRange = dateRange`)
+
+**UI Integration:**
+- "Load Data" button enabled only when `hasUnsavedChanges === true`
+- Button highlighted with green accent color when changes exist
+- Prevents unnecessary API calls when filters haven't changed
 
 ### "Load Data" Button Logic
 
@@ -588,6 +600,30 @@ export const useMyStore = create<MyStoreState>((set, get) => ({
 - ✅ Column order (`columnOrder`)
 - ❌ Report data (always fetched fresh)
 - ❌ Filter state (use URL instead)
+
+**Persistence Details:**
+
+**columnStore (PERSISTED):**
+- **Mechanism:** localStorage (browser)
+- **Key format:** `vitaliv-analytics-column-config` (hardcoded in store)
+- **Data stored:** `{ visibleColumns: string[], columnOrder: string[] }`
+- **Write timing:** Every time user toggles column or reorders
+- **Read timing:** On page load (before first render)
+- **Lifetime:** Until user clears browser data or calls `resetColumns()`
+
+**reportStore (NOT PERSISTED):**
+- **Mechanism:** None - always starts empty
+- **Data fetched:** On first page load via URL params → `loadData()`
+- **Why not persisted:** Data can be stale, large payload, security concerns
+- **User expectation:** Refresh = fetch latest data
+
+**onPageColumnStore (PERSISTED):**
+- Same as columnStore but separate key: `vitaliv-analytics-onpage-column-config`
+
+**Cross-session behavior:**
+- User closes browser → reopens → column settings restored, data refetched
+
+---
 
 **Implementation**:
 ```typescript
