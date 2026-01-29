@@ -1,0 +1,20 @@
+.modal {
+  /* Use existing modal patterns */
+}
+
+.filterSummary {
+  padding: var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-md);
+  font-size: 14px;
+}
+
+.error {
+  padding: var(--spacing-md);
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  border-radius: var(--radius-sm);
+  color: #ff4d4f;
+  margin-bottom: var(--spacing-md);
+}

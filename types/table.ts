@@ -1,6 +1,7 @@
 import type { ColumnsType } from 'antd/es/table';
 import type { ReactNode } from 'react';
 import type { MetricColumn } from './metrics';
+import type { MetricClickContext } from './dashboardDetails';
 
 /**
  * Base row interface that all table data must extend
@@ -28,6 +29,7 @@ export interface ColumnGroup {
 export interface TableStore<TRow extends BaseTableRow> {
   reportData: TRow[];
   loadedDimensions: string[];
+  loadedDateRange: { start: Date; end: Date };
   expandedRowKeys: string[];
   setExpandedRowKeys: (keys: string[]) => void;
   sortColumn: string | null;
@@ -68,4 +70,7 @@ export interface GenericDataTableConfig<TRow extends BaseTableRow> {
 
   /** Whether to show tooltips on column headers */
   showColumnTooltips?: boolean;
+
+  /** Optional callback when a metric cell is clicked (for detail modals) */
+  onMetricClick?: (context: MetricClickContext) => void;
 }

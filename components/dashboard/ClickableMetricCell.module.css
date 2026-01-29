@@ -1,0 +1,14 @@
+.clickableMetric {
+  cursor: pointer;
+  transition: color var(--transition-fast);
+  display: inline-block;
+}
+
+.clickableMetric:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+.clickableMetric:active {
+  color: var(--color-accent-dark);
+}

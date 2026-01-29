@@ -2,6 +2,7 @@ import { Table, Tooltip } from 'antd';
 import type { ColumnsType, TableProps } from 'antd/es/table';
 import { useMemo, useEffect, useRef } from 'react';
 import { MetricCell } from './MetricCell';
+import { ClickableMetricCell } from '@/components/dashboard/ClickableMetricCell';
 import { useToast } from '@/hooks/useToast';
 import { ErrorMessage } from '@/components/ErrorMessage';
 import { EmptyState } from '@/components/EmptyState';
@@ -16,10 +17,12 @@ export function GenericDataTable<TRow extends BaseTableRow>({
   columnGroups,
   colorClassName,
   showColumnTooltips = false,
+  onMetricClick,
 }: GenericDataTableConfig<TRow>) {
   const {
     reportData,
     loadedDimensions,
+    loadedDateRange,
     expandedRowKeys,
     setExpandedRowKeys,
     sortColumn,
@@ -128,7 +131,26 @@ export function GenericDataTable<TRow extends BaseTableRow>({
           sorter: true,
           sortOrder: sortColumn === col.id ? sortDirection : null,
           showSorterTooltip: false,
-          render: (value: number) => <MetricCell value={value ?? 0} format={col.format} />,
+          render: (value: number, record: TRow) => {
+            // Conditionally use ClickableMetricCell when onMetricClick is provided
+            if (onMetricClick && loadedDateRange) {
+              return (
+                <ClickableMetricCell
+                  value={value ?? 0}
+                  format={col.format}
+                  metricId={col.id as 'customers' | 'subscriptions' | 'trials' | 'trialsApproved' | 'upsells'}
+                  metricLabel={col.label}
+                  rowKey={record.key}
+                  depth={record.depth}
+                  dimensions={loadedDimensions}
+                  dateRange={loadedDateRange}
+                  onClick={onMetricClick}
+                />
+              );
+            }
+            // Default non-clickable cell
+            return <MetricCell value={value ?? 0} format={col.format} />;
+          },
         }));
 
       if (groupMetrics.length > 0) {
@@ -139,7 +161,7 @@ export function GenericDataTable<TRow extends BaseTableRow>({
       }
     }
 
-    return [attributeColumn, ...groupedColumns];
+      return [attributeColumn, ...groupedColumns];
   }, [
     visibleColumns,
     sortColumn,
@@ -150,6 +172,9 @@ export function GenericDataTable<TRow extends BaseTableRow>({
     metricColumns,
     columnGroups,
     showColumnTooltips,
+    onMetricClick,
+    loadedDimensions,
+    loadedDateRange,
     toast,
   ]);
 
