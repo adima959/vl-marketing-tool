@@ -700,13 +700,14 @@ Options:
 ## Documentation
 
 Detailed patterns in `.claude/docs/`:
-- `api.md` - API routes, database queries, error handling, query builders
+- `api.md` - API routes, PostgreSQL database queries, error handling, query builders
+- `mariadb.md` - **MariaDB CRM database guide** (schema, query patterns, use cases, data quality)
 - `design.md` - UI components, layouts, visual patterns, component library split
 - `state.md` - Zustand stores, persistence, URL sync, loading states
 - `css.md` - Styling approach, design tokens, Ant overrides, typography
 - `features.md` - Feature-specific implementations (New Orders dashboard, etc.)
 
-**When to read**: Check relevant docs when working in that area (e.g., read `api.md` when building API routes).
+**When to read**: Check relevant docs when working in that area (e.g., read `mariadb.md` when querying CRM database, read `api.md` when building API routes).
 
 ---
 
@@ -750,16 +751,36 @@ Document changes right after implementing them, not later. This ensures document
 
 ## MariaDB Usage
 
+**For comprehensive MariaDB documentation, see [MariaDB Guide](.claude/docs/mariadb.md).**
+
+The guide includes:
+- Full schema reference for 9 tables (subscription, invoice, customer, product, source, etc.)
+- UTM parameter mapping for Facebook and Google Ads attribution
+- 30+ query patterns with examples
+- 16+ real-world use cases (upsells, approvals, validations, customer types)
+- Data quality & cleanup patterns
+- Performance optimization and error handling
+
+**Quick Reference:**
 ```typescript
 import { executeMariaDBQuery } from '@/lib/server/mariadb';
 
-// Query with ? placeholders (not $1)
+// Query with ? placeholders (not $1 like PostgreSQL)
 const data = await executeMariaDBQuery<Type>(
-  'SELECT * FROM table WHERE date > ?',
+  'SELECT * FROM table WHERE date > ? AND deleted = 0',
   ['2026-01-01']
 );
 ```
 
-**Key View**: `real_time_subscriptions_view` - Contains subscription, customer, product, and tracking data (24 columns)
+**Key Concepts:**
+- Uses `?` placeholders (not `$1, $2, $3` like PostgreSQL)
+- Connection pooling with 10 concurrent connections
+- 30-second timeout for VPN/remote connections
+- Always filter `deleted = 0` to exclude soft-deleted records
+- Upsells linked via `tag` field: `tag LIKE '%parent-sub-id=X%'`
+- Approval status: `is_marked = 1` means approved
+- Trial conversion: `invoice_proccessed.date_bought IS NOT NULL`
+- UTM parameters: `utm_source` → `source` table, `utm_medium/content/term/campaign` → `tracking_id_1/2/3/4`
+
 **Config**: `.env.local` contains MariaDB credentials (MARIADB_HOST, MARIADB_USER, etc.)
-**Test Connection**: Use `testMariaDBConnection()` function from the module
+**Test Connection**: Use `testMariaDBConnection()` function from `@/lib/server/mariadb`

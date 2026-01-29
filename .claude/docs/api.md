@@ -47,8 +47,10 @@ try {
 
 ### MariaDB - CRM Data
 
+**For comprehensive MariaDB documentation, see [mariadb.md](mariadb.md)** - includes full schema reference, query patterns, use cases, and data quality patterns.
+
 **File**: `lib/server/mariadb.ts`
-**Placeholder syntax**: `?` (positional)
+**Placeholder syntax**: `?` (positional, NOT `$1` like PostgreSQL)
 
 ```typescript
 import { executeMariaDBQuery, testMariaDBConnection } from '@/lib/server/mariadb';
