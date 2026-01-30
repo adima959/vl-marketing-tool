@@ -49,7 +49,7 @@ async function updateMaterializedView() {
 
     // Step 3: Analyze current structure
     console.log('3️⃣ Analyzing current structure...');
-    const sample = await executeQuery(`
+    const sample = await executeQuery<Record<string, unknown>>(`
       SELECT * FROM merged_ads_spending LIMIT 1
     `);
 
@@ -105,7 +105,7 @@ async function updateMaterializedView() {
 
     // Step 7: Verify new structure
     console.log('7️⃣ Verifying new structure...');
-    const newSample = await executeQuery(`
+    const newSample = await executeQuery<Record<string, unknown>>(`
       SELECT * FROM merged_ads_spending LIMIT 1
     `);
 
