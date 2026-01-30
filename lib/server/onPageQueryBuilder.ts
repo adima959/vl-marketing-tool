@@ -1,4 +1,5 @@
 import type { QueryOptions } from './types';
+import { validateSortDirection } from './types';
 
 /**
  * Builds dynamic SQL queries for on-page analytics reporting
@@ -172,7 +173,7 @@ export class OnPageQueryBuilder {
     // Get sort column
     const sortColumn = this.metricMap[sortBy] || 'page_views';
     const finalSortColumn = currentDimension === 'date' ? 'dimension_value' : sortColumn;
-    const finalSortDirection = currentDimension === 'date' ? 'DESC' : sortDirection;
+    const finalSortDirection = currentDimension === 'date' ? 'DESC' : validateSortDirection(sortDirection);
 
     // Build parameters
     const params: any[] = [

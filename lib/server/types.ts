@@ -40,6 +40,16 @@ export interface AggregatedMetrics {
 }
 
 /**
+ * Validates that a sort direction value is either 'ASC' or 'DESC'.
+ * Prevents SQL injection via ORDER BY clause interpolation,
+ * since TypeScript types are not enforced at runtime.
+ */
+export function validateSortDirection(direction: string): 'ASC' | 'DESC' {
+  if (direction === 'ASC' || direction === 'DESC') return direction;
+  throw new Error(`Invalid sort direction: ${direction}`);
+}
+
+/**
  * Query options for building SQL
  */
 export interface QueryOptions {

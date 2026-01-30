@@ -1,4 +1,5 @@
 import type { DateRange } from '@/types/dashboard';
+import { validateSortDirection } from './types';
 
 interface QueryOptions {
   dateRange: DateRange;
@@ -115,7 +116,7 @@ export class DashboardQueryBuilder {
         AND uo.type = 3
       WHERE s.date_create BETWEEN ? AND ?
       GROUP BY c.country
-      ORDER BY ${sortColumn} ${sortDirection}
+      ORDER BY ${sortColumn} ${validateSortDirection(sortDirection)}
       LIMIT ${safeLimit}
     `;
 
@@ -162,7 +163,7 @@ export class DashboardQueryBuilder {
       WHERE s.date_create BETWEEN ? AND ?
         ${whereClause}
       GROUP BY c.country, p.product_name
-      ORDER BY ${sortColumn} ${sortDirection}
+      ORDER BY ${sortColumn} ${validateSortDirection(sortDirection)}
       LIMIT ${safeLimit}
     `;
 
@@ -212,7 +213,7 @@ export class DashboardQueryBuilder {
       WHERE s.date_create BETWEEN ? AND ?
         ${whereClause}
       GROUP BY c.country, p.product_name, sr.source
-      ORDER BY ${sortColumn} ${sortDirection}
+      ORDER BY ${sortColumn} ${validateSortDirection(sortDirection)}
       LIMIT ${safeLimit}
     `;
 

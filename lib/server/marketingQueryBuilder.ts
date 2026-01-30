@@ -1,5 +1,6 @@
 import { executeQuery } from './db';
 import { getCRMSubscriptions, type CRMQueryFilters } from './marketingCrmQueries';
+import { validateSortDirection } from './types';
 
 export interface AdsRow {
   network: string;
@@ -192,7 +193,7 @@ export async function getMarketingData(
   // Get sort column
   const sortColumn = metricMap[sortBy] || 'clicks';
   const finalSortColumn = currentDimension === 'date' ? sqlColumn : sortColumn;
-  const finalSortDirection = currentDimension === 'date' ? 'DESC' : sortDirection;
+  const finalSortDirection = currentDimension === 'date' ? 'DESC' : validateSortDirection(sortDirection);
 
   // Step 1: Build PostgreSQL query for aggregated ads data
   const pgParams: any[] = [
