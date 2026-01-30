@@ -7,12 +7,14 @@ interface QueryResult {
   postgres?: any[];
   mariadb?: any[];
   matched?: any[];
+  marketing?: any[];
 }
 
 export default function VerifyPage() {
   const [results, setResults] = useState<QueryResult>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [testingMarketing, setTestingMarketing] = useState(false);
 
   async function runVerification() {
     setLoading(true);
@@ -65,6 +67,48 @@ export default function VerifyPage() {
       setError(error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function testMarketingEndpoint() {
+    setTestingMarketing(true);
+    setError(null);
+
+    try {
+      // Test with Balansera campaign and product filter
+      const response = await fetch('/api/marketing/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dateRange: {
+            start: '2026-01-28',
+            end: '2026-01-28'
+          },
+          dimensions: ['campaign'],
+          productFilter: '%Balansera%',
+          filters: {
+            campaign_name: 'Balansera_Dnk_IM_24_11',
+            network: 'Google Ads'
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Marketing query failed: ${errorData.error}`);
+      }
+
+      const data = await response.json();
+
+      setResults(prev => ({
+        ...prev,
+        marketing: data.data
+      }));
+    } catch (error) {
+      console.error('Marketing endpoint test failed:', error);
+      setError(error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      setTestingMarketing(false);
     }
   }
 
@@ -155,20 +199,32 @@ export default function VerifyPage() {
               </ul>
             </div>
 
-            <Button
-              type="primary"
-              size="large"
-              onClick={runVerification}
-              loading={loading}
-              className="w-full sm:w-auto"
-            >
-              {loading ? 'Running Verification...' : 'Run Verification'}
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Button
+                type="primary"
+                size="large"
+                onClick={runVerification}
+                loading={loading}
+                className="w-full sm:w-auto"
+              >
+                {loading ? 'Running Verification...' : 'Run Verification'}
+              </Button>
+
+              <Button
+                type="default"
+                size="large"
+                onClick={testMarketingEndpoint}
+                loading={testingMarketing}
+                className="w-full sm:w-auto"
+              >
+                {testingMarketing ? 'Testing Marketing API...' : 'Test Marketing API'}
+              </Button>
+            </div>
 
             {error && (
               <Alert
                 type="error"
-                message="Verification Failed"
+                title="Verification Failed"
                 description={error}
                 closable
                 onClose={() => setError(null)}
@@ -234,6 +290,44 @@ export default function VerifyPage() {
               </div>
             </Card>
           </div>
+        )}
+
+        {!testingMarketing && results.marketing && (
+          <Card title="Marketing API Result (New Two-Database Approach)" className="mt-6 overflow-auto">
+            <div className="text-xs">
+              {results.marketing && results.marketing.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  <div className="p-3 bg-purple-50 border border-purple-200 rounded">
+                    <p className="font-bold text-lg text-purple-800">
+                      Campaign: {results.marketing[0].campaign_name || 'N/A'}
+                    </p>
+                    <p className="font-bold text-lg text-purple-800">
+                      CRM Subscriptions: {results.marketing.reduce((sum: number, row: any) => sum + (row.crm_subscriptions || 0), 0)}
+                    </p>
+                    <p className="text-sm text-purple-700">
+                      {results.marketing.reduce((sum: number, row: any) => sum + (row.crm_subscriptions || 0), 0) === 14
+                        ? '✅ CORRECT - Balansera only (14) via new API'
+                        : '❌ UNEXPECTED - Should be 14'}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded">
+                    <p className="font-semibold text-blue-800">
+                      Total Ads: {results.marketing.length}
+                    </p>
+                    <p className="font-semibold text-blue-800">
+                      Total Cost: ${results.marketing.reduce((sum: number, row: any) => sum + (Number(row.cost) || 0), 0).toFixed(2)}
+                    </p>
+                    <p className="font-semibold text-blue-800">
+                      Total Clicks: {results.marketing.reduce((sum: number, row: any) => sum + (Number(row.clicks) || 0), 0)}
+                    </p>
+                  </div>
+                </div>
+              )}
+              <pre className="bg-gray-100 p-4 rounded overflow-auto max-h-96 text-xs">
+                {JSON.stringify(results.marketing, null, 2)}
+              </pre>
+            </div>
+          </Card>
         )}
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { useReportStore } from '@/stores/reportStore';
-import { fetchReportData } from '@/lib/api/client';
+import { fetchMarketingData } from '@/lib/api/marketingClient';
 import type { ReportRow } from '@/types';
 import { useGenericUrlSync } from './useGenericUrlSync';
 
@@ -10,7 +10,7 @@ import { useGenericUrlSync } from './useGenericUrlSync';
 export function useUrlSync() {
   return useGenericUrlSync<ReportRow>({
     useStore: useReportStore,
-    fetchData: fetchReportData,
+    fetchData: fetchMarketingData,
     defaultSortColumn: 'clicks',
   });
 }

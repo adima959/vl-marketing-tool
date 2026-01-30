@@ -88,6 +88,7 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
   const isInitialized = useRef(false);
   const isUpdatingFromUrl = useRef(false);
   const savedExpandedKeys = useRef<string[]>([]);
+  const hasRestoredOnce = useRef(false);
   const [isMounted, setIsMounted] = useState(false);
 
   // Only run on client side
@@ -149,9 +150,11 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
   // Restore expanded rows after data loads (optimized with parallel loading per level)
   useEffect(() => {
     if (!isMounted || !isInitialized.current || isUpdatingFromUrl.current) return;
+    if (hasRestoredOnce.current) return; // Only restore once after initial load
     if (savedExpandedKeys.current.length === 0 || reportData.length === 0) return;
 
     const restoreRows = async () => {
+      hasRestoredOnce.current = true; // Mark as restored to prevent re-running
       const keysToRestore = savedExpandedKeys.current;
       savedExpandedKeys.current = []; // Clear to prevent re-running
 

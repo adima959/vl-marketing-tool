@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { fetchReportData } from '@/lib/api/client';
+import { fetchMarketingData } from '@/lib/api/marketingClient';
 import type { DateRange, ReportRow } from '@/types';
 import { normalizeError } from '@/lib/types/errors';
 import { findRowByKey } from '@/lib/treeUtils';
@@ -143,7 +143,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
       set({ isLoading: true, error: null });
 
       try {
-        const data = await fetchReportData({
+        const data = await fetchMarketingData({
           dateRange: state.dateRange,
           dimensions: state.dimensions,
           depth: 0,
@@ -188,10 +188,11 @@ export const useReportStore = create<ReportState>((set, get) => ({
     // Save expanded keys to restore after reload
     const savedExpandedKeys = [...state.expandedRowKeys];
 
-    set({ isLoading: true, error: null });
+    // Clear old data to prevent stale children from blocking fresh loads
+    set({ isLoading: true, error: null, reportData: [] });
 
     try {
-      const data = await fetchReportData({
+      const data = await fetchMarketingData({
         dateRange: state.dateRange,
         dimensions: state.dimensions,
         depth: 0,
@@ -210,7 +211,10 @@ export const useReportStore = create<ReportState>((set, get) => ({
       });
 
       // Reload child data for previously expanded rows level-by-level
-      if (savedExpandedKeys.length > 0) {
+      // ONLY if this is a manual "Load Data" button click (not initial page load)
+      // Initial page load restoration is handled by useGenericUrlSync hook
+      const isManualReload = state.hasLoadedOnce; // If hasLoadedOnce was already true, this is a manual reload
+      if (savedExpandedKeys.length > 0 && isManualReload) {
         const { sortKeysByDepth, findRowByKey } = await import('@/lib/treeUtils');
         const sortedKeys = sortKeysByDepth(savedExpandedKeys);
 
@@ -256,7 +260,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
                 }
               });
 
-              return fetchReportData({
+              return fetchMarketingData({
                 dateRange: state.dateRange,  // Use current dateRange, not loaded
                 dimensions: state.dimensions,  // Use current dimensions, not loaded
                 depth: row.depth + 1,
@@ -331,7 +335,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
         }
       });
 
-      const children = await fetchReportData({
+      const children = await fetchMarketingData({
         dateRange: state.loadedDateRange,
         dimensions: state.loadedDimensions,
         depth: parentDepth + 1,

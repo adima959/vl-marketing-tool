@@ -4,10 +4,11 @@ import type { ReportRow } from '@/types/report';
 import { normalizeError, createTimeoutError, createNetworkError } from '@/lib/types/errors';
 
 /**
- * Fetch report data from API with timeout support
+ * Fetch marketing report data from two-database API with timeout support
+ * Uses PostgreSQL for ads data and MariaDB for CRM data with product filtering
  */
-export async function fetchReportData(
-  params: QueryParams,
+export async function fetchMarketingData(
+  params: QueryParams & { productFilter?: string },
   timeoutMs: number = 30000
 ): Promise<ReportRow[]> {
   const controller = new AbortController();
@@ -15,9 +16,12 @@ export async function fetchReportData(
 
   try {
     // Serialize params to request format (Date -> ISO string)
-    const requestBody = serializeQueryParams(params);
+    const requestBody = {
+      ...serializeQueryParams(params),
+      productFilter: params.productFilter, // Add product filter support
+    };
 
-    const response = await fetch('/api/reports/query', {
+    const response = await fetch('/api/marketing/query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody),
