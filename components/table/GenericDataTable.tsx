@@ -37,6 +37,15 @@ export function GenericDataTable<TRow extends BaseTableRow>({
   const { visibleColumns } = useColumnStore();
   const toast = useToast();
 
+  // Calculate total table width for scroll.x (sum of all column widths)
+  const tableWidth = useMemo(() => {
+    const attributeWidth = 350;
+    const visibleMetricsWidth = metricColumns
+      .filter((col) => visibleColumns.includes(col.id))
+      .reduce((sum, col) => sum + col.width, 0);
+    return attributeWidth + visibleMetricsWidth;
+  }, [metricColumns, visibleColumns]);
+
   // Build columns from config
   const columns: ColumnsType<TRow> = useMemo(() => {
     // First column: Attributes (always visible) - no grouping, so it spans both header rows
@@ -313,7 +322,7 @@ export function GenericDataTable<TRow extends BaseTableRow>({
         loading={isLoading && reportData.length > 0}
         pagination={false}
         size="middle"
-        scroll={{ x: 'max-content' }}
+        scroll={{ x: tableWidth }}
         rowKey="key"
         expandable={{
           expandedRowKeys,
