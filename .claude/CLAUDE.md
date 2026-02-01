@@ -803,11 +803,27 @@ Unlike other rules which affect code quality, violating this rule has immediate 
 
 ---
 
-**When to Commit** (automatic):
-- After completing a logical unit of work
-- After fixing a bug
-- After adding a feature
-- After documentation updates
+**When to Commit** (automatic - when meaningful work is complete):
+
+Commit when **2 or more** of these are true:
+- ✅ Build/tests pass (if code changed)
+- ✅ 3+ files changed OR single significant feature complete
+- ✅ Can describe the change in one clear sentence
+- ✅ TodoWrite item(s) marked complete
+- ✅ Someone else could review this as a standalone unit
+
+**DO commit:**
+- Feature/task complete and working end-to-end
+- Bug verified fixed with build passing
+- Before switching to different task/feature
+- After completing one phase of multi-phase work
+- Natural breakpoints in work
+
+**DON'T commit (batch these):**
+- Single typo fixes
+- Mid-implementation (feature not working yet)
+- Quick experiments
+- Documentation-only tweaks (batch with code changes)
 
 **When to Push** (ALWAYS ask first):
 - ⛔ **NEVER auto-push** - regardless of number of commits
