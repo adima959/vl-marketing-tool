@@ -444,6 +444,11 @@ find . -name "*Report*" -o -name "*Analysis*"
 - Expandable rows (▶/▼ icons), lazy child loading, drag scrolling
 - Hover: #f0f9ff, Expanded: #e6f7ed, 20px indent per depth
 - Two-row headers for grouped columns
+- **CRITICAL**: Always use calculated pixel width for `scroll.x`, NEVER `'max-content'`
+  - Ant Design bug: `scroll={{ x: 'max-content' }}` miscalculates column widths with grouped columns + `table-layout: fixed`
+  - Symptom: First column in each group renders 3x wider than configured
+  - Fix: Calculate total width = attributes (350px) + sum of visible metric widths
+  - Example: `scroll={{ x: tableWidth }}` where `tableWidth = 350 + metricColumns.filter(visible).reduce((sum, col) => sum + col.width, 0)`
 
 **Filters** (FilterToolbar.tsx)
 - Left: Dimension pills (#00B96B, draggable via dnd-kit)

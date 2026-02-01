@@ -293,6 +293,51 @@ import styles from './DataTable.module.css';
 - **Error**: Shows error message above table
 - **Retry**: User can change filters and click "Load Data"
 
+#### Scroll Configuration (CRITICAL)
+
+**⚠️ Ant Design Bug with Grouped Columns**
+
+When using grouped columns (`columnGroups`) with `table-layout: fixed` and explicit column widths, you MUST calculate the exact table width for `scroll.x`. Using `'max-content'` causes incorrect column width rendering.
+
+**Symptom:**
+- First column in each group renders 3x wider than configured width
+- Other columns in the same group render correctly
+
+**Root Cause:**
+- Ant Design's internal width calculation fails with `scroll={{ x: 'max-content' }}` when:
+  - Using `table-layout: fixed`
+  - Using grouped columns (two-row headers)
+  - Using explicit pixel widths
+
+**Solution:**
+```typescript
+// Calculate total table width
+const tableWidth = useMemo(() => {
+  const attributeWidth = 350; // Fixed attributes column
+  const visibleMetricsWidth = metricColumns
+    .filter((col) => visibleColumns.includes(col.id))
+    .reduce((sum, col) => sum + col.width, 0);
+  return attributeWidth + visibleMetricsWidth;
+}, [metricColumns, visibleColumns]);
+
+// Use calculated width
+<Table
+  scroll={{ x: tableWidth }} // NOT 'max-content'
+  // ... other props
+/>
+```
+
+**Why this works:**
+- Ant Design's table layout algorithm correctly distributes widths when given an explicit pixel value
+- Recalculates when columns are shown/hidden via `visibleColumns` changes
+- Ensures column widths match configuration exactly
+
+**Example values:**
+- All 11 marketing metrics visible: `tableWidth = 350 + 1,130 = 1,480px`
+- Hide 2 columns (CPM, Conversions): `tableWidth = 350 + 950 = 1,300px`
+
+**Reference:** See [GenericDataTable.tsx](../../components/table/GenericDataTable.tsx) lines 40-47 and 324 for implementation.
+
 ---
 
 ## Table Patterns
