@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import type { CRMUser } from '@/types/auth';
+import { registerAuthErrorHandler } from '@/lib/api/authErrorHandler';
 
 interface AuthConfig {
   callbackUrl: string;
@@ -14,8 +15,11 @@ interface AuthContextType {
   isLoading: boolean;
   isLoggingOut: boolean;
   authConfig: AuthConfig | null;
+  authError: boolean;
   checkAuth: () => Promise<void>;
   logout: () => Promise<void>;
+  setAuthError: (hasError: boolean) => void;
+  refreshSession: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,6 +33,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [authConfig, setAuthConfig] = useState<AuthConfig | null>(null);
+  const [authError, setAuthError] = useState(false);
 
   const checkAuth = async () => {
     try {
@@ -39,8 +44,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
+        setAuthError(false); // Clear auth error on successful validation
       } else {
         setUser(null);
+        if (response.status === 401) {
+          setAuthError(true);
+        }
       }
     } catch (error) {
       console.error('Auth check error:', error);
@@ -48,6 +57,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const refreshSession = () => {
+    // Clear auth error and redirect to CRM login with proper callback parameters
+    setAuthError(false);
+
+    if (!authConfig) {
+      console.error('[Auth] Auth config not available for session refresh');
+      return;
+    }
+
+    const returnUrl = encodeURIComponent(window.location.href);
+    const redirectUrl = `${authConfig.loginUrl}?callback_url=${authConfig.callbackUrl}&returnUrl=${returnUrl}`;
+
+    console.log('[Auth] Refreshing session, redirecting to:', redirectUrl);
+    window.location.href = redirectUrl;
   };
 
   const logout = async () => {
@@ -94,6 +119,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
   }, []);
 
+  // Register global auth error handler
+  useEffect(() => {
+    registerAuthErrorHandler(setAuthError);
+  }, []);
+
   // Check auth status on mount
   useEffect(() => {
     checkAuth();
@@ -105,8 +135,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isLoading,
     isLoggingOut,
     authConfig,
+    authError,
     checkAuth,
     logout,
+    setAuthError,
+    refreshSession,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

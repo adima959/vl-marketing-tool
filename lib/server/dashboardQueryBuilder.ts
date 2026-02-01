@@ -44,12 +44,12 @@ export class DashboardQueryBuilder {
    */
   private buildParentFilters(
     parentFilters: Record<string, string> | undefined
-  ): { whereClause: string; params: any[] } {
+  ): { whereClause: string; params: (string | number | boolean | null | Date)[] } {
     if (!parentFilters || Object.keys(parentFilters).length === 0) {
       return { whereClause: '', params: [] };
     }
 
-    const params: any[] = [];
+    const params: (string | number | boolean | null | Date)[] = [];
     const conditions: string[] = [];
 
     // IMPORTANT: Use dimension order, not alphabetical

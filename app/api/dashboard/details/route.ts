@@ -1,12 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { executeMariaDBQuery } from '@/lib/server/mariadb';
 import { dashboardDetailQueryBuilder } from '@/lib/server/dashboardDetailQueryBuilder';
 import type { DetailRecord, DetailQueryResponse } from '@/types/dashboardDetails';
+import { withAdmin } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
+import { maskErrorForClient } from '@/lib/types/errors';
 
 /**
  * POST /api/dashboard/details
  *
  * Fetch individual detail records for a clicked metric
+ * Requires admin authentication
  *
  * Request body:
  * {
@@ -27,7 +31,10 @@ import type { DetailRecord, DetailQueryResponse } from '@/types/dashboardDetails
  *   error?: string
  * }
  */
-export async function POST(request: Request) {
+async function handleDashboardDetails(
+  request: NextRequest,
+  _user: AppUser
+) {
   try {
     const body = await request.json();
 
@@ -95,16 +102,17 @@ export async function POST(request: Request) {
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error('Dashboard details query error:', error);
-
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const { message, statusCode } = maskErrorForClient(error, 'Dashboard Details API');
 
     return NextResponse.json(
       {
         success: false,
-        error: errorMessage,
+        error: message,
       },
-      { status: 500 }
+      { status: statusCode }
     );
   }
 }
+
+// Export with admin authentication
+export const POST = withAdmin(handleDashboardDetails);

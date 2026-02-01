@@ -1,9 +1,9 @@
-import { addSessionToWhitelist, setAuthCookie, validateTokenWithCRM } from '@/lib/auth';
+import { saveSessionToDatabase, setAuthCookie, validateTokenWithCRM } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * Auth callback route handler
- * Receives session token from CRM redirect, validates it, adds to whitelist, sets cookie, and redirects
+ * Receives session token from CRM redirect, validates it, saves to database, sets cookie, and redirects
  * 
  * Expected query parameters:
  * - token: The session token (PHPSESSID) from CRM
@@ -42,9 +42,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   console.log('[Callback] Token validation successful, user:', validation.user?.email);
 
-  // Add token to session whitelist with user ID (for revocation by user)
-  console.log('[Callback] Adding token to whitelist');
-  addSessionToWhitelist(token, validation.user?.id);
+  // Ensure user exists in validation response
+  if (!validation.user) {
+    console.error('[Callback] User missing from validation response');
+    return NextResponse.json(
+      { error: 'User data missing from validation' },
+      { status: 500 }
+    );
+  }
+
+  // Save token to database for session persistence across server instances
+  console.log('[Callback] Saving session to database');
+  await saveSessionToDatabase(token, validation.user.id);
 
   // Get the base URL from APP_CALLBACK_URL environment variable
   // This is needed for nginx proxy - request.url would be localhost

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { Spin, Empty, Button, Table } from 'antd';
 import { PlusOutlined, EditOutlined } from '@ant-design/icons';
 import { Target, ChevronRight, Users, Lightbulb, GitBranch } from 'lucide-react';
@@ -32,9 +33,8 @@ export default function MainAnglePage() {
     updateSubAngleStatus,
   } = useMarketingTrackerStore();
 
-  const angleId = typeof window !== 'undefined'
-    ? window.location.pathname.split('/').pop()
-    : '';
+  const params = useParams<{ angleId: string }>();
+  const angleId = params.angleId;
 
   useEffect(() => {
     if (angleId) {

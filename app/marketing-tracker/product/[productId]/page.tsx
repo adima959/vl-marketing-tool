@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { Spin, Empty, Button, Table, Avatar } from 'antd';
 import { PlusOutlined, EditOutlined, UserOutlined, CalendarOutlined } from '@ant-design/icons';
 import { Target, ChevronRight, Users } from 'lucide-react';
@@ -31,9 +32,8 @@ export default function ProductPage() {
     updateMainAngleStatus,
   } = useMarketingTrackerStore();
 
-  const productId = typeof window !== 'undefined'
-    ? window.location.pathname.split('/').pop()
-    : '';
+  const params = useParams<{ productId: string }>();
+  const productId = params.productId;
 
   useEffect(() => {
     if (productId) {

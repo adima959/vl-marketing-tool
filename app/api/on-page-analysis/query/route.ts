@@ -3,7 +3,9 @@ import { executeQuery } from '@/lib/server/db';
 import { onPageQueryBuilder } from '@/lib/server/onPageQueryBuilder';
 import type { QueryRequest } from '@/lib/types/api';
 import { parseQueryRequest } from '@/lib/types/api';
-import { createValidationError, normalizeError } from '@/lib/types/errors';
+import { createValidationError, maskErrorForClient } from '@/lib/types/errors';
+import { withAdmin } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
 
 interface OnPageAggregatedRow {
   dimension_id?: string;
@@ -23,9 +25,11 @@ interface OnPageAggregatedRow {
 /**
  * POST /api/on-page-analysis/query
  * API endpoint for querying on-page analytics data
+ * Requires admin authentication
  */
-export async function POST(
-  request: NextRequest
+async function handleOnPageQuery(
+  request: NextRequest,
+  _user: AppUser
 ): Promise<NextResponse> {
   try {
     const body: QueryRequest = await request.json();
@@ -109,20 +113,17 @@ export async function POST(
       data,
     });
   } catch (error: unknown) {
-    const appError = normalizeError(error);
-
-    console.error('On-page analysis API error:', {
-      code: appError.code,
-      message: appError.message,
-      statusCode: appError.statusCode,
-    });
+    const { message, statusCode } = maskErrorForClient(error, 'On-Page Analysis API');
 
     return NextResponse.json(
       {
         success: false,
-        error: appError.message,
+        error: message,
       },
-      { status: appError.statusCode }
+      { status: statusCode }
     );
   }
 }
+
+// Export with admin authentication
+export const POST = withAdmin(handleOnPageQuery);

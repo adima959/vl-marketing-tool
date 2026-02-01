@@ -102,18 +102,18 @@ export function isAdmin(user: AppUser | null): boolean {
 /**
  * Higher-order function to protect API routes with role-based access control
  * Similar to withAuth but also checks user role from database
- * 
+ *
  * Usage:
  * export const GET = withRole(UserRole.ADMIN, async (request, user) => {
  *   // user is guaranteed to be authenticated and have admin role
  *   return NextResponse.json({ data: 'admin only' });
  * });
  */
-export function withRole(
+export function withRole<TArgs extends unknown[]>(
   requiredRole: UserRole,
-  handler: (request: NextRequest, user: AppUser, ...args: any[]) => Promise<NextResponse>
+  handler: (request: NextRequest, user: AppUser, ...args: TArgs) => Promise<NextResponse>
 ) {
-  return async (request: NextRequest, ...args: any[]): Promise<NextResponse> => {
+  return async (request: NextRequest, ...args: TArgs): Promise<NextResponse> => {
     // Get user from request
     const user = await getUserFromRequest(request);
     
@@ -139,8 +139,8 @@ export function withRole(
 /**
  * Shorthand for admin-only routes
  */
-export function withAdmin(
-  handler: (request: NextRequest, user: AppUser, ...args: any[]) => Promise<NextResponse>
+export function withAdmin<TArgs extends unknown[]>(
+  handler: (request: NextRequest, user: AppUser, ...args: TArgs) => Promise<NextResponse>
 ) {
   return withRole(UserRole.ADMIN, handler);
 }

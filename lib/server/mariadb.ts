@@ -51,7 +51,7 @@ function getPool(): mysql.Pool {
  * Automatically handles connection pooling
  *
  * @param query - SQL query with ? placeholders
- * @param params - Array of parameter values
+ * @param params - Array of parameter values (strings, numbers, booleans, null, Date)
  * @returns Query results as typed array
  *
  * @example
@@ -60,9 +60,9 @@ function getPool(): mysql.Pool {
  *   ['user@example.com']
  * );
  */
-export async function executeMariaDBQuery<T = any>(
+export async function executeMariaDBQuery<T = Record<string, unknown>>(
   query: string,
-  params: any[] = []
+  params: (string | number | boolean | null | Date)[] = []
 ): Promise<T[]> {
   try {
     const pool = getPool();

@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeMariaDBQuery } from '@/lib/server/mariadb';
 import { dashboardQueryBuilder } from '@/lib/server/dashboardQueryBuilder';
 import type { DashboardRow } from '@/types/dashboard';
+import { withAdmin } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
+import { maskErrorForClient } from '@/lib/types/errors';
+import { queryRequestSchema } from '@/lib/schemas/api';
+import { z } from 'zod';
 
 interface QueryRequest {
   dateRange: { start: string; end: string };
@@ -21,35 +26,16 @@ interface DashboardQueryResponse {
 /**
  * POST /api/dashboard/query
  * Main API endpoint for querying dashboard data from MariaDB
+ * Requires admin authentication
  */
-export async function POST(
-  request: NextRequest
+async function handleDashboardQuery(
+  request: NextRequest,
+  _user: AppUser
 ): Promise<NextResponse<DashboardQueryResponse>> {
   try {
-    // Parse request body
-    const body: QueryRequest = await request.json();
-
-    // Validate required fields
-    if (!body.dateRange?.start || !body.dateRange?.end) {
-      return NextResponse.json(
-        { success: false, error: 'dateRange is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!Array.isArray(body.dimensions) || body.dimensions.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'dimensions array is required' },
-        { status: 400 }
-      );
-    }
-
-    if (typeof body.depth !== 'number' || body.depth < 0) {
-      return NextResponse.json(
-        { success: false, error: 'depth must be a non-negative number' },
-        { status: 400 }
-      );
-    }
+    // Parse and validate request body with Zod
+    const rawBody = await request.json();
+    const body = queryRequestSchema.parse(rawBody);
 
     // Convert ISO date strings back to Date objects
     const dateRange = {
@@ -142,19 +128,31 @@ export async function POST(
       data,
     });
   } catch (error: unknown) {
-    console.error('Dashboard API error:', error);
+    // Handle Zod validation errors specifically
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Validation error: ${error.message}`,
+        },
+        { status: 400 }
+      );
+    }
 
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const { message, statusCode } = maskErrorForClient(error, 'Dashboard API');
 
     return NextResponse.json(
       {
         success: false,
-        error: errorMessage,
+        error: message,
       },
-      { status: 500 }
+      { status: statusCode }
     );
   }
 }
+
+// Export with admin authentication
+export const POST = withAdmin(handleDashboardQuery);
 
 /**
  * GET /api/dashboard/query

@@ -2,6 +2,7 @@ import { serializeQueryParams } from '@/lib/types/api';
 import type { QueryParams, QueryResponse } from '@/lib/types/api';
 import type { ReportRow } from '@/types/report';
 import { normalizeError, createTimeoutError, createNetworkError } from '@/lib/types/errors';
+import { triggerAuthError, isAuthError } from '@/lib/api/authErrorHandler';
 
 /**
  * Fetch marketing report data from two-database API with timeout support
@@ -31,6 +32,11 @@ export async function fetchMarketingData(
     clearTimeout(timeoutId);
 
     if (!response.ok) {
+      // Handle authentication errors globally
+      if (isAuthError(response.status)) {
+        triggerAuthError();
+      }
+
       const error = await response.json();
       throw createNetworkError(
         error.error || `API request failed: ${response.statusText}`,

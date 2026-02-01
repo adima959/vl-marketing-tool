@@ -1,4 +1,5 @@
 import type { DetailRecord, MetricClickContext } from '@/types/dashboardDetails';
+import { triggerAuthError, isAuthError } from '@/lib/api/authErrorHandler';
 
 /**
  * Response from the dashboard details API
@@ -43,6 +44,11 @@ export async function fetchDashboardDetails(
   });
 
   if (!response.ok) {
+    // Handle authentication errors globally
+    if (isAuthError(response.status)) {
+      triggerAuthError();
+    }
+
     const error = await response.json().catch(() => ({ error: 'Failed to fetch details' }));
     throw new Error(error.error || `HTTP error ${response.status}`);
   }

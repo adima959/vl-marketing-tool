@@ -2,6 +2,7 @@ import { serializeQueryParams } from '@/lib/types/api';
 import type { QueryParams } from '@/lib/types/api';
 import type { DashboardRow } from '@/types/dashboard';
 import { normalizeError, createTimeoutError, createNetworkError } from '@/lib/types/errors';
+import { triggerAuthError, isAuthError } from '@/lib/api/authErrorHandler';
 
 interface DashboardQueryResponse {
   success: boolean;
@@ -33,6 +34,11 @@ export async function fetchDashboardData(
     clearTimeout(timeoutId);
 
     if (!response.ok) {
+      // Handle authentication errors globally
+      if (isAuthError(response.status)) {
+        triggerAuthError();
+      }
+
       const error = await response.json();
       throw createNetworkError(
         error.error || `API request failed: ${response.statusText}`,

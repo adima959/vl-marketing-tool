@@ -19,11 +19,3 @@ export interface AuthValidationResponse {
   user?: CRMUser;
   error?: string;
 }
-
-/**
- * Cached validation result with expiration
- */
-export interface CachedValidation {
-  validation: AuthValidationResponse;
-  expiresAt: number;
-}

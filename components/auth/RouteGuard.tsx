@@ -4,6 +4,7 @@ import { useEffect, ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spin } from 'antd';
+import { AuthErrorPage } from '@/components/auth/AuthErrorPage';
 
 interface RouteGuardProps {
   children: ReactNode;
@@ -16,7 +17,7 @@ const PUBLIC_PATHS = ['/api/auth/callback', '/api/auth/logout'];
  * Redirects to CRM login if not authenticated
  */
 export function RouteGuard({ children }: RouteGuardProps) {
-  const { isAuthenticated, isLoading, isLoggingOut, authConfig } = useAuth();
+  const { isAuthenticated, isLoading, isLoggingOut, authConfig, authError } = useAuth();
   const pathname = usePathname();
 
   useEffect(() => {
@@ -57,6 +58,11 @@ export function RouteGuard({ children }: RouteGuardProps) {
         </Spin>
       </div>
     );
+  }
+
+  // If auth error detected (401 from API), show error page
+  if (authError) {
+    return <AuthErrorPage />;
   }
 
   // If not authenticated, show nothing (will redirect)

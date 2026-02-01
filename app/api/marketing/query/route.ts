@@ -1,46 +1,28 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse} from 'next/server';
 import { getMarketingData, type MarketingQueryParams } from '@/lib/server/marketingQueryBuilder';
-import type { QueryRequest, QueryResponse } from '@/lib/types/api';
+import type { QueryResponse } from '@/lib/types/api';
 import { parseQueryRequest } from '@/lib/types/api';
-import { createValidationError, normalizeError } from '@/lib/types/errors';
+import { maskErrorForClient } from '@/lib/types/errors';
 import type { ReportRow } from '@/types/report';
+import { withAdmin } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
+import { marketingQueryRequestSchema } from '@/lib/schemas/api';
+import { z } from 'zod';
 
 /**
  * POST /api/marketing/query
  * Marketing report API endpoint using two-database approach
  * Queries PostgreSQL for ads data and MariaDB for CRM data with product filtering
+ * Requires admin authentication
  */
-export async function POST(
-  request: NextRequest
+async function handleMarketingQuery(
+  request: NextRequest,
+  _user: AppUser
 ): Promise<NextResponse<QueryResponse>> {
   try {
-    // Parse request body (same format as /api/reports/query)
-    const body: QueryRequest = await request.json();
-
-    // Validate required fields
-    if (!body.dateRange?.start || !body.dateRange?.end) {
-      const error = createValidationError('dateRange is required');
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: error.statusCode }
-      );
-    }
-
-    if (!Array.isArray(body.dimensions) || body.dimensions.length === 0) {
-      const error = createValidationError('dimensions array is required');
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: error.statusCode }
-      );
-    }
-
-    if (typeof body.depth !== 'number' || body.depth < 0) {
-      const error = createValidationError('depth must be a non-negative number');
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: error.statusCode }
-      );
-    }
+    // Parse and validate request body with Zod
+    const rawBody = await request.json();
+    const body = marketingQueryRequestSchema.parse(rawBody);
 
     // Parse and build query parameters
     const queryParams = parseQueryRequest(body);
@@ -53,7 +35,7 @@ export async function POST(
       parentFilters: queryParams.parentFilters,
       sortBy: queryParams.sortBy,
       sortDirection: queryParams.sortDirection,
-      productFilter: (body as any).productFilter, // Optional product filter
+      productFilter: body.productFilter,
     };
 
     // Execute query with two-database approach
@@ -98,29 +80,31 @@ export async function POST(
       data,
     });
   } catch (error: unknown) {
-    // Log the original error first
-    console.error('Marketing API original error:', error);
-    console.error('Error type:', typeof error);
-    console.error('Error constructor:', error?.constructor?.name);
+    // Handle Zod validation errors specifically
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Validation error: ${error.message}`,
+        },
+        { status: 400 }
+      );
+    }
 
-    const appError = normalizeError(error);
-
-    console.error('Marketing API normalized error:', {
-      code: appError.code,
-      message: appError.message,
-      statusCode: appError.statusCode,
-      details: appError.details,
-    });
+    const { message, statusCode } = maskErrorForClient(error, 'Marketing API');
 
     return NextResponse.json(
       {
         success: false,
-        error: appError.message || 'Unknown error occurred',
+        error: message,
       },
-      { status: appError.statusCode }
+      { status: statusCode }
     );
   }
 }
+
+// Export with admin authentication
+export const POST = withAdmin(handleMarketingQuery);
 
 /**
  * GET /api/marketing/query

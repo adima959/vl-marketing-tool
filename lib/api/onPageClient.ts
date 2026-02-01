@@ -2,6 +2,7 @@ import { serializeQueryParams } from '@/lib/types/api';
 import type { QueryParams } from '@/lib/types/api';
 import type { OnPageReportRow } from '@/types/onPageReport';
 import { normalizeError, createTimeoutError, createNetworkError } from '@/lib/types/errors';
+import { triggerAuthError, isAuthError } from '@/lib/api/authErrorHandler';
 
 interface OnPageQueryResponse {
   success: boolean;
@@ -32,6 +33,11 @@ export async function fetchOnPageData(
     clearTimeout(timeoutId);
 
     if (!response.ok) {
+      // Handle authentication errors globally
+      if (isAuthError(response.status)) {
+        triggerAuthError();
+      }
+
       const error = await response.json();
       throw createNetworkError(
         error.error || `API request failed: ${response.statusText}`,

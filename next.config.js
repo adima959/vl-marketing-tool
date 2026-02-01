@@ -8,6 +8,10 @@ const nextConfig = {
 
   // Disable production source maps
   productionBrowserSourceMaps: false,
+
+  // Enable React Compiler for automatic memoization (Next.js 16 feature)
+  // Note: Moved from experimental in Next.js 16+
+  reactCompiler: true,
 };
 
 module.exports = nextConfig;

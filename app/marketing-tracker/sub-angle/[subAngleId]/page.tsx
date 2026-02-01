@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { Spin, Empty, Button, Modal, Tabs } from 'antd';
 import { PlusOutlined, EditOutlined, ExportOutlined, LinkOutlined } from '@ant-design/icons';
 import { Target, ChevronRight, Globe, FileText, ExternalLink, Calendar } from 'lucide-react';
@@ -26,9 +27,8 @@ export default function SubAnglePage() {
   const [assetModalOpen, setAssetModalOpen] = useState(false);
   const [activeGeo, setActiveGeo] = useState<string>('all');
 
-  const subAngleId = typeof window !== 'undefined'
-    ? window.location.pathname.split('/').pop()
-    : '';
+  const params = useParams<{ subAngleId: string }>();
+  const subAngleId = params.subAngleId;
 
   useEffect(() => {
     if (subAngleId) {

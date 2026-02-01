@@ -3,6 +3,7 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
+  color: var(--color-text-primary);
 }
 
 /* Negative value styling */

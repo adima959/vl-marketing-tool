@@ -2,6 +2,7 @@
   cursor: pointer;
   transition: color var(--transition-fast);
   display: inline-block;
+  color: var(--color-text-primary);
 }
 
 .clickableMetric:hover {

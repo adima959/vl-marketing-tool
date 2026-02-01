@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { clearAllSessions, getSessionStats } from '@/lib/auth';
+import { clearExpiredSessions } from '@/lib/auth';
 
 const SESSION_WIPE_API_KEY = process.env.SESSION_WIPE_API_KEY || '';
 
 /**
- * Session wipe endpoint
- * Clears all active sessions, effectively logging out all users
- * 
+ * Session cleanup endpoint
+ * Clears all expired sessions from database
+ *
  * Security: Requires X-API-Key header matching SESSION_WIPE_API_KEY
- * 
+ *
  * Usage from another server:
  * curl -X POST https://yourapp.com/api/auth/sessions/clear \
  *   -H "X-API-Key: your-secret-key"
@@ -39,26 +39,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // Get stats before clearing
-  const statsBefore = getSessionStats();
-
-  // Clear all sessions
-  clearAllSessions();
-
-  // Get stats after clearing
-  const statsAfter = getSessionStats();
+  // Clear expired sessions from database
+  const clearedCount = await clearExpiredSessions();
 
   return NextResponse.json({
     success: true,
-    message: 'All sessions cleared successfully',
-    sessionsClearedCount: statsBefore.activeSessions,
-    before: statsBefore,
-    after: statsAfter,
+    message: `Cleared ${clearedCount} expired session(s)`,
+    sessions_cleared: clearedCount,
   });
 }
 
 /**
- * GET endpoint to check session statistics
+ * GET endpoint to clear expired sessions
  * Also requires API key for security
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -72,10 +64,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const stats = getSessionStats();
+  // Clear expired sessions
+  const clearedCount = await clearExpiredSessions();
 
   return NextResponse.json({
     success: true,
-    stats,
+    message: `Cleared ${clearedCount} expired session(s)`,
+    sessions_cleared: clearedCount,
   });
 }

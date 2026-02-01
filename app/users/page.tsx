@@ -1,14 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Table, Button, Tag, message } from 'antd';
+import { useState, useEffect, lazy, Suspense } from 'react';
+import { Table, Button, Tag, message, Spin } from 'antd';
 import { EditOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Users } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useAuth } from '@/contexts/AuthContext';
-import { EditRoleDialog } from '@/components/users/EditRoleDialog';
 import type { AppUser } from '@/types/user';
 import type { ColumnsType } from 'antd/es/table';
+
+// Lazy load the dialog component - only loads when user clicks Edit
+const EditRoleDialog = lazy(() =>
+  import('@/components/users/EditRoleDialog').then((mod) => ({ default: mod.EditRoleDialog }))
+);
 
 export default function UsersPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -166,12 +170,14 @@ export default function UsersPage() {
             }}
           />
 
-          <EditRoleDialog
-            user={selectedUser}
-            open={dialogOpen}
-            onClose={handleDialogClose}
-            onSuccess={handleDialogSuccess}
-          />
+          <Suspense fallback={<Spin />}>
+            <EditRoleDialog
+              user={selectedUser}
+              open={dialogOpen}
+              onClose={handleDialogClose}
+              onSuccess={handleDialogSuccess}
+            />
+          </Suspense>
         </div>
       </div>
     </>

@@ -1,4 +1,4 @@
-import type { AuthValidationResponse, CachedValidation, CRMUser } from '@/types/auth';
+import type { AuthValidationResponse, CRMUser } from '@/types/auth';
 import type { AppUser } from '@/types/user';
 import { Pool } from '@neondatabase/serverless';
 import { NextRequest, NextResponse } from 'next/server';
@@ -11,278 +11,144 @@ const CRM_VALIDATE_ENDPOINT = process.env.CRM_VALIDATE_ENDPOINT || '/site/market
 const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || 'crm_auth_token';
 const AUTH_COOKIE_MAX_AGE = parseInt(process.env.AUTH_COOKIE_MAX_AGE || '86400', 10);
 
-// Session whitelist - only tokens in this cache are considered valid
-const SESSION_WHITELIST_TTL_MS = AUTH_COOKIE_MAX_AGE * 1000;
-const sessionWhitelist = new Map<string, number>();
-
-// User to tokens mapping - tracks which tokens belong to which user (by external_id)
-const userTokensMap = new Map<string, Set<string>>();
-
-// Validation result cache (5 minutes TTL for CRM API call caching)
-const CACHE_TTL_MS = 5 * 60 * 1000;
-const validationCache = new Map<string, CachedValidation>();
-
 /**
- * Gets user from database by external_id and checks if active
- * @param externalId - The CRM user ID
- * @returns AppUser or null if not found or deleted
+ * Saves session token to database
+ * Called only once after CRM validation in callback
  */
-async function getActiveUserFromDatabase(externalId: string): Promise<AppUser | null> {
+export async function saveSessionToDatabase(token: string, userId: string): Promise<void> {
   const client = await pool.connect();
-  
   try {
-    const result = await client.query(
-      'SELECT * FROM app_users WHERE external_id = $1 AND deleted_at IS NULL',
-      [externalId]
+    const expiresAt = new Date(Date.now() + AUTH_COOKIE_MAX_AGE * 1000);
+    await client.query(
+      `UPDATE app_users
+       SET active_token = $1, token_expires_at = $2, updated_at = NOW()
+       WHERE external_id = $3`,
+      [token, expiresAt, userId]
     );
-    
-    if (result.rows.length === 0) {
-      return null;
-    }
-    
-    return result.rows[0] as AppUser;
+    console.log(`[Auth] Session saved to database for user ${userId}`);
   } finally {
     client.release();
   }
 }
 
 /**
- * Adds a session token to the whitelist
- * @param token - The session token
- * @param userId - Optional external_id of the user (for revocation by user ID)
+ * Validates token by checking database
+ * Never calls CRM - tokens are validated once in callback, then stored in DB
  */
-export function addSessionToWhitelist(token: string, userId?: string): void {
-  const expiresAt = Date.now() + SESSION_WHITELIST_TTL_MS;
-  sessionWhitelist.set(token, expiresAt);
+async function validateTokenFromDatabase(token: string): Promise<{ valid: boolean; user?: CRMUser }> {
+  const client = await pool.connect();
+  try {
+    const result = await client.query<AppUser>(
+      `SELECT * FROM app_users
+       WHERE active_token = $1
+         AND token_expires_at > NOW()
+         AND deleted_at IS NULL`,
+      [token]
+    );
 
-  // Track token for this user
-  if (userId) {
-    if (!userTokensMap.has(userId)) {
-      userTokensMap.set(userId, new Set());
+    if (result.rows.length === 0) {
+      console.log('[Auth] Token not found or expired in database');
+      return { valid: false };
     }
-    userTokensMap.get(userId)!.add(token);
-    console.log(`[Auth] Tracking token for user ${userId} (total: ${userTokensMap.get(userId)!.size})`);
+
+    const user = result.rows[0];
+    console.log('[Auth] Token validated from database:', user.email);
+
+    return {
+      valid: true,
+      user: {
+        id: user.external_id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+    };
+  } finally {
+    client.release();
   }
 }
 
 /**
- * Removes a session token from the whitelist
- */
-export function removeSessionFromWhitelist(token: string): void {
-  sessionWhitelist.delete(token);
-  validationCache.delete(token);
-
-  // Remove from user tokens map
-  for (const [userId, tokens] of userTokensMap.entries()) {
-    if (tokens.has(token)) {
-      tokens.delete(token);
-      if (tokens.size === 0) {
-        userTokensMap.delete(userId);
-      }
-      break;
-    }
-  }
-}
-
-/**
- * Clears all sessions from the whitelist
- */
-export function clearAllSessions(): void {
-  sessionWhitelist.clear();
-  validationCache.clear();
-  userTokensMap.clear();
-}
-
-/**
- * Removes all sessions for a specific user from the whitelist
- * @param userId - The external_id of the user (CRM user ID)
- * @returns Number of sessions removed
- */
-export function revokeUserSessions(userId: string): number {
-  const tokens = userTokensMap.get(userId);
-
-  if (!tokens || tokens.size === 0) {
-    console.log(`[Auth] No sessions found for user ${userId}`);
-    return 0;
-  }
-
-  // Remove all tokens from whitelist and cache
-  let removedCount = 0;
-  for (const token of tokens) {
-    sessionWhitelist.delete(token);
-    validationCache.delete(token);
-    removedCount++;
-  }
-
-  // Clear the user's token set
-  userTokensMap.delete(userId);
-
-  console.log(`[Auth] Revoked ${removedCount} sessions for user ${userId}`);
-  return removedCount;
-}
-
-/**
- * Checks if a token exists in the session whitelist and is not expired
- */
-function isSessionWhitelisted(token: string): boolean {
-  const expiresAt = sessionWhitelist.get(token);
-  
-  if (!expiresAt) {
-    return false;
-  }
-
-  if (expiresAt <= Date.now()) {
-    sessionWhitelist.delete(token);
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * Validates a token with the CRM API and database
- * CRITICAL: Checks database on every request for deleted users and role changes
- * @param token - The authentication token to validate
- * @returns Promise with validation response including database user info
+ * Validates token with CRM (ONE-TIME USE - only call from callback!)
+ * CRM invalidates tokens after first validation
  */
 export async function validateTokenWithCRM(token: string): Promise<AuthValidationResponse> {
-  console.log('[Auth] validateTokenWithCRM called with token:', token?.substring(0, 20) + '...');
-
-  // Check if session is whitelisted
-  const isWhitelisted = isSessionWhitelisted(token);
-  console.log('[Auth] Token whitelisted:', isWhitelisted);
-
-  // IMPORTANT: Do NOT use validation cache for database checks
-  // We need to check the database on every request for deleted users and role changes
-
-  // Validate with CRM
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    const requestBody = { token: token };
-    console.log('[Auth] Sending CRM validation request to:', `${CRM_BASE_URL}${CRM_VALIDATE_ENDPOINT}`);
-    console.log('[Auth] Request body:', requestBody);
+    console.log('[Auth] Validating with CRM:', `${CRM_BASE_URL}${CRM_VALIDATE_ENDPOINT}`);
 
-    // Send POST request with token in JSON body
     const response = await fetch(`${CRM_BASE_URL}${CRM_VALIDATE_ENDPOINT}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
       signal: controller.signal,
     });
 
     clearTimeout(timeoutId);
-
     console.log('[Auth] CRM response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error('[Auth] CRM validation failed:', response.status, errorText);
-      removeSessionFromWhitelist(token);
-      return {
-        success: false,
-        error: `CRM validation failed: ${response.status}`,
-      };
+      return { success: false, error: `CRM validation failed: ${response.status}` };
     }
 
     const userData = await response.json();
-    console.log('[Auth] CRM userData received:', userData)
-    // Check if user is authenticated in CRM
+
     if (!userData || !userData.id) {
-      removeSessionFromWhitelist(token);
-      return {
-        success: false,
-        error: 'Not authenticated',
-      };
+      return { success: false, error: 'Not authenticated' };
     }
 
-    // CRITICAL: Check database for user status and role in real-time
-    const dbUser = await getActiveUserFromDatabase(userData.id);
+    // Get user from database to get current role
+    const client = await pool.connect();
+    try {
+      const dbResult = await client.query<AppUser>(
+        'SELECT * FROM app_users WHERE external_id = $1 AND deleted_at IS NULL',
+        [userData.id]
+      );
 
-    // If user doesn't exist in database or has been deleted
-    if (!dbUser) {
-      console.log(`[Auth] User ${userData.id} not found or deleted in database - destroying session`);
-      removeSessionFromWhitelist(token);
-      return {
-        success: false,
-        error: 'User not found or has been deleted',
-      };
-    }
-
-    // User is valid - create response with database role
-    const validationResult: AuthValidationResponse = {
-      success: true,
-      user: {
-        id: dbUser.external_id,
-        email: dbUser.email,
-        name: dbUser.name,
-        role: dbUser.role, // Use role from database, not CRM
-      },
-    };
-
-    // Cache the validation result (never expires - we check DB on each request)
-    validationCache.set(token, {
-      validation: validationResult,
-      expiresAt: Date.now() + (365 * 24 * 60 * 60 * 1000), // 1 year (effectively never expires)
-    });
-    console.log('[Auth] Cached validation result for user:', validationResult.user?.email);
-
-    // Auto-recovery: If token is valid but not in whitelist, add it
-    if (!isWhitelisted && validationResult.user) {
-      console.log(`[Auth] Auto-recovering session for user ${validationResult.user.email}`);
-      addSessionToWhitelist(token, validationResult.user.id);
-    }
-
-    return validationResult;
-  } catch (error) {
-    console.error('CRM validation error:', error);
-    validationCache.delete(token);
-
-    // Check if it's a database connection error
-    if (error instanceof Error) {
-      if (error.message.includes('ECONNREFUSED') || error.message.includes('localhost') || error.message.includes('dummy')) {
-        console.error('❌ DATABASE_URL is not configured! Set it in environment variables.');
-        return {
-          success: false,
-          error: 'Database configuration error - DATABASE_URL not set',
-        };
+      if (dbResult.rows.length === 0) {
+        console.log(`[Auth] User ${userData.id} not found in database`);
+        return { success: false, error: 'User not found or deleted' };
       }
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
 
+      const dbUser = dbResult.rows[0];
+      console.log('[Auth] CRM validation successful:', dbUser.email);
+
+      return {
+        success: true,
+        user: {
+          id: dbUser.external_id,
+          email: dbUser.email,
+          name: dbUser.name,
+          role: dbUser.role,
+        },
+      };
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('[Auth] CRM validation error:', error);
     return {
       success: false,
-      error: 'Unknown validation error',
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }
 
 /**
- * Extracts the authentication token from request cookies
+ * Extracts authentication token from request cookies
  */
 export function getAuthToken(request: NextRequest): string | null {
-  const cookieValue = request.cookies.get(AUTH_COOKIE_NAME)?.value || null;
-  console.log('[Auth] getAuthToken - Cookie name:', AUTH_COOKIE_NAME);
-  console.log('[Auth] getAuthToken - Cookie value:', cookieValue ? `${cookieValue.substring(0, 20)}...` : 'null');
-  console.log('[Auth] getAuthToken - All cookies:', Array.from(request.cookies.getAll()).map(c => c.name));
-  return cookieValue;
+  return request.cookies.get(AUTH_COOKIE_NAME)?.value || null;
 }
 
 /**
- * Sets the authentication cookie on a response
+ * Sets authentication cookie on response
  */
 export function setAuthCookie(token: string, response: NextResponse): void {
-  console.log('[Auth] setAuthCookie - Setting cookie:', AUTH_COOKIE_NAME);
-  console.log('[Auth] setAuthCookie - Token value:', token ? `${token.substring(0, 20)}...` : 'null');
-  console.log('[Auth] setAuthCookie - Max age:', AUTH_COOKIE_MAX_AGE);
-  console.log('[Auth] setAuthCookie - NODE_ENV:', process.env.NODE_ENV);
-
   response.cookies.set({
     name: AUTH_COOKIE_NAME,
     value: token,
@@ -295,7 +161,7 @@ export function setAuthCookie(token: string, response: NextResponse): void {
 }
 
 /**
- * Clears the authentication cookie from a response
+ * Clears authentication cookie from response
  */
 export function clearAuthCookie(response: NextResponse): void {
   response.cookies.set({
@@ -310,93 +176,65 @@ export function clearAuthCookie(response: NextResponse): void {
 }
 
 /**
- * Server-side function to validate auth token from request
- * Checks whitelist and database (does NOT call CRM - that's only done once in callback)
+ * Clears user session from database
+ */
+export async function clearSessionFromDatabase(token: string): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query(
+      'UPDATE app_users SET active_token = NULL, token_expires_at = NULL WHERE active_token = $1',
+      [token]
+    );
+    console.log('[Auth] Session cleared from database');
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Validates auth token from request
+ * Uses database to check validity - never calls CRM
  */
 export async function validateRequest(request: NextRequest): Promise<{ valid: boolean; user?: CRMUser }> {
-  console.log('[Auth] validateRequest called for path:', request.nextUrl.pathname);
-
   const token = getAuthToken(request);
-  console.log('[Auth] Token from cookie:', token ? `${token.substring(0, 20)}...` : 'null');
 
   if (!token) {
-    console.log('[Auth] No token found in cookie');
     return { valid: false };
   }
 
-  // Check if token is in whitelist (session was validated during callback)
-  const isWhitelisted = isSessionWhitelisted(token);
-  console.log('[Auth] Token in whitelist:', isWhitelisted);
-
-  if (!isWhitelisted) {
-    console.log('[Auth] Token not in whitelist - session expired or invalid');
-    return { valid: false };
-  }
-
-  // Get user info from whitelist cache
-  const cachedValidation = validationCache.get(token);
-
-  if (!cachedValidation || !cachedValidation.validation.user) {
-    console.log('[Auth] No cached user data found');
-    return { valid: false };
-  }
-
-  const cachedUser = cachedValidation.validation.user;
-  console.log('[Auth] Found cached user:', cachedUser.email);
-
-  // CRITICAL: Check database for current user status and role
-  const dbUser = await getActiveUserFromDatabase(cachedUser.id);
-
-  if (!dbUser) {
-    console.log(`[Auth] User ${cachedUser.id} not found or deleted in database - invalidating session`);
-    removeSessionFromWhitelist(token);
-    return { valid: false };
-  }
-
-  console.log('[Auth] User validated successfully from whitelist + database');
-
-  // Return user with current role from database
-  return {
-    valid: true,
-    user: {
-      id: dbUser.external_id,
-      email: dbUser.email,
-      name: dbUser.name,
-      role: dbUser.role, // Always use current role from database
-    },
-  };
+  // Validate against database only - CRM is called once in callback
+  return validateTokenFromDatabase(token);
 }
 
 /**
- * Clears expired entries from caches
+ * Revokes all sessions for a specific user
  */
-export function clearExpiredCache(): void {
-  const now = Date.now();
-  
-  for (const [token, cached] of validationCache.entries()) {
-    if (cached.expiresAt <= now) {
-      validationCache.delete(token);
-    }
-  }
-
-  for (const [token, expiresAt] of sessionWhitelist.entries()) {
-    if (expiresAt <= now) {
-      sessionWhitelist.delete(token);
-    }
+export async function revokeUserSessions(userId: string): Promise<number> {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      'UPDATE app_users SET active_token = NULL, token_expires_at = NULL WHERE external_id = $1',
+      [userId]
+    );
+    console.log(`[Auth] Revoked sessions for user ${userId}`);
+    return result.rowCount || 0;
+  } finally {
+    client.release();
   }
 }
 
 /**
- * Gets session statistics
+ * Clears all expired sessions from database (cleanup job)
  */
-export function getSessionStats() {
-  return {
-    activeSessions: sessionWhitelist.size,
-    cachedValidations: validationCache.size,
-  };
-}
-
-// Run cache cleanup every 10 minutes
-if (typeof setInterval !== 'undefined') {
-  setInterval(clearExpiredCache, 10 * 60 * 1000);
+export async function clearExpiredSessions(): Promise<number> {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      'UPDATE app_users SET active_token = NULL, token_expires_at = NULL WHERE token_expires_at < NOW()'
+    );
+    console.log(`[Auth] Cleared ${result.rowCount} expired sessions`);
+    return result.rowCount || 0;
+  } finally {
+    client.release();
+  }
 }

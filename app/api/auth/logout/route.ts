@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { clearAuthCookie, getAuthToken, removeSessionFromWhitelist } from '@/lib/auth';
+import { clearAuthCookie, clearSessionFromDatabase, getAuthToken } from '@/lib/auth';
 
 /**
  * Logout route handler
- * Clears the authentication cookie and removes session from whitelist
+ * Clears the authentication cookie and removes session from database
  * The client should then redirect to the CRM base URL
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -16,9 +16,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // Clear auth cookie
   clearAuthCookie(response);
 
-  // Remove session from whitelist
+  // Remove session from database
   if (token) {
-    removeSessionFromWhitelist(token);
+    await clearSessionFromDatabase(token);
   }
 
   return response;
@@ -40,9 +40,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Clear auth cookie
   clearAuthCookie(response);
 
-  // Remove session from whitelist
+  // Remove session from database
   if (token) {
-    removeSessionFromWhitelist(token);
+    await clearSessionFromDatabase(token);
   }
 
   return response;
