@@ -9,6 +9,7 @@ import {
   Target,
   Users,
   LogOut,
+  CheckCircle2,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -50,6 +51,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "On Page Analysis",
       url: "/on-page-analysis",
       icon: FileSearch,
+    },
+    {
+      title: "Approval Rate",
+      url: "/approval-rate",
+      icon: CheckCircle2,
     },
     {
       title: "Marketing Tracker",
