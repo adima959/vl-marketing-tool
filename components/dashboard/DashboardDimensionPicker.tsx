@@ -3,7 +3,7 @@ import { PlusOutlined, CheckOutlined } from '@ant-design/icons';
 import { DASHBOARD_DIMENSION_GROUPS } from '@/config/dashboardDimensions';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import type { MenuProps } from 'antd';
-import styles from './DashboardDimensionPicker.module.css';
+import styles from '../filters/DimensionPicker.module.css';
 
 const { Text } = Typography;
 

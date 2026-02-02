@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Extended Debug - Date Range Analysis</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+      line-height: 1.6;
+    }
+    .container { max-width: 1400px; margin: 0 auto; }
+    h1 { color: #1a1a1a; margin-bottom: 24px; font-size: 24px; }
+    .section {
+      background: white;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      margin-right: 8px;
+    }
+    button:hover { background: #2563eb; }
+    .result {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 16px;
+      margin-top: 16px;
+      overflow-x: auto;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    .highlight {
+      background: #fef3c7;
+      padding: 12px;
+      border-left: 4px solid #f59e0b;
+      border-radius: 4px;
+      margin: 12px 0;
+      font-size: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid #e5e7eb;
+      padding: 8px 12px;
+      text-align: left;
+    }
+    th {
+      background: #f3f4f6;
+      font-weight: 600;
+    }
+    tr:hover { background: #f9fafb; }
+    .loading { display: none; color: #6b7280; margin: 12px 0; }
+    .loading.active { display: block; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Extended Debug: Multi-Day Analysis</h1>
+
+    <div class="highlight">
+      <strong>Hypothesis:</strong> Feb 1 data might be stored under multiple UTC dates.
+      Let's check Jan 29-31 and Feb 1-2 to see click distribution.
+    </div>
+
+    <div class="section">
+      <h2>Date Range Analysis (Jan 29 - Feb 2)</h2>
+      <button onclick="runDateRangeAnalysis()">▶ Check Multiple Dates</button>
+      <button onclick="checkJan30()">▶ Check Jan 30 Only (3,565 clicks?)</button>
+      <div id="loading" class="loading">Loading...</div>
+      <div id="result"></div>
+    </div>
+  </div>
+
+  <script>
+    async function runDateRangeAnalysis() {
+      const loading = document.getElementById('loading');
+      const result = document.getElementById('result');
+      loading.classList.add('active');
+
+      try {
+        // Query Jan 29 - Feb 2 to see full picture
+        const response = await fetch('/api/debug/raw-campaign-data?campaign=Balansera_Dnk_IM_24_11&start=2026-01-29&end=2026-02-02');
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Request failed');
+        }
+
+        let html = '<h3>📊 Daily Click Distribution</h3>';
+        html += '<table>';
+        html += '<tr><th>Date (UTC)</th><th>Date (Denmark Local)</th><th>Clicks</th><th>Rows</th></tr>';
+
+        const dailyAgg = data.data.dailyAggregation || [];
+        let totalClicks = 0;
+
+        dailyAgg.forEach(day => {
+          // Convert UTC date to Denmark local time (UTC+1)
+          const utcDate = new Date(day.date);
+          const denmarkDate = new Date(utcDate.getTime() + (1 * 60 * 60 * 1000));
+
+          const utcStr = utcDate.toISOString().split('T')[0];
+          const denmarkStr = denmarkDate.toISOString().split('T')[0];
+          const clicks = parseInt(day.daily_clicks);
+          totalClicks += clicks;
+
+          html += `<tr>`;
+          html += `<td>${utcStr}</td>`;
+          html += `<td><strong>${denmarkStr}</strong></td>`;
+          html += `<td style="font-weight: 600; color: ${clicks > 3000 ? '#059669' : '#6b7280'}">${clicks.toLocaleString()}</td>`;
+          html += `<td>${day.row_count}</td>`;
+          html += `</tr>`;
+        });
+
+        html += `<tr style="background: #eff6ff; font-weight: 600;">`;
+        html += `<td colspan="2">Total</td>`;
+        html += `<td style="color: #1e40af">${totalClicks.toLocaleString()}</td>`;
+        html += `<td>-</td>`;
+        html += `</tr>`;
+        html += '</table>';
+
+        html += '<div class="highlight">';
+        if (totalClicks >= 3500) {
+          html += `<strong>✓ Found it!</strong> Total clicks across this range: ${totalClicks.toLocaleString()}. `;
+          html += `This confirms the data IS in the database, just split across multiple UTC dates.`;
+        } else {
+          html += `<strong>⚠ Still missing data.</strong> Total: ${totalClicks.toLocaleString()}. Expected: 3,571. `;
+          html += `The data may not have fully synced yet.`;
+        }
+        html += '</div>';
+
+        html += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+        result.innerHTML = html;
+      } catch (error) {
+        result.innerHTML = '<div class="highlight" style="background: #fee2e2; border-left-color: #ef4444;"><strong>Error:</strong> ' + error.message + '</div>';
+      } finally {
+        loading.classList.remove('active');
+      }
+    }
+
+    async function checkJan30() {
+      const loading = document.getElementById('loading');
+      const result = document.getElementById('result');
+      loading.classList.add('active');
+
+      try {
+        // Check if Jan 30 has the 3,565 clicks
+        const response = await fetch('/api/debug/raw-campaign-data?campaign=Balansera_Dnk_IM_24_11&start=2026-01-30&end=2026-01-30');
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Request failed');
+        }
+
+        const clicks = parseInt(data.data.summary?.total_clicks || 0);
+
+        let html = '<h3>📊 Jan 30, 2026 Analysis</h3>';
+        html += '<div class="highlight">';
+        html += `<strong>Clicks found:</strong> ${clicks.toLocaleString()}<br>`;
+        html += `<strong>Expected (if this is Feb 1 data):</strong> 3,571<br>`;
+        html += `<strong>Match:</strong> ${clicks === 3565 || clicks === 3571 ? '✅ YES!' : '❌ No'}`;
+        html += '</div>';
+
+        if (clicks >= 3500) {
+          html += '<div class="highlight" style="background: #d1fae5; border-left-color: #10b981;">';
+          html += '<strong>🎯 FOUND IT!</strong><br>';
+          html += 'The data Google Ads reports as "Feb 1, 2026" is stored in the database under "Jan 30, 2026 UTC" ';
+          html += '(which equals Jan 31, 2026 Denmark time).<br><br>';
+          html += '<strong>Root Cause:</strong> Date mapping mismatch between Google Ads timezone and database storage.';
+          html += '</div>';
+        }
+
+        html += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+        result.innerHTML = html;
+      } catch (error) {
+        result.innerHTML = '<div class="highlight" style="background: #fee2e2; border-left-color: #ef4444;"><strong>Error:</strong> ' + error.message + '</div>';
+      } finally {
+        loading.classList.remove('active');
+      }
+    }
+  </script>
+</body>
+</html>

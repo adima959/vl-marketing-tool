@@ -3,6 +3,7 @@ import { fetchDashboardData } from '@/lib/api/dashboardClient';
 import type { DateRange, DashboardRow } from '@/types/dashboard';
 import { normalizeError } from '@/lib/types/errors';
 import { findRowByKey } from '@/lib/treeUtils';
+import { loadDashboardDimensions, saveDashboardDimensions } from '@/lib/cookieUtils';
 
 interface DashboardState {
   // Filters
@@ -44,11 +45,20 @@ const getDefaultDateRange = (): DateRange => {
   return { start: today, end };
 };
 
+const getDefaultDimensions = (): string[] => {
+  return ['country', 'product', 'source'];
+};
+
+const getInitialDimensions = (): string[] => {
+  const savedDimensions = loadDashboardDimensions();
+  return savedDimensions || getDefaultDimensions();
+};
+
 export const useDashboardStore = create<DashboardState>((set, get) => ({
   // Initial state
   dateRange: getDefaultDateRange(),
-  dimensions: ['country', 'product', 'source'],
-  loadedDimensions: ['country', 'product', 'source'],
+  dimensions: getInitialDimensions(),
+  loadedDimensions: getInitialDimensions(),
   loadedDateRange: getDefaultDateRange(),
   reportData: [],
   expandedRowKeys: [],
@@ -122,7 +132,10 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     }
   },
 
-  reorderDimensions: (newOrder) => set({ dimensions: newOrder, hasUnsavedChanges: true }),
+  reorderDimensions: (newOrder) => {
+    saveDashboardDimensions(newOrder);
+    set({ dimensions: newOrder, hasUnsavedChanges: true });
+  },
 
   setExpandedRowKeys: (keys) => set({ expandedRowKeys: keys }),
 

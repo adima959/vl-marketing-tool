@@ -38,6 +38,7 @@ export function DashboardDataTable() {
         colorClassName={styles.dashboardColors}
         showColumnTooltips={true}
         onMetricClick={handleMetricClick}
+        hideZeroValues={true}
       />
 
       <MetricDetailModal

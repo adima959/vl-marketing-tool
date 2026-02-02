@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Debug SQL Query</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #f5f5f5; }
+    .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+    button { background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+    pre { background: #f9fafb; padding: 16px; border-radius: 6px; overflow-x: auto; }
+    .section { margin: 20px 0; padding: 16px; border: 1px solid #e5e7eb; border-radius: 6px; }
+    h3 { margin-top: 0; color: #1f2937; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 SQL Query Debugger</h1>
+    <button onclick="checkSQL()">Show Exact SQL Being Generated</button>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    async function checkSQL() {
+      const result = document.getElementById('result');
+      result.innerHTML = '<p>Loading...</p>';
+
+      try {
+        const response = await fetch('/api/debug/show-sql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dateRange: {
+              start: '2026-02-01T00:00:00.000Z',
+              end: '2026-02-01T23:59:59.999Z'
+            }
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          let html = '';
+
+          html += '<div class="section">';
+          html += '<h3>📥 Input (from frontend)</h3>';
+          html += `<pre>${JSON.stringify(data.input, null, 2)}</pre>`;
+          html += '</div>';
+
+          html += '<div class="section">';
+          html += '<h3>⚙️ Processing Steps</h3>';
+          html += `<pre>${JSON.stringify(data.processing, null, 2)}</pre>`;
+          html += '</div>';
+
+          html += '<div class="section">';
+          html += '<h3>💾 SQL Query</h3>';
+          html += `<pre>Query: ${data.sql.query}\n`;
+          html += `Param $1: "${data.sql.param1}"\n`;
+          html += `Param $2: "${data.sql.param2}"</pre>`;
+          html += '</div>';
+
+          html += '<div class="section">';
+          html += '<h3>🎯 Expected Behavior</h3>';
+          html += `<pre>${JSON.stringify(data.expectedMatch, null, 2)}</pre>`;
+          html += '</div>';
+
+          html += '<div class="section" style="background: #fef3c7; border-color: #f59e0b;">';
+          html += '<h3>🔍 Analysis</h3>';
+          html += '<p><strong>We want to match:</strong> 2026-01-31T23:00:00.000Z (3,571 clicks)</p>';
+          html += `<p><strong>We're querying for date:</strong> ${data.sql.param1}</p>`;
+          html += `<p><strong>Should this work?</strong> ${data.sql.param1 === '2026-01-31' ? '✅ YES!' : '❌ NO - Wrong date!'}</p>`;
+          html += '</div>';
+
+          result.innerHTML = html;
+        } else {
+          result.innerHTML = `<div class="section"><strong>Error:</strong> ${data.error}</div>`;
+        }
+      } catch (error) {
+        result.innerHTML = `<div class="section"><strong>Error:</strong> ${error.message}</div>`;
+      }
+    }
+
+    // Auto-run on load
+    window.addEventListener('load', () => setTimeout(checkSQL, 500));
+  </script>
+</body>
+</html>

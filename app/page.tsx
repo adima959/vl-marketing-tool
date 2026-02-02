@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { Spin } from 'antd';
 import { useDashboardUrlSync } from '@/hooks/useDashboardUrlSync';
 import { DashboardFilterToolbar } from '@/components/dashboard/DashboardFilterToolbar';
@@ -15,6 +15,11 @@ const DashboardDataTable = lazy(() =>
 function DashboardContent() {
   // Automatically syncs URL state with store and loads data
   useDashboardUrlSync();
+
+  // Set page title
+  useEffect(() => {
+    document.title = 'Dashboard | Vitaliv Analytics';
+  }, []);
 
   return (
     <>

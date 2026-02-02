@@ -55,8 +55,8 @@ async function handleMarketingQuery(
 
     // Transform database rows to frontend format (same as /api/reports/query)
     const data: ReportRow[] = rows.map((row) => ({
-      key: `${keyPrefix}${row.dimension_value || '(not set)'}`,
-      attribute: row.dimension_value || '(not set)',
+      key: `${keyPrefix}${row.dimension_value || 'Unknown'}`,
+      attribute: row.dimension_value || 'Unknown',
       depth: body.depth,
       hasChildren: hasMoreDimensions,
       metrics: {

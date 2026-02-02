@@ -41,6 +41,7 @@ export class DashboardQueryBuilder {
 
   /**
    * Builds parent filter WHERE clause
+   * Handles "Unknown" values by converting them to IS NULL conditions
    */
   private buildParentFilters(
     parentFilters: Record<string, string> | undefined
@@ -54,18 +55,30 @@ export class DashboardQueryBuilder {
 
     // IMPORTANT: Use dimension order, not alphabetical
     if (parentFilters.country !== undefined) {
-      conditions.push('c.country = ?');
-      params.push(parentFilters.country);
+      if (parentFilters.country === 'Unknown') {
+        conditions.push('c.country IS NULL');
+      } else {
+        conditions.push('c.country = ?');
+        params.push(parentFilters.country);
+      }
     }
 
     if (parentFilters.product !== undefined) {
-      conditions.push('p.product_name = ?');
-      params.push(parentFilters.product);
+      if (parentFilters.product === 'Unknown') {
+        conditions.push('p.product_name IS NULL');
+      } else {
+        conditions.push('p.product_name = ?');
+        params.push(parentFilters.product);
+      }
     }
 
     if (parentFilters.source !== undefined) {
-      conditions.push('sr.source = ?');
-      params.push(parentFilters.source);
+      if (parentFilters.source === 'Unknown') {
+        conditions.push('sr.source IS NULL');
+      } else {
+        conditions.push('sr.source = ?');
+        params.push(parentFilters.source);
+      }
     }
 
     return {
@@ -89,10 +102,35 @@ export class DashboardQueryBuilder {
   }
 
   /**
-   * Build query for depth 0 (country aggregation)
+   * Build SELECT columns based on dimensions and depth
+   * Returns columns for the current depth level
+   */
+  private buildSelectColumns(dimensions: string[], depth: number): string {
+    const columns: string[] = [];
+    for (let i = 0; i <= depth; i++) {
+      const dim = dimensions[i];
+      columns.push(this.dimensionMap[dim]);
+    }
+    return columns.join(',\n        ');
+  }
+
+  /**
+   * Build GROUP BY clause based on dimensions and depth
+   */
+  private buildGroupByClause(dimensions: string[], depth: number): string {
+    const columns: string[] = [];
+    for (let i = 0; i <= depth; i++) {
+      const dim = dimensions[i];
+      columns.push(this.dimensionMap[dim]);
+    }
+    return columns.join(', ');
+  }
+
+  /**
+   * Build query for depth 0 (first dimension aggregation)
    */
   private buildDepth0Query(options: QueryOptions): { query: string; params: any[] } {
-    const { dateRange, sortBy = 'subscriptions', sortDirection = 'DESC', limit = 1000 } = options;
+    const { dateRange, dimensions, sortBy = 'subscriptions', sortDirection = 'DESC', limit = 1000 } = options;
 
     const sortColumn = this.metricMap[sortBy] || 'subscription_count';
     const safeLimit = Math.max(1, Math.min(10000, Math.floor(limit)));
@@ -100,22 +138,28 @@ export class DashboardQueryBuilder {
     const startDate = this.formatDateForMariaDB(dateRange.start, false);
     const endDate = this.formatDateForMariaDB(dateRange.end, true);
 
+    const selectColumns = this.buildSelectColumns(dimensions, 0);
+    const groupByClause = this.buildGroupByClause(dimensions, 0);
+
     const query = `
       SELECT
-        c.country,
+        ${selectColumns},
         COUNT(DISTINCT CASE WHEN DATE(c.date_registered) = DATE(s.date_create) THEN s.customer_id END) AS customer_count,
         COUNT(DISTINCT s.id) AS subscription_count,
         COUNT(DISTINCT CASE WHEN i.type = 1 THEN i.id END) AS trial_count,
         COUNT(DISTINCT CASE WHEN i.type = 1 AND i.is_marked = 1 THEN i.id END) AS trials_approved_count,
-        SUM(CASE WHEN uo.type = 3 THEN 1 ELSE 0 END) AS upsell_count
+        COUNT(DISTINCT uo.id) AS upsell_count
       FROM subscription s
       LEFT JOIN customer c ON s.customer_id = c.id
       LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
+      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
+      LEFT JOIN product p ON p.id = ip.product_id
+      LEFT JOIN source sr ON sr.id = i.source_id
       LEFT JOIN invoice uo ON uo.customer_id = s.customer_id
         AND uo.tag LIKE CONCAT('%parent-sub-id=', s.id, '%')
-        AND uo.type = 3
       WHERE s.date_create BETWEEN ? AND ?
-      GROUP BY c.country
+        AND (i.tag IS NULL OR i.tag NOT LIKE '%parent-sub-id=%')
+      GROUP BY ${groupByClause}
       ORDER BY ${sortColumn} ${validateSortDirection(sortDirection)}
       LIMIT ${safeLimit}
     `;
@@ -124,11 +168,12 @@ export class DashboardQueryBuilder {
   }
 
   /**
-   * Build query for depth 1 (product aggregation within country)
+   * Build query for depth 1 (second dimension aggregation)
    */
   private buildDepth1Query(options: QueryOptions): { query: string; params: any[] } {
     const {
       dateRange,
+      dimensions,
       parentFilters,
       sortBy = 'subscriptions',
       sortDirection = 'DESC',
@@ -143,26 +188,29 @@ export class DashboardQueryBuilder {
 
     const { whereClause, params: filterParams } = this.buildParentFilters(parentFilters);
 
+    const selectColumns = this.buildSelectColumns(dimensions, 1);
+    const groupByClause = this.buildGroupByClause(dimensions, 1);
+
     const query = `
       SELECT
-        c.country,
-        p.product_name,
+        ${selectColumns},
         COUNT(DISTINCT CASE WHEN DATE(c.date_registered) = DATE(s.date_create) THEN s.customer_id END) AS customer_count,
         COUNT(DISTINCT s.id) AS subscription_count,
         COUNT(DISTINCT CASE WHEN i.type = 1 THEN i.id END) AS trial_count,
         COUNT(DISTINCT CASE WHEN i.type = 1 AND i.is_marked = 1 THEN i.id END) AS trials_approved_count,
-        SUM(CASE WHEN uo.type = 3 THEN 1 ELSE 0 END) AS upsell_count
+        COUNT(DISTINCT uo.id) AS upsell_count
       FROM subscription s
       LEFT JOIN customer c ON s.customer_id = c.id
       LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
       LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
       LEFT JOIN product p ON p.id = ip.product_id
+      LEFT JOIN source sr ON sr.id = i.source_id
       LEFT JOIN invoice uo ON uo.customer_id = s.customer_id
         AND uo.tag LIKE CONCAT('%parent-sub-id=', s.id, '%')
-        AND uo.type = 3
       WHERE s.date_create BETWEEN ? AND ?
+        AND (i.tag IS NULL OR i.tag NOT LIKE '%parent-sub-id=%')
         ${whereClause}
-      GROUP BY c.country, p.product_name
+      GROUP BY ${groupByClause}
       ORDER BY ${sortColumn} ${validateSortDirection(sortDirection)}
       LIMIT ${safeLimit}
     `;
@@ -172,11 +220,12 @@ export class DashboardQueryBuilder {
   }
 
   /**
-   * Build query for depth 2 (source aggregation within country + product)
+   * Build query for depth 2 (third dimension aggregation)
    */
   private buildDepth2Query(options: QueryOptions): { query: string; params: any[] } {
     const {
       dateRange,
+      dimensions,
       parentFilters,
       sortBy = 'subscriptions',
       sortDirection = 'DESC',
@@ -191,16 +240,17 @@ export class DashboardQueryBuilder {
 
     const { whereClause, params: filterParams } = this.buildParentFilters(parentFilters);
 
+    const selectColumns = this.buildSelectColumns(dimensions, 2);
+    const groupByClause = this.buildGroupByClause(dimensions, 2);
+
     const query = `
       SELECT
-        c.country,
-        p.product_name,
-        sr.source,
+        ${selectColumns},
         COUNT(DISTINCT CASE WHEN DATE(c.date_registered) = DATE(s.date_create) THEN s.customer_id END) AS customer_count,
         COUNT(DISTINCT s.id) AS subscription_count,
         COUNT(DISTINCT CASE WHEN i.type = 1 THEN i.id END) AS trial_count,
         COUNT(DISTINCT CASE WHEN i.type = 1 AND i.is_marked = 1 THEN i.id END) AS trials_approved_count,
-        SUM(CASE WHEN uo.type = 3 THEN 1 ELSE 0 END) AS upsell_count
+        COUNT(DISTINCT uo.id) AS upsell_count
       FROM subscription s
       LEFT JOIN customer c ON s.customer_id = c.id
       LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
@@ -209,10 +259,10 @@ export class DashboardQueryBuilder {
       LEFT JOIN source sr ON sr.id = i.source_id
       LEFT JOIN invoice uo ON uo.customer_id = s.customer_id
         AND uo.tag LIKE CONCAT('%parent-sub-id=', s.id, '%')
-        AND uo.type = 3
       WHERE s.date_create BETWEEN ? AND ?
+        AND (i.tag IS NULL OR i.tag NOT LIKE '%parent-sub-id=%')
         ${whereClause}
-      GROUP BY c.country, p.product_name, sr.source
+      GROUP BY ${groupByClause}
       ORDER BY ${sortColumn} ${validateSortDirection(sortDirection)}
       LIMIT ${safeLimit}
     `;

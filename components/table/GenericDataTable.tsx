@@ -18,6 +18,7 @@ export function GenericDataTable<TRow extends BaseTableRow>({
   colorClassName,
   showColumnTooltips = false,
   onMetricClick,
+  hideZeroValues = false,
 }: GenericDataTableConfig<TRow>) {
   const {
     reportData,
@@ -136,7 +137,7 @@ export function GenericDataTable<TRow extends BaseTableRow>({
           dataIndex: ['metrics', col.id],
           key: col.id,
           width: col.width,
-          align: col.align,
+          align: 'center' as const,
           sorter: true,
           sortOrder: sortColumn === col.id ? sortDirection : null,
           showSorterTooltip: false,
@@ -154,11 +155,12 @@ export function GenericDataTable<TRow extends BaseTableRow>({
                   dimensions={loadedDimensions}
                   dateRange={loadedDateRange}
                   onClick={onMetricClick}
+                  hideZero={hideZeroValues}
                 />
               );
             }
             // Default non-clickable cell
-            return <MetricCell value={value ?? 0} format={col.format} />;
+            return <MetricCell value={value ?? 0} format={col.format} hideZero={hideZeroValues} />;
           },
         }));
 

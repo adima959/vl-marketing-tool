@@ -38,24 +38,37 @@ export class DashboardDetailQueryBuilder {
 
   /**
    * Build WHERE clause from optional filters (country, product, source)
+   * Handles "Unknown" values by converting them to IS NULL conditions
    */
   private buildFilterClause(filters: DetailQueryOptions): { whereClause: string; params: any[] } {
     const params: any[] = [];
     const conditions: string[] = [];
 
     if (filters.country) {
-      conditions.push('c.country = ?');
-      params.push(filters.country);
+      if (filters.country === 'Unknown') {
+        conditions.push('c.country IS NULL');
+      } else {
+        conditions.push('c.country = ?');
+        params.push(filters.country);
+      }
     }
 
     if (filters.product) {
-      conditions.push('p.product_name = ?');
-      params.push(filters.product);
+      if (filters.product === 'Unknown') {
+        conditions.push('p.product_name IS NULL');
+      } else {
+        conditions.push('p.product_name = ?');
+        params.push(filters.product);
+      }
     }
 
     if (filters.source) {
-      conditions.push('sr.source = ?');
-      params.push(filters.source);
+      if (filters.source === 'Unknown') {
+        conditions.push('sr.source IS NULL');
+      } else {
+        conditions.push('sr.source = ?');
+        params.push(filters.source);
+      }
     }
 
     return {
@@ -93,18 +106,19 @@ export class DashboardDetailQueryBuilder {
     const query = `
       SELECT
         s.id as id,
-        s.id as subscription_id,
-        CONCAT(c.first_name, ' ', c.last_name) as customer_name,
-        c.email as customer_email,
+        s.id as subscriptionId,
+        CONCAT(c.first_name, ' ', c.last_name) as customerName,
+        c.email as customerEmail,
+        c.id as customerId,
         COALESCE(sr.source, '(not set)') as source,
-        s.tracking_id_1 as tracking_id_1,
-        s.tracking_id_2 as tracking_id_2,
-        s.tracking_id_3 as tracking_id_3,
-        s.tracking_id_4 as tracking_id_4,
-        s.tracking_id_5 as tracking_id_5,
-        COALESCE(s.amount, 0) as amount,
+        s.tracking_id as trackingId1,
+        s.tracking_id_2 as trackingId2,
+        s.tracking_id_3 as trackingId3,
+        s.tracking_id_4 as trackingId4,
+        s.tracking_id_5 as trackingId5,
+        COALESCE(i.total, s.trial_price, 0) as amount,
         s.date_create as date,
-        COALESCE(p.product_name, '(not set)') as product_name,
+        COALESCE(p.product_name, '(not set)') as productName,
         c.country
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
@@ -154,18 +168,19 @@ export class DashboardDetailQueryBuilder {
     const query = `
       SELECT
         s.id as id,
-        s.id as subscription_id,
-        CONCAT(c.first_name, ' ', c.last_name) as customer_name,
-        c.email as customer_email,
+        s.id as subscriptionId,
+        CONCAT(c.first_name, ' ', c.last_name) as customerName,
+        c.email as customerEmail,
+        c.id as customerId,
         COALESCE(sr.source, '(not set)') as source,
-        s.tracking_id_1 as tracking_id_1,
-        s.tracking_id_2 as tracking_id_2,
-        s.tracking_id_3 as tracking_id_3,
-        s.tracking_id_4 as tracking_id_4,
-        s.tracking_id_5 as tracking_id_5,
-        COALESCE(s.amount, 0) as amount,
+        s.tracking_id as trackingId1,
+        s.tracking_id_2 as trackingId2,
+        s.tracking_id_3 as trackingId3,
+        s.tracking_id_4 as trackingId4,
+        s.tracking_id_5 as trackingId5,
+        COALESCE(i.total, s.trial_price, 0) as amount,
         s.date_create as date,
-        COALESCE(p.product_name, '(not set)') as product_name,
+        COALESCE(p.product_name, '(not set)') as productName,
         c.country
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
@@ -213,19 +228,20 @@ export class DashboardDetailQueryBuilder {
     const query = `
       SELECT
         i.id as id,
-        i.id as invoice_id,
-        s.id as subscription_id,
-        CONCAT(c.first_name, ' ', c.last_name) as customer_name,
-        c.email as customer_email,
+        i.id as invoiceId,
+        s.id as subscriptionId,
+        CONCAT(c.first_name, ' ', c.last_name) as customerName,
+        c.email as customerEmail,
+        c.id as customerId,
         COALESCE(sr.source, '(not set)') as source,
-        i.tracking_id_1 as tracking_id_1,
-        i.tracking_id_2 as tracking_id_2,
-        i.tracking_id_3 as tracking_id_3,
-        i.tracking_id_4 as tracking_id_4,
-        i.tracking_id_5 as tracking_id_5,
-        COALESCE(i.amount, 0) as amount,
-        i.date_create as date,
-        COALESCE(p.product_name, '(not set)') as product_name,
+        i.tracking_id as trackingId1,
+        i.tracking_id_2 as trackingId2,
+        i.tracking_id_3 as trackingId3,
+        i.tracking_id_4 as trackingId4,
+        i.tracking_id_5 as trackingId5,
+        COALESCE(i.total, 0) as amount,
+        i.order_date as date,
+        COALESCE(p.product_name, '(not set)') as productName,
         c.country
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
@@ -235,7 +251,7 @@ export class DashboardDetailQueryBuilder {
       LEFT JOIN source sr ON sr.id = i.source_id
       WHERE s.date_create BETWEEN ? AND ?
         ${whereClause}
-      ORDER BY i.date_create DESC
+      ORDER BY i.order_date DESC
       ${limitClause}
     `;
 
@@ -273,19 +289,20 @@ export class DashboardDetailQueryBuilder {
     const query = `
       SELECT
         i.id as id,
-        i.id as invoice_id,
-        s.id as subscription_id,
-        CONCAT(c.first_name, ' ', c.last_name) as customer_name,
-        c.email as customer_email,
+        i.id as invoiceId,
+        s.id as subscriptionId,
+        CONCAT(c.first_name, ' ', c.last_name) as customerName,
+        c.email as customerEmail,
+        c.id as customerId,
         COALESCE(sr.source, '(not set)') as source,
-        i.tracking_id_1 as tracking_id_1,
-        i.tracking_id_2 as tracking_id_2,
-        i.tracking_id_3 as tracking_id_3,
-        i.tracking_id_4 as tracking_id_4,
-        i.tracking_id_5 as tracking_id_5,
-        COALESCE(i.amount, 0) as amount,
-        i.date_create as date,
-        COALESCE(p.product_name, '(not set)') as product_name,
+        i.tracking_id as trackingId1,
+        i.tracking_id_2 as trackingId2,
+        i.tracking_id_3 as trackingId3,
+        i.tracking_id_4 as trackingId4,
+        i.tracking_id_5 as trackingId5,
+        COALESCE(i.total, 0) as amount,
+        i.order_date as date,
+        COALESCE(p.product_name, '(not set)') as productName,
         c.country
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
@@ -295,7 +312,7 @@ export class DashboardDetailQueryBuilder {
       LEFT JOIN source sr ON sr.id = i.source_id
       WHERE s.date_create BETWEEN ? AND ?
         ${whereClause}
-      ORDER BY i.date_create DESC
+      ORDER BY i.order_date DESC
       ${limitClause}
     `;
 
@@ -333,19 +350,20 @@ export class DashboardDetailQueryBuilder {
     const query = `
       SELECT
         uo.id as id,
-        uo.id as invoice_id,
-        s.id as subscription_id,
-        CONCAT(c.first_name, ' ', c.last_name) as customer_name,
-        c.email as customer_email,
+        uo.id as invoiceId,
+        s.id as subscriptionId,
+        CONCAT(c.first_name, ' ', c.last_name) as customerName,
+        c.email as customerEmail,
+        c.id as customerId,
         COALESCE(sr.source, '(not set)') as source,
-        uo.tracking_id_1 as tracking_id_1,
-        uo.tracking_id_2 as tracking_id_2,
-        uo.tracking_id_3 as tracking_id_3,
-        uo.tracking_id_4 as tracking_id_4,
-        uo.tracking_id_5 as tracking_id_5,
-        COALESCE(uo.amount, 0) as amount,
-        uo.date_create as date,
-        COALESCE(p.product_name, '(not set)') as product_name,
+        uo.tracking_id as trackingId1,
+        uo.tracking_id_2 as trackingId2,
+        uo.tracking_id_3 as trackingId3,
+        uo.tracking_id_4 as trackingId4,
+        uo.tracking_id_5 as trackingId5,
+        COALESCE(uo.total, 0) as amount,
+        uo.order_date as date,
+        COALESCE(p.product_name, '(not set)') as productName,
         c.country
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
@@ -357,7 +375,7 @@ export class DashboardDetailQueryBuilder {
       LEFT JOIN source sr ON sr.id = uo.source_id
       WHERE s.date_create BETWEEN ? AND ?
         ${whereClause}
-      ORDER BY uo.date_create DESC
+      ORDER BY uo.order_date DESC
       ${limitClause}
     `;
 

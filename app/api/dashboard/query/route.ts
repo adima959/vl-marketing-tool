@@ -69,33 +69,30 @@ async function handleDashboardQuery(
       : '';
     const keyPrefix = parentKeyParts ? `${parentKeyParts}::` : '';
 
-    // Transform database rows to frontend format
-    let data: DashboardRow[];
+    // Map dimension IDs to database column names (must match query builder)
+    const dimensionColumnMap: Record<string, string> = {
+      country: 'country',
+      product: 'product_name',
+      source: 'source',
+    };
 
-    if (body.depth === 0) {
-      // Depth 0: Country aggregation (display in uppercase)
-      data = rows.map((row) => {
-        const country = row.country || '(not set)';
-        const countryUpper = country.toUpperCase();
-        return {
-          key: `${keyPrefix}${country}`,
-          attribute: countryUpper,
-          depth: body.depth,
-          hasChildren: hasMoreDimensions,
-          metrics: {
-            customers: Number(row.customer_count) || 0,
-            subscriptions: Number(row.subscription_count) || 0,
-            trials: Number(row.trial_count) || 0,
-            trialsApproved: Number(row.trials_approved_count) || 0,
-            upsells: Number(row.upsell_count) || 0,
-          },
-        };
-      });
-    } else if (body.depth === 1) {
-      // Depth 1: Product aggregation
-      data = rows.map((row) => ({
-        key: `${keyPrefix}${row.product_name || '(not set)'}`,
-        attribute: row.product_name || '(not set)',
+    // Get the current dimension at this depth
+    const currentDimension = body.dimensions[body.depth];
+    const columnName = dimensionColumnMap[currentDimension];
+
+    if (!columnName) {
+      throw new Error(`Invalid dimension at depth ${body.depth}: ${currentDimension}`);
+    }
+
+    // Transform database rows to frontend format (dynamic based on dimension order)
+    const data: DashboardRow[] = rows.map((row) => {
+      const rawValue = row[columnName] || 'Unknown';
+      // Uppercase country names for consistency
+      const displayValue = currentDimension === 'country' ? rawValue.toUpperCase() : rawValue;
+
+      return {
+        key: `${keyPrefix}${rawValue}`,
+        attribute: displayValue,
         depth: body.depth,
         hasChildren: hasMoreDimensions,
         metrics: {
@@ -105,23 +102,8 @@ async function handleDashboardQuery(
           trialsApproved: Number(row.trials_approved_count) || 0,
           upsells: Number(row.upsell_count) || 0,
         },
-      }));
-    } else {
-      // Depth 2: Source aggregation
-      data = rows.map((row) => ({
-        key: `${keyPrefix}${row.source || '(not set)'}`,
-        attribute: row.source || '(not set)',
-        depth: body.depth,
-        hasChildren: false, // Leaf nodes (no depth 3)
-        metrics: {
-          customers: Number(row.customer_count) || 0,
-          subscriptions: Number(row.subscription_count) || 0,
-          trials: Number(row.trial_count) || 0,
-          trialsApproved: Number(row.trials_approved_count) || 0,
-          upsells: Number(row.upsell_count) || 0,
-        },
-      }));
-    }
+      };
+    });
 
     return NextResponse.json({
       success: true,

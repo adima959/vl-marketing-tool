@@ -73,4 +73,7 @@ export interface GenericDataTableConfig<TRow extends BaseTableRow> {
 
   /** Optional callback when a metric cell is clicked (for detail modals) */
   onMetricClick?: (context: MetricClickContext) => void;
+
+  /** Whether to hide cells with zero values */
+  hideZeroValues?: boolean;
 }

@@ -82,11 +82,11 @@ async function handleOnPageQuery(
     const data = rows.map((row) => {
       const keyValue = row.dimension_id != null
         ? String(row.dimension_id)
-        : (row.dimension_value != null ? String(row.dimension_value) : '(not set)');
+        : (row.dimension_value != null ? String(row.dimension_value) : 'Unknown');
 
       const displayValue = row.dimension_value != null
         ? String(row.dimension_value)
-        : '(not set)';
+        : 'Unknown';
 
       return {
         key: `${keyPrefix}${keyValue}`,

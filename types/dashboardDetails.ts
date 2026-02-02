@@ -24,6 +24,7 @@ export interface DetailRecord {
   id: string;                    // Unique identifier (subscription_id or invoice_id)
   customerName: string;          // customer.customer_name
   customerEmail: string;         // customer.email
+  customerId: number;            // customer.id
   source: string;                // source.source
   trackingId1: string | null;    // Tracking IDs 1-5
   trackingId2: string | null;

@@ -22,7 +22,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { getDashboardDimensionLabel } from '@/config/dashboardDimensions';
-import styles from './DashboardDimensionPills.module.css';
+import styles from '../filters/DimensionPills.module.css';
 
 interface SortableTagProps {
   dimId: string;
@@ -72,7 +72,7 @@ function SortableTag({ dimId, onRemove, canRemove }: SortableTagProps) {
 }
 
 export function DashboardDimensionPills() {
-  const { dimensions, removeDimension, reorderDimensions } = useDashboardStore();
+  const { dimensions, reorderDimensions } = useDashboardStore();
   const [mounted, setMounted] = useState(false);
 
   // Only render DnD after client-side mount to avoid hydration issues
@@ -115,8 +115,8 @@ export function DashboardDimensionPills() {
             <SortableTag
               key={dimId}
               dimId={dimId}
-              onRemove={() => removeDimension(dimId)}
-              canRemove={dimensions.length > 1}
+              onRemove={() => {}}
+              canRemove={false}
             />
           ))}
         </Space>

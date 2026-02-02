@@ -16,6 +16,7 @@ interface ClickableMetricCellProps {
   dimensions: string[];
   dateRange: DateRange;
   onClick: (context: MetricClickContext) => void;
+  hideZero?: boolean;
 }
 
 /**
@@ -31,7 +32,13 @@ export function ClickableMetricCell({
   dimensions,
   dateRange,
   onClick,
+  hideZero = false,
 }: ClickableMetricCellProps) {
+  // Hide zero values if hideZero is true
+  if (hideZero && value === 0) {
+    return null;
+  }
+
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent row expansion
 
@@ -39,12 +46,23 @@ export function ClickableMetricCell({
     // Row key format: "DENMARK" or "DENMARK::T-Formula" or "DENMARK::T-Formula::Google"
     const parts = rowKey.split('::');
 
+    // Initialize filters
     const filters: MetricClickContext['filters'] = {
       dateRange,
-      country: dimensions[0] && parts[0] ? parts[0] : undefined,
-      product: dimensions[1] && parts[1] ? parts[1] : undefined,
-      source: dimensions[2] && parts[2] ? parts[2] : undefined,
+      country: undefined,
+      product: undefined,
+      source: undefined,
     };
+
+    // Map row key parts to filters based on actual dimension order
+    // The row key parts correspond to the dimension order, not fixed positions
+    parts.forEach((part, index) => {
+      const dimensionName = dimensions[index];
+      if (dimensionName && part) {
+        // Map the dimension name to the filter property
+        filters[dimensionName as 'country' | 'product' | 'source'] = part;
+      }
+    });
 
     onClick({
       metricId,
@@ -56,7 +74,7 @@ export function ClickableMetricCell({
 
   return (
     <div className={styles.clickableMetric} onClick={handleClick}>
-      <MetricCell value={value} format={format} />
+      <MetricCell value={value} format={format} hideZero={hideZero} />
     </div>
   );
 }

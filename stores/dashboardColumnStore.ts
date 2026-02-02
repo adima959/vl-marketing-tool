@@ -11,7 +11,7 @@ interface DashboardColumnState {
 
 /**
  * Migration helper - runs once on store initialization
- * Copies column settings from old 'new-orders-column-settings' key to new 'dashboard-column-settings' key
+ * Copies column settings from legacy localStorage key to current 'dashboard-column-settings' key
  */
 const migrateFromOldKey = (): void => {
   if (typeof window === 'undefined') return;
@@ -25,7 +25,7 @@ const migrateFromOldKey = (): void => {
   // Only migrate if old exists and new doesn't
   if (oldData && !newData) {
     localStorage.setItem(newKey, oldData);
-    console.log('✅ Migrated column settings: new-orders → dashboard');
+    console.log('✅ Migrated column settings from legacy key');
   }
 };
 

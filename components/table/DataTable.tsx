@@ -31,6 +31,7 @@ export function DataTable() {
       columnGroups={COLUMN_GROUPS}
       colorClassName={styles.marketingColors}
       showColumnTooltips={false}
+      hideZeroValues={true}
     />
   );
 }

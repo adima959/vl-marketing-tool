@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Modal, Table, Tag } from 'antd';
+import { Modal, Table, Tag, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { MetricClickContext, DetailRecord } from '@/types/dashboardDetails';
 import { fetchDashboardDetails } from '@/lib/api/dashboardDetailsClient';
@@ -65,74 +65,104 @@ export function MetricDetailModal({ open, onClose, context }: MetricDetailModalP
       dataIndex: 'customerName',
       width: 180,
       fixed: 'left',
-    },
-    {
-      title: 'Email',
-      dataIndex: 'customerEmail',
-      width: 200,
+      ellipsis: {
+        showTitle: false,
+      },
+      render: (name: string, record: DetailRecord) => (
+        <Tooltip title={name} placement="topLeft">
+          <a
+            href={`https://vitaliv.no/admin/customers/${record.customerId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: 'var(--color-accent-blue)', textDecoration: 'none' }}
+            onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+            onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+          >
+            {name}
+          </a>
+        </Tooltip>
+      ),
     },
     {
       title: 'Source',
       dataIndex: 'source',
       width: 120,
+      ellipsis: {
+        showTitle: false,
+      },
+      render: (val) => <Tooltip title={val}>{val}</Tooltip>,
     },
     {
       title: 'Tracking ID 1',
       dataIndex: 'trackingId1',
       width: 120,
-      render: (val) => val || '-',
+      ellipsis: {
+        showTitle: false,
+      },
+      render: (val) => <Tooltip title={val || '-'}>{val || '-'}</Tooltip>,
     },
     {
       title: 'Tracking ID 2',
       dataIndex: 'trackingId2',
       width: 120,
-      render: (val) => val || '-',
+      ellipsis: {
+        showTitle: false,
+      },
+      render: (val) => <Tooltip title={val || '-'}>{val || '-'}</Tooltip>,
     },
     {
       title: 'Tracking ID 3',
       dataIndex: 'trackingId3',
       width: 120,
-      render: (val) => val || '-',
+      ellipsis: {
+        showTitle: false,
+      },
+      render: (val) => <Tooltip title={val || '-'}>{val || '-'}</Tooltip>,
     },
     {
       title: 'Tracking ID 4',
       dataIndex: 'trackingId4',
       width: 120,
-      render: (val) => val || '-',
+      ellipsis: {
+        showTitle: false,
+      },
+      render: (val) => <Tooltip title={val || '-'}>{val || '-'}</Tooltip>,
     },
     {
       title: 'Tracking ID 5',
       dataIndex: 'trackingId5',
       width: 120,
-      render: (val) => val || '-',
+      ellipsis: {
+        showTitle: false,
+      },
+      render: (val) => <Tooltip title={val || '-'}>{val || '-'}</Tooltip>,
     },
     {
       title: 'Amount',
       dataIndex: 'amount',
       width: 100,
       align: 'right',
-      render: (val) => (val !== null && val !== undefined ? val.toFixed(2) : '0.00'),
+      ellipsis: {
+        showTitle: false,
+      },
+      render: (val) => {
+        const formatted = val !== null && val !== undefined ? Number(val).toFixed(2) : '0.00';
+        return <Tooltip title={formatted}>{formatted}</Tooltip>;
+      },
     },
     {
       title: 'Date',
       dataIndex: 'date',
       width: 120,
-      render: (val) => new Date(val).toLocaleDateString('en-GB'),
+      ellipsis: {
+        showTitle: false,
+      },
+      render: (val) => {
+        const formatted = new Date(val).toLocaleDateString('en-GB');
+        return <Tooltip title={formatted}>{formatted}</Tooltip>;
+      },
     },
   ];
-
-  // Build filter summary text
-  const filterSummary = context
-    ? [
-        `${context.metricLabel}: ${context.value}`,
-        `Date: ${context.filters.dateRange.start.toLocaleDateString()} - ${context.filters.dateRange.end.toLocaleDateString()}`,
-        context.filters.country && `Country: ${context.filters.country}`,
-        context.filters.product && `Product: ${context.filters.product}`,
-        context.filters.source && `Source: ${context.filters.source}`,
-      ]
-        .filter(Boolean)
-        .join(' • ')
-    : '';
 
   return (
     <Modal
@@ -144,13 +174,35 @@ export function MetricDetailModal({ open, onClose, context }: MetricDetailModalP
       footer={null}
       className={styles.modal}
       styles={{
-        header: { paddingBottom: 16, borderBottom: '1px solid #e8eaed' },
-        body: { paddingTop: 20 },
+        header: { paddingBottom: 12, borderBottom: '1px solid #e8eaed' },
+        body: { paddingTop: 0 },
       }}
     >
-      {filterSummary && (
+      {context && (
         <div className={styles.filterSummary}>
-          <Tag color="blue">{filterSummary}</Tag>
+          <span className={styles.summaryCount}>{context.value} records</span>
+          <span className={styles.separator}>•</span>
+          <span className={styles.summaryText}>
+            {context.filters.dateRange.start.toLocaleDateString('en-GB')} - {context.filters.dateRange.end.toLocaleDateString('en-GB')}
+          </span>
+          {context.filters.country && (
+            <>
+              <span className={styles.separator}>•</span>
+              <span className={styles.summaryText}>{context.filters.country}</span>
+            </>
+          )}
+          {context.filters.product && (
+            <>
+              <span className={styles.separator}>•</span>
+              <span className={styles.summaryText}>{context.filters.product}</span>
+            </>
+          )}
+          {context.filters.source && (
+            <>
+              <span className={styles.separator}>•</span>
+              <span className={styles.summaryText}>{context.filters.source}</span>
+            </>
+          )}
         </div>
       )}
 
@@ -173,7 +225,7 @@ export function MetricDetailModal({ open, onClose, context }: MetricDetailModalP
           showTotal: (total) => `Total ${total} records`,
         }}
         rowKey="id"
-        scroll={{ x: 1400 }}
+        scroll={{ x: 1120 }}
         size="small"
       />
     </Modal>

@@ -77,6 +77,7 @@ export class OnPageQueryBuilder {
 
   /**
    * Builds parent filter WHERE clause
+   * Handles "Unknown" values by converting them to IS NULL conditions
    */
   private buildParentFilters(
     parentFilters: Record<string, string> | undefined,
@@ -95,15 +96,27 @@ export class OnPageQueryBuilder {
       if (!sqlColumn) {
         throw new Error(`Unknown dimension in parent filter: ${dimId}`);
       }
-      params.push(value);
-      if (dimId === 'date') {
-        conditions.push(`${columnPrefix}created_at::date = $${paramOffset + params.length}`);
-      } else if (this.enrichedDimensions[dimId]) {
-        // Enriched dimensions use their specific filter expression
-        const dimEnriched = this.enrichedDimensions[dimId];
-        conditions.push(`${dimEnriched.parentFilterExpr} = $${paramOffset + params.length}`);
+
+      // Handle "Unknown" values as NULL
+      if (value === 'Unknown') {
+        if (dimId === 'date') {
+          conditions.push(`${columnPrefix}created_at::date IS NULL`);
+        } else if (this.enrichedDimensions[dimId]) {
+          const dimEnriched = this.enrichedDimensions[dimId];
+          conditions.push(`${dimEnriched.parentFilterExpr} IS NULL`);
+        } else {
+          conditions.push(`${columnPrefix}${sqlColumn} IS NULL`);
+        }
       } else {
-        conditions.push(`${columnPrefix}${sqlColumn} = $${paramOffset + params.length}`);
+        params.push(value);
+        if (dimId === 'date') {
+          conditions.push(`${columnPrefix}created_at::date = $${paramOffset + params.length}`);
+        } else if (this.enrichedDimensions[dimId]) {
+          const dimEnriched = this.enrichedDimensions[dimId];
+          conditions.push(`${dimEnriched.parentFilterExpr} = $${paramOffset + params.length}`);
+        } else {
+          conditions.push(`${columnPrefix}${sqlColumn} = $${paramOffset + params.length}`);
+        }
       }
     });
 
@@ -194,7 +207,7 @@ export class OnPageQueryBuilder {
     if (enriched) {
       dimensionSelect = `
         ${selectExpression}::text AS dimension_id,
-        COALESCE(${enriched.nameExpression} || ' (' || ${selectExpression}::text || ')', COALESCE(${selectExpression}::text, '(not set)')) AS dimension_value`;
+        COALESCE(${enriched.nameExpression} || ' (' || ${selectExpression}::text || ')', COALESCE(${selectExpression}::text, 'Unknown')) AS dimension_value`;
     } else {
       dimensionSelect = `${selectExpression} AS dimension_value`;
     }
