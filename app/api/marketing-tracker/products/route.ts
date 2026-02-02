@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { Product, ProductWithStats, CreateProductRequest } from '@/types';
-import {
-  getProductsWithStats,
-  DUMMY_PRODUCTS,
-  DUMMY_USERS,
-} from '@/lib/marketing-tracker/dummy-data';
+import type { CreateProductRequest } from '@/types/marketing-tracker';
+import { getProducts, createProduct } from '@/lib/marketing-tracker/db';
+import { recordCreation } from '@/lib/marketing-tracker/historyService';
+
+// Placeholder user ID until auth is implemented
+const PLACEHOLDER_USER_ID = '00000000-0000-0000-0000-000000000000';
 
 /**
  * GET /api/marketing-tracker/products
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const { searchParams } = new URL(request.url);
     const ownerId = searchParams.get('ownerId');
 
-    let products = getProductsWithStats();
+    let products = await getProducts();
 
     // Filter by owner if provided
     if (ownerId && ownerId !== 'all') {
@@ -25,7 +25,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({
       success: true,
       data: products,
-      users: DUMMY_USERS,
     });
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -58,18 +57,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // TODO: Replace with actual database insert
-    const newProduct: ProductWithStats = {
-      id: `prod-${Date.now()}`,
+    // Create the product in the database
+    const newProduct = await createProduct({
       name: body.name,
       description: body.description,
+      notes: body.notes,
       ownerId: body.ownerId,
-      owner: DUMMY_USERS.find((u) => u.id === body.ownerId),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      angleCount: 0,
-      activeAngleCount: 0,
-    };
+    });
+
+    // Record creation history
+    await recordCreation(
+      'product',
+      newProduct.id,
+      newProduct as unknown as Record<string, unknown>,
+      PLACEHOLDER_USER_ID
+    );
 
     return NextResponse.json({
       success: true,

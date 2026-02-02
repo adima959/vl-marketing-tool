@@ -1,36 +1,40 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Spin, Empty, Button, Table } from 'antd';
 import { PlusOutlined, EditOutlined } from '@ant-design/icons';
-import { Target, ChevronRight, Users, Lightbulb, GitBranch } from 'lucide-react';
+import { Target, ChevronRight, GitBranch, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatusBadge } from '@/components/marketing-tracker';
+import { StatusBadge, MessageModal } from '@/components/marketing-tracker';
 import { useMarketingTrackerStore } from '@/stores/marketingTrackerStore';
 import type { ColumnsType } from 'antd/es/table';
-import type { SubAngle } from '@/types';
+import type { Message } from '@/types';
 import styles from './page.module.css';
 
-interface SubAngleRow {
+interface MessageRow {
   key: string;
   id: string;
   name: string;
-  hook?: string;
-  status: SubAngle['status'];
+  specificPainPoint?: string;
+  corePromise?: string;
+  status: Message['status'];
   assetCount: number;
+  creativeCount: number;
 }
 
-export default function MainAnglePage() {
+export default function AnglePage() {
+  const [messageModalOpen, setMessageModalOpen] = useState(false);
+
   const {
     currentProduct,
-    currentMainAngle,
-    subAngles,
+    currentAngle,
+    messages,
     isLoading,
-    loadMainAngle,
-    updateMainAngleStatus,
-    updateSubAngleStatus,
+    loadAngle,
+    updateAngleStatus,
+    updateMessageStatus,
   } = useMarketingTrackerStore();
 
   const params = useParams<{ angleId: string }>();
@@ -38,29 +42,34 @@ export default function MainAnglePage() {
 
   useEffect(() => {
     if (angleId) {
-      loadMainAngle(angleId);
+      loadAngle(angleId);
     }
-  }, [angleId, loadMainAngle]);
+  }, [angleId, loadAngle]);
 
-  // Transform sub-angles for table
-  const tableData: SubAngleRow[] = subAngles.map((subAngle) => ({
-    key: subAngle.id,
-    id: subAngle.id,
-    name: subAngle.name,
-    hook: subAngle.hook,
-    status: subAngle.status,
-    assetCount: subAngle.assetCount || 0,
+  // Transform messages for table
+  const tableData: MessageRow[] = messages.map((message) => ({
+    key: message.id,
+    id: message.id,
+    name: message.name,
+    specificPainPoint: message.specificPainPoint,
+    corePromise: message.corePromise,
+    status: message.status,
+    assetCount: message.assetCount || 0,
+    creativeCount: message.creativeCount || 0,
   }));
 
-  const columns: ColumnsType<SubAngleRow> = [
+  const columns: ColumnsType<MessageRow> = [
     {
-      title: 'SUB-ANGLE NAME',
+      title: 'MESSAGE NAME',
       dataIndex: 'name',
       key: 'name',
-      render: (name: string, record: SubAngleRow) => (
-        <Link href={`/marketing-tracker/sub-angle/${record.id}`} className={styles.subAngleLink}>
-          <div className={styles.subAngleNameCell}>
-            <span className={styles.subAngleName}>{name}</span>
+      render: (name: string, record: MessageRow) => (
+        <Link href={`/marketing-tracker/message/${record.id}`} className={styles.messageLink}>
+          <div className={styles.messageNameCell}>
+            <span className={styles.messageName}>{name}</span>
+            {record.specificPainPoint && (
+              <span className={styles.messagePainPoint}>{record.specificPainPoint}</span>
+            )}
           </div>
         </Link>
       ),
@@ -70,23 +79,23 @@ export default function MainAnglePage() {
       dataIndex: 'status',
       key: 'status',
       width: 140,
-      render: (status: SubAngle['status'], record: SubAngleRow) => (
+      render: (status: Message['status'], record: MessageRow) => (
         <StatusBadge
           status={status}
           variant="dot"
           editable
-          onChange={(newStatus) => updateSubAngleStatus(record.id, newStatus)}
+          onChange={(newStatus) => updateMessageStatus(record.id, newStatus)}
         />
       ),
     },
     {
-      title: 'SPECIFIC HOOK',
-      dataIndex: 'hook',
-      key: 'hook',
+      title: 'CORE PROMISE',
+      dataIndex: 'corePromise',
+      key: 'corePromise',
       width: 280,
-      render: (hook?: string) => (
-        <span className={styles.hookCell}>
-          {hook || '-'}
+      render: (promise?: string) => (
+        <span className={styles.promiseCell}>
+          {promise || '-'}
         </span>
       ),
     },
@@ -101,18 +110,28 @@ export default function MainAnglePage() {
       ),
     },
     {
+      title: 'CREATIVES',
+      dataIndex: 'creativeCount',
+      key: 'creatives',
+      width: 90,
+      align: 'center',
+      render: (count: number) => (
+        <span className={styles.countBadge}>{count}</span>
+      ),
+    },
+    {
       title: '',
       key: 'action',
       width: 40,
-      render: (_: unknown, record: SubAngleRow) => (
-        <Link href={`/marketing-tracker/sub-angle/${record.id}`}>
+      render: (_: unknown, record: MessageRow) => (
+        <Link href={`/marketing-tracker/message/${record.id}`}>
           <ChevronRight size={16} className={styles.rowChevron} />
         </Link>
       ),
     },
   ];
 
-  if (isLoading && !currentMainAngle) {
+  if (isLoading && !currentAngle) {
     return (
       <>
         <PageHeader title="Loading..." icon={<Target className="h-5 w-5" />} />
@@ -123,7 +142,7 @@ export default function MainAnglePage() {
     );
   }
 
-  if (!currentMainAngle) {
+  if (!currentAngle) {
     return (
       <>
         <PageHeader title="Angle Not Found" icon={<Target className="h-5 w-5" />} />
@@ -137,7 +156,7 @@ export default function MainAnglePage() {
   return (
     <>
       <PageHeader
-        title={currentMainAngle.name}
+        title={currentAngle.name}
         icon={<Target className="h-5 w-5" />}
       />
       <div className={styles.container}>
@@ -158,97 +177,64 @@ export default function MainAnglePage() {
               <ChevronRight size={14} />
             </>
           )}
-          <span className={styles.breadcrumbCurrent}>{currentMainAngle.name}</span>
+          <span className={styles.breadcrumbCurrent}>{currentAngle.name}</span>
         </div>
 
-        {/* Main content with sidebar layout */}
-        <div className={styles.mainGrid}>
-          {/* Left: Main content */}
-          <div className={styles.mainContent}>
-            {/* Angle Header Card */}
-            <div className={styles.angleCard}>
-              <div className={styles.angleHeader}>
-                <div className={styles.angleInfo}>
-                  <h1 className={styles.angleTitle}>{currentMainAngle.name}</h1>
-                  {currentMainAngle.hook && (
-                    <div className={styles.coreHook}>
-                      <span className={styles.hookLabel}>CORE HOOK</span>
-                      <p className={styles.hookValue}>"{currentMainAngle.hook}"</p>
-                    </div>
-                  )}
-                  {currentMainAngle.description && (
-                    <div className={styles.strategySection}>
-                      <span className={styles.strategyLabel}>DESCRIPTION / STRATEGY</span>
-                      <div
-                        className={styles.strategyText}
-                        dangerouslySetInnerHTML={{ __html: currentMainAngle.description }}
-                      />
-                    </div>
-                  )}
-                </div>
-                <div className={styles.angleActions}>
-                  <StatusBadge
-                    status={currentMainAngle.status}
-                    variant="dot"
-                    editable
-                    onChange={(newStatus) => updateMainAngleStatus(currentMainAngle.id, newStatus)}
-                  />
-                  <Button icon={<EditOutlined />}>Edit</Button>
-                </div>
-              </div>
-            </div>
-
-            {/* Sub-Angles Section */}
-            <div className={styles.subAnglesSection}>
-              <div className={styles.sectionHeader}>
-                <div className={styles.sectionTitleRow}>
-                  <GitBranch size={18} className={styles.sectionIcon} />
-                  <h2 className={styles.sectionTitle}>Sub-Angles & Executions</h2>
-                </div>
-                <Button type="primary" icon={<PlusOutlined />}>
-                  Add Sub-Angle
-                </Button>
-              </div>
-
-              {subAngles.length === 0 ? (
-                <div className={styles.emptyState}>
-                  <Empty description="No sub-angles yet" />
-                </div>
-              ) : (
-                <Table
-                  columns={columns}
-                  dataSource={tableData}
-                  pagination={false}
-                  className={styles.subAnglesTable}
-                  size="middle"
-                  rowClassName={styles.tableRow}
-                />
+        {/* Angle Header Card */}
+        <div className={styles.angleCard}>
+          <div className={styles.angleHeader}>
+            <div className={styles.angleInfo}>
+              <span className={styles.angleLabel}>ANGLE (PROBLEM AREA)</span>
+              <h1 className={styles.angleTitle}>{currentAngle.name}</h1>
+              {currentAngle.description && (
+                <p className={styles.angleDescription}>{currentAngle.description}</p>
               )}
             </div>
+            <div className={styles.angleActions}>
+              <StatusBadge
+                status={currentAngle.status}
+                variant="dot"
+                editable
+                onChange={(newStatus) => updateAngleStatus(currentAngle.id, newStatus)}
+              />
+              <Button icon={<EditOutlined />}>Edit</Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Messages Section */}
+        <div className={styles.messagesSection}>
+          <div className={styles.sectionHeader}>
+            <div className={styles.sectionTitleRow}>
+              <MessageSquare size={18} className={styles.sectionIcon} />
+              <h2 className={styles.sectionTitle}>Messages (Hypotheses)</h2>
+            </div>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setMessageModalOpen(true)}>
+              Add Message
+            </Button>
           </div>
 
-          {/* Right: Context Sidebar */}
-          <div className={styles.contextSidebar}>
-            <h3 className={styles.sidebarTitle}>Angle Context</h3>
+          <MessageModal
+            open={messageModalOpen}
+            onClose={() => setMessageModalOpen(false)}
+            onSuccess={() => loadAngle(angleId)}
+            angleId={angleId}
+          />
 
-            {currentMainAngle.targetAudience && (
-              <div className={styles.contextBlock}>
-                <div className={styles.contextLabel}>
-                  <Users size={14} /> Target Audience
-                </div>
-                <p className={styles.contextValue}>{currentMainAngle.targetAudience}</p>
-              </div>
-            )}
-
-            {currentMainAngle.painPoint && (
-              <div className={styles.contextBlock}>
-                <div className={styles.contextLabel}>
-                  <Lightbulb size={14} /> Pain Point
-                </div>
-                <p className={styles.contextValue}>{currentMainAngle.painPoint}</p>
-              </div>
-            )}
-          </div>
+          {messages.length === 0 ? (
+            <div className={styles.emptyState}>
+              <Empty description="No messages yet" />
+            </div>
+          ) : (
+            <Table
+              columns={columns}
+              dataSource={tableData}
+              pagination={false}
+              className={styles.messagesTable}
+              size="middle"
+              rowClassName={styles.tableRow}
+            />
+          )}
         </div>
       </div>
     </>

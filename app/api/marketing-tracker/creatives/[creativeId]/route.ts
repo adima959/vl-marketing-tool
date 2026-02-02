@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { Geography, AssetType } from '@/types';
+import type { Geography, CreativeFormat } from '@/types';
 import {
-  getAssetById,
+  getCreativeById,
   getMessageById,
   getAngleById,
   getProductById,
-  updateAsset,
-  deleteAsset,
+  updateCreative,
+  deleteCreative,
 } from '@/lib/marketing-tracker/db';
 import {
   recordUpdate,
@@ -17,68 +17,68 @@ import {
 const PLACEHOLDER_USER_ID = '00000000-0000-0000-0000-000000000000';
 
 interface RouteParams {
-  params: Promise<{ assetId: string }>;
+  params: Promise<{ creativeId: string }>;
 }
 
 /**
- * GET /api/marketing-tracker/assets/[assetId]
- * Get a single asset with its parent context
+ * GET /api/marketing-tracker/creatives/[creativeId]
+ * Get a single creative with its parent context
  */
 export async function GET(
   request: NextRequest,
   { params }: RouteParams
 ): Promise<NextResponse> {
   try {
-    const { assetId } = await params;
-    const asset = await getAssetById(assetId);
+    const { creativeId } = await params;
+    const creative = await getCreativeById(creativeId);
 
-    if (!asset) {
+    if (!creative) {
       return NextResponse.json(
-        { success: false, error: 'Asset not found' },
+        { success: false, error: 'Creative not found' },
         { status: 404 }
       );
     }
 
-    const message = await getMessageById(asset.messageId);
+    const message = await getMessageById(creative.messageId);
     const angle = message ? await getAngleById(message.angleId) : null;
     const product = angle ? await getProductById(angle.productId) : null;
 
     return NextResponse.json({
       success: true,
       data: {
-        asset,
+        creative,
         message,
         angle,
         product,
       },
     });
   } catch (error) {
-    console.error('Error fetching asset:', error);
+    console.error('Error fetching creative:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch asset' },
+      { success: false, error: 'Failed to fetch creative' },
       { status: 500 }
     );
   }
 }
 
 /**
- * PUT /api/marketing-tracker/assets/[assetId]
- * Update an asset
+ * PUT /api/marketing-tracker/creatives/[creativeId]
+ * Update a creative
  */
 export async function PUT(
   request: NextRequest,
   { params }: RouteParams
 ): Promise<NextResponse> {
   try {
-    const { assetId } = await params;
+    const { creativeId } = await params;
     const body = await request.json();
 
-    // Get old asset for history diff
-    const oldAsset = await getAssetById(assetId);
+    // Get old creative for history diff
+    const oldCreative = await getCreativeById(creativeId);
 
-    if (!oldAsset) {
+    if (!oldCreative) {
       return NextResponse.json(
-        { success: false, error: 'Asset not found' },
+        { success: false, error: 'Creative not found' },
         { status: 404 }
       );
     }
@@ -94,78 +94,78 @@ export async function PUT(
       }
     }
 
-    // Validate type if provided
-    if (body.type) {
-      const validTypes: AssetType[] = ['landing_page', 'text_ad', 'brief', 'research'];
-      if (!validTypes.includes(body.type)) {
+    // Validate format if provided
+    if (body.format) {
+      const validFormats: CreativeFormat[] = ['ugc_video', 'static_image', 'video'];
+      if (!validFormats.includes(body.format)) {
         return NextResponse.json(
-          { success: false, error: 'Invalid asset type' },
+          { success: false, error: 'Invalid creative format' },
           { status: 400 }
         );
       }
     }
 
-    // Update the asset in the database
-    const updatedAsset = await updateAsset(assetId, {
+    // Update the creative in the database
+    const updatedCreative = await updateCreative(creativeId, {
       name: body.name,
       geo: body.geo,
-      type: body.type,
+      format: body.format,
+      cta: body.cta,
       url: body.url,
-      content: body.content,
       notes: body.notes,
     });
 
     // Record update history
     await recordUpdate(
-      'asset',
-      assetId,
-      oldAsset as unknown as Record<string, unknown>,
-      updatedAsset as unknown as Record<string, unknown>,
+      'creative',
+      creativeId,
+      oldCreative as unknown as Record<string, unknown>,
+      updatedCreative as unknown as Record<string, unknown>,
       PLACEHOLDER_USER_ID
     );
 
     return NextResponse.json({
       success: true,
-      data: updatedAsset,
+      data: updatedCreative,
     });
   } catch (error) {
-    console.error('Error updating asset:', error);
+    console.error('Error updating creative:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to update asset' },
+      { success: false, error: 'Failed to update creative' },
       { status: 500 }
     );
   }
 }
 
 /**
- * DELETE /api/marketing-tracker/assets/[assetId]
- * Delete an asset (soft delete)
+ * DELETE /api/marketing-tracker/creatives/[creativeId]
+ * Delete a creative (soft delete)
  */
 export async function DELETE(
   request: NextRequest,
   { params }: RouteParams
 ): Promise<NextResponse> {
   try {
-    const { assetId } = await params;
+    const { creativeId } = await params;
 
-    // Get asset first for history snapshot
-    const asset = await getAssetById(assetId);
+    // Get creative first for history snapshot
+    const creative = await getCreativeById(creativeId);
 
-    if (!asset) {
+    if (!creative) {
       return NextResponse.json(
-        { success: false, error: 'Asset not found' },
+        { success: false, error: 'Creative not found' },
         { status: 404 }
       );
     }
 
-    // Soft delete the asset
-    await deleteAsset(assetId);
+    // Soft delete the creative
+    await deleteCreative(creativeId);
 
     // Record deletion history
     await recordDeletion(
-      'asset',
-      assetId,
-      asset as unknown as Record<string, unknown>,
+      'creative',
+      creativeId,
+      creative as unknown as Record<string, unknown>,
       PLACEHOLDER_USER_ID
     );
 
@@ -173,9 +173,9 @@ export async function DELETE(
       success: true,
     });
   } catch (error) {
-    console.error('Error deleting asset:', error);
+    console.error('Error deleting creative:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to delete asset' },
+      { success: false, error: 'Failed to delete creative' },
       { status: 500 }
     );
   }

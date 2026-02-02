@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { Product } from '@/types';
 import {
   getProductById,
-  getMainAnglesForProduct,
-} from '@/lib/marketing-tracker/dummy-data';
+  updateProduct,
+  deleteProduct,
+  getAnglesByProductId,
+} from '@/lib/marketing-tracker/db';
+import {
+  recordUpdate,
+  recordDeletion,
+} from '@/lib/marketing-tracker/historyService';
+
+// Placeholder user ID until auth is implemented
+const PLACEHOLDER_USER_ID = '00000000-0000-0000-0000-000000000000';
 
 interface RouteParams {
   params: Promise<{ productId: string }>;
@@ -11,7 +19,7 @@ interface RouteParams {
 
 /**
  * GET /api/marketing-tracker/products/[productId]
- * Get a single product with its main angles
+ * Get a single product with its angles
  */
 export async function GET(
   request: NextRequest,
@@ -19,7 +27,7 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     const { productId } = await params;
-    const product = getProductById(productId);
+    const product = await getProductById(productId);
 
     if (!product) {
       return NextResponse.json(
@@ -28,13 +36,14 @@ export async function GET(
       );
     }
 
-    const mainAngles = getMainAnglesForProduct(productId);
+    // Get angles for this product
+    const angles = await getAnglesByProductId(productId);
 
     return NextResponse.json({
       success: true,
       data: {
         product,
-        mainAngles,
+        mainAngles: angles,
       },
     });
   } catch (error) {
@@ -57,22 +66,33 @@ export async function PUT(
   try {
     const { productId } = await params;
     const body = await request.json();
-    const product = getProductById(productId);
 
-    if (!product) {
+    // Get the old product for history diff
+    const oldProduct = await getProductById(productId);
+
+    if (!oldProduct) {
       return NextResponse.json(
         { success: false, error: 'Product not found' },
         { status: 404 }
       );
     }
 
-    // TODO: Replace with actual database update
-    const updatedProduct: Product = {
-      ...product,
-      ...body,
-      id: productId, // Ensure ID cannot be changed
-      updatedAt: new Date().toISOString(),
-    };
+    // Update the product in the database
+    const updatedProduct = await updateProduct(productId, {
+      name: body.name,
+      description: body.description,
+      notes: body.notes,
+      ownerId: body.ownerId,
+    });
+
+    // Record update history
+    await recordUpdate(
+      'product',
+      productId,
+      oldProduct as unknown as Record<string, unknown>,
+      updatedProduct as unknown as Record<string, unknown>,
+      PLACEHOLDER_USER_ID
+    );
 
     return NextResponse.json({
       success: true,
@@ -89,7 +109,7 @@ export async function PUT(
 
 /**
  * DELETE /api/marketing-tracker/products/[productId]
- * Delete a product (cascades to angles, sub-angles, assets)
+ * Delete a product (soft delete)
  */
 export async function DELETE(
   request: NextRequest,
@@ -97,7 +117,9 @@ export async function DELETE(
 ): Promise<NextResponse> {
   try {
     const { productId } = await params;
-    const product = getProductById(productId);
+
+    // Get product first for history snapshot
+    const product = await getProductById(productId);
 
     if (!product) {
       return NextResponse.json(
@@ -106,17 +128,19 @@ export async function DELETE(
       );
     }
 
-    const mainAngles = getMainAnglesForProduct(productId);
+    // Soft delete the product
+    await deleteProduct(productId);
 
-    // TODO: Replace with actual database delete with cascade
-    // For now, return info about what would be deleted
+    // Record deletion history
+    await recordDeletion(
+      'product',
+      productId,
+      product as unknown as Record<string, unknown>,
+      PLACEHOLDER_USER_ID
+    );
+
     return NextResponse.json({
       success: true,
-      data: {
-        deleted: true,
-        affectedAngles: mainAngles.length,
-        message: `Product "${product.name}" and ${mainAngles.length} angle(s) would be deleted`,
-      },
     });
   } catch (error) {
     console.error('Error deleting product:', error);

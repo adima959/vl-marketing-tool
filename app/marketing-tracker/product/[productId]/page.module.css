@@ -72,6 +72,17 @@
   line-height: 1.5;
 }
 
+.productDescription p {
+  margin: 0;
+}
+
+.productNotes {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-500);
+  margin: 0 0 var(--spacing-3) 0;
+  font-style: italic;
+}
+
 .productMeta {
   display: flex;
   gap: var(--spacing-5);
@@ -177,15 +188,9 @@
   color: var(--color-text-heading);
 }
 
-.angleHook {
+.angleDescription {
   font-size: var(--font-size-xs);
   color: var(--color-gray-500);
-  font-style: italic;
-}
-
-.audienceCell {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
 }
 
 .countBadge {

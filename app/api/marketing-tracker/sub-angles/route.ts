@@ -7,17 +7,19 @@ import {
 } from '@/lib/marketing-tracker/dummy-data';
 
 /**
+ * @deprecated Use /api/marketing-tracker/messages instead
  * GET /api/marketing-tracker/sub-angles
- * List sub-angles, optionally filtered by mainAngleId
+ * List sub-angles (messages), optionally filtered by mainAngleId (angleId)
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const { searchParams } = new URL(request.url);
-    const mainAngleId = searchParams.get('mainAngleId');
+    // Support both old mainAngleId and new angleId params
+    const angleId = searchParams.get('mainAngleId') || searchParams.get('angleId');
     const status = searchParams.get('status');
 
-    let subAngles = mainAngleId
-      ? getSubAnglesForMainAngle(mainAngleId)
+    let subAngles = angleId
+      ? getSubAnglesForMainAngle(angleId)
       : [...DUMMY_SUB_ANGLES];
 
     // Filter by status if provided
@@ -39,8 +41,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 }
 
 /**
+ * @deprecated Use /api/marketing-tracker/messages instead
  * POST /api/marketing-tracker/sub-angles
- * Create a new sub-angle
+ * Create a new sub-angle (message)
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -53,33 +56,41 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    if (!body.mainAngleId) {
+    // Support both old mainAngleId and new angleId
+    const bodyAny = body as unknown as { mainAngleId?: string; angleId?: string };
+    const angleId = bodyAny.mainAngleId || bodyAny.angleId;
+    if (!angleId) {
       return NextResponse.json(
-        { success: false, error: 'Main angle ID is required' },
+        { success: false, error: 'Angle ID is required' },
         { status: 400 }
       );
     }
 
-    // Verify main angle exists
-    const mainAngle = getMainAngleById(body.mainAngleId);
-    if (!mainAngle) {
+    // Verify angle exists
+    const angle = getMainAngleById(angleId);
+    if (!angle) {
       return NextResponse.json(
-        { success: false, error: 'Main angle not found' },
+        { success: false, error: 'Angle not found' },
         { status: 404 }
       );
     }
 
     // TODO: Replace with actual database insert
     const newSubAngle: SubAngle = {
-      id: `sub-${Date.now()}`,
-      mainAngleId: body.mainAngleId,
+      id: `msg-${Date.now()}`,
+      angleId: angleId,
       name: body.name,
-      hook: body.hook,
       description: body.description,
+      specificPainPoint: body.specificPainPoint,
+      corePromise: body.corePromise,
+      keyIdea: body.keyIdea,
+      primaryHookDirection: body.primaryHookDirection,
+      headlines: body.headlines,
       status: body.status || 'idea',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       assetCount: 0,
+      creativeCount: 0,
     };
 
     return NextResponse.json({

@@ -1,9 +1,10 @@
-// Marketing Tracker Types
+// Marketing Tracker Types - v2 (Message-Based Structure)
 
 // Enums
 export type AngleStatus = 'idea' | 'in_production' | 'live' | 'paused' | 'retired';
 export type Geography = 'NO' | 'SE' | 'DK';
-export type AssetType = 'landing_page' | 'image_ads' | 'ugc_video' | 'text_ad' | 'brief' | 'research';
+export type AssetType = 'landing_page' | 'text_ad' | 'brief' | 'research';
+export type CreativeFormat = 'ugc_video' | 'static_image' | 'video';
 
 // Status display configuration
 export const STATUS_CONFIG: Record<AngleStatus, { label: string; color: string; bgColor: string }> = {
@@ -22,11 +23,15 @@ export const GEO_CONFIG: Record<Geography, { label: string; flag: string }> = {
 
 export const ASSET_TYPE_CONFIG: Record<AssetType, { label: string; icon: string }> = {
   landing_page: { label: 'Landing Page', icon: 'Globe' },
-  image_ads: { label: 'Image Ads', icon: 'Image' },
-  ugc_video: { label: 'UGC Video', icon: 'Video' },
   text_ad: { label: 'Text Ad', icon: 'FileText' },
   brief: { label: 'Brief', icon: 'FileCheck' },
   research: { label: 'Research', icon: 'Search' },
+};
+
+export const CREATIVE_FORMAT_CONFIG: Record<CreativeFormat, { label: string; icon: string }> = {
+  ugc_video: { label: 'UGC Video', icon: 'Video' },
+  static_image: { label: 'Static Image', icon: 'Image' },
+  video: { label: 'Video', icon: 'Film' },
 };
 
 // Base entity with common fields
@@ -47,42 +52,58 @@ export interface TrackerUser extends BaseEntity {
 export interface Product extends BaseEntity {
   name: string;
   description?: string;
+  notes?: string;
   ownerId: string;
   owner?: TrackerUser;
   angleCount?: number;
   activeAngleCount?: number;
 }
 
-// Main Angle
-export interface MainAngle extends BaseEntity {
+// Angle (simplified from MainAngle - acts as a problem area folder)
+export interface Angle extends BaseEntity {
   productId: string;
   name: string;
-  targetAudience?: string;
-  painPoint?: string;
-  hook?: string;
   description?: string;
   status: AngleStatus;
   launchedAt?: string;
-  subAngles?: SubAngle[];
-  subAngleCount?: number;
+  messages?: Message[];
+  messageCount?: number;
 }
 
-// Sub-Angle
-export interface SubAngle extends BaseEntity {
-  mainAngleId: string;
+// Message (enriched from SubAngle - the hypothesis level)
+export interface Message extends BaseEntity {
+  angleId: string;
   name: string;
-  hook?: string;
   description?: string;
+  specificPainPoint?: string;
+  corePromise?: string;
+  keyIdea?: string;
+  primaryHookDirection?: string;
+  headlines?: string[];
   status: AngleStatus;
   launchedAt?: string;
   assets?: Asset[];
+  creatives?: Creative[];
   assetCount?: number;
+  creativeCount?: number;
   assetsByGeo?: Record<Geography, Asset[]>;
+  creativesByGeo?: Record<Geography, Creative[]>;
 }
 
-// Asset
+// Creative (NEW - separated from Assets)
+export interface Creative extends BaseEntity {
+  messageId: string;
+  geo: Geography;
+  name: string;
+  format: CreativeFormat;
+  cta?: string;
+  url?: string;
+  notes?: string;
+}
+
+// Asset (reduced - non-creative materials only)
 export interface Asset extends BaseEntity {
-  subAngleId: string;
+  messageId: string;
   geo: Geography;
   type: AssetType;
   name: string;
@@ -93,7 +114,7 @@ export interface Asset extends BaseEntity {
 
 // Activity Log
 export type ActivityAction = 'created' | 'updated' | 'deleted';
-export type EntityType = 'product' | 'main_angle' | 'sub_angle' | 'asset';
+export type EntityType = 'product' | 'angle' | 'message' | 'asset' | 'creative';
 
 export interface ActivityLog extends BaseEntity {
   userId: string;
@@ -109,29 +130,41 @@ export interface ActivityLog extends BaseEntity {
 export interface CreateProductRequest {
   name: string;
   description?: string;
+  notes?: string;
   ownerId: string;
 }
 
-export interface CreateMainAngleRequest {
+export interface CreateAngleRequest {
   productId: string;
   name: string;
-  targetAudience?: string;
-  painPoint?: string;
-  hook?: string;
   description?: string;
   status?: AngleStatus;
 }
 
-export interface CreateSubAngleRequest {
-  mainAngleId: string;
+export interface CreateMessageRequest {
+  angleId: string;
   name: string;
-  hook?: string;
   description?: string;
+  specificPainPoint?: string;
+  corePromise?: string;
+  keyIdea?: string;
+  primaryHookDirection?: string;
+  headlines?: string[];
   status?: AngleStatus;
+}
+
+export interface CreateCreativeRequest {
+  messageId: string;
+  geo: Geography;
+  name: string;
+  format: CreativeFormat;
+  cta?: string;
+  url?: string;
+  notes?: string;
 }
 
 export interface CreateAssetRequest {
-  subAngleId: string;
+  messageId: string;
   geo: Geography;
   type: AssetType;
   name: string;
@@ -150,3 +183,13 @@ export interface DashboardData {
   products: ProductWithStats[];
   users: TrackerUser[];
 }
+
+// Legacy type aliases for backward compatibility during migration
+/** @deprecated Use Angle instead */
+export type MainAngle = Angle;
+/** @deprecated Use Message instead */
+export type SubAngle = Message;
+/** @deprecated Use CreateAngleRequest instead */
+export type CreateMainAngleRequest = CreateAngleRequest;
+/** @deprecated Use CreateMessageRequest instead */
+export type CreateSubAngleRequest = CreateMessageRequest;

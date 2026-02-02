@@ -1,0 +1,56 @@
+/* Editable Field Styles */
+.editableField {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2);
+  margin: calc(-1 * var(--spacing-2));
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.editableField:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.editableField:hover .editableFieldIcon {
+  opacity: 1;
+}
+
+.editableFieldText {
+  flex: 1;
+  font-size: var(--font-size-md);
+  color: var(--color-text-heading);
+  line-height: 1.5;
+}
+
+.editableFieldEmpty .editableFieldText {
+  color: var(--color-gray-400);
+  font-style: italic;
+}
+
+.editableFieldIcon {
+  flex-shrink: 0;
+  color: var(--color-gray-400);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  margin-top: 3px;
+}
+
+.editableFieldEditing {
+  margin: calc(-1 * var(--spacing-1));
+}
+
+.editableInput {
+  font-size: var(--font-size-md) !important;
+  line-height: 1.5 !important;
+}
+
+.editableInput:global(.ant-input) {
+  padding: var(--spacing-2) var(--spacing-3) !important;
+}
+
+.editableInput:global(.ant-input-textarea) textarea {
+  padding: var(--spacing-2) var(--spacing-3) !important;
+}

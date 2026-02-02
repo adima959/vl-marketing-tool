@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { CreateAssetRequest, Geography, AssetType } from '@/types';
+import type { CreateCreativeRequest, Geography, CreativeFormat } from '@/types';
 import {
-  getAssetsByMessageId,
+  getCreativesByMessageId,
   getMessageById,
-  createAsset,
+  createCreative,
 } from '@/lib/marketing-tracker/db';
 import { recordCreation } from '@/lib/marketing-tracker/historyService';
 
@@ -11,15 +11,15 @@ import { recordCreation } from '@/lib/marketing-tracker/historyService';
 const PLACEHOLDER_USER_ID = '00000000-0000-0000-0000-000000000000';
 
 /**
- * GET /api/marketing-tracker/assets
- * List assets, filtered by messageId (required) and optionally by geo/type
+ * GET /api/marketing-tracker/creatives
+ * List creatives, filtered by messageId (required) and optionally by geo/format
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const { searchParams } = new URL(request.url);
     const messageId = searchParams.get('messageId');
     const geo = searchParams.get('geo');
-    const type = searchParams.get('type');
+    const format = searchParams.get('format');
 
     if (!messageId) {
       return NextResponse.json(
@@ -28,42 +28,42 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    let assets = await getAssetsByMessageId(messageId);
+    let creatives = await getCreativesByMessageId(messageId);
 
     // Filter by geo if provided
     if (geo && geo !== 'all') {
-      assets = assets.filter((a) => a.geo === geo);
+      creatives = creatives.filter((c) => c.geo === geo);
     }
 
-    // Filter by type if provided
-    if (type && type !== 'all') {
-      assets = assets.filter((a) => a.type === type);
+    // Filter by format if provided
+    if (format && format !== 'all') {
+      creatives = creatives.filter((c) => c.format === format);
     }
 
     return NextResponse.json({
       success: true,
-      data: assets,
+      data: creatives,
     });
   } catch (error) {
-    console.error('Error fetching assets:', error);
+    console.error('Error fetching creatives:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch assets' },
+      { success: false, error: 'Failed to fetch creatives' },
       { status: 500 }
     );
   }
 }
 
 /**
- * POST /api/marketing-tracker/assets
- * Create a new asset
+ * POST /api/marketing-tracker/creatives
+ * Create a new creative
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const body: CreateAssetRequest = await request.json();
+    const body: CreateCreativeRequest = await request.json();
 
     if (!body.name) {
       return NextResponse.json(
-        { success: false, error: 'Asset name is required' },
+        { success: false, error: 'Creative name is required' },
         { status: 400 }
       );
     }
@@ -82,9 +82,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    if (!body.type) {
+    if (!body.format) {
       return NextResponse.json(
-        { success: false, error: 'Asset type is required' },
+        { success: false, error: 'Creative format is required' },
         { status: 400 }
       );
     }
@@ -98,11 +98,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Validate type
-    const validTypes: AssetType[] = ['landing_page', 'text_ad', 'brief', 'research'];
-    if (!validTypes.includes(body.type)) {
+    // Validate format
+    const validFormats: CreativeFormat[] = ['ugc_video', 'static_image', 'video'];
+    if (!validFormats.includes(body.format)) {
       return NextResponse.json(
-        { success: false, error: 'Invalid asset type' },
+        { success: false, error: 'Invalid creative format' },
         { status: 400 }
       );
     }
@@ -116,33 +116,33 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Create the asset in the database
-    const newAsset = await createAsset({
+    // Create the creative in the database
+    const newCreative = await createCreative({
       messageId: body.messageId,
       geo: body.geo,
-      type: body.type,
+      format: body.format,
       name: body.name,
+      cta: body.cta,
       url: body.url,
-      content: body.content,
       notes: body.notes,
     });
 
     // Record creation history
     await recordCreation(
-      'asset',
-      newAsset.id,
-      newAsset as unknown as Record<string, unknown>,
+      'creative',
+      newCreative.id,
+      newCreative as unknown as Record<string, unknown>,
       PLACEHOLDER_USER_ID
     );
 
     return NextResponse.json({
       success: true,
-      data: newAsset,
+      data: newCreative,
     });
   } catch (error) {
-    console.error('Error creating asset:', error);
+    console.error('Error creating creative:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to create asset' },
+      { success: false, error: 'Failed to create creative' },
       { status: 500 }
     );
   }

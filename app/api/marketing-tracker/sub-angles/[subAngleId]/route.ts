@@ -5,6 +5,7 @@ import {
   getAssetsForSubAngle,
   getMainAngleById,
   getProductById,
+  getCreativesForMessage,
 } from '@/lib/marketing-tracker/dummy-data';
 
 interface RouteParams {
@@ -12,8 +13,9 @@ interface RouteParams {
 }
 
 /**
+ * @deprecated Use /api/marketing-tracker/messages/[messageId] instead
  * GET /api/marketing-tracker/sub-angles/[subAngleId]
- * Get a single sub-angle with its assets
+ * Get a single sub-angle (message) with its assets and creatives
  */
 export async function GET(
   request: NextRequest,
@@ -31,15 +33,20 @@ export async function GET(
     }
 
     const assets = getAssetsForSubAngle(subAngleId);
-    const mainAngle = getMainAngleById(subAngle.mainAngleId);
-    const product = mainAngle ? getProductById(mainAngle.productId) : null;
+    const creatives = getCreativesForMessage(subAngleId);
+    const angle = getMainAngleById(subAngle.angleId);
+    const product = angle ? getProductById(angle.productId) : null;
 
     return NextResponse.json({
       success: true,
       data: {
         subAngle,
         assets,
-        mainAngle,
+        creatives,
+        // Legacy field names for backward compatibility
+        mainAngle: angle,
+        // New field names
+        angle,
         product,
       },
     });
@@ -53,8 +60,9 @@ export async function GET(
 }
 
 /**
+ * @deprecated Use /api/marketing-tracker/messages/[messageId] instead
  * PUT /api/marketing-tracker/sub-angles/[subAngleId]
- * Update a sub-angle
+ * Update a sub-angle (message)
  */
 export async function PUT(
   request: NextRequest,
@@ -83,7 +91,7 @@ export async function PUT(
       ...subAngle,
       ...body,
       id: subAngleId,
-      mainAngleId: subAngle.mainAngleId, // Cannot change parent
+      angleId: subAngle.angleId, // Cannot change parent
       launchedAt,
       updatedAt: new Date().toISOString(),
     };
@@ -102,6 +110,7 @@ export async function PUT(
 }
 
 /**
+ * @deprecated Use /api/marketing-tracker/messages/[messageId] instead
  * PATCH /api/marketing-tracker/sub-angles/[subAngleId]
  * Update sub-angle status only
  */
@@ -164,8 +173,9 @@ export async function PATCH(
 }
 
 /**
+ * @deprecated Use /api/marketing-tracker/messages/[messageId] instead
  * DELETE /api/marketing-tracker/sub-angles/[subAngleId]
- * Delete a sub-angle (cascades to assets)
+ * Delete a sub-angle (cascades to assets and creatives)
  */
 export async function DELETE(
   request: NextRequest,
@@ -183,6 +193,7 @@ export async function DELETE(
     }
 
     const assets = getAssetsForSubAngle(subAngleId);
+    const creatives = getCreativesForMessage(subAngleId);
 
     // TODO: Replace with actual database delete with cascade
     return NextResponse.json({
@@ -190,7 +201,8 @@ export async function DELETE(
       data: {
         deleted: true,
         affectedAssets: assets.length,
-        message: `Sub-angle "${subAngle.name}" and ${assets.length} asset(s) would be deleted`,
+        affectedCreatives: creatives.length,
+        message: `Sub-angle "${subAngle.name}" and ${assets.length} asset(s) and ${creatives.length} creative(s) would be deleted`,
       },
     });
   } catch (error) {

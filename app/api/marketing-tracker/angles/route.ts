@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { MainAngle, CreateMainAngleRequest } from '@/types';
+import type { CreateAngleRequest } from '@/types/marketing-tracker';
 import {
-  DUMMY_MAIN_ANGLES,
-  getMainAnglesForProduct,
+  getAnglesByProductId,
   getProductById,
-} from '@/lib/marketing-tracker/dummy-data';
+  createAngle,
+} from '@/lib/marketing-tracker/db';
+import { recordCreation } from '@/lib/marketing-tracker/historyService';
+
+// Placeholder user ID until auth is implemented
+const PLACEHOLDER_USER_ID = '00000000-0000-0000-0000-000000000000';
 
 /**
  * GET /api/marketing-tracker/angles
- * List angles, optionally filtered by productId
+ * List angles, filtered by productId (required)
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
@@ -16,9 +20,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const productId = searchParams.get('productId');
     const status = searchParams.get('status');
 
-    let angles = productId
-      ? getMainAnglesForProduct(productId)
-      : [...DUMMY_MAIN_ANGLES];
+    if (!productId) {
+      return NextResponse.json(
+        { success: false, error: 'productId is required' },
+        { status: 400 }
+      );
+    }
+
+    let angles = await getAnglesByProductId(productId);
 
     // Filter by status if provided
     if (status && status !== 'all') {
@@ -40,11 +49,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 /**
  * POST /api/marketing-tracker/angles
- * Create a new main angle
+ * Create a new angle
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const body: CreateMainAngleRequest = await request.json();
+    const body: CreateAngleRequest = await request.json();
 
     if (!body.name) {
       return NextResponse.json(
@@ -61,7 +70,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Verify product exists
-    const product = getProductById(body.productId);
+    const product = await getProductById(body.productId);
     if (!product) {
       return NextResponse.json(
         { success: false, error: 'Product not found' },
@@ -69,20 +78,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // TODO: Replace with actual database insert
-    const newAngle: MainAngle = {
-      id: `angle-${Date.now()}`,
+    // Create the angle in the database
+    const newAngle = await createAngle({
       productId: body.productId,
       name: body.name,
-      targetAudience: body.targetAudience,
-      painPoint: body.painPoint,
-      hook: body.hook,
       description: body.description,
-      status: body.status || 'idea',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      subAngleCount: 0,
-    };
+      status: body.status,
+    });
+
+    // Record creation history
+    await recordCreation(
+      'angle',
+      newAngle.id,
+      newAngle as unknown as Record<string, unknown>,
+      PLACEHOLDER_USER_ID
+    );
 
     return NextResponse.json({
       success: true,

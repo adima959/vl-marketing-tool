@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { MainAngle, AngleStatus } from '@/types';
+import type { AngleStatus } from '@/types/marketing-tracker';
 import {
-  getMainAngleById,
-  getSubAnglesForMainAngle,
+  getAngleById,
   getProductById,
-} from '@/lib/marketing-tracker/dummy-data';
+  getMessagesByAngleId,
+  updateAngle,
+  deleteAngle,
+} from '@/lib/marketing-tracker/db';
+import {
+  recordUpdate,
+  recordDeletion,
+} from '@/lib/marketing-tracker/historyService';
+
+// Placeholder user ID until auth is implemented
+const PLACEHOLDER_USER_ID = '00000000-0000-0000-0000-000000000000';
 
 interface RouteParams {
   params: Promise<{ angleId: string }>;
@@ -12,7 +21,7 @@ interface RouteParams {
 
 /**
  * GET /api/marketing-tracker/angles/[angleId]
- * Get a single main angle with its sub-angles
+ * Get a single angle with its messages and parent product
  */
 export async function GET(
   request: NextRequest,
@@ -20,7 +29,7 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     const { angleId } = await params;
-    const angle = getMainAngleById(angleId);
+    const angle = await getAngleById(angleId);
 
     if (!angle) {
       return NextResponse.json(
@@ -29,14 +38,14 @@ export async function GET(
       );
     }
 
-    const subAngles = getSubAnglesForMainAngle(angleId);
-    const product = getProductById(angle.productId);
+    const messages = await getMessagesByAngleId(angleId);
+    const product = await getProductById(angle.productId);
 
     return NextResponse.json({
       success: true,
       data: {
         angle,
-        subAngles,
+        messages,
         product,
       },
     });
@@ -60,30 +69,33 @@ export async function PUT(
   try {
     const { angleId } = await params;
     const body = await request.json();
-    const angle = getMainAngleById(angleId);
 
-    if (!angle) {
+    // Get the old angle for history diff
+    const oldAngle = await getAngleById(angleId);
+
+    if (!oldAngle) {
       return NextResponse.json(
         { success: false, error: 'Angle not found' },
         { status: 404 }
       );
     }
 
-    // Handle status change - set launchedAt when going live
-    let launchedAt = angle.launchedAt;
-    if (body.status === 'live' && !angle.launchedAt) {
-      launchedAt = new Date().toISOString();
-    }
+    // Update the angle in the database
+    const updatedAngle = await updateAngle(angleId, {
+      name: body.name,
+      description: body.description,
+      status: body.status,
+      launchedAt: body.launchedAt,
+    });
 
-    // TODO: Replace with actual database update
-    const updatedAngle: MainAngle = {
-      ...angle,
-      ...body,
-      id: angleId,
-      productId: angle.productId, // Cannot change parent
-      launchedAt,
-      updatedAt: new Date().toISOString(),
-    };
+    // Record update history
+    await recordUpdate(
+      'angle',
+      angleId,
+      oldAngle as unknown as Record<string, unknown>,
+      updatedAngle as unknown as Record<string, unknown>,
+      PLACEHOLDER_USER_ID
+    );
 
     return NextResponse.json({
       success: true,
@@ -109,9 +121,11 @@ export async function PATCH(
   try {
     const { angleId } = await params;
     const body = await request.json();
-    const angle = getMainAngleById(angleId);
 
-    if (!angle) {
+    // Get the old angle for history diff
+    const oldAngle = await getAngleById(angleId);
+
+    if (!oldAngle) {
       return NextResponse.json(
         { success: false, error: 'Angle not found' },
         { status: 404 }
@@ -133,19 +147,19 @@ export async function PATCH(
       );
     }
 
-    // Handle status change - set launchedAt when going live
-    let launchedAt = angle.launchedAt;
-    if (body.status === 'live' && !angle.launchedAt) {
-      launchedAt = new Date().toISOString();
-    }
-
-    // TODO: Replace with actual database update
-    const updatedAngle: MainAngle = {
-      ...angle,
+    // Update the angle status in the database
+    const updatedAngle = await updateAngle(angleId, {
       status: body.status,
-      launchedAt,
-      updatedAt: new Date().toISOString(),
-    };
+    });
+
+    // Record update history
+    await recordUpdate(
+      'angle',
+      angleId,
+      oldAngle as unknown as Record<string, unknown>,
+      updatedAngle as unknown as Record<string, unknown>,
+      PLACEHOLDER_USER_ID
+    );
 
     return NextResponse.json({
       success: true,
@@ -162,7 +176,7 @@ export async function PATCH(
 
 /**
  * DELETE /api/marketing-tracker/angles/[angleId]
- * Delete an angle (cascades to sub-angles and assets)
+ * Delete an angle (soft delete)
  */
 export async function DELETE(
   request: NextRequest,
@@ -170,7 +184,9 @@ export async function DELETE(
 ): Promise<NextResponse> {
   try {
     const { angleId } = await params;
-    const angle = getMainAngleById(angleId);
+
+    // Get angle first for history snapshot
+    const angle = await getAngleById(angleId);
 
     if (!angle) {
       return NextResponse.json(
@@ -179,16 +195,19 @@ export async function DELETE(
       );
     }
 
-    const subAngles = getSubAnglesForMainAngle(angleId);
+    // Soft delete the angle
+    await deleteAngle(angleId);
 
-    // TODO: Replace with actual database delete with cascade
+    // Record deletion history
+    await recordDeletion(
+      'angle',
+      angleId,
+      angle as unknown as Record<string, unknown>,
+      PLACEHOLDER_USER_ID
+    );
+
     return NextResponse.json({
       success: true,
-      data: {
-        deleted: true,
-        affectedSubAngles: subAngles.length,
-        message: `Angle "${angle.name}" and ${subAngles.length} sub-angle(s) would be deleted`,
-      },
     });
   } catch (error) {
     console.error('Error deleting angle:', error);

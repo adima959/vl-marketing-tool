@@ -1,35 +1,36 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Spin, Empty, Button, Table, Avatar } from 'antd';
+import { Spin, Empty, Button, Table } from 'antd';
 import { PlusOutlined, EditOutlined, UserOutlined, CalendarOutlined } from '@ant-design/icons';
-import { Target, ChevronRight, Users } from 'lucide-react';
+import { Target, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatusBadge } from '@/components/marketing-tracker';
+import { StatusBadge, AngleModal } from '@/components/marketing-tracker';
 import { useMarketingTrackerStore } from '@/stores/marketingTrackerStore';
 import type { ColumnsType } from 'antd/es/table';
-import type { MainAngle } from '@/types';
+import type { Angle } from '@/types';
 import styles from './page.module.css';
 
 interface AngleRow {
   key: string;
   id: string;
   name: string;
-  hook?: string;
-  status: MainAngle['status'];
-  targetAudience?: string;
-  subAngleCount: number;
+  description?: string;
+  status: Angle['status'];
+  messageCount: number;
 }
 
 export default function ProductPage() {
+  const [angleModalOpen, setAngleModalOpen] = useState(false);
+
   const {
     currentProduct,
-    mainAngles,
+    angles,
     isLoading,
     loadProduct,
-    updateMainAngleStatus,
+    updateAngleStatus,
   } = useMarketingTrackerStore();
 
   const params = useParams<{ productId: string }>();
@@ -51,14 +52,13 @@ export default function ProductPage() {
   };
 
   // Transform angles for table
-  const tableData: AngleRow[] = mainAngles.map((angle) => ({
+  const tableData: AngleRow[] = angles.map((angle) => ({
     key: angle.id,
     id: angle.id,
     name: angle.name,
-    hook: angle.hook,
+    description: angle.description,
     status: angle.status,
-    targetAudience: angle.targetAudience,
-    subAngleCount: angle.subAngleCount || 0,
+    messageCount: angle.messageCount || 0,
   }));
 
   const columns: ColumnsType<AngleRow> = [
@@ -70,8 +70,8 @@ export default function ProductPage() {
         <Link href={`/marketing-tracker/angle/${record.id}`} className={styles.angleLink}>
           <div className={styles.angleNameCell}>
             <span className={styles.angleName}>{name}</span>
-            {record.hook && (
-              <span className={styles.angleHook}>{record.hook}</span>
+            {record.description && (
+              <span className={styles.angleDescription}>{record.description}</span>
             )}
           </div>
         </Link>
@@ -82,30 +82,19 @@ export default function ProductPage() {
       dataIndex: 'status',
       key: 'status',
       width: 140,
-      render: (status: MainAngle['status'], record: AngleRow) => (
+      render: (status: Angle['status'], record: AngleRow) => (
         <StatusBadge
           status={status}
           variant="dot"
           editable
-          onChange={(newStatus) => updateMainAngleStatus(record.id, newStatus)}
+          onChange={(newStatus) => updateAngleStatus(record.id, newStatus)}
         />
       ),
     },
     {
-      title: 'TARGET AUDIENCE',
-      dataIndex: 'targetAudience',
-      key: 'targetAudience',
-      width: 280,
-      render: (audience?: string) => (
-        <span className={styles.audienceCell}>
-          {audience || '-'}
-        </span>
-      ),
-    },
-    {
-      title: 'SUB-ANGLES',
-      dataIndex: 'subAngleCount',
-      key: 'subAngles',
+      title: 'MESSAGES',
+      dataIndex: 'messageCount',
+      key: 'messages',
       width: 100,
       align: 'center',
       render: (count: number) => (
@@ -168,12 +157,15 @@ export default function ProductPage() {
             <div className={styles.productInfo}>
               <h1 className={styles.productTitle}>{currentProduct.name}</h1>
               {currentProduct.description && (
-                <p
+                <div
                   className={styles.productDescription}
                   dangerouslySetInnerHTML={{
-                    __html: currentProduct.description.replace(/<[^>]*>/g, '').slice(0, 100) + '...'
+                    __html: currentProduct.description
                   }}
                 />
+              )}
+              {currentProduct.notes && (
+                <p className={styles.productNotes}>{currentProduct.notes}</p>
               )}
               <div className={styles.productMeta}>
                 <span className={styles.metaItem}>
@@ -188,19 +180,26 @@ export default function ProductPage() {
           </div>
         </div>
 
-        {/* Main Angles Section */}
+        {/* Angles Section */}
         <div className={styles.anglesSection}>
           <div className={styles.sectionHeader}>
             <div className={styles.sectionTitleRow}>
               <Target size={18} className={styles.sectionIcon} />
-              <h2 className={styles.sectionTitle}>Main Angles</h2>
+              <h2 className={styles.sectionTitle}>Angles (Problem Areas)</h2>
             </div>
-            <Button type="primary" icon={<PlusOutlined />}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setAngleModalOpen(true)}>
               New Angle
             </Button>
           </div>
 
-          {mainAngles.length === 0 ? (
+          <AngleModal
+            open={angleModalOpen}
+            onClose={() => setAngleModalOpen(false)}
+            onSuccess={() => loadProduct(productId)}
+            productId={productId}
+          />
+
+          {angles.length === 0 ? (
             <div className={styles.emptyState}>
               <Empty description="No angles yet" />
             </div>

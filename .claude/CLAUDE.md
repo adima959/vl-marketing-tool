@@ -2,7 +2,8 @@
 
 Marketing analytics dashboard for visualizing performance metrics across dimensions (campaigns, ad groups, keywords, dates). Users drill down hierarchical data, apply filters, and analyze KPIs.
 
-**Stack**: Next.js 16 + React 19 + TypeScript + Ant Design + Tailwind + Zustand + Neon DB
+**Stack**: Next.js 16 + React 19 + TypeScript + Ant Design + Tailwind + Zustand + Neon DB 
+ MariaDB
 
 **Quick Commands**: See `.claude/rules/quick-reference.md` for cheat sheet
 

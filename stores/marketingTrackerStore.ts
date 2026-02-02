@@ -1,35 +1,68 @@
 import { create } from 'zustand';
 import type {
   Product,
-  MainAngle,
-  SubAngle,
+  Angle,
+  Message,
+  Creative,
   Asset,
   ProductWithStats,
   TrackerUser,
   AngleStatus,
   Geography,
 } from '@/types';
-import {
-  getProductsWithStats,
-  getMainAnglesForProduct,
-  getSubAnglesForMainAngle,
-  getAssetsForSubAngle,
-  getProductById,
-  getMainAngleById,
-  getSubAngleById,
-  DUMMY_USERS,
-} from '@/lib/marketing-tracker/dummy-data';
+
+// Activity record from history API
+export interface ActivityRecord {
+  id: string;
+  entityType: string;
+  entityId: string;
+  fieldName: string;
+  oldValue: unknown;
+  newValue: unknown;
+  action: string;
+  changedBy: string | null;
+  changedAt: string;
+}
+
+// Helper to fetch users from API
+async function fetchUsers(): Promise<TrackerUser[]> {
+  try {
+    const response = await fetch('/api/marketing-tracker/users');
+    const data = await response.json();
+    if (data.success) {
+      return data.data;
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+// Helper to fetch recent activity from API
+async function fetchRecentActivity(limit: number = 10): Promise<ActivityRecord[]> {
+  try {
+    const response = await fetch(`/api/marketing-tracker/history?limit=${limit}`);
+    const data = await response.json();
+    if (data.success) {
+      return data.data;
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
 
 interface MarketingTrackerState {
   // Data
   products: ProductWithStats[];
   users: TrackerUser[];
   currentProduct: Product | null;
-  currentMainAngle: MainAngle | null;
-  currentSubAngle: SubAngle | null;
-  mainAngles: MainAngle[];
-  subAngles: SubAngle[];
+  currentAngle: Angle | null;
+  currentMessage: Message | null;
+  angles: Angle[];
+  messages: Message[];
   assets: Asset[];
+  creatives: Creative[];
 
   // Filters
   statusFilter: AngleStatus | 'all';
@@ -44,8 +77,8 @@ interface MarketingTrackerState {
   // Actions - Data Loading
   loadDashboard: () => Promise<void>;
   loadProduct: (productId: string) => Promise<void>;
-  loadMainAngle: (angleId: string) => Promise<void>;
-  loadSubAngle: (subAngleId: string) => Promise<void>;
+  loadAngle: (angleId: string) => Promise<void>;
+  loadMessage: (messageId: string) => Promise<void>;
 
   // Actions - Filters
   setStatusFilter: (status: AngleStatus | 'all') => void;
@@ -54,13 +87,14 @@ interface MarketingTrackerState {
   setOwnerFilter: (ownerId: string | 'all') => void;
 
   // Actions - Status Updates
-  updateMainAngleStatus: (angleId: string, status: AngleStatus) => void;
-  updateSubAngleStatus: (subAngleId: string, status: AngleStatus) => void;
+  updateAngleStatus: (angleId: string, status: AngleStatus) => Promise<void>;
+  updateMessageStatus: (messageId: string, status: AngleStatus) => Promise<void>;
 
   // Computed
   getFilteredProducts: () => ProductWithStats[];
-  getFilteredMainAngles: () => MainAngle[];
+  getFilteredAngles: () => Angle[];
   getFilteredAssets: () => Asset[];
+  getFilteredCreatives: () => Creative[];
 }
 
 export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get) => ({
@@ -68,11 +102,12 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
   products: [],
   users: [],
   currentProduct: null,
-  currentMainAngle: null,
-  currentSubAngle: null,
-  mainAngles: [],
-  subAngles: [],
+  currentAngle: null,
+  currentMessage: null,
+  angles: [],
+  messages: [],
   assets: [],
+  creatives: [],
 
   // Initial filter state
   statusFilter: 'all',
@@ -88,83 +123,100 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
   loadDashboard: async () => {
     set({ isLoading: true, error: null });
     try {
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      const products = getProductsWithStats();
-      set({ products, users: DUMMY_USERS, isLoading: false });
+      // Fetch products and users in parallel
+      const [productsResponse, users] = await Promise.all([
+        fetch('/api/marketing-tracker/products'),
+        fetchUsers(),
+      ]);
+      const productsData = await productsResponse.json();
+
+      if (!productsData.success) {
+        throw new Error(productsData.error || 'Failed to load dashboard');
+      }
+
+      set({
+        products: productsData.data as ProductWithStats[],
+        users,
+        isLoading: false,
+      });
     } catch (error) {
-      set({ error: 'Failed to load dashboard', isLoading: false });
+      const message = error instanceof Error ? error.message : 'Failed to load dashboard';
+      set({ error: message, isLoading: false });
     }
   },
 
   loadProduct: async (productId: string) => {
     set({ isLoading: true, error: null });
     try {
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      const product = getProductById(productId);
-      const mainAngles = getMainAnglesForProduct(productId);
-      if (!product) {
-        throw new Error('Product not found');
+      const response = await fetch(`/api/marketing-tracker/products/${productId}`);
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Product not found');
       }
+
       set({
-        currentProduct: product,
-        mainAngles,
-        currentMainAngle: null,
-        currentSubAngle: null,
-        subAngles: [],
+        currentProduct: data.data.product,
+        angles: data.data.mainAngles || [],
+        currentAngle: null,
+        currentMessage: null,
+        messages: [],
         assets: [],
+        creatives: [],
         isLoading: false,
       });
     } catch (error) {
-      set({ error: 'Failed to load product', isLoading: false });
+      const message = error instanceof Error ? error.message : 'Failed to load product';
+      set({ error: message, isLoading: false });
     }
   },
 
-  loadMainAngle: async (angleId: string) => {
+  loadAngle: async (angleId: string) => {
     set({ isLoading: true, error: null });
     try {
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      const mainAngle = getMainAngleById(angleId);
-      const subAngles = getSubAnglesForMainAngle(angleId);
-      if (!mainAngle) {
-        throw new Error('Angle not found');
+      const response = await fetch(`/api/marketing-tracker/angles/${angleId}`);
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Angle not found');
       }
-      // Also load the product for breadcrumb
-      const product = getProductById(mainAngle.productId);
+
       set({
-        currentMainAngle: mainAngle,
-        currentProduct: product || null,
-        subAngles,
-        currentSubAngle: null,
+        currentAngle: data.data.angle,
+        currentProduct: data.data.product || null,
+        messages: data.data.messages || [],
+        currentMessage: null,
         assets: [],
+        creatives: [],
         isLoading: false,
       });
     } catch (error) {
-      set({ error: 'Failed to load angle', isLoading: false });
+      const message = error instanceof Error ? error.message : 'Failed to load angle';
+      set({ error: message, isLoading: false });
     }
   },
 
-  loadSubAngle: async (subAngleId: string) => {
+  loadMessage: async (messageId: string) => {
     set({ isLoading: true, error: null });
     try {
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      const subAngle = getSubAngleById(subAngleId);
-      const assets = getAssetsForSubAngle(subAngleId);
-      if (!subAngle) {
-        throw new Error('Sub-angle not found');
+      const response = await fetch(`/api/marketing-tracker/messages/${messageId}`);
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Message not found');
       }
-      // Also load parent angle and product for breadcrumb
-      const mainAngle = getMainAngleById(subAngle.mainAngleId);
-      const product = mainAngle ? getProductById(mainAngle.productId) : null;
+
       set({
-        currentSubAngle: subAngle,
-        currentMainAngle: mainAngle || null,
-        currentProduct: product || null,
-        assets,
+        currentMessage: data.data.message,
+        currentAngle: data.data.angle || null,
+        currentProduct: data.data.product || null,
+        assets: data.data.assets || [],
+        creatives: data.data.creatives || [],
         isLoading: false,
       });
     } catch (error) {
-      set({ error: 'Failed to load sub-angle', isLoading: false });
+      const message = error instanceof Error ? error.message : 'Failed to load message';
+      set({ error: message, isLoading: false });
     }
   },
 
@@ -175,54 +227,64 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
   setOwnerFilter: (ownerId) => set({ ownerFilter: ownerId }),
 
   // Status Update Actions
-  updateMainAngleStatus: (angleId: string, status: AngleStatus) => {
-    set((state) => ({
-      mainAngles: state.mainAngles.map((angle) =>
-        angle.id === angleId
-          ? {
-              ...angle,
-              status,
-              launchedAt: status === 'live' && !angle.launchedAt ? new Date().toISOString() : angle.launchedAt,
-            }
-          : angle
-      ),
-      currentMainAngle:
-        state.currentMainAngle?.id === angleId
-          ? {
-              ...state.currentMainAngle,
-              status,
-              launchedAt:
-                status === 'live' && !state.currentMainAngle.launchedAt
-                  ? new Date().toISOString()
-                  : state.currentMainAngle.launchedAt,
-            }
-          : state.currentMainAngle,
-    }));
+  updateAngleStatus: async (angleId: string, status: AngleStatus) => {
+    try {
+      const response = await fetch(`/api/marketing-tracker/angles/${angleId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to update angle status');
+      }
+
+      const updatedAngle = data.data as Angle;
+
+      // Update local state with the response from server
+      set((state) => ({
+        angles: state.angles.map((angle) =>
+          angle.id === angleId ? updatedAngle : angle
+        ),
+        currentAngle:
+          state.currentAngle?.id === angleId ? updatedAngle : state.currentAngle,
+      }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update angle status';
+      set({ error: message });
+    }
   },
 
-  updateSubAngleStatus: (subAngleId: string, status: AngleStatus) => {
-    set((state) => ({
-      subAngles: state.subAngles.map((subAngle) =>
-        subAngle.id === subAngleId
-          ? {
-              ...subAngle,
-              status,
-              launchedAt: status === 'live' && !subAngle.launchedAt ? new Date().toISOString() : subAngle.launchedAt,
-            }
-          : subAngle
-      ),
-      currentSubAngle:
-        state.currentSubAngle?.id === subAngleId
-          ? {
-              ...state.currentSubAngle,
-              status,
-              launchedAt:
-                status === 'live' && !state.currentSubAngle.launchedAt
-                  ? new Date().toISOString()
-                  : state.currentSubAngle.launchedAt,
-            }
-          : state.currentSubAngle,
-    }));
+  updateMessageStatus: async (messageId: string, status: AngleStatus) => {
+    try {
+      const response = await fetch(`/api/marketing-tracker/messages/${messageId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to update message status');
+      }
+
+      const updatedMessage = data.data as Message;
+
+      // Update local state with the response from server
+      set((state) => ({
+        messages: state.messages.map((message) =>
+          message.id === messageId ? updatedMessage : message
+        ),
+        currentMessage:
+          state.currentMessage?.id === messageId ? updatedMessage : state.currentMessage,
+      }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update message status';
+      set({ error: message });
+    }
   },
 
   // Computed getters
@@ -235,9 +297,9 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
     });
   },
 
-  getFilteredMainAngles: () => {
-    const { mainAngles, statusFilter, searchQuery } = get();
-    return mainAngles.filter((angle) => {
+  getFilteredAngles: () => {
+    const { angles, statusFilter, searchQuery } = get();
+    return angles.filter((angle) => {
       const matchesStatus = statusFilter === 'all' || angle.status === statusFilter;
       const matchesSearch = searchQuery === '' || angle.name.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesStatus && matchesSearch;
@@ -248,6 +310,13 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
     const { assets, geoFilter } = get();
     return assets.filter((asset) => {
       return geoFilter === 'all' || asset.geo === geoFilter;
+    });
+  },
+
+  getFilteredCreatives: () => {
+    const { creatives, geoFilter } = get();
+    return creatives.filter((creative) => {
+      return geoFilter === 'all' || creative.geo === geoFilter;
     });
   },
 }));

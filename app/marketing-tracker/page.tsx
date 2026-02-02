@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Input, Select, Spin, Empty, Button, Table, Avatar } from 'antd';
 import { SearchOutlined, UserOutlined, PlusOutlined } from '@ant-design/icons';
 import { Target, ChevronRight, Clock, Package } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { ProductModal } from '@/components/marketing-tracker';
 import { useMarketingTrackerStore } from '@/stores/marketingTrackerStore';
 import type { ColumnsType } from 'antd/es/table';
 import styles from './page.module.css';
@@ -22,6 +23,8 @@ interface ProductRow {
 }
 
 export default function MarketingTrackerDashboard() {
+  const [productModalOpen, setProductModalOpen] = useState(false);
+
   const {
     products,
     users,
@@ -130,10 +133,17 @@ export default function MarketingTrackerDashboard() {
         title="Marketing Tracker"
         icon={<Target className="h-5 w-5" />}
         actions={
-          <Button type="primary" icon={<PlusOutlined />}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setProductModalOpen(true)}>
             New Product
           </Button>
         }
+      />
+
+      <ProductModal
+        open={productModalOpen}
+        onClose={() => setProductModalOpen(false)}
+        onSuccess={() => loadDashboard()}
+        users={users}
       />
       <div className={styles.container}>
         <div className={styles.mainGrid}>
