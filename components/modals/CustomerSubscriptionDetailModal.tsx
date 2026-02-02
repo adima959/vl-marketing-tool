@@ -289,7 +289,7 @@ export function CustomerSubscriptionDetailModal({ open, onClose, context }: Cust
           showSizeChanger: false,
           showTotal: (total) => `Total ${total} records`,
         }}
-        rowKey="id"
+        rowKey={(record) => `${record.id}-${record.customerId}-${record.trackingId3 || 'none'}`}
         scroll={{ x: 1120 }}
         size="small"
       />

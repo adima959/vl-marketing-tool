@@ -1,13 +1,20 @@
+.modal :global(.ant-modal) {
+  max-height: 90vh;
+}
+
 .modal :global(.ant-modal-content) {
   max-height: 90vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .modal :global(.ant-modal-body) {
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
   min-height: 0;
+  max-height: calc(90vh - 120px);
 }
 
 .filterSummary {
