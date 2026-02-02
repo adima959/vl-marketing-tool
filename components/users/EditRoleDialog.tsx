@@ -66,7 +66,7 @@ export function EditRoleDialog({ user, open, onClose, onSuccess }: EditRoleDialo
       confirmLoading={loading}
       okText="Update Role"
       cancelText="Cancel"
-      destroyOnClose
+      destroyOnHidden
     >
       <Form
         form={form}
