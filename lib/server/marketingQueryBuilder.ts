@@ -195,36 +195,68 @@ async function getMarketingDataByCRM(
 
   const safeLimit = Math.max(1, Math.min(10000, Math.floor(limit)));
 
-  // Step 1: Query CRM data grouped by the CRM dimension
+  // Step 1: If there are parent filters (ads dimensions), query ads DB to get tracking IDs
+  let trackingIdFilter: { campaign_ids?: string[]; adset_ids?: string[]; ad_ids?: string[] } = {};
+
+  if (parentFilters && Object.keys(parentFilters).length > 0) {
+    // Build ads query to get tracking IDs for parent dimension values
+    const pgParams: any[] = [
+      dateRange.start.toISOString().split('T')[0],
+      dateRange.end.toISOString().split('T')[0],
+    ];
+
+    const { whereClause, params: filterParams } = buildParentFilters(
+      parentFilters,
+      pgParams.length
+    );
+    pgParams.push(...filterParams);
+
+    const trackingQuery = `
+      SELECT DISTINCT campaign_id, adset_id, ad_id
+      FROM merged_ads_spending
+      WHERE date::date BETWEEN $1::date AND $2::date
+        ${whereClause}
+    `;
+
+    const trackingIds = await executeQuery<{
+      campaign_id: string;
+      adset_id: string;
+      ad_id: string;
+    }>(trackingQuery, pgParams);
+
+    // Extract unique IDs for CRM filtering
+    trackingIdFilter.campaign_ids = [...new Set(trackingIds.map(t => t.campaign_id))];
+    trackingIdFilter.adset_ids = [...new Set(trackingIds.map(t => t.adset_id))];
+    trackingIdFilter.ad_ids = [...new Set(trackingIds.map(t => t.ad_id))];
+  }
+
+  // Step 2: Query CRM data grouped by the CRM dimension, filtered by parent tracking IDs
   const crmFilters: CRMQueryFilters = {
     dateStart: `${dateRange.start.toISOString().split('T')[0]} 00:00:00`,
     dateEnd: `${dateRange.end.toISOString().split('T')[0]} 23:59:59`,
     productFilter,
   };
 
-  // Add parent filters to CRM query if they're ads dimensions
-  if (parentFilters) {
-    Object.entries(parentFilters).forEach(([dimId, value]) => {
-      if (dimId === 'campaign' && value !== 'Unknown') {
-        crmFilters.campaign_id = value;
-      } else if (dimId === 'adset' && value !== 'Unknown') {
-        crmFilters.adset_id = value;
-      } else if (dimId === 'ad' && value !== 'Unknown') {
-        crmFilters.ad_id = value;
-      }
-    });
-  }
-
+  // Note: We can't directly filter CRM by multiple IDs, so we'll query all and filter in-memory
   const crmData = await getCRMSubscriptions(crmFilters);
 
-  // Step 2: Group CRM data by the current dimension and aggregate subscriptions
+  // Filter CRM data by parent tracking IDs if provided
+  const filteredCrmData = trackingIdFilter.campaign_ids
+    ? crmData.filter(row =>
+        trackingIdFilter.campaign_ids!.includes(row.campaign_id) &&
+        trackingIdFilter.adset_ids!.includes(row.adset_id) &&
+        trackingIdFilter.ad_ids!.includes(row.ad_id)
+      )
+    : crmData;
+
+  // Step 3: Group CRM data by the current dimension and aggregate subscriptions
   const crmByDimension = new Map<string, {
     subscriptions: number;
     approved: number;
     trackingIds: Set<{ campaign_id: string; adset_id: string; ad_id: string; source: string | null }>;
   }>();
 
-  for (const row of crmData) {
+  for (const row of filteredCrmData) {
     const dimValue = (row[dimConfig.column as keyof typeof row] as string | null) || 'Unknown';
 
     if (!crmByDimension.has(dimValue)) {
@@ -249,7 +281,7 @@ async function getMarketingDataByCRM(
     });
   }
 
-  // Step 3: For each CRM dimension value, query ads data for matching tracking IDs
+  // Step 4: For each CRM dimension value, query ads data for matching tracking IDs
   const results: AggregatedMetrics[] = [];
 
   for (const [dimValue, crmAgg] of crmByDimension.entries()) {
@@ -349,7 +381,7 @@ async function getMarketingDataByCRM(
     });
   }
 
-  // Step 4: Sort and limit results
+  // Step 5: Sort and limit results
   const sortColumn = sortBy || 'cost';
   const sortDir = validateSortDirection(sortDirection);
 
