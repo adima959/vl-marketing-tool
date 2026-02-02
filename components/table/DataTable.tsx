@@ -4,7 +4,8 @@ import { useColumnStore } from '@/stores/columnStore';
 import { METRIC_COLUMNS, MARKETING_METRIC_IDS, CRM_METRIC_IDS } from '@/config/columns';
 import type { ReportRow } from '@/types';
 import type { ColumnGroup } from '@/types/table';
-import styles from './DataTable.module.css';
+import type { MarketingMetricClickContext } from '@/types/marketingDetails';
+import themeStyles from '@/styles/tables/themes/marketing.module.css';
 
 // Define column groups for marketing report
 const COLUMN_GROUPS: ColumnGroup[] = [
@@ -18,20 +19,30 @@ const COLUMN_GROUPS: ColumnGroup[] = [
   },
 ];
 
+// Define which CRM metrics are clickable
+const CLICKABLE_MARKETING_METRICS = ['crmSubscriptions', 'approvedSales'];
+
+interface DataTableProps {
+  /** Optional callback when a CRM metric cell is clicked (for detail modals) */
+  onMarketingMetricClick?: (context: MarketingMetricClickContext) => void;
+}
+
 /**
  * Marketing Report Data Table Component
  * Displays hierarchical marketing campaign data with expand/collapse functionality
  */
-export function DataTable() {
+export function DataTable({ onMarketingMetricClick }: DataTableProps) {
   return (
     <GenericDataTable<ReportRow>
       useStore={useReportStore}
       useColumnStore={useColumnStore}
       metricColumns={METRIC_COLUMNS}
       columnGroups={COLUMN_GROUPS}
-      colorClassName={styles.marketingColors}
+      colorClassName={themeStyles.theme}
       showColumnTooltips={false}
       hideZeroValues={true}
+      onMarketingMetricClick={onMarketingMetricClick}
+      clickableMarketingMetrics={onMarketingMetricClick ? CLICKABLE_MARKETING_METRICS : []}
     />
   );
 }

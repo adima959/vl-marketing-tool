@@ -83,6 +83,13 @@ export const colors = {
     emerald: '#10b981',
   },
 
+  // Navy colors (for tables)
+  navy: {
+    primary: '#1E3A5F',
+    border: '#C5D3E0',
+    accent: '#2C4A6E',
+  },
+
   // Background variations
   background: {
     primary: '#ffffff',

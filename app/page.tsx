@@ -22,20 +22,18 @@ function DashboardContent() {
   }, []);
 
   return (
-    <>
+    <div className="flex flex-col h-full overflow-auto">
       <PageHeader
         title="Dashboard"
         icon={<LayoutDashboard className="h-5 w-5" />}
       />
-      <div className="flex flex-col h-full">
-        <div className="flex flex-col gap-3 p-3 bg-white flex-1 overflow-auto">
-          <DashboardFilterToolbar />
-          <Suspense fallback={<div className="flex items-center justify-center p-8"><Spin size="large" /></div>}>
-            <DashboardDataTable />
-          </Suspense>
-        </div>
+      <div className="flex flex-col gap-3 p-3 bg-white flex-1">
+        <DashboardFilterToolbar />
+        <Suspense fallback={<div className="flex items-center justify-center p-8"><Spin size="large" /></div>}>
+          <DashboardDataTable />
+        </Suspense>
       </div>
-    </>
+    </div>
   );
 }
 

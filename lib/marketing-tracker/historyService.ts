@@ -21,7 +21,7 @@ export interface HistoryEntry {
   oldValue: unknown;
   newValue: unknown;
   action: HistoryAction;
-  changedBy: string;
+  changedBy: string | null;  // NULL if system or auth not implemented
 }
 
 /**
@@ -35,7 +35,7 @@ export interface HistoryRecord {
   oldValue: unknown;
   newValue: unknown;
   action: HistoryAction;
-  changedBy: string;
+  changedBy: string | null;  // NULL if system or auth not implemented
   changedAt: string;
 }
 
@@ -173,7 +173,7 @@ export function diffObjects<T extends Record<string, unknown>>(
   newObj: T,
   entityType: EntityType,
   entityId: string,
-  changedBy: string,
+  changedBy: string | null,
   action: HistoryAction
 ): HistoryEntry[] {
   const entries: HistoryEntry[] = [];
@@ -354,7 +354,7 @@ export async function recordFieldChange(
   fieldName: string,
   oldValue: unknown,
   newValue: unknown,
-  changedBy: string
+  changedBy: string | null
 ): Promise<void> {
   await recordHistory([
     {
@@ -376,7 +376,7 @@ export async function recordCreation<T extends Record<string, unknown>>(
   entityType: EntityType,
   entityId: string,
   entity: T,
-  changedBy: string
+  changedBy: string | null
 ): Promise<void> {
   const entries = diffObjects(null, entity, entityType, entityId, changedBy, 'created');
   await recordHistory(entries);
@@ -390,7 +390,7 @@ export async function recordUpdate<T extends Record<string, unknown>>(
   entityId: string,
   oldEntity: T,
   newEntity: T,
-  changedBy: string
+  changedBy: string | null
 ): Promise<void> {
   const entries = diffObjects(oldEntity, newEntity, entityType, entityId, changedBy, 'updated');
   if (entries.length > 0) {
@@ -405,7 +405,7 @@ export async function recordDeletion<T extends Record<string, unknown>>(
   entityType: EntityType,
   entityId: string,
   entity: T,
-  changedBy: string
+  changedBy: string | null
 ): Promise<void> {
   const entries = diffObjects(entity, entity, entityType, entityId, changedBy, 'deleted');
   await recordHistory(entries);

@@ -7,8 +7,9 @@ import {
 } from '@/lib/marketing-tracker/db';
 import { recordCreation } from '@/lib/marketing-tracker/historyService';
 
-// Placeholder user ID until auth is implemented
-const PLACEHOLDER_USER_ID = '00000000-0000-0000-0000-000000000000';
+// Use null for changed_by until auth is implemented
+// The schema supports NULL: "NULL if system or auth not implemented"
+const SYSTEM_USER_ID: string | null = null;
 
 /**
  * GET /api/marketing-tracker/angles
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       'angle',
       newAngle.id,
       newAngle as unknown as Record<string, unknown>,
-      PLACEHOLDER_USER_ID
+      SYSTEM_USER_ID
     );
 
     return NextResponse.json({

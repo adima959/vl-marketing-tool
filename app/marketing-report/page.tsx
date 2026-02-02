@@ -10,16 +10,36 @@ import { useUrlSync } from '@/hooks/useUrlSync';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useReportStore } from '@/stores/reportStore';
 import { BarChart3 } from 'lucide-react';
+import type { MarketingMetricClickContext } from '@/types/marketingDetails';
 
 const ColumnSettingsModal = lazy(() =>
   import('@/components/modals/ColumnSettingsModal').then((mod) => ({ default: mod.ColumnSettingsModal }))
 );
 
+const MarketingSubscriptionDetailModal = lazy(() =>
+  import('@/components/modals/MarketingSubscriptionDetailModal').then((mod) => ({ default: mod.MarketingSubscriptionDetailModal }))
+);
+
 function MarketingReportContent() {
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailModalContext, setDetailModalContext] = useState<MarketingMetricClickContext | null>(null);
   const { setOpen } = useSidebar();
   const hasCollapsed = useRef(false);
   const { hasUnsavedChanges, resetFilters, dateRange } = useReportStore();
+
+  // Handle CRM metric click to show detail modal
+  const handleMarketingMetricClick = (context: MarketingMetricClickContext) => {
+    setDetailModalContext(context);
+    setDetailModalOpen(true);
+  };
+
+  // Handle modal close
+  const handleDetailModalClose = () => {
+    setDetailModalOpen(false);
+    // Keep context briefly for close animation
+    setTimeout(() => setDetailModalContext(null), 300);
+  };
 
   // Check if today's date is in the selected range
   const includesToday = useMemo(() => {
@@ -84,26 +104,35 @@ function MarketingReportContent() {
 
   return (
     <>
-      <PageHeader
-        title="Marketing Report"
-        icon={<BarChart3 className="h-5 w-5" />}
-        actions={headerActions}
-        warning={headerWarning}
-      />
-      <div className="flex flex-col h-full">
-        <div className="flex flex-col gap-3 p-3 bg-white flex-1 overflow-auto">
+      <div className="flex flex-col h-full overflow-auto">
+        <PageHeader
+          title="Marketing Report"
+          icon={<BarChart3 className="h-5 w-5" />}
+          actions={headerActions}
+          warning={headerWarning}
+        />
+        <div className="flex flex-col gap-3 p-3 bg-white flex-1">
           <FilterToolbar />
-          <DataTable />
+          <DataTable onMarketingMetricClick={handleMarketingMetricClick} />
         </div>
-        {columnSettingsOpen && (
-          <Suspense fallback={null}>
-            <ColumnSettingsModal
-              open={columnSettingsOpen}
-              onClose={() => setColumnSettingsOpen(false)}
-            />
-          </Suspense>
-        )}
       </div>
+      {columnSettingsOpen && (
+        <Suspense fallback={null}>
+          <ColumnSettingsModal
+            open={columnSettingsOpen}
+            onClose={() => setColumnSettingsOpen(false)}
+          />
+        </Suspense>
+      )}
+      {detailModalOpen && (
+        <Suspense fallback={null}>
+          <MarketingSubscriptionDetailModal
+            open={detailModalOpen}
+            onClose={handleDetailModalClose}
+            context={detailModalContext}
+          />
+        </Suspense>
+      )}
     </>
   );
 }

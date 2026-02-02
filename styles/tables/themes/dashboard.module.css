@@ -1,0 +1,55 @@
+/**
+ * Dashboard Table Theme
+ *
+ * Column groups:
+ *   - Order Metrics (columns 2-6): Green tint
+ */
+
+/* =============================================================================
+   GROUP HEADERS
+   ============================================================================= */
+
+/* Order Metrics group - green tint */
+.theme :global(.ant-table-thead > tr:first-child > th:nth-child(2)) {
+  background: #dcfce7 !important;
+  border-bottom: 2px solid #bbf7d0 !important;
+}
+
+/* =============================================================================
+   METRIC HEADERS
+   ============================================================================= */
+
+/* Order Metrics columns - subtle green accent */
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(2)),
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(3)),
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(4)),
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(5)),
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(6)) {
+  background: #fafdf9 !important;
+}
+
+/* =============================================================================
+   HOVER STATES
+   ============================================================================= */
+
+/* Order Metrics cells hover - enhanced green */
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(2)),
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(3)),
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(4)),
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(5)),
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(6)) {
+  background: rgba(220, 252, 231, 0.5) !important;
+}
+
+/* =============================================================================
+   LEGACY COMPATIBILITY
+   ============================================================================= */
+
+/* Keep expand icon colors if needed */
+.theme :global(.ant-table-row-expand-icon) {
+  color: var(--color-accent);
+}
+
+.theme :global(.ant-table-row-expand-icon:hover) {
+  color: var(--color-accent-hover);
+}

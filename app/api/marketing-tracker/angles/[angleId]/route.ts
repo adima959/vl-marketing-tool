@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { AngleStatus } from '@/types/marketing-tracker';
 import {
   getAngleById,
-  getProductById,
+  getProductByIdSimple,
   getMessagesByAngleId,
   updateAngle,
   deleteAngle,
@@ -12,8 +12,9 @@ import {
   recordDeletion,
 } from '@/lib/marketing-tracker/historyService';
 
-// Placeholder user ID until auth is implemented
-const PLACEHOLDER_USER_ID = '00000000-0000-0000-0000-000000000000';
+// Use null for changed_by until auth is implemented
+// The schema supports NULL: "NULL if system or auth not implemented"
+const SYSTEM_USER_ID: string | null = null;
 
 interface RouteParams {
   params: Promise<{ angleId: string }>;
@@ -29,7 +30,12 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     const { angleId } = await params;
-    const angle = await getAngleById(angleId);
+
+    // Run angle and messages queries in parallel (both only need angleId)
+    const [angle, messages] = await Promise.all([
+      getAngleById(angleId),
+      getMessagesByAngleId(angleId),
+    ]);
 
     if (!angle) {
       return NextResponse.json(
@@ -38,13 +44,19 @@ export async function GET(
       );
     }
 
-    const messages = await getMessagesByAngleId(angleId);
-    const product = await getProductById(angle.productId);
+    // Now fetch product (needs angle.productId) - use simple query, no angle counts needed
+    const product = await getProductByIdSimple(angle.productId);
+
+    // Derive message count from actual messages array
+    const angleWithAccurateCount = {
+      ...angle,
+      messageCount: messages.length,
+    };
 
     return NextResponse.json({
       success: true,
       data: {
-        angle,
+        angle: angleWithAccurateCount,
         messages,
         product,
       },
@@ -81,21 +93,27 @@ export async function PUT(
     }
 
     // Update the angle in the database
-    const updatedAngle = await updateAngle(angleId, {
+    const updatedAngleBase = await updateAngle(angleId, {
       name: body.name,
       description: body.description,
       status: body.status,
       launchedAt: body.launchedAt,
     });
 
-    // Record update history
-    await recordUpdate(
+    // Merge counts from old angle (they don't change on field updates)
+    const updatedAngle = {
+      ...updatedAngleBase,
+      messageCount: oldAngle.messageCount,
+    };
+
+    // Record update history (non-blocking for performance)
+    recordUpdate(
       'angle',
       angleId,
       oldAngle as unknown as Record<string, unknown>,
       updatedAngle as unknown as Record<string, unknown>,
-      PLACEHOLDER_USER_ID
-    );
+      SYSTEM_USER_ID
+    ).catch((err) => console.error('Failed to record angle update history:', err));
 
     return NextResponse.json({
       success: true,
@@ -112,7 +130,7 @@ export async function PUT(
 
 /**
  * PATCH /api/marketing-tracker/angles/[angleId]
- * Update angle status only
+ * Partially update angle fields (name, description, status)
  */
 export async function PATCH(
   request: NextRequest,
@@ -132,43 +150,57 @@ export async function PATCH(
       );
     }
 
-    if (!body.status) {
+    // Validate status if provided
+    if (body.status !== undefined) {
+      const validStatuses: AngleStatus[] = ['idea', 'in_production', 'live', 'paused', 'retired'];
+      if (!validStatuses.includes(body.status)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid status value' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Build update object with only provided fields
+    const updateData: Partial<{ name: string; description: string; status: AngleStatus }> = {};
+    if (body.name !== undefined) updateData.name = body.name;
+    if (body.description !== undefined) updateData.description = body.description;
+    if (body.status !== undefined) updateData.status = body.status;
+
+    // Ensure at least one field is being updated
+    if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
-        { success: false, error: 'Status is required' },
+        { success: false, error: 'No valid fields to update' },
         { status: 400 }
       );
     }
 
-    const validStatuses: AngleStatus[] = ['idea', 'in_production', 'live', 'paused', 'retired'];
-    if (!validStatuses.includes(body.status)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid status value' },
-        { status: 400 }
-      );
-    }
+    // Update the angle in the database
+    const updatedAngleBase = await updateAngle(angleId, updateData);
 
-    // Update the angle status in the database
-    const updatedAngle = await updateAngle(angleId, {
-      status: body.status,
-    });
+    // Merge counts from old angle (they don't change on field updates)
+    const updatedAngle = {
+      ...updatedAngleBase,
+      messageCount: oldAngle.messageCount,
+    };
 
-    // Record update history
-    await recordUpdate(
+    // Record update history (non-blocking for performance)
+    recordUpdate(
       'angle',
       angleId,
       oldAngle as unknown as Record<string, unknown>,
       updatedAngle as unknown as Record<string, unknown>,
-      PLACEHOLDER_USER_ID
-    );
+      SYSTEM_USER_ID
+    ).catch((err) => console.error('Failed to record angle update history:', err));
 
     return NextResponse.json({
       success: true,
       data: updatedAngle,
     });
   } catch (error) {
-    console.error('Error updating angle status:', error);
+    console.error('Error updating angle:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to update angle status' },
+      { success: false, error: 'Failed to update angle' },
       { status: 500 }
     );
   }
@@ -203,7 +235,7 @@ export async function DELETE(
       'angle',
       angleId,
       angle as unknown as Record<string, unknown>,
-      PLACEHOLDER_USER_ID
+      SYSTEM_USER_ID
     );
 
     return NextResponse.json({

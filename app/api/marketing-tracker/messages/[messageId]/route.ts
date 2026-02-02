@@ -3,7 +3,7 @@ import type { AngleStatus } from '@/types/marketing-tracker';
 import {
   getMessageById,
   getAngleById,
-  getProductById,
+  getProductByIdSimple,
   getAssetsByMessageId,
   getCreativesByMessageId,
   updateMessage,
@@ -14,8 +14,9 @@ import {
   recordDeletion,
 } from '@/lib/marketing-tracker/historyService';
 
-// Placeholder user ID until auth is implemented
-const PLACEHOLDER_USER_ID = '00000000-0000-0000-0000-000000000000';
+// Use null for changed_by until auth is implemented
+// The schema supports NULL: "NULL if system or auth not implemented"
+const SYSTEM_USER_ID: string | null = null;
 
 interface RouteParams {
   params: Promise<{ messageId: string }>;
@@ -31,7 +32,13 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     const { messageId } = await params;
-    const message = await getMessageById(messageId);
+
+    // Run message, assets, and creatives queries in parallel (all only need messageId)
+    const [message, assets, creatives] = await Promise.all([
+      getMessageById(messageId),
+      getAssetsByMessageId(messageId),
+      getCreativesByMessageId(messageId),
+    ]);
 
     if (!message) {
       return NextResponse.json(
@@ -40,15 +47,23 @@ export async function GET(
       );
     }
 
-    const assets = await getAssetsByMessageId(messageId);
-    const creatives = await getCreativesByMessageId(messageId);
+    // Now fetch angle (needs message.angleId)
     const angle = await getAngleById(message.angleId);
-    const product = angle ? await getProductById(angle.productId) : null;
+
+    // Then fetch product (needs angle.productId) - use simple query
+    const product = angle ? await getProductByIdSimple(angle.productId) : null;
+
+    // Derive counts from actual arrays
+    const messageWithAccurateCounts = {
+      ...message,
+      assetCount: assets.length,
+      creativeCount: creatives.length,
+    };
 
     return NextResponse.json({
       success: true,
       data: {
-        message,
+        message: messageWithAccurateCounts,
         assets,
         creatives,
         angle,
@@ -87,7 +102,7 @@ export async function PUT(
     }
 
     // Update the message in the database
-    const updatedMessage = await updateMessage(messageId, {
+    const updatedMessageBase = await updateMessage(messageId, {
       name: body.name,
       description: body.description,
       status: body.status,
@@ -99,14 +114,21 @@ export async function PUT(
       launchedAt: body.launchedAt,
     });
 
-    // Record update history
-    await recordUpdate(
+    // Merge counts from old message (they don't change on field updates)
+    const updatedMessage = {
+      ...updatedMessageBase,
+      assetCount: oldMessage.assetCount,
+      creativeCount: oldMessage.creativeCount,
+    };
+
+    // Record update history (non-blocking for performance)
+    recordUpdate(
       'message',
       messageId,
       oldMessage as unknown as Record<string, unknown>,
       updatedMessage as unknown as Record<string, unknown>,
-      PLACEHOLDER_USER_ID
-    );
+      SYSTEM_USER_ID
+    ).catch((err) => console.error('Failed to record message update history:', err));
 
     return NextResponse.json({
       success: true,
@@ -159,18 +181,25 @@ export async function PATCH(
     }
 
     // Update the message status in the database
-    const updatedMessage = await updateMessage(messageId, {
+    const updatedMessageBase = await updateMessage(messageId, {
       status: body.status,
     });
 
-    // Record update history
-    await recordUpdate(
+    // Merge counts from old message (they don't change on field updates)
+    const updatedMessage = {
+      ...updatedMessageBase,
+      assetCount: oldMessage.assetCount,
+      creativeCount: oldMessage.creativeCount,
+    };
+
+    // Record update history (non-blocking for performance)
+    recordUpdate(
       'message',
       messageId,
       oldMessage as unknown as Record<string, unknown>,
       updatedMessage as unknown as Record<string, unknown>,
-      PLACEHOLDER_USER_ID
-    );
+      SYSTEM_USER_ID
+    ).catch((err) => console.error('Failed to record message update history:', err));
 
     return NextResponse.json({
       success: true,
@@ -214,7 +243,7 @@ export async function DELETE(
       'message',
       messageId,
       message as unknown as Record<string, unknown>,
-      PLACEHOLDER_USER_ID
+      SYSTEM_USER_ID
     );
 
     return NextResponse.json({

@@ -63,6 +63,7 @@ interface MarketingTrackerState {
   messages: Message[];
   assets: Asset[];
   creatives: Creative[];
+  recentActivity: ActivityRecord[];
 
   // Filters
   statusFilter: AngleStatus | 'all';
@@ -79,6 +80,7 @@ interface MarketingTrackerState {
   loadProduct: (productId: string) => Promise<void>;
   loadAngle: (angleId: string) => Promise<void>;
   loadMessage: (messageId: string) => Promise<void>;
+  loadUsers: () => Promise<void>;
 
   // Actions - Filters
   setStatusFilter: (status: AngleStatus | 'all') => void;
@@ -89,6 +91,10 @@ interface MarketingTrackerState {
   // Actions - Status Updates
   updateAngleStatus: (angleId: string, status: AngleStatus) => Promise<void>;
   updateMessageStatus: (messageId: string, status: AngleStatus) => Promise<void>;
+
+  // Actions - Inline Field Updates
+  updateAngleField: (angleId: string, field: string, value: string) => Promise<void>;
+  updateProductField: (productId: string, field: string, value: string) => Promise<void>;
 
   // Computed
   getFilteredProducts: () => ProductWithStats[];
@@ -108,6 +114,7 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
   messages: [],
   assets: [],
   creatives: [],
+  recentActivity: [],
 
   // Initial filter state
   statusFilter: 'all',
@@ -123,7 +130,7 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
   loadDashboard: async () => {
     set({ isLoading: true, error: null });
     try {
-      // Fetch products and users in parallel
+      // Fetch products and users in parallel (removed unused recentActivity fetch)
       const [productsResponse, users] = await Promise.all([
         fetch('/api/marketing-tracker/products'),
         fetchUsers(),
@@ -148,8 +155,12 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
   loadProduct: async (productId: string) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`/api/marketing-tracker/products/${productId}`);
-      const data = await response.json();
+      // Fetch product and users in parallel
+      const [productResponse, users] = await Promise.all([
+        fetch(`/api/marketing-tracker/products/${productId}`),
+        get().users.length === 0 ? fetchUsers() : Promise.resolve(get().users),
+      ]);
+      const data = await productResponse.json();
 
       if (!data.success) {
         throw new Error(data.error || 'Product not found');
@@ -158,6 +169,7 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
       set({
         currentProduct: data.data.product,
         angles: data.data.mainAngles || [],
+        users: Array.isArray(users) ? users : get().users,
         currentAngle: null,
         currentMessage: null,
         messages: [],
@@ -168,6 +180,18 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load product';
       set({ error: message, isLoading: false });
+    }
+  },
+
+  loadUsers: async () => {
+    // Don't reload if we already have users
+    if (get().users.length > 0) return;
+
+    try {
+      const users = await fetchUsers();
+      set({ users });
+    } catch (error) {
+      console.error('Failed to load users:', error);
     }
   },
 
@@ -283,6 +307,67 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
       }));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to update message status';
+      set({ error: message });
+    }
+  },
+
+  // Inline Field Update Actions
+  updateAngleField: async (angleId: string, field: string, value: string) => {
+    try {
+      const response = await fetch(`/api/marketing-tracker/angles/${angleId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to update angle');
+      }
+
+      const updatedAngle = data.data as Angle;
+
+      // Update local state
+      set((state) => ({
+        angles: state.angles.map((angle) =>
+          angle.id === angleId ? updatedAngle : angle
+        ),
+        currentAngle:
+          state.currentAngle?.id === angleId ? updatedAngle : state.currentAngle,
+      }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update angle';
+      set({ error: message });
+    }
+  },
+
+  updateProductField: async (productId: string, field: string, value: string) => {
+    try {
+      const response = await fetch(`/api/marketing-tracker/products/${productId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to update product');
+      }
+
+      const updatedProduct = data.data as Product;
+
+      // Update local state
+      set((state) => ({
+        products: state.products.map((product) =>
+          product.id === productId ? { ...product, ...updatedProduct } : product
+        ),
+        currentProduct:
+          state.currentProduct?.id === productId ? updatedProduct : state.currentProduct,
+      }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update product';
       set({ error: message });
     }
   },

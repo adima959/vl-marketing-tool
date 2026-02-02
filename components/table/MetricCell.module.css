@@ -3,7 +3,7 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
-  color: var(--color-accent-blue);
+  color: var(--color-navy-primary);
   display: inline-block;
 }
 

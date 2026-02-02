@@ -46,16 +46,19 @@ export function normalizeError(error: unknown): AppError {
     // Check for specific error types
     if (error.name === 'AbortError') {
       return {
-        ...error,
+        name: error.name,
+        message: error.message || 'Request timeout',
+        stack: error.stack,
         code: ErrorCode.TIMEOUT,
         statusCode: 408,
-        message: error.message || 'Request timeout',
       };
     }
 
-    // Generic error
+    // Generic error - explicitly copy properties since spread doesn't copy from prototype
     return {
-      ...error,
+      name: error.name,
+      message: error.message || 'Unknown error',
+      stack: error.stack,
       code: ErrorCode.SERVER_ERROR,
       statusCode: 500,
     };

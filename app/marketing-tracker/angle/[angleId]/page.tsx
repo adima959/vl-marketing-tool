@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Spin, Empty, Button, Table } from 'antd';
-import { PlusOutlined, EditOutlined } from '@ant-design/icons';
-import { Target, ChevronRight, GitBranch, MessageSquare } from 'lucide-react';
+import { PlusOutlined } from '@ant-design/icons';
+import { Target, ChevronRight, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge, MessageModal } from '@/components/marketing-tracker';
+import { EditableField } from '@/components/ui/EditableField';
+import { RichEditableField } from '@/components/ui/RichEditableField';
 import { useMarketingTrackerStore } from '@/stores/marketingTrackerStore';
 import type { ColumnsType } from 'antd/es/table';
 import type { Message } from '@/types';
@@ -35,6 +37,7 @@ export default function AnglePage() {
     loadAngle,
     updateAngleStatus,
     updateMessageStatus,
+    updateAngleField,
   } = useMarketingTrackerStore();
 
   const params = useParams<{ angleId: string }>();
@@ -184,11 +187,21 @@ export default function AnglePage() {
         <div className={styles.angleCard}>
           <div className={styles.angleHeader}>
             <div className={styles.angleInfo}>
-              <span className={styles.angleLabel}>ANGLE (PROBLEM AREA)</span>
-              <h1 className={styles.angleTitle}>{currentAngle.name}</h1>
-              {currentAngle.description && (
-                <p className={styles.angleDescription}>{currentAngle.description}</p>
-              )}
+              <span className={styles.angleLabel}>Angle</span>
+              <div className={styles.angleTitleRow}>
+                <EditableField
+                  value={currentAngle.name}
+                  onChange={(value) => updateAngleField(currentAngle.id, 'name', value)}
+                  placeholder="Angle name"
+                />
+              </div>
+              <div className={styles.angleDescriptionRow}>
+                <RichEditableField
+                  value={currentAngle.description || ''}
+                  onChange={(value) => updateAngleField(currentAngle.id, 'description', value)}
+                  placeholder="Add a description..."
+                />
+              </div>
             </div>
             <div className={styles.angleActions}>
               <StatusBadge
@@ -197,7 +210,6 @@ export default function AnglePage() {
                 editable
                 onChange={(newStatus) => updateAngleStatus(currentAngle.id, newStatus)}
               />
-              <Button icon={<EditOutlined />}>Edit</Button>
             </div>
           </div>
         </div>

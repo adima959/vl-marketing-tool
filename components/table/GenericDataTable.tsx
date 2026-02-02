@@ -3,12 +3,13 @@ import type { ColumnsType, TableProps } from 'antd/es/table';
 import { useMemo, useEffect, useRef } from 'react';
 import { MetricCell } from './MetricCell';
 import { ClickableMetricCell } from '@/components/dashboard/ClickableMetricCell';
+import { MarketingClickableMetricCell } from './MarketingClickableMetricCell';
 import { useToast } from '@/hooks/useToast';
 import { ErrorMessage } from '@/components/ErrorMessage';
 import { EmptyState } from '@/components/EmptyState';
 import { TableSkeleton } from '@/components/loading/TableSkeleton';
 import type { BaseTableRow, GenericDataTableConfig } from '@/types/table';
-import styles from './DataTable.module.css';
+import styles from '@/styles/tables/base.module.css';
 
 export function GenericDataTable<TRow extends BaseTableRow>({
   useStore,
@@ -18,6 +19,8 @@ export function GenericDataTable<TRow extends BaseTableRow>({
   colorClassName,
   showColumnTooltips = false,
   onMetricClick,
+  onMarketingMetricClick,
+  clickableMarketingMetrics = [],
   hideZeroValues = false,
 }: GenericDataTableConfig<TRow>) {
   const {
@@ -107,13 +110,15 @@ export function GenericDataTable<TRow extends BaseTableRow>({
             ) : (
               <span className={styles.expandSpacer} />
             )}
-            <span
-              className={`${styles.attributeText} ${
-                record.depth === 0 ? styles.attributeTextBold : ''
-              }`}
-            >
-              {formatAttributeValue(value)}
-            </span>
+            <Tooltip title={formatAttributeValue(value)} placement="topLeft" mouseEnterDelay={0.5}>
+              <span
+                className={`${styles.attributeText} ${
+                  record.depth === 0 ? styles.attributeTextBold : ''
+                }`}
+              >
+                {formatAttributeValue(value)}
+              </span>
+            </Tooltip>
           </div>
         );
       },
@@ -129,11 +134,11 @@ export function GenericDataTable<TRow extends BaseTableRow>({
       const groupMetrics = visibleMetrics
         .filter((col) => group.metricIds.includes(col.id))
         .map((col) => ({
-          title: showColumnTooltips && col.description ? (
-            <Tooltip title={col.description} placement="top">
-              <span style={{ cursor: 'help' }}>{col.shortLabel}</span>
+          title: (
+            <Tooltip title={col.label} placement="top">
+              <span style={{ cursor: 'default' }}>{col.shortLabel}</span>
             </Tooltip>
-          ) : col.shortLabel,
+          ),
           dataIndex: ['metrics', col.id],
           key: col.id,
           width: col.width,
@@ -142,7 +147,24 @@ export function GenericDataTable<TRow extends BaseTableRow>({
           sortOrder: sortColumn === col.id ? sortDirection : null,
           showSorterTooltip: false,
           render: (value: number, record: TRow) => {
-            // Conditionally use ClickableMetricCell when onMetricClick is provided
+            // Check if this is a marketing clickable metric
+            if (onMarketingMetricClick && loadedDateRange && clickableMarketingMetrics.includes(col.id)) {
+              return (
+                <MarketingClickableMetricCell
+                  value={value ?? 0}
+                  format={col.format}
+                  metricId={col.id as 'crmSubscriptions' | 'approvedSales'}
+                  metricLabel={col.label}
+                  rowKey={record.key}
+                  depth={record.depth}
+                  dimensions={loadedDimensions}
+                  dateRange={loadedDateRange}
+                  onClick={onMarketingMetricClick}
+                  hideZero={hideZeroValues}
+                />
+              );
+            }
+            // Conditionally use ClickableMetricCell when onMetricClick is provided (for Dashboard)
             if (onMetricClick && loadedDateRange) {
               return (
                 <ClickableMetricCell
@@ -184,9 +206,12 @@ export function GenericDataTable<TRow extends BaseTableRow>({
     columnGroups,
     showColumnTooltips,
     onMetricClick,
+    onMarketingMetricClick,
+    clickableMarketingMetrics,
     loadedDimensions,
     loadedDateRange,
     toast,
+    hideZeroValues,
   ]);
 
   // Handle sort change

@@ -130,6 +130,62 @@
   font-size: var(--font-size-xs);
   color: var(--color-gray-500);
   line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 10;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-height: 14em;
+}
+
+/* Rich text formatting in description */
+.productDesc p {
+  margin: 0;
+  display: inline;
+}
+
+.productDesc p:not(:last-child)::after {
+  content: ' ';
+}
+
+.productDesc strong {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.productDesc em {
+  font-style: italic;
+}
+
+.productDesc s {
+  text-decoration: line-through;
+}
+
+.productDesc u {
+  text-decoration: underline;
+}
+
+.productDesc code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.9em;
+  background: var(--color-gray-100);
+  padding: 1px 3px;
+  border-radius: 2px;
+}
+
+.productDesc ul,
+.productDesc ol {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.productDesc li {
+  display: inline;
+}
+
+.productDesc li:not(:last-child)::after {
+  content: ', ';
 }
 
 /* Owner cell */
@@ -263,4 +319,11 @@
 /* Empty state */
 .container :global(.ant-empty) {
   padding: var(--spacing-8);
+}
+
+.emptyActivity {
+  padding: var(--spacing-6);
+  text-align: center;
+  color: var(--color-gray-400);
+  font-size: var(--font-size-sm);
 }

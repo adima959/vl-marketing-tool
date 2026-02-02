@@ -82,7 +82,7 @@ export function ProductModal({ open, onClose, onSuccess, product, users }: Produ
       onOk={() => form.submit()}
       okText={isEdit ? 'Save Changes' : 'Create Product'}
       confirmLoading={loading}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form
         form={form}

@@ -13,8 +13,9 @@ import {
   recordDeletion,
 } from '@/lib/marketing-tracker/historyService';
 
-// Placeholder user ID until auth is implemented
-const PLACEHOLDER_USER_ID = '00000000-0000-0000-0000-000000000000';
+// Use null for changed_by until auth is implemented
+// The schema supports NULL: "NULL if system or auth not implemented"
+const SYSTEM_USER_ID: string | null = null;
 
 interface RouteParams {
   params: Promise<{ assetId: string }>;
@@ -121,7 +122,7 @@ export async function PUT(
       assetId,
       oldAsset as unknown as Record<string, unknown>,
       updatedAsset as unknown as Record<string, unknown>,
-      PLACEHOLDER_USER_ID
+      SYSTEM_USER_ID
     );
 
     return NextResponse.json({
@@ -166,7 +167,7 @@ export async function DELETE(
       'asset',
       assetId,
       asset as unknown as Record<string, unknown>,
-      PLACEHOLDER_USER_ID
+      SYSTEM_USER_ID
     );
 
     return NextResponse.json({

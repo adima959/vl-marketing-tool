@@ -109,7 +109,7 @@ export async function getProducts(): Promise<Product[]> {
 }
 
 /**
- * Get a single product by ID
+ * Get a single product by ID (with angle counts - use for dashboard/product list)
  */
 export async function getProductById(id: string): Promise<Product | null> {
   const query = `
@@ -149,6 +149,45 @@ export async function getProductById(id: string): Promise<Product | null> {
   const product = toCamelCase<Product>(productFields);
 
   return { ...product, owner } as Product;
+}
+
+/**
+ * Get a single product by ID (simple - no angle counts, faster query)
+ * Use when you don't need angle counts (e.g., breadcrumbs, parent info)
+ */
+export async function getProductByIdSimple(id: string): Promise<Product | null> {
+  const query = `
+    SELECT
+      p.id,
+      p.name,
+      p.description,
+      p.notes,
+      p.owner_id,
+      p.created_at,
+      p.updated_at,
+      u.id AS user_id,
+      u.name AS user_name,
+      u.email AS user_email
+    FROM app_products p
+    LEFT JOIN app_users u ON u.id = p.owner_id
+    WHERE p.id = $1 AND p.deleted_at IS NULL
+  `;
+
+  const rows = await executeQuery<Record<string, unknown>>(query, [id]);
+  if (rows.length === 0) return null;
+
+  const row = rows[0];
+  const owner = row.user_id ? {
+    id: row.user_id as string,
+    name: row.user_name as string || '',
+    email: row.user_email as string || '',
+  } : undefined;
+
+  const { user_id, user_name, user_email, ...productFields } = row;
+  const product = toCamelCase<Product>(productFields);
+
+  // Set counts to 0 - caller should derive from actual data if needed
+  return { ...product, owner, angleCount: 0, activeAngleCount: 0 } as Product;
 }
 
 /**
@@ -220,8 +259,10 @@ export async function updateProduct(id: string, data: UpdateProductData): Promis
   const rows = await executeQuery<Record<string, unknown>>(query, values);
   if (rows.length === 0) throw new Error(`Product not found: ${id}`);
 
-  // Fetch with counts
-  return (await getProductById(id))!;
+  // Return RETURNING data directly - counts don't change on text field updates
+  // Caller should merge with existing counts if needed
+  const product = toCamelCase<Product>(rows[0]);
+  return product;
 }
 
 /**
@@ -368,7 +409,10 @@ export async function updateAngle(id: string, data: UpdateAngleData): Promise<An
   const rows = await executeQuery<Record<string, unknown>>(query, values);
   if (rows.length === 0) throw new Error(`Angle not found: ${id}`);
 
-  return (await getAngleById(id))!;
+  // Return RETURNING data directly - counts don't change on text field updates
+  // Caller should merge with existing counts if needed
+  const angle = toCamelCase<Angle>(rows[0]);
+  return angle;
 }
 
 /**
@@ -560,7 +604,10 @@ export async function updateMessage(id: string, data: UpdateMessageData): Promis
   const rows = await executeQuery<Record<string, unknown>>(query, values);
   if (rows.length === 0) throw new Error(`Message not found: ${id}`);
 
-  return (await getMessageById(id))!;
+  // Return RETURNING data directly - counts don't change on text field updates
+  // Caller should merge with existing counts if needed
+  const message = toCamelCase<Message>(rows[0]);
+  return message;
 }
 
 /**

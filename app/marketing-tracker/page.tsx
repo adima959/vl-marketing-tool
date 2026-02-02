@@ -53,7 +53,7 @@ export default function MarketingTrackerDashboard() {
     key: product.id,
     id: product.id,
     name: product.name,
-    description: product.description?.replace(/<[^>]*>/g, '').slice(0, 60),
+    description: product.description || undefined,
     ownerName: product.owner?.name || 'Unknown',
     ownerInitials: product.owner?.name?.split(' ').map(n => n[0]).join('') || '?',
     angleCount: product.angleCount || 0,
@@ -70,7 +70,10 @@ export default function MarketingTrackerDashboard() {
           <div className={styles.productNameCell}>
             <span className={styles.productName}>{name}</span>
             {record.description && (
-              <span className={styles.productDesc}>{record.description}...</span>
+              <span
+                className={styles.productDesc}
+                dangerouslySetInnerHTML={{ __html: record.description }}
+              />
             )}
           </div>
         </Link>

@@ -4,7 +4,7 @@ import { useOnPageColumnStore } from '@/stores/onPageColumnStore';
 import { ON_PAGE_METRIC_COLUMNS } from '@/config/onPageColumns';
 import type { OnPageReportRow } from '@/types/onPageReport';
 import type { ColumnGroup } from '@/types/table';
-import colorStyles from './OnPageColors.module.css';
+import themeStyles from '@/styles/tables/themes/onPage.module.css';
 
 // Define column groups for on-page analysis
 const COLUMN_GROUPS: ColumnGroup[] = [
@@ -29,7 +29,7 @@ export function OnPageDataTable() {
       useColumnStore={useOnPageColumnStore}
       metricColumns={ON_PAGE_METRIC_COLUMNS}
       columnGroups={COLUMN_GROUPS}
-      colorClassName={colorStyles.onPageColors}
+      colorClassName={themeStyles.theme}
       showColumnTooltips={true}
     />
   );

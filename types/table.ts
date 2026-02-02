@@ -2,6 +2,7 @@ import type { ColumnsType } from 'antd/es/table';
 import type { ReactNode } from 'react';
 import type { MetricColumn } from './metrics';
 import type { MetricClickContext } from './dashboardDetails';
+import type { MarketingMetricClickContext } from './marketingDetails';
 
 /**
  * Base row interface that all table data must extend
@@ -50,6 +51,11 @@ export interface ColumnStore {
 }
 
 /**
+ * Generic metric click context for use across different table types
+ */
+export type GenericMetricClickContext = MetricClickContext | MarketingMetricClickContext;
+
+/**
  * Configuration for GenericDataTable
  */
 export interface GenericDataTableConfig<TRow extends BaseTableRow> {
@@ -71,8 +77,14 @@ export interface GenericDataTableConfig<TRow extends BaseTableRow> {
   /** Whether to show tooltips on column headers */
   showColumnTooltips?: boolean;
 
-  /** Optional callback when a metric cell is clicked (for detail modals) */
+  /** Optional callback when a metric cell is clicked (for detail modals) - Dashboard context */
   onMetricClick?: (context: MetricClickContext) => void;
+
+  /** Optional callback when a marketing metric cell is clicked (for detail modals) - Marketing context */
+  onMarketingMetricClick?: (context: MarketingMetricClickContext) => void;
+
+  /** IDs of metrics that should be clickable for marketing details (e.g., ['crmSubscriptions', 'approvedSales']) */
+  clickableMarketingMetrics?: string[];
 
   /** Whether to hide cells with zero values */
   hideZeroValues?: boolean;

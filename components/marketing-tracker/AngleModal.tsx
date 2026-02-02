@@ -87,7 +87,7 @@ export function AngleModal({ open, onClose, onSuccess, productId, angle }: Angle
       onOk={() => form.submit()}
       okText={isEdit ? 'Save Changes' : 'Create Angle'}
       confirmLoading={loading}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form
         form={form}

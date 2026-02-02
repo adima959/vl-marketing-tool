@@ -48,6 +48,11 @@
   --color-accent-cyan: #06b6d4;
   --color-accent-emerald: #10b981;
 
+  /* Navy Colors (for tables) */
+  --color-navy-primary: #1E3A5F;
+  --color-navy-border: #C5D3E0;
+  --color-navy-accent: #2C4A6E;
+
   /* Background Colors */
   --color-background-primary: #ffffff;
   --color-background-secondary: #fafbfc;

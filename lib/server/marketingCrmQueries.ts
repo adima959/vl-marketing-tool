@@ -27,6 +27,9 @@ export interface CRMQueryFilters {
  * Excludes upsells (invoice.tag LIKE '%parent-sub-id=%')
  * Only counts invoice.type = 1 (trials/primary subscriptions)
  *
+ * subscription_count: All subscriptions (including canceled/deleted invoices)
+ * approved_count: Only non-deleted invoices with is_marked = 1
+ *
  * @param filters - Date range and optional product filter
  * @returns CRM subscription rows grouped by source, campaign, adset, ad, date, product
  */
@@ -75,11 +78,10 @@ export async function getCRMSubscriptions(
       DATE(s.date_create) as date,
       p.product_name,
       COUNT(DISTINCT s.id) as subscription_count,
-      COUNT(DISTINCT CASE WHEN i.is_marked = 1 THEN i.id END) as approved_count
+      COUNT(DISTINCT CASE WHEN i.is_marked = 1 AND i.deleted = 0 THEN i.id END) as approved_count
     FROM subscription s
     INNER JOIN invoice i ON i.subscription_id = s.id
       AND i.type = 1
-      AND i.deleted = 0
     LEFT JOIN source sr ON sr.id = s.source_id
     LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
     LEFT JOIN product p ON p.id = ip.product_id

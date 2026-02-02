@@ -3,11 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Spin, Empty, Button, Table } from 'antd';
-import { PlusOutlined, EditOutlined, UserOutlined, CalendarOutlined } from '@ant-design/icons';
+import { PlusOutlined, UserOutlined, CalendarOutlined } from '@ant-design/icons';
 import { Target, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge, AngleModal } from '@/components/marketing-tracker';
+import { EditableField } from '@/components/ui/EditableField';
+import { EditableSelect } from '@/components/ui/EditableSelect';
+import { RichEditableField } from '@/components/ui/RichEditableField';
 import { useMarketingTrackerStore } from '@/stores/marketingTrackerStore';
 import type { ColumnsType } from 'antd/es/table';
 import type { Angle } from '@/types';
@@ -28,10 +31,18 @@ export default function ProductPage() {
   const {
     currentProduct,
     angles,
+    users,
     isLoading,
     loadProduct,
     updateAngleStatus,
+    updateProductField,
   } = useMarketingTrackerStore();
+
+  // Transform users for select options
+  const userOptions = users.map((user) => ({
+    value: user.id,
+    label: user.name,
+  }));
 
   const params = useParams<{ productId: string }>();
   const productId = params.productId;
@@ -66,16 +77,20 @@ export default function ProductPage() {
       title: 'ANGLE NAME',
       dataIndex: 'name',
       key: 'name',
-      render: (name: string, record: AngleRow) => (
-        <Link href={`/marketing-tracker/angle/${record.id}`} className={styles.angleLink}>
-          <div className={styles.angleNameCell}>
-            <span className={styles.angleName}>{name}</span>
-            {record.description && (
-              <span className={styles.angleDescription}>{record.description}</span>
-            )}
-          </div>
-        </Link>
-      ),
+      render: (name: string, record: AngleRow) => {
+        // Strip HTML tags from description for plain text display
+        const plainDescription = record.description?.replace(/<[^>]*>/g, '') || '';
+        return (
+          <Link href={`/marketing-tracker/angle/${record.id}`} className={styles.angleLink}>
+            <div className={styles.angleNameCell}>
+              <span className={styles.angleName}>{name}</span>
+              {plainDescription && (
+                <span className={styles.angleDescription}>{plainDescription}</span>
+              )}
+            </div>
+          </Link>
+        );
+      },
     },
     {
       title: 'STATUS',
@@ -153,30 +168,36 @@ export default function ProductPage() {
 
         {/* Product Info Card */}
         <div className={styles.productCard}>
-          <div className={styles.productHeader}>
-            <div className={styles.productInfo}>
-              <h1 className={styles.productTitle}>{currentProduct.name}</h1>
-              {currentProduct.description && (
-                <div
-                  className={styles.productDescription}
-                  dangerouslySetInnerHTML={{
-                    __html: currentProduct.description
-                  }}
-                />
-              )}
-              {currentProduct.notes && (
-                <p className={styles.productNotes}>{currentProduct.notes}</p>
-              )}
-              <div className={styles.productMeta}>
-                <span className={styles.metaItem}>
-                  <UserOutlined /> Owner: <strong>{currentProduct.owner?.name}</strong>
-                </span>
-                <span className={styles.metaItem}>
-                  <CalendarOutlined /> Created: <strong>{formatDate(currentProduct.createdAt)}</strong>
-                </span>
-              </div>
+          <div className={styles.productInfo}>
+            <div className={styles.productTitleRow}>
+              <EditableField
+                value={currentProduct.name}
+                onChange={(value) => updateProductField(currentProduct.id, 'name', value)}
+                placeholder="Product name"
+              />
             </div>
-            <Button icon={<EditOutlined />}>Edit Product</Button>
+            <div className={styles.productDescriptionRow}>
+              <RichEditableField
+                value={currentProduct.description || ''}
+                onChange={(value) => updateProductField(currentProduct.id, 'description', value)}
+                placeholder="Add a description, notes, pricing info..."
+              />
+            </div>
+            <div className={styles.productMeta}>
+              <span className={styles.metaItem}>
+                <UserOutlined /> Owner:{' '}
+                <EditableSelect
+                  value={currentProduct.ownerId}
+                  options={userOptions}
+                  onChange={(value) => updateProductField(currentProduct.id, 'ownerId', value)}
+                  placeholder="Select owner"
+                  displayLabel={currentProduct.owner?.name}
+                />
+              </span>
+              <span className={styles.metaItem}>
+                <CalendarOutlined /> Created: <strong>{formatDate(currentProduct.createdAt)}</strong>
+              </span>
+            </div>
           </div>
         </div>
 

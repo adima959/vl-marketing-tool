@@ -1,4 +1,19 @@
-/* Full height container */
+/**
+ * Universal Data Table Base Styles
+ *
+ * Shared structural styles for all GenericDataTable instances.
+ * Color theming is handled by separate theme files.
+ *
+ * Usage:
+ *   import baseStyles from '@/styles/tables/base.module.css';
+ *   import themeStyles from '@/styles/tables/themes/marketing.module.css';
+ *   <div className={`${baseStyles.dataTable} ${themeStyles.theme}`}>
+ */
+
+/* =============================================================================
+   CONTAINER
+   ============================================================================= */
+
 .dataTable {
   display: flex;
   flex-direction: column;
@@ -10,7 +25,10 @@
   position: relative;
 }
 
-/* Clean white background */
+/* =============================================================================
+   TABLE BASE
+   ============================================================================= */
+
 .dataTable :global(.ant-table) {
   background: var(--color-background-primary);
   font-size: var(--font-size-sm);
@@ -20,7 +38,7 @@
 .dataTable :global(.ant-table-header table),
 .dataTable :global(.ant-table-body table) {
   table-layout: fixed !important;
-  width: max-content !important;  /* Table only as wide as column widths */
+  width: max-content !important;
 }
 
 .dataTable :global(.ant-table-container) {
@@ -28,35 +46,39 @@
   flex-direction: column;
 }
 
-/* Scroll container setup - CRITICAL for horizontal scrolling only */
+/* =============================================================================
+   SCROLL BEHAVIOR
+   ============================================================================= */
+
+/* Scroll container - horizontal scrolling only */
 .dataTable :global(.ant-table-body) {
   overflow-x: auto !important;
-  overflow-y: visible !important; /* Allow page to scroll vertically */
-  cursor: grab; /* No !important - allows JavaScript to override */
+  overflow-y: visible !important;
+  cursor: grab;
 }
 
-/* Inherit cursor on table cells and rows for drag scrolling */
+/* Inherit cursor on table cells for drag scrolling */
 .dataTable :global(.ant-table-body td),
 .dataTable :global(.ant-table-body tr) {
   cursor: inherit;
 }
 
-/* Sync header scroll with body (but hide its scrollbar) */
+/* Sync header scroll with body (hide its scrollbar) */
 .dataTable :global(.ant-table-header) {
   overflow-x: auto !important;
   overflow-y: hidden !important;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .dataTable :global(.ant-table-header::-webkit-scrollbar) {
-  display: none; /* Chrome/Safari */
+  display: none;
 }
 
-/* Custom scrollbar styling for better visibility - HORIZONTAL */
+/* Custom scrollbar styling */
 .dataTable :global(.ant-table-body)::-webkit-scrollbar {
-  height: 12px; /* Horizontal scrollbar */
-  width: 12px; /* Vertical scrollbar */
+  height: 12px;
+  width: 12px;
 }
 
 .dataTable :global(.ant-table-body)::-webkit-scrollbar-track {
@@ -77,91 +99,63 @@
   border-color: var(--color-gray-200);
 }
 
-/* Corner where scrollbars meet */
 .dataTable :global(.ant-table-body)::-webkit-scrollbar-corner {
   background: var(--color-gray-100);
 }
 
-/* Group headers (first row) - elevated treatment */
+/* =============================================================================
+   GROUP HEADERS (First Row)
+   ============================================================================= */
+
 .dataTable :global(.ant-table-thead > tr:first-child > th) {
   background: #f8f9fa !important;
   border-bottom: 2px solid var(--color-gray-300) !important;
   border-right: 1px solid var(--color-gray-200) !important;
   font-size: 11px !important;
   font-weight: var(--font-weight-bold) !important;
-  color: var(--color-gray-800) !important;
-  padding: 8px 16px !important;
+  color: var(--color-navy-primary) !important;
+  padding: 6px 16px !important;
+  text-align: center;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  text-align: center;
   position: relative;
   z-index: 3 !important;
-  height: 36px !important;
   vertical-align: middle !important;
+  line-height: 1.2 !important;
 }
 
-/* Remove right border from last group header */
 .dataTable :global(.ant-table-thead > tr:first-child > th:last-child) {
   border-right: none !important;
 }
 
-/* Marketing Data group - cool blue tint */
-.marketingColors :global(.ant-table-thead > tr:first-child > th:nth-child(2)) {
-  background: #e3f2ff !important;
-  border-bottom: 2px solid #bfdbfe !important;
-}
+/* =============================================================================
+   METRIC HEADERS (Second Row)
+   ============================================================================= */
 
-/* CRM Data group - warm green tint */
-.marketingColors :global(.ant-table-thead > tr:first-child > th:nth-child(3)) {
-  background: #dcfce7 !important;
-  border-bottom: 2px solid #bbf7d0 !important;
-}
-
-/* Metric column headers (second row) */
 .dataTable :global(.ant-table-thead > tr:last-child > th) {
   background: var(--color-gray-50) !important;
   border-bottom: 1px solid var(--color-gray-200) !important;
-  border-right: 1px solid rgba(0, 0, 0, 0.02) !important;
+  border-right: 1px solid var(--color-gray-200) !important;
   font-size: var(--font-size-xs) !important;
-  font-weight: var(--font-weight-semibold) !important;
-  color: var(--color-gray-700) !important;
+  font-weight: var(--font-weight-medium) !important;
+  color: var(--color-navy-primary) !important;
   padding: 6px 12px !important;
   white-space: nowrap;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  transition: all var(--transition-fast);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background var(--transition-fast), border var(--transition-fast);
   position: relative;
   z-index: 2 !important;
   box-sizing: border-box !important;
-  height: 36px !important;
   vertical-align: middle !important;
+  line-height: 1.2 !important;
 }
 
-/* Remove right border from last column */
 .dataTable :global(.ant-table-thead > tr:last-child > th:last-child) {
   border-right: none !important;
 }
 
-/* Marketing Data columns - subtle blue accent */
-.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(2)),
-.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(3)),
-.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(4)),
-.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(5)),
-.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(6)),
-.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(7)),
-.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(8)) {
-  background: #fafcff !important;
-}
-
-/* CRM Data columns - subtle green accent */
-.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(9)),
-.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(10)),
-.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(11)),
-.marketingColors :global(.ant-table-thead > tr:last-child > th:nth-child(12)) {
-  background: #fafdf9 !important;
-}
-
-/* Enhanced hover for metric columns */
+/* Metric header hover */
 .dataTable :global(.ant-table-thead > tr:last-child > th:hover) {
   background: #f0f4ff !important;
   border-right: 1px solid rgba(59, 130, 246, 0.2) !important;
@@ -170,68 +164,75 @@
   z-index: 1;
 }
 
-/* Attributes column - distinct styling with proper fixed positioning */
+/* =============================================================================
+   ATTRIBUTES COLUMN (Fixed/Sticky)
+   ============================================================================= */
+
 .dataTable :global(.ant-table-thead > tr > th:first-child) {
   background: #fafbfc !important;
-  border-right: 2px solid var(--color-gray-200) !important;
+  border-right: 1px solid var(--color-gray-200) !important;
   font-weight: var(--font-weight-bold) !important;
-  color: var(--color-gray-900) !important;
+  color: var(--color-navy-primary) !important;
   position: sticky !important;
   left: 0 !important;
   z-index: 10 !important;
   width: 350px !important;
 }
 
-/* Ensure fixed column works with Ant Design's classes */
 .dataTable :global(.ant-table-cell-fix-left) {
   position: sticky !important;
   left: 0 !important;
   z-index: 3 !important;
 }
 
-/* Remove default padding from sorter container */
+/* =============================================================================
+   SORTER STYLING
+   ============================================================================= */
+
 .dataTable :global(.ant-table-thead > tr > th .ant-table-column-sorters) {
   padding: 0 !important;
-  display: flex;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
   align-items: center;
-  justify-content: flex-start;
-  gap: 4px;
+  justify-content: center;
+  gap: 2px;
 }
 
-/* Ensure equal spacing around column content */
 .dataTable :global(.ant-table-column-title) {
-  flex: 1;
+  flex: 0 0 auto !important;
   min-width: 0;
+  white-space: nowrap !important;
 }
 
-/* Sort icons - fixed width to balance spacing */
 .dataTable :global(.ant-table-column-sorter) {
-  flex: none;
+  flex: 0 0 auto !important;
   width: 14px;
   margin-inline-start: 0 !important;
   margin-left: 0 !important;
 }
 
-/* Row styling - modern and clean */
+/* =============================================================================
+   BODY ROWS
+   ============================================================================= */
+
 .dataTable :global(.ant-table-tbody > tr > td) {
   border-bottom: 1px solid var(--color-gray-100) !important;
-  border-right: 1px solid rgba(0, 0, 0, 0.01) !important;
-  color: var(--color-text-primary);
+  border-right: 1px solid var(--color-gray-200) !important;
+  color: var(--color-navy-primary);
   background: var(--color-background-primary);
-  padding: 4px 12px !important;
+  padding: 6px 12px !important;
   transition: background var(--transition-fast);
   box-sizing: border-box !important;
-  height: 32px !important;
-  line-height: 24px !important;
   vertical-align: middle !important;
+  line-height: 1.2 !important;
 }
 
-/* Remove right border from last cell */
 .dataTable :global(.ant-table-tbody > tr > td:last-child) {
   border-right: none !important;
 }
 
-/* Attributes column body cells - fixed positioning */
+/* Attributes column body cells */
 .dataTable :global(.ant-table-tbody > tr > td:first-child) {
   border-right: 1px solid var(--color-gray-200) !important;
   background: #fafbfc;
@@ -241,36 +242,20 @@
   width: 350px !important;
 }
 
-/* Marketing Data cells - very subtle blue tint */
-.marketingColors :global(.ant-table-tbody > tr > td:nth-child(2)),
-.marketingColors :global(.ant-table-tbody > tr > td:nth-child(3)),
-.marketingColors :global(.ant-table-tbody > tr > td:nth-child(4)),
-.marketingColors :global(.ant-table-tbody > tr > td:nth-child(5)),
-.marketingColors :global(.ant-table-tbody > tr > td:nth-child(6)),
-.marketingColors :global(.ant-table-tbody > tr > td:nth-child(7)),
-.marketingColors :global(.ant-table-tbody > tr > td:nth-child(8)) {
-  background: rgba(240, 247, 255, 0.3);
-}
+/* =============================================================================
+   ROW HOVER EFFECTS
+   ============================================================================= */
 
-/* CRM Data cells - very subtle green tint */
-.marketingColors :global(.ant-table-tbody > tr > td:nth-child(9)),
-.marketingColors :global(.ant-table-tbody > tr > td:nth-child(10)),
-.marketingColors :global(.ant-table-tbody > tr > td:nth-child(11)),
-.marketingColors :global(.ant-table-tbody > tr > td:nth-child(12)) {
-  background: rgba(240, 253, 244, 0.3);
-}
-
-/* Stronger border between Marketing and CRM groups */
-.marketingColors :global(.ant-table-tbody > tr > td:nth-child(8)) {
-  border-right: 1px solid rgba(191, 219, 254, 0.4) !important;
-}
-
-/* Enhanced hover effect with slide indicator - no layout shift */
 .dataTable :global(.ant-table-tbody > tr) {
   transition: box-shadow var(--transition-fast);
 }
 
-/* Attributes column hover - maintain fixed position */
+/* Slide indicator on hover */
+.dataTable :global(.ant-table-tbody > tr:hover) {
+  box-shadow: inset 3px 0 0 0 var(--color-primary-500);
+}
+
+/* Attributes column hover */
 .dataTable :global(.ant-table-tbody > tr:hover > td:first-child) {
   background: #f0f3f5 !important;
   position: sticky !important;
@@ -278,49 +263,29 @@
   z-index: 3 !important;
 }
 
-/* Marketing Data cells hover - enhanced blue */
-.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(2)),
-.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(3)),
-.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(4)),
-.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(5)),
-.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(6)),
-.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(7)),
-.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(8)) {
-  background: rgba(219, 234, 254, 0.5) !important;
-}
+/* =============================================================================
+   EXPANDED ROW
+   ============================================================================= */
 
-/* CRM Data cells hover - enhanced green */
-.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(9)),
-.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(10)),
-.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(11)),
-.marketingColors :global(.ant-table-tbody > tr:hover > td:nth-child(12)) {
-  background: rgba(220, 252, 231, 0.5) !important;
-}
-
-/* Slide indicator on hover using inset box-shadow - zero layout shift */
-.dataTable :global(.ant-table-tbody > tr:hover) {
-  box-shadow: inset 3px 0 0 0 var(--color-primary-500);
-}
-
-/* Expanded row highlight */
 .dataTable :global(.ant-table-row-expanded > td) {
   background: var(--color-primary-50) !important;
   font-weight: var(--font-weight-medium);
   border-left: 3px solid var(--color-primary-500);
 }
 
-/* Remove default borders */
+/* =============================================================================
+   HIDDEN ELEMENTS
+   ============================================================================= */
+
 .dataTable :global(.ant-table-bordered .ant-table-thead > tr > th),
 .dataTable :global(.ant-table-bordered .ant-table-tbody > tr > td) {
   border-right: none;
 }
 
-/* Remove expand icon column padding */
 .dataTable :global(.ant-table-row-expand-icon-cell) {
   display: none !important;
 }
 
-/* Hide default indent spacing */
 .dataTable :global(.ant-table-row-indent) {
   display: none !important;
   height: 0 !important;
@@ -328,38 +293,35 @@
   margin: 0 !important;
 }
 
-/* Ensure all table cell content respects row height */
 .dataTable :global(.ant-table-tbody > tr > td > *) {
-  max-height: 24px !important;
+  max-height: 20px !important;
 }
 
-/* Hide measurement row (tiny row after header) */
 .dataTable :global(.ant-table-measure-row) {
   display: none !important;
 }
 
-/* Hide any empty expand rows */
 .dataTable :global(.ant-table-expanded-row:empty) {
   display: none !important;
 }
 
-/* Hide placeholder rows */
 .dataTable :global(.ant-table-placeholder) {
   display: none !important;
 }
 
-/* Attribute cell container */
+/* =============================================================================
+   ATTRIBUTE CELL COMPONENTS
+   ============================================================================= */
+
 .attributeCell {
   display: flex;
   align-items: center;
   gap: var(--spacing-2);
-  height: 24px !important;
-  line-height: 24px !important;
-  max-height: 24px !important;
   overflow: hidden;
+  max-width: 100%;
+  min-width: 0;
 }
 
-/* Expand/collapse icon */
 .expandIcon {
   cursor: pointer;
   color: var(--color-text-secondary);
@@ -384,31 +346,33 @@
   transform: scale(0.95);
 }
 
-/* Spacer for rows without children */
 .expandSpacer {
   width: 18px;
   display: inline-block;
   flex-shrink: 0;
 }
 
-/* Attribute text */
 .attributeText {
-  color: var(--color-text-primary);
+  color: var(--color-navy-primary);
   font-size: var(--font-size-sm);
   transition: color var(--transition-fast);
-  line-height: 24px;
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 
-/* Bold text for top-level items */
 .attributeTextBold {
   font-weight: var(--font-weight-semibold);
-  color: var(--color-text-heading);
+  color: var(--color-navy-primary);
 }
 
-/* Monospace for numeric columns */
+/* =============================================================================
+   NUMERIC COLUMNS
+   ============================================================================= */
+
 .dataTable :global(.ant-table-cell[style*="text-align: right"]) {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
@@ -416,7 +380,10 @@
   font-weight: var(--font-weight-medium);
 }
 
-/* Fixed column shadow enhancement */
+/* =============================================================================
+   FIXED COLUMN SHADOW
+   ============================================================================= */
+
 .dataTable :global(.ant-table-cell-fix-left) {
   background: inherit !important;
   font-weight: var(--font-weight-medium);
@@ -426,7 +393,10 @@
   box-shadow: var(--shadow-fixed) !important;
 }
 
-/* Staggered row entrance animation (applied via JS or on load) */
+/* =============================================================================
+   ANIMATIONS
+   ============================================================================= */
+
 @keyframes rowEnter {
   from {
     opacity: 0;
@@ -438,12 +408,14 @@
   }
 }
 
-/* Smooth height transitions for expand/collapse */
 .dataTable :global(.ant-table-expanded-row > td) {
   transition: all var(--transition-base);
 }
 
-/* Scroll hint indicator - shows when table has horizontal overflow */
+/* =============================================================================
+   SCROLL HINT
+   ============================================================================= */
+
 .dataTable::after {
   content: '';
   position: absolute;
@@ -462,7 +434,6 @@
   opacity: 1;
 }
 
-/* Tooltip hint for scroll */
 .scrollHint {
   position: absolute;
   bottom: 20px;
@@ -484,7 +455,10 @@
   10%, 90% { opacity: 1; }
 }
 
-/* Initial prompt - shown before first data load */
+/* =============================================================================
+   INITIAL PROMPT (Before Data Load)
+   ============================================================================= */
+
 .initialPrompt {
   display: flex;
   flex-direction: column;

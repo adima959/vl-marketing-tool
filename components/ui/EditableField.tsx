@@ -28,12 +28,18 @@ export function EditableField({
 }: EditableFieldProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
+  // Optimistic display value - shows saved content immediately before parent state updates
+  const [optimisticValue, setOptimisticValue] = useState<string | null>(null);
   const inputRef = useRef<InputRef>(null);
   const textAreaRef = useRef<TextAreaRef>(null);
 
+  // Clear optimistic value when parent catches up, sync edit value
   useEffect(() => {
+    if (optimisticValue !== null && value === optimisticValue) {
+      setOptimisticValue(null);
+    }
     setEditValue(value);
-  }, [value]);
+  }, [value, optimisticValue]);
 
   useEffect(() => {
     if (isEditing) {
@@ -49,6 +55,8 @@ export function EditableField({
   const handleSave = useCallback(() => {
     setIsEditing(false);
     if (editValue !== value) {
+      // Set optimistic value to show immediately before parent state updates
+      setOptimisticValue(editValue);
       onChange(editValue);
     }
   }, [editValue, value, onChange]);
@@ -100,8 +108,10 @@ export function EditableField({
     );
   }
 
-  const displayValue = value || placeholder;
-  const isEmpty = !value;
+  // Use optimistic value if we just saved and parent hasn't caught up yet
+  const currentValue = optimisticValue ?? value;
+  const displayValue = currentValue || placeholder;
+  const isEmpty = !currentValue;
 
   return (
     <div

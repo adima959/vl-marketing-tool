@@ -30,16 +30,4 @@
   color: var(--color-text-secondary);
 }
 
-/* Menu items */
-.menuItem {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-}
-
-.menuDot {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-full);
-  flex-shrink: 0;
-}
+/* Menu item styles moved to @/styles/components/dropdown.module.css */

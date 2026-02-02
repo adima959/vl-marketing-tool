@@ -9,7 +9,7 @@ import { DASHBOARD_METRIC_COLUMNS, DASHBOARD_COLUMN_GROUPS } from '@/config/dash
 import type { DashboardRow } from '@/types/dashboard';
 import type { MetricClickContext } from '@/types/dashboardDetails';
 import type { ColumnGroup } from '@/types/table';
-import styles from './DashboardDataTable.module.css';
+import themeStyles from '@/styles/tables/themes/dashboard.module.css';
 
 const COLUMN_GROUPS: ColumnGroup[] = DASHBOARD_COLUMN_GROUPS;
 
@@ -35,7 +35,7 @@ export function DashboardDataTable() {
         useColumnStore={useDashboardColumnStore}
         metricColumns={DASHBOARD_METRIC_COLUMNS}
         columnGroups={COLUMN_GROUPS}
-        colorClassName={styles.dashboardColors}
+        colorClassName={themeStyles.theme}
         showColumnTooltips={true}
         onMetricClick={handleMetricClick}
         hideZeroValues={true}

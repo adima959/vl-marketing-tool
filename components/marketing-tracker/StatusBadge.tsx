@@ -4,6 +4,7 @@ import { Tag, Dropdown, type MenuProps } from 'antd';
 import { useState } from 'react';
 import { AngleStatus, STATUS_CONFIG } from '@/types';
 import styles from './StatusBadge.module.css';
+import dropdownStyles from '@/styles/components/dropdown.module.css';
 
 interface StatusBadgeProps {
   status: AngleStatus;
@@ -26,9 +27,9 @@ export function StatusBadge({
   const menuItems: MenuProps['items'] = Object.entries(STATUS_CONFIG).map(([key, value]) => ({
     key,
     label: (
-      <span className={styles.menuItem}>
+      <span className={dropdownStyles.menuItemWithDot}>
         <span
-          className={styles.menuDot}
+          className={dropdownStyles.menuDot}
           style={{ backgroundColor: value.color }}
         />
         {value.label}
@@ -69,6 +70,7 @@ export function StatusBadge({
         trigger={['click']}
         open={isOpen}
         onOpenChange={setIsOpen}
+        dropdownRender={(menu) => <div className={dropdownStyles.dropdownMenu}>{menu}</div>}
       >
         {dotContent}
       </Dropdown>
@@ -98,6 +100,7 @@ export function StatusBadge({
       trigger={['click']}
       open={isOpen}
       onOpenChange={setIsOpen}
+      dropdownRender={(menu) => <div className={dropdownStyles.dropdownMenu}>{menu}</div>}
     >
       <Tag style={tagStyle}>{config.label}</Tag>
     </Dropdown>

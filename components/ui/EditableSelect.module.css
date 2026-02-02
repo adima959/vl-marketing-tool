@@ -1,5 +1,5 @@
-/* Editable Field Styles */
-.editableField {
+/* Editable Select Styles */
+.editableSelect {
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-2);
@@ -8,61 +8,55 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background var(--transition-fast);
-  max-width: 100%;
 }
 
-.editableField:hover {
+.editableSelect:hover {
   background: rgba(0, 0, 0, 0.04);
 }
 
-.editableField:hover .editableFieldIcon {
+.editableSelect:hover .editableSelectIcon {
   opacity: 1;
 }
 
-.editableFieldText {
+.editableSelectText {
   font-size: inherit;
   font-weight: inherit;
   color: inherit;
   line-height: inherit;
 }
 
-.editableFieldEmpty .editableFieldText {
+.editableSelectEmpty .editableSelectText {
   color: var(--color-gray-400);
   font-style: italic;
 }
 
-.editableFieldIcon {
+.editableSelectIcon {
   flex-shrink: 0;
   color: var(--color-gray-400);
   opacity: 0;
   transition: opacity var(--transition-fast);
 }
 
-/* Editing state - inline for titles */
-.editableFieldEditing {
+/* Editing state */
+.editableSelectEditing {
   display: inline-block;
-  /* Account for 1px border so text doesn't shift */
   margin-left: calc(-1 * var(--spacing-2) - 1px);
+  min-width: 160px;
 }
 
-.editableInput {
+.selectInput {
+  width: 100%;
+}
+
+.selectInput :global(.ant-select-selector) {
   font-size: inherit !important;
-  font-weight: inherit !important;
-  line-height: inherit !important;
-  color: inherit !important;
-}
-
-.editableInput:global(.ant-input) {
   padding: var(--spacing-1) var(--spacing-2) !important;
   border: 1px solid var(--color-primary-300) !important;
   box-shadow: 0 0 0 2px rgba(0, 185, 107, 0.1) !important;
+  border-radius: var(--radius-sm) !important;
 }
 
-.editableInput:global(.ant-input):focus {
+.selectInput:global(.ant-select-focused) :global(.ant-select-selector) {
   border-color: var(--color-primary-500) !important;
   box-shadow: 0 0 0 3px rgba(0, 185, 107, 0.15) !important;
-}
-
-.editableInput:global(.ant-input-textarea) textarea {
-  padding: var(--spacing-2) var(--spacing-3) !important;
 }

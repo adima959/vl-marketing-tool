@@ -81,22 +81,22 @@ function OnPageAnalysisContent() {
 
   return (
     <>
-      <PageHeader
-        title="On-Page Analysis"
-        icon={<Eye className="h-5 w-5" />}
-        actions={headerActions}
-        warning={headerWarning}
-      />
-      <div className="flex flex-col h-full">
-        <div className="flex flex-col gap-3 p-3 bg-white flex-1 overflow-auto">
+      <div className="flex flex-col h-full overflow-auto">
+        <PageHeader
+          title="On-Page Analysis"
+          icon={<Eye className="h-5 w-5" />}
+          actions={headerActions}
+          warning={headerWarning}
+        />
+        <div className="flex flex-col gap-3 p-3 bg-white flex-1">
           <OnPageFilterToolbar />
           <OnPageDataTable />
         </div>
-        <OnPageColumnSettingsModal
-          open={columnSettingsOpen}
-          onClose={() => setColumnSettingsOpen(false)}
-        />
       </div>
+      <OnPageColumnSettingsModal
+        open={columnSettingsOpen}
+        onClose={() => setColumnSettingsOpen(false)}
+      />
     </>
   );
 }

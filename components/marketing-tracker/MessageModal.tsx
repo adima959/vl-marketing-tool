@@ -112,7 +112,7 @@ export function MessageModal({ open, onClose, onSuccess, angleId, message: msg }
       onOk={() => form.submit()}
       okText={isEdit ? 'Save Changes' : 'Create Message'}
       confirmLoading={loading}
-      destroyOnClose
+      destroyOnHidden
       width={600}
     >
       <Form
