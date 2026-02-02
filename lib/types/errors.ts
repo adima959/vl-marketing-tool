@@ -77,13 +77,12 @@ export function createValidationError(
   message: string,
   details?: Record<string, unknown>
 ): AppError {
-  return {
-    name: 'ValidationError',
-    message,
-    code: ErrorCode.VALIDATION_ERROR,
-    statusCode: 400,
-    details,
-  };
+  const error = new Error(message) as AppError;
+  error.name = 'ValidationError';
+  error.code = ErrorCode.VALIDATION_ERROR;
+  error.statusCode = 400;
+  error.details = details;
+  return error;
 }
 
 /**
@@ -93,13 +92,12 @@ export function createDatabaseError(
   message: string,
   details?: Record<string, unknown>
 ): AppError {
-  return {
-    name: 'DatabaseError',
-    message,
-    code: ErrorCode.DATABASE_ERROR,
-    statusCode: 500,
-    details,
-  };
+  const error = new Error(message) as AppError;
+  error.name = 'DatabaseError';
+  error.code = ErrorCode.DATABASE_ERROR;
+  error.statusCode = 500;
+  error.details = details;
+  return error;
 }
 
 /**
@@ -109,13 +107,12 @@ export function createNetworkError(
   message: string,
   details?: Record<string, unknown>
 ): AppError {
-  return {
-    name: 'NetworkError',
-    message,
-    code: ErrorCode.NETWORK_ERROR,
-    statusCode: 503,
-    details,
-  };
+  const error = new Error(message) as AppError;
+  error.name = 'NetworkError';
+  error.code = ErrorCode.NETWORK_ERROR;
+  error.statusCode = 503;
+  error.details = details;
+  return error;
 }
 
 /**
@@ -125,13 +122,12 @@ export function createTimeoutError(
   message: string = 'Request timeout - please try a shorter date range',
   details?: Record<string, unknown>
 ): AppError {
-  return {
-    name: 'TimeoutError',
-    message,
-    code: ErrorCode.TIMEOUT,
-    statusCode: 408,
-    details,
-  };
+  const error = new Error(message) as AppError;
+  error.name = 'TimeoutError';
+  error.code = ErrorCode.TIMEOUT;
+  error.statusCode = 408;
+  error.details = details;
+  return error;
 }
 
 /**
@@ -163,9 +159,9 @@ export function maskErrorForClient(
   const genericMessages: Record<ErrorCode, string> = {
     [ErrorCode.VALIDATION_ERROR]: normalized.message, // Validation errors are safe to expose
     [ErrorCode.NOT_FOUND]: 'Resource not found',
-    [ErrorCode.TIMEOUT]: 'Request timeout - please try again with a shorter date range',
-    [ErrorCode.DATABASE_ERROR]: 'An error occurred while processing your request',
-    [ErrorCode.NETWORK_ERROR]: 'Network error - please check your connection and try again',
+    [ErrorCode.TIMEOUT]: normalized.message || 'Request timeout - please try again with a shorter date range',
+    [ErrorCode.DATABASE_ERROR]: normalized.message || 'An error occurred while processing your request',
+    [ErrorCode.NETWORK_ERROR]: normalized.message || 'Network error - please check your connection and try again',
     [ErrorCode.SERVER_ERROR]: 'An internal error occurred - please try again later',
   };
 

@@ -1,4 +1,5 @@
 import mysql from 'mysql2/promise';
+import { createDatabaseError, createNetworkError, createTimeoutError, normalizeError } from '@/lib/types/errors';
 
 /**
  * MariaDB connection pool configuration
@@ -21,7 +22,7 @@ const poolConfig: mysql.PoolOptions = {
   queueLimit: 0,                 // No limit on queued connection requests
 
   // Timeout settings (important for VPN/remote connections)
-  connectTimeout: 30000,         // 30 seconds to establish connection
+  connectTimeout: 10000,         // 10 seconds to establish connection
 
   // Keep-alive settings
   enableKeepAlive: true,
@@ -74,16 +75,162 @@ export async function executeMariaDBQuery<T = Record<string, unknown>>(
       : await pool.query(query);
 
     return rows as T[];
-  } catch (error) {
+  } catch (error: unknown) {
+    const normalized = normalizeError(error);
+
+    // Extract MySQL error code if available
+    const mysqlError = error as any;
+    const mysqlCode = mysqlError?.errno;
+    const errorMessage = normalized.message.toLowerCase();
+
     // Log error details for debugging
     console.error('MariaDB query error:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      query: query.substring(0, 200), // Log first 200 chars only
+      error: normalized.message,
+      code: normalized.code,
+      mysqlCode: mysqlCode,
+      query: query.substring(0, 200),
       paramCount: params.length,
     });
 
-    // Re-throw to let caller handle
-    throw error;
+    // Connection timeout errors
+    if (errorMessage.includes('etimedout') || errorMessage.includes('timeout')) {
+      throw createTimeoutError(
+        'Database connection timeout - please check your connection and try again',
+        {
+          query: query.substring(0, 200),
+          originalError: normalized.message,
+        }
+      );
+    }
+
+    // Connection refused errors
+    if (errorMessage.includes('econnrefused') || errorMessage.includes('connection refused')) {
+      throw createNetworkError(
+        'Unable to connect to database - please check your network connection',
+        {
+          query: query.substring(0, 200),
+          originalError: normalized.message,
+        }
+      );
+    }
+
+    // Host not found errors
+    if (errorMessage.includes('enotfound') || errorMessage.includes('getaddrinfo')) {
+      throw createNetworkError(
+        'Database host not found - please check your network connection',
+        {
+          query: query.substring(0, 200),
+          originalError: normalized.message,
+        }
+      );
+    }
+
+    // Connection reset errors
+    if (errorMessage.includes('econnreset') || errorMessage.includes('connection reset')) {
+      throw createNetworkError(
+        'Database connection was reset - please try again',
+        {
+          query: query.substring(0, 200),
+          originalError: normalized.message,
+        }
+      );
+    }
+
+    // MySQL/MariaDB specific error codes
+    switch (mysqlCode) {
+      // Authentication errors
+      case 1045: // ER_ACCESS_DENIED_ERROR
+        throw createDatabaseError('Database authentication failed', {
+          query: query.substring(0, 200),
+          originalError: normalized.message,
+        });
+
+      case 1049: // ER_BAD_DB_ERROR
+        throw createDatabaseError('Database not found', {
+          query: query.substring(0, 200),
+          originalError: normalized.message,
+        });
+
+      // Constraint violations
+      case 1062: // ER_DUP_ENTRY
+        throw createDatabaseError('This record already exists', {
+          query: query.substring(0, 200),
+          originalError: normalized.message,
+        });
+
+      case 1452: // ER_NO_REFERENCED_ROW
+      case 1451: // ER_ROW_IS_REFERENCED
+        throw createDatabaseError('Cannot delete - this record is referenced by other data', {
+          query: query.substring(0, 200),
+          originalError: normalized.message,
+        });
+
+      case 1048: // ER_BAD_NULL_ERROR
+      case 1364: // ER_NO_DEFAULT_FOR_FIELD
+        throw createDatabaseError('Required field is missing', {
+          query: query.substring(0, 200),
+          originalError: normalized.message,
+        });
+
+      // Table/column errors
+      case 1146: // ER_NO_SUCH_TABLE
+        throw createDatabaseError('Database table not found', {
+          query: query.substring(0, 200),
+          originalError: normalized.message,
+        });
+
+      case 1054: // ER_BAD_FIELD_ERROR
+        throw createDatabaseError('Database column not found', {
+          query: query.substring(0, 200),
+          originalError: normalized.message,
+        });
+
+      // Lock/deadlock errors
+      case 1213: // ER_LOCK_DEADLOCK
+        throw createDatabaseError('Database deadlock detected - please try again', {
+          query: query.substring(0, 200),
+          originalError: normalized.message,
+        });
+
+      case 1205: // ER_LOCK_WAIT_TIMEOUT
+        throw createTimeoutError('Database lock timeout - please try again', {
+          query: query.substring(0, 200),
+          originalError: normalized.message,
+        });
+
+      // Connection limit errors
+      case 1203: // ER_TOO_MANY_USER_CONNECTIONS
+      case 1040: // ER_CON_COUNT_ERROR
+        throw createDatabaseError('Too many database connections - please try again shortly', {
+          query: query.substring(0, 200),
+          originalError: normalized.message,
+        });
+    }
+
+    // Generic pattern matching for authentication
+    if (errorMessage.includes('access denied') || errorMessage.includes('authentication')) {
+      throw createDatabaseError('Database authentication failed', {
+        query: query.substring(0, 200),
+        originalError: normalized.message,
+      });
+    }
+
+    // Syntax errors
+    if (errorMessage.includes('syntax error') || errorMessage.includes('sql syntax')) {
+      throw createDatabaseError('Database query error - please try again', {
+        query: query.substring(0, 200),
+        originalError: normalized.message,
+      });
+    }
+
+    // Generic database error
+    throw createDatabaseError(
+      `Database query failed: ${normalized.message}`,
+      {
+        query: query.substring(0, 200),
+        originalError: normalized.message,
+      }
+    );
   }
 }
 
