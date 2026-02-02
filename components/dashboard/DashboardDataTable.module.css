@@ -1,4 +1,4 @@
-/* New Orders table theming */
+/* Dashboard table theming */
 .dashboardColors :global(.ant-table-row-expand-icon) {
   color: var(--color-accent);
 }
@@ -13,4 +13,37 @@
 
 .dashboardColors :global(.ant-table-row:hover) {
   background: var(--color-row-hover);
+}
+
+/* Order Metrics group - warm green tint (matching CRM Data from Marketing Report) */
+.dashboardColors :global(.ant-table-thead > tr:first-child > th:nth-child(2)) {
+  background: #dcfce7 !important;
+  border-bottom: 2px solid #bbf7d0 !important;
+}
+
+/* Order Metrics column headers - subtle green accent */
+.dashboardColors :global(.ant-table-thead > tr:last-child > th:nth-child(2)),
+.dashboardColors :global(.ant-table-thead > tr:last-child > th:nth-child(3)),
+.dashboardColors :global(.ant-table-thead > tr:last-child > th:nth-child(4)),
+.dashboardColors :global(.ant-table-thead > tr:last-child > th:nth-child(5)),
+.dashboardColors :global(.ant-table-thead > tr:last-child > th:nth-child(6)) {
+  background: #fafdf9 !important;
+}
+
+/* Order Metrics body cells - very subtle green tint */
+.dashboardColors :global(.ant-table-tbody > tr > td:nth-child(2)),
+.dashboardColors :global(.ant-table-tbody > tr > td:nth-child(3)),
+.dashboardColors :global(.ant-table-tbody > tr > td:nth-child(4)),
+.dashboardColors :global(.ant-table-tbody > tr > td:nth-child(5)),
+.dashboardColors :global(.ant-table-tbody > tr > td:nth-child(6)) {
+  background: rgba(240, 253, 244, 0.3);
+}
+
+/* Order Metrics cells hover - enhanced green */
+.dashboardColors :global(.ant-table-tbody > tr:hover > td:nth-child(2)),
+.dashboardColors :global(.ant-table-tbody > tr:hover > td:nth-child(3)),
+.dashboardColors :global(.ant-table-tbody > tr:hover > td:nth-child(4)),
+.dashboardColors :global(.ant-table-tbody > tr:hover > td:nth-child(5)),
+.dashboardColors :global(.ant-table-tbody > tr:hover > td:nth-child(6)) {
+  background: rgba(220, 252, 231, 0.5) !important;
 }
