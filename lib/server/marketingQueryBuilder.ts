@@ -100,6 +100,7 @@ function matchSource(network: string, source: string | null): boolean {
 
 /**
  * Builds parent filter WHERE clause
+ * Handles "Unknown" values by converting them to IS NULL conditions
  */
 function buildParentFilters(
   parentFilters: Record<string, string> | undefined,
@@ -117,8 +118,14 @@ function buildParentFilters(
     if (!sqlColumn) {
       throw new Error(`Unknown dimension in parent filter: ${dimId}`);
     }
-    params.push(value);
-    conditions.push(`${sqlColumn} = $${paramOffset + params.length}`);
+
+    // Handle "Unknown" values as NULL
+    if (value === 'Unknown') {
+      conditions.push(`${sqlColumn} IS NULL`);
+    } else {
+      params.push(value);
+      conditions.push(`${sqlColumn} = $${paramOffset + params.length}`);
+    }
   });
 
   return {
@@ -196,9 +203,12 @@ export async function getMarketingData(
   const finalSortDirection = currentDimension === 'date' ? 'DESC' : validateSortDirection(sortDirection);
 
   // Step 1: Build PostgreSQL query for aggregated ads data
+  // IMPORTANT: The date column, when cast to date, already represents Denmark local dates
+  // When we do date::date, PostgreSQL extracts the date in the database's timezone
+  // So no date adjustment needed - use dates as-is from frontend
   const pgParams: any[] = [
-    dateRange.start.toISOString().split('T')[0], // $1
-    dateRange.end.toISOString().split('T')[0],   // $2
+    dateRange.start.toISOString().split('T')[0], // $1 - e.g., "2026-02-01"
+    dateRange.end.toISOString().split('T')[0],   // $2 - e.g., "2026-02-01"
   ];
 
   // Build parent filters
@@ -221,7 +231,7 @@ export async function getMarketingData(
       ROUND(SUM(cost::numeric) / NULLIF(SUM(impressions::integer), 0) * 1000, 2) AS cpm,
       ROUND(SUM(conversions::numeric) / NULLIF(SUM(impressions::integer), 0), 6) AS conversion_rate
     FROM merged_ads_spending
-    WHERE date BETWEEN $1 AND $2
+    WHERE date::date BETWEEN $1::date AND $2::date
       ${whereClause}
     GROUP BY ${sqlColumn}
     ORDER BY ${finalSortColumn} ${finalSortDirection}
@@ -233,6 +243,7 @@ export async function getMarketingData(
   // Step 2: Query MariaDB for ALL CRM data (no product filter)
   // We'll filter by product per-row during matching to ensure each campaign
   // only counts its own product's subscriptions
+  // Use the original dates (no shifting needed)
   const crmFilters: CRMQueryFilters = {
     dateStart: `${dateRange.start.toISOString().split('T')[0]} 00:00:00`,
     dateEnd: `${dateRange.end.toISOString().split('T')[0]} 23:59:59`,
@@ -252,7 +263,7 @@ export async function getMarketingData(
       ad_id,
       network
     FROM merged_ads_spending
-    WHERE date BETWEEN $1 AND $2
+    WHERE date::date BETWEEN $1::date AND $2::date
       ${whereClause}
   `;
 
