@@ -299,7 +299,16 @@ export function CustomerSubscriptionDetailModal({ open, onClose, context }: Cust
             record.trackingId5
           ].filter(Boolean).join('-') || 'none';
 
-          return `${record.id}-${record.customerId}-${record.date}-${record.amount}-${trackingKey}`;
+          // Include optional fields to ensure uniqueness
+          const optionalKey = [
+            record.subscriptionId,
+            record.invoiceId,
+            record.productName,
+            record.country,
+            record.customerEmail
+          ].filter(Boolean).join('-');
+
+          return `${record.id}-${record.customerId}-${record.date}-${record.amount}-${trackingKey}-${optionalKey}`;
         }}
         scroll={{ x: 1120 }}
         size="small"
