@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal, Form, Select, Input, message } from 'antd';
 import type { AppUser, UserRole } from '@/types/user';
 
@@ -53,9 +53,11 @@ export function EditRoleDialog({ user, open, onClose, onSuccess }: EditRoleDialo
   };
 
   // Reset form when user changes
-  if (user && open) {
-    form.setFieldsValue({ role: user.role });
-  }
+  useEffect(() => {
+    if (user && open) {
+      form.setFieldsValue({ role: user.role });
+    }
+  }, [user, open, form]);
 
   return (
     <Modal
