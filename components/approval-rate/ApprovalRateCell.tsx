@@ -12,8 +12,7 @@ interface ApprovalRateCellProps {
  * Color-coded cell for approval rate percentages
  *
  * Color scale (text color):
- * - <60%: Red
- * - <80%: Orange
+ * - <80%: Red
  * - <95%: Normal (gray)
  * - 96%+: Green
  *
@@ -39,9 +38,7 @@ export function ApprovalRateCell({ metric, onClick }: ApprovalRateCellProps) {
     } else if (rate >= 0.95) {
       textColor = '#374151'; // Gray-700 (normal)
     } else if (rate >= 0.80) {
-      textColor = '#f97316'; // Orange-500
-    } else if (rate >= 0.60) {
-      textColor = '#f97316'; // Orange-500
+      textColor = '#374151'; // Gray-700 (normal)
     } else {
       textColor = '#ef4444'; // Red-500
     }
