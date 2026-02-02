@@ -7,10 +7,11 @@ import {
   FileSearch,
   BarChart,
   Target,
-  Users,
   LogOut,
   CheckCircle2,
+  Settings,
 } from "lucide-react"
+import { usePathname } from "next/navigation"
 
 import { NavMain } from "@/components/nav-main"
 import { useAuth } from "@/contexts/AuthContext"
@@ -29,14 +30,15 @@ import {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+  const pathname = usePathname();
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
     await logout();
   };
 
-  // Base navigation items (available to all users)
-  const baseNavItems = [
+  // Menu items (main navigation)
+  const menuItems = [
     {
       title: "Dashboard",
       url: "/",
@@ -57,6 +59,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       url: "/approval-rate",
       icon: CheckCircle2,
     },
+  ];
+
+  // Tools items (separate section)
+  const toolItems = [
     {
       title: "Marketing Tracker",
       url: "/marketing-tracker",
@@ -64,19 +70,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     },
   ];
 
-  // Admin-only navigation items
-  const adminNavItems = [
-    {
-      title: "User Management",
-      url: "/users",
-      icon: Users,
-    },
-  ];
-
-  // Combine nav items based on user role from database
-  // Role is checked in real-time on every auth validation
+  // Check if user is admin
   const isAdmin = user?.role === UserRole.ADMIN;
-  const navItems = isAdmin ? [...baseNavItems, ...adminNavItems] : baseNavItems;
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -98,10 +93,25 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navItems} />
+        <NavMain label="Menu" items={menuItems} />
+        <NavMain label="Tools" items={toolItems} />
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
+          {isAdmin && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                tooltip="Settings"
+                isActive={pathname.startsWith('/settings')}
+              >
+                <a href="/settings">
+                  <Settings className="size-4" />
+                  <span>Settings</span>
+                </a>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={handleLogout}

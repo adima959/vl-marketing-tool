@@ -1,0 +1,41 @@
+/**
+ * Compact table styling for Approval Rate table
+ * Overrides base table styles to make rows more compact
+ */
+
+/* Reduce cell padding for compact layout */
+.compactTable :global(.ant-table-tbody > tr > td) {
+  padding: 4px 8px !important;
+  font-size: 12px !important;
+}
+
+/* Reduce header padding */
+.compactTable :global(.ant-table-thead > tr > th) {
+  padding: 4px 8px !important;
+  font-size: 11px !important;
+}
+
+/* Make row height smaller */
+.compactTable :global(.ant-table-tbody > tr) {
+  height: 32px !important;
+}
+
+/* Adjust attribute cell for compact layout */
+.compactTable :global(.ant-table-tbody > tr > td:first-child) {
+  padding: 4px 8px !important;
+}
+
+/* Compact attribute text */
+.compactTable .attributeCell {
+  gap: 4px;
+}
+
+.compactTable .attributeText {
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+/* Ensure cells don't overflow */
+.compactTable :global(.ant-table-tbody > tr > td > *) {
+  max-height: none !important;
+}

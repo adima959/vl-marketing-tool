@@ -12,8 +12,10 @@ import {
 } from "@/components/ui/sidebar"
 
 export function NavMain({
+  label,
   items,
 }: {
+  label: string
   items: {
     title: string
     url: string
@@ -24,14 +26,14 @@ export function NavMain({
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Menu</SidebarGroupLabel>
+      <SidebarGroupLabel>{label}</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => (
           <SidebarMenuItem key={item.title}>
             <SidebarMenuButton
               asChild
               tooltip={item.title}
-              isActive={pathname === item.url}
+              isActive={pathname === item.url || pathname.startsWith(item.url + '/')}
             >
               <a href={item.url}>
                 {item.icon && <item.icon />}

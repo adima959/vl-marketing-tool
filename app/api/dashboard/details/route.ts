@@ -71,7 +71,7 @@ async function handleDashboardDetails(
     const pagination = body.pagination || { page: 1, pageSize: 50 };
 
     // Build queries
-    const { query, params, countQuery, countParams } = dashboardDetailQueryBuilder.buildDetailQuery(
+    const { query, params, countQuery, countParams} = dashboardDetailQueryBuilder.buildDetailQuery(
       body.metricId,
       {
         dateRange,
@@ -81,6 +81,14 @@ async function handleDashboardDetails(
       },
       pagination
     );
+
+    // Debug logging
+    console.log('=== DASHBOARD DETAILS DEBUG ===');
+    console.log('MetricId:', body.metricId);
+    console.log('Date Range:', dateRange);
+    console.log('Query:', query);
+    console.log('Params:', params);
+    console.log('===============================');
 
     // Execute queries in parallel
     const [records, countResult] = await Promise.all([
