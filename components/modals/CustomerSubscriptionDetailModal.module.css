@@ -1,5 +1,13 @@
-.modal {
-  /* Use existing modal patterns */
+.modal :global(.ant-modal-content) {
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal :global(.ant-modal-body) {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .filterSummary {
