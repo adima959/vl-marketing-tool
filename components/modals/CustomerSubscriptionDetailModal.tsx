@@ -289,7 +289,18 @@ export function CustomerSubscriptionDetailModal({ open, onClose, context }: Cust
           showSizeChanger: false,
           showTotal: (total) => `Total ${total} records`,
         }}
-        rowKey={(record, index) => `${record.id}-${record.customerId}-${record.date}-${index}`}
+        rowKey={(record) => {
+          // Create unique key from multiple fields to handle duplicate IDs
+          const trackingKey = [
+            record.trackingId1,
+            record.trackingId2,
+            record.trackingId3,
+            record.trackingId4,
+            record.trackingId5
+          ].filter(Boolean).join('-') || 'none';
+
+          return `${record.id}-${record.customerId}-${record.date}-${record.amount}-${trackingKey}`;
+        }}
         scroll={{ x: 1120 }}
         size="small"
       />
