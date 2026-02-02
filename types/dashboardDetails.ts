@@ -39,6 +39,11 @@ export interface DetailRecord {
   invoiceId?: number;
   productName?: string;
   country?: string;
+  isApproved?: number;          // Whether order is approved (1 = approved, 0 = not approved)
+  subscriptionStatus?: number;  // Subscription status (1=active, 4=cancel_soft, 5=cancel_forever)
+  cancelReason?: string | null; // Cancel reason caption from cancel_reason table
+  cancelReasonAbout?: string | null; // Additional cancellation details
+  customerDateRegistered?: string; // Customer registration date for NEW badge check
 }
 
 /**

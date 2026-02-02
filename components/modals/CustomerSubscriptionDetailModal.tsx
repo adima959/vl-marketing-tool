@@ -1,23 +1,31 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Modal, Table, Tag, Tooltip } from 'antd';
+import { Modal, Table, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { MetricClickContext, DetailRecord } from '@/types/dashboardDetails';
 import { fetchDashboardDetails } from '@/lib/api/dashboardDetailsClient';
-import styles from './MetricDetailModal.module.css';
+import styles from './CustomerSubscriptionDetailModal.module.css';
 
-interface MetricDetailModalProps {
+interface CustomerSubscriptionDetailModalProps {
   open: boolean;
   onClose: () => void;
   context: MetricClickContext | null;
 }
 
 /**
- * Modal that displays detailed records for a clicked metric
- * Shows individual subscriptions/invoices with customer info, tracking IDs, amounts
+ * Universal modal for displaying detailed customer subscription/order records
+ * Can be used anywhere in the application to show:
+ * - Individual subscriptions/invoices with customer info
+ * - Tracking IDs, amounts, dates
+ * - Status indicators (NEW badge, approved checkmark, cancelled X)
+ *
+ * Features:
+ * - NEW badge: Shows for customers where registration date = subscription date
+ * - Green checkmark: Approved orders (is_marked = 1)
+ * - Red X: Cancelled subscriptions (status 4 or 5) with reason tooltip
  */
-export function MetricDetailModal({ open, onClose, context }: MetricDetailModalProps) {
+export function CustomerSubscriptionDetailModal({ open, onClose, context }: CustomerSubscriptionDetailModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<{ records: DetailRecord[]; total: number } | null>(null);
@@ -58,7 +66,7 @@ export function MetricDetailModal({ open, onClose, context }: MetricDetailModalP
     }
   }, [open, context?.metricId]);
 
-  // Table columns (consistent for all metrics per user preference)
+  // Table columns
   const columns: ColumnsType<DetailRecord> = [
     {
       title: 'Customer Name',
@@ -69,18 +77,75 @@ export function MetricDetailModal({ open, onClose, context }: MetricDetailModalP
         showTitle: false,
       },
       render: (name: string, record: DetailRecord) => (
-        <Tooltip title={name} placement="topLeft">
-          <a
-            href={`https://vitaliv.no/admin/customers/${record.customerId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: 'var(--color-accent-blue)', textDecoration: 'none' }}
-            onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
-            onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
-          >
-            {name}
-          </a>
-        </Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+          <Tooltip title={name} placement="topLeft">
+            <a
+              href={`https://vitaliv.no/admin/customers/${record.customerId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: 'var(--color-accent-blue)', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}
+              onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+              onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+            >
+              {name}
+            </a>
+          </Tooltip>
+          {record.customerDateRegistered &&
+           new Date(record.customerDateRegistered).toDateString() === new Date(record.date).toDateString() && (
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              borderRadius: '4px',
+              backgroundColor: '#f9fafb',
+              padding: '2px 6px',
+              fontSize: '10px',
+              fontWeight: 'var(--font-weight-medium)',
+              color: '#6b7280',
+              border: '1px solid rgba(107, 114, 128, 0.1)',
+              marginLeft: 'var(--spacing-xs)',
+              flexShrink: 0
+            }}>
+              NEW
+            </span>
+          )}
+          {!!record.isApproved && (
+            <Tooltip title="Approved" placement="top">
+              <span style={{
+                color: 'var(--color-success)',
+                marginLeft: 'var(--spacing-xs)',
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: 'var(--font-weight-bold)',
+                cursor: 'default',
+                flexShrink: 0
+              }}>
+                ✓
+              </span>
+            </Tooltip>
+          )}
+          {(record.subscriptionStatus === 4 || record.subscriptionStatus === 5) && (
+            <Tooltip
+              title={
+                <div>
+                  <div>Status: {record.subscriptionStatus === 4 ? 'Soft Cancel' : 'Cancel Forever'}</div>
+                  <div>Reason: {record.cancelReason || 'No reason provided'}</div>
+                  {record.cancelReasonAbout && <div>Details: {record.cancelReasonAbout}</div>}
+                </div>
+              }
+              placement="top"
+            >
+              <span style={{
+                color: 'var(--color-error)',
+                marginLeft: 'var(--spacing-xs)',
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: 'var(--font-weight-bold)',
+                cursor: 'default',
+                flexShrink: 0
+              }}>
+                ✕
+              </span>
+            </Tooltip>
+          )}
+        </div>
       ),
     },
     {

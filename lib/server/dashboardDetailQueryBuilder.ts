@@ -119,13 +119,20 @@ export class DashboardDetailQueryBuilder {
         COALESCE(i.total, s.trial_price, 0) as amount,
         s.date_create as date,
         COALESCE(p.product_name, '(not set)') as productName,
-        c.country
+        c.country,
+        IF(i.is_marked = 1, TRUE, FALSE) as isApproved,
+        s.status as subscriptionStatus,
+        cr.caption as cancelReason,
+        s.canceled_reason_about as cancelReasonAbout,
+        c.date_registered as customerDateRegistered
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
       LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
       LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
       LEFT JOIN product p ON p.id = ip.product_id
       LEFT JOIN source sr ON sr.id = i.source_id
+      LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
+      LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
       WHERE s.date_create BETWEEN ? AND ?
         AND DATE(c.date_registered) = DATE(s.date_create)
         ${whereClause}
@@ -181,13 +188,20 @@ export class DashboardDetailQueryBuilder {
         COALESCE(i.total, s.trial_price, 0) as amount,
         s.date_create as date,
         COALESCE(p.product_name, '(not set)') as productName,
-        c.country
+        c.country,
+        IF(i.is_marked = 1, TRUE, FALSE) as isApproved,
+        s.status as subscriptionStatus,
+        cr.caption as cancelReason,
+        s.canceled_reason_about as cancelReasonAbout,
+        c.date_registered as customerDateRegistered
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
       LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
       LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
       LEFT JOIN product p ON p.id = ip.product_id
       LEFT JOIN source sr ON sr.id = i.source_id
+      LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
+      LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
       WHERE s.date_create BETWEEN ? AND ?
         ${whereClause}
       ORDER BY s.date_create DESC
@@ -242,13 +256,20 @@ export class DashboardDetailQueryBuilder {
         COALESCE(i.total, 0) as amount,
         i.order_date as date,
         COALESCE(p.product_name, '(not set)') as productName,
-        c.country
+        c.country,
+        IF(i.is_marked = 1, TRUE, FALSE) as isApproved,
+        s.status as subscriptionStatus,
+        cr.caption as cancelReason,
+        s.canceled_reason_about as cancelReasonAbout,
+        c.date_registered as customerDateRegistered
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
       INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
       LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
       LEFT JOIN product p ON p.id = ip.product_id
       LEFT JOIN source sr ON sr.id = i.source_id
+      LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
+      LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
       WHERE s.date_create BETWEEN ? AND ?
         ${whereClause}
       ORDER BY i.order_date DESC
@@ -303,13 +324,20 @@ export class DashboardDetailQueryBuilder {
         COALESCE(i.total, 0) as amount,
         i.order_date as date,
         COALESCE(p.product_name, '(not set)') as productName,
-        c.country
+        c.country,
+        IF(i.is_marked = 1, TRUE, FALSE) as isApproved,
+        s.status as subscriptionStatus,
+        cr.caption as cancelReason,
+        s.canceled_reason_about as cancelReasonAbout,
+        c.date_registered as customerDateRegistered
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
       INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.is_marked = 1
       LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
       LEFT JOIN product p ON p.id = ip.product_id
       LEFT JOIN source sr ON sr.id = i.source_id
+      LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
+      LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
       WHERE s.date_create BETWEEN ? AND ?
         ${whereClause}
       ORDER BY i.order_date DESC
@@ -364,7 +392,12 @@ export class DashboardDetailQueryBuilder {
         COALESCE(uo.total, 0) as amount,
         uo.order_date as date,
         COALESCE(p.product_name, '(not set)') as productName,
-        c.country
+        c.country,
+        IF(uo.is_marked = 1, TRUE, FALSE) as isApproved,
+        s.status as subscriptionStatus,
+        cr.caption as cancelReason,
+        s.canceled_reason_about as cancelReasonAbout,
+        c.date_registered as customerDateRegistered
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
       INNER JOIN invoice uo ON uo.customer_id = s.customer_id
@@ -373,6 +406,8 @@ export class DashboardDetailQueryBuilder {
       LEFT JOIN invoice_product ip ON ip.invoice_id = uo.id
       LEFT JOIN product p ON p.id = ip.product_id
       LEFT JOIN source sr ON sr.id = uo.source_id
+      LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
+      LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
       WHERE s.date_create BETWEEN ? AND ?
         ${whereClause}
       ORDER BY uo.order_date DESC

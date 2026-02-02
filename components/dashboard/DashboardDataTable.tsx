@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { GenericDataTable } from '@/components/table/GenericDataTable';
-import { MetricDetailModal } from './MetricDetailModal';
+import { CustomerSubscriptionDetailModal } from '@/components/modals/CustomerSubscriptionDetailModal';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { useDashboardColumnStore } from '@/stores/dashboardColumnStore';
 import { DASHBOARD_METRIC_COLUMNS, DASHBOARD_COLUMN_GROUPS } from '@/config/dashboardColumns';
@@ -41,7 +41,7 @@ export function DashboardDataTable() {
         hideZeroValues={true}
       />
 
-      <MetricDetailModal
+      <CustomerSubscriptionDetailModal
         open={modalOpen}
         onClose={handleModalClose}
         context={modalContext}
