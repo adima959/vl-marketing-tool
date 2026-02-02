@@ -289,27 +289,7 @@ export function CustomerSubscriptionDetailModal({ open, onClose, context }: Cust
           showSizeChanger: false,
           showTotal: (total) => `Total ${total} records`,
         }}
-        rowKey={(record) => {
-          // Create unique key from multiple fields to handle duplicate IDs
-          const trackingKey = [
-            record.trackingId1,
-            record.trackingId2,
-            record.trackingId3,
-            record.trackingId4,
-            record.trackingId5
-          ].filter(Boolean).join('-') || 'none';
-
-          // Include optional fields to ensure uniqueness
-          const optionalKey = [
-            record.subscriptionId,
-            record.invoiceId,
-            record.productName,
-            record.country,
-            record.customerEmail
-          ].filter(Boolean).join('-');
-
-          return `${record.id}-${record.customerId}-${record.date}-${record.amount}-${trackingKey}-${optionalKey}`;
-        }}
+        rowKey="id"
         scroll={{ x: 1120 }}
         size="small"
       />

@@ -104,7 +104,7 @@ export class DashboardDetailQueryBuilder {
     const baseParams = [startDate, endDate, ...filterParams];
 
     const query = `
-      SELECT
+      SELECT DISTINCT
         s.id as id,
         s.id as subscriptionId,
         CONCAT(c.first_name, ' ', c.last_name) as customerName,
@@ -118,7 +118,7 @@ export class DashboardDetailQueryBuilder {
         s.tracking_id_5 as trackingId5,
         COALESCE(i.total, s.trial_price, 0) as amount,
         s.date_create as date,
-        COALESCE(p.product_name, '(not set)') as productName,
+        GROUP_CONCAT(DISTINCT p.product_name SEPARATOR ', ') as productName,
         c.country,
         IF(i.is_marked = 1, TRUE, FALSE) as isApproved,
         s.status as subscriptionStatus,
@@ -136,6 +136,10 @@ export class DashboardDetailQueryBuilder {
       WHERE s.date_create BETWEEN ? AND ?
         AND DATE(c.date_registered) = DATE(s.date_create)
         ${whereClause}
+      GROUP BY s.id, c.id, sr.source, s.tracking_id, s.tracking_id_2, s.tracking_id_3,
+               s.tracking_id_4, s.tracking_id_5, i.total, s.trial_price, s.date_create,
+               c.country, i.is_marked, s.status, cr.caption, s.canceled_reason_about,
+               c.date_registered, c.first_name, c.last_name, c.email
       ORDER BY s.date_create DESC
       ${limitClause}
     `;
@@ -173,7 +177,7 @@ export class DashboardDetailQueryBuilder {
     const baseParams = [startDate, endDate, ...filterParams];
 
     const query = `
-      SELECT
+      SELECT DISTINCT
         s.id as id,
         s.id as subscriptionId,
         CONCAT(c.first_name, ' ', c.last_name) as customerName,
@@ -187,7 +191,7 @@ export class DashboardDetailQueryBuilder {
         s.tracking_id_5 as trackingId5,
         COALESCE(i.total, s.trial_price, 0) as amount,
         s.date_create as date,
-        COALESCE(p.product_name, '(not set)') as productName,
+        GROUP_CONCAT(DISTINCT p.product_name SEPARATOR ', ') as productName,
         c.country,
         IF(i.is_marked = 1, TRUE, FALSE) as isApproved,
         s.status as subscriptionStatus,
@@ -204,6 +208,10 @@ export class DashboardDetailQueryBuilder {
       LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
       WHERE s.date_create BETWEEN ? AND ?
         ${whereClause}
+      GROUP BY s.id, c.id, sr.source, s.tracking_id, s.tracking_id_2, s.tracking_id_3,
+               s.tracking_id_4, s.tracking_id_5, i.total, s.trial_price, s.date_create,
+               c.country, i.is_marked, s.status, cr.caption, s.canceled_reason_about,
+               c.date_registered, c.first_name, c.last_name, c.email
       ORDER BY s.date_create DESC
       ${limitClause}
     `;
@@ -240,7 +248,7 @@ export class DashboardDetailQueryBuilder {
     const baseParams = [startDate, endDate, ...filterParams];
 
     const query = `
-      SELECT
+      SELECT DISTINCT
         i.id as id,
         i.id as invoiceId,
         s.id as subscriptionId,
@@ -255,7 +263,7 @@ export class DashboardDetailQueryBuilder {
         i.tracking_id_5 as trackingId5,
         COALESCE(i.total, 0) as amount,
         i.order_date as date,
-        COALESCE(p.product_name, '(not set)') as productName,
+        GROUP_CONCAT(DISTINCT p.product_name SEPARATOR ', ') as productName,
         c.country,
         IF(i.is_marked = 1, TRUE, FALSE) as isApproved,
         s.status as subscriptionStatus,
@@ -272,6 +280,9 @@ export class DashboardDetailQueryBuilder {
       LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
       WHERE s.date_create BETWEEN ? AND ?
         ${whereClause}
+      GROUP BY i.id, s.id, c.id, sr.source, i.tracking_id, i.tracking_id_2, i.tracking_id_3,
+               i.tracking_id_4, i.tracking_id_5, i.total, i.order_date, c.country, i.is_marked,
+               s.status, cr.caption, s.canceled_reason_about, c.date_registered, c.first_name, c.last_name, c.email
       ORDER BY i.order_date DESC
       ${limitClause}
     `;
@@ -308,7 +319,7 @@ export class DashboardDetailQueryBuilder {
     const baseParams = [startDate, endDate, ...filterParams];
 
     const query = `
-      SELECT
+      SELECT DISTINCT
         i.id as id,
         i.id as invoiceId,
         s.id as subscriptionId,
@@ -323,7 +334,7 @@ export class DashboardDetailQueryBuilder {
         i.tracking_id_5 as trackingId5,
         COALESCE(i.total, 0) as amount,
         i.order_date as date,
-        COALESCE(p.product_name, '(not set)') as productName,
+        GROUP_CONCAT(DISTINCT p.product_name SEPARATOR ', ') as productName,
         c.country,
         IF(i.is_marked = 1, TRUE, FALSE) as isApproved,
         s.status as subscriptionStatus,
@@ -340,6 +351,9 @@ export class DashboardDetailQueryBuilder {
       LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
       WHERE s.date_create BETWEEN ? AND ?
         ${whereClause}
+      GROUP BY i.id, s.id, c.id, sr.source, i.tracking_id, i.tracking_id_2, i.tracking_id_3,
+               i.tracking_id_4, i.tracking_id_5, i.total, i.order_date, c.country, i.is_marked,
+               s.status, cr.caption, s.canceled_reason_about, c.date_registered, c.first_name, c.last_name, c.email
       ORDER BY i.order_date DESC
       ${limitClause}
     `;
@@ -376,7 +390,7 @@ export class DashboardDetailQueryBuilder {
     const baseParams = [startDate, endDate, ...filterParams];
 
     const query = `
-      SELECT
+      SELECT DISTINCT
         uo.id as id,
         uo.id as invoiceId,
         s.id as subscriptionId,
@@ -391,7 +405,7 @@ export class DashboardDetailQueryBuilder {
         uo.tracking_id_5 as trackingId5,
         COALESCE(uo.total, 0) as amount,
         uo.order_date as date,
-        COALESCE(p.product_name, '(not set)') as productName,
+        GROUP_CONCAT(DISTINCT p.product_name SEPARATOR ', ') as productName,
         c.country,
         IF(uo.is_marked = 1, TRUE, FALSE) as isApproved,
         s.status as subscriptionStatus,
@@ -410,6 +424,9 @@ export class DashboardDetailQueryBuilder {
       LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
       WHERE s.date_create BETWEEN ? AND ?
         ${whereClause}
+      GROUP BY uo.id, s.id, c.id, sr.source, uo.tracking_id, uo.tracking_id_2, uo.tracking_id_3,
+               uo.tracking_id_4, uo.tracking_id_5, uo.total, uo.order_date, c.country, uo.is_marked,
+               s.status, cr.caption, s.canceled_reason_about, c.date_registered, c.first_name, c.last_name, c.email
       ORDER BY uo.order_date DESC
       ${limitClause}
     `;
