@@ -47,6 +47,18 @@ export const marketingQueryRequestSchema = queryRequestSchema.extend({
 });
 
 /**
+ * Time period schema for approval rate report
+ */
+const timePeriodSchema = z.enum(['weekly', 'biweekly', 'monthly']);
+
+/**
+ * Approval rate query request schema (extends base with timePeriod)
+ */
+export const approvalRateQueryRequestSchema = queryRequestSchema.extend({
+  timePeriod: timePeriodSchema.default('biweekly'),
+});
+
+/**
  * Dashboard details request schema
  * For fetching individual detail records
  */
@@ -70,6 +82,7 @@ export const dashboardDetailsRequestSchema = z.object({
  */
 export type QueryRequest = z.infer<typeof queryRequestSchema>;
 export type MarketingQueryRequest = z.infer<typeof marketingQueryRequestSchema>;
+export type ApprovalRateQueryRequest = z.infer<typeof approvalRateQueryRequestSchema>;
 export type DashboardDetailsRequest = z.infer<typeof dashboardDetailsRequestSchema>;
 
 /**

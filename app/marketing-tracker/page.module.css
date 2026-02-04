@@ -5,19 +5,7 @@
   min-height: calc(100vh - 64px);
 }
 
-/* Two-column grid layout */
-.mainGrid {
-  display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: var(--spacing-5);
-  align-items: start;
-}
-
-@media (max-width: 1200px) {
-  .mainGrid {
-    grid-template-columns: 1fr;
-  }
-}
+/* Single column layout */
 
 /* Products Section */
 .productsSection {
@@ -66,14 +54,6 @@
 .filters {
   display: flex;
   gap: var(--spacing-2);
-}
-
-.searchInput {
-  width: 200px;
-}
-
-.ownerSelect {
-  width: 140px;
 }
 
 /* Products Table */
@@ -233,97 +213,8 @@
   padding: var(--spacing-12);
 }
 
-/* Activity Section */
-.activitySection {
-  background: var(--color-background-primary);
-  border: 1px solid var(--color-gray-200);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-}
-
-.activityHeader {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  padding: var(--spacing-4) var(--spacing-5);
-  border-bottom: 1px solid var(--color-gray-100);
-}
-
-.activityList {
-  padding: var(--spacing-3);
-}
-
-.activityItem {
-  display: flex;
-  gap: var(--spacing-3);
-  padding: var(--spacing-3);
-  border-radius: var(--radius-md);
-  transition: background var(--transition-fast);
-}
-
-.activityItem:hover {
-  background: var(--color-background-hover);
-}
-
-.activityAvatar {
-  background: var(--color-primary-100) !important;
-  color: var(--color-primary-600) !important;
-  font-size: 12px !important;
-  font-weight: var(--font-weight-semibold) !important;
-  flex-shrink: 0;
-}
-
-.activityContent {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.activityAction {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-heading);
-}
-
-.activityDetail {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  line-height: 1.4;
-}
-
-.activityTime {
-  font-size: 11px;
-  color: var(--color-gray-400);
-  margin-top: var(--spacing-1);
-}
-
-.viewAllButton {
-  width: 100%;
-  padding: var(--spacing-3);
-  margin-top: var(--spacing-2);
-  background: none;
-  border: none;
-  font-size: var(--font-size-sm);
-  color: var(--color-gray-500);
-  cursor: pointer;
-  border-radius: var(--radius-md);
-  transition: all var(--transition-fast);
-}
-
-.viewAllButton:hover {
-  background: var(--color-background-hover);
-  color: var(--color-primary-500);
-}
 
 /* Empty state */
 .container :global(.ant-empty) {
   padding: var(--spacing-8);
-}
-
-.emptyActivity {
-  padding: var(--spacing-6);
-  text-align: center;
-  color: var(--color-gray-400);
-  font-size: var(--font-size-sm);
 }

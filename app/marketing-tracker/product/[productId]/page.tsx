@@ -7,7 +7,7 @@ import { PlusOutlined, UserOutlined, CalendarOutlined } from '@ant-design/icons'
 import { Target, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatusBadge, AngleModal } from '@/components/marketing-tracker';
+import { StatusBadge, ProductStatusBadge, AngleModal } from '@/components/marketing-tracker';
 import { EditableField } from '@/components/ui/EditableField';
 import { EditableSelect } from '@/components/ui/EditableSelect';
 import { RichEditableField } from '@/components/ui/RichEditableField';
@@ -192,6 +192,14 @@ export default function ProductPage() {
                   onChange={(value) => updateProductField(currentProduct.id, 'ownerId', value)}
                   placeholder="Select owner"
                   displayLabel={currentProduct.owner?.name}
+                />
+              </span>
+              <span className={styles.metaItem}>
+                Status:{' '}
+                <ProductStatusBadge
+                  status={currentProduct.status}
+                  editable
+                  onChange={(newStatus) => updateProductField(currentProduct.id, 'status', newStatus)}
                 />
               </span>
               <span className={styles.metaItem}>

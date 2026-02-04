@@ -4,6 +4,7 @@
 import { executeQuery } from '@/lib/server/db';
 import type {
   Product,
+  ProductStatus,
   Angle,
   Message,
   Creative,
@@ -66,31 +67,33 @@ export type UpdateAssetData = Partial<Omit<Asset, 'id' | 'createdAt' | 'updatedA
 
 /**
  * Get all products with angle counts
+ * @param statusFilter - Optional status filter ('active' | 'inactive' | null for all)
  */
-export async function getProducts(): Promise<Product[]> {
+export async function getProducts(statusFilter?: ProductStatus | null): Promise<Product[]> {
+  // Optimized query using subqueries instead of JOIN + GROUP BY for better performance
   const query = `
     SELECT
       p.id,
       p.name,
       p.description,
       p.notes,
+      p.status,
       p.owner_id,
       p.created_at,
       p.updated_at,
       u.id AS user_id,
       u.name AS user_name,
       u.email AS user_email,
-      COUNT(DISTINCT a.id)::int AS angle_count,
-      COUNT(DISTINCT CASE WHEN a.status IN ('live', 'in_production') THEN a.id END)::int AS active_angle_count
+      (SELECT COUNT(*)::int FROM app_angles a WHERE a.product_id = p.id AND a.deleted_at IS NULL) AS angle_count,
+      (SELECT COUNT(*)::int FROM app_angles a WHERE a.product_id = p.id AND a.deleted_at IS NULL AND a.status IN ('live', 'in_production')) AS active_angle_count
     FROM app_products p
     LEFT JOIN app_users u ON u.id = p.owner_id
-    LEFT JOIN app_angles a ON a.product_id = p.id AND a.deleted_at IS NULL
     WHERE p.deleted_at IS NULL
-    GROUP BY p.id, u.id, u.name, u.email
+      AND ($1::app_product_status IS NULL OR p.status = $1)
     ORDER BY p.created_at DESC
   `;
 
-  const rows = await executeQuery<Record<string, unknown>>(query);
+  const rows = await executeQuery<Record<string, unknown>>(query, [statusFilter || null]);
   // Transform rows to include nested owner object
   return rows.map(row => {
     // Build owner object from user_* fields before camelCase conversion
@@ -118,19 +121,18 @@ export async function getProductById(id: string): Promise<Product | null> {
       p.name,
       p.description,
       p.notes,
+      p.status,
       p.owner_id,
       p.created_at,
       p.updated_at,
       u.id AS user_id,
       u.name AS user_name,
       u.email AS user_email,
-      COUNT(DISTINCT a.id) AS angle_count,
-      COUNT(DISTINCT CASE WHEN a.status IN ('live', 'in_production') THEN a.id END) AS active_angle_count
+      (SELECT COUNT(*)::int FROM app_angles a WHERE a.product_id = p.id AND a.deleted_at IS NULL) AS angle_count,
+      (SELECT COUNT(*)::int FROM app_angles a WHERE a.product_id = p.id AND a.deleted_at IS NULL AND a.status IN ('live', 'in_production')) AS active_angle_count
     FROM app_products p
     LEFT JOIN app_users u ON u.id = p.owner_id
-    LEFT JOIN app_angles a ON a.product_id = p.id AND a.deleted_at IS NULL
     WHERE p.id = $1 AND p.deleted_at IS NULL
-    GROUP BY p.id, u.id, u.name, u.email
   `;
 
   const rows = await executeQuery<Record<string, unknown>>(query, [id]);
@@ -162,6 +164,7 @@ export async function getProductByIdSimple(id: string): Promise<Product | null> 
       p.name,
       p.description,
       p.notes,
+      p.status,
       p.owner_id,
       p.created_at,
       p.updated_at,
@@ -195,15 +198,16 @@ export async function getProductByIdSimple(id: string): Promise<Product | null> 
  */
 export async function createProduct(data: CreateProductData): Promise<Product> {
   const query = `
-    INSERT INTO app_products (name, description, notes, owner_id)
-    VALUES ($1, $2, $3, $4)
-    RETURNING id, name, description, notes, owner_id, created_at, updated_at
+    INSERT INTO app_products (name, description, notes, status, owner_id)
+    VALUES ($1, $2, $3, $4, $5)
+    RETURNING id, name, description, notes, status, owner_id, created_at, updated_at
   `;
 
   const rows = await executeQuery<Record<string, unknown>>(query, [
     data.name,
     data.description || null,
     data.notes || null,
+    data.status || 'active',
     data.ownerId,
   ]);
 
@@ -234,6 +238,10 @@ export async function updateProduct(id: string, data: UpdateProductData): Promis
     setClauses.push(`notes = $${paramIndex++}`);
     values.push(data.notes);
   }
+  if (data.status !== undefined) {
+    setClauses.push(`status = $${paramIndex++}`);
+    values.push(data.status);
+  }
   if (data.ownerId !== undefined) {
     setClauses.push(`owner_id = $${paramIndex++}`);
     values.push(data.ownerId);
@@ -253,7 +261,7 @@ export async function updateProduct(id: string, data: UpdateProductData): Promis
     UPDATE app_products
     SET ${setClauses.join(', ')}
     WHERE id = $${paramIndex} AND deleted_at IS NULL
-    RETURNING id, name, description, notes, owner_id, created_at, updated_at
+    RETURNING id, name, description, notes, status, owner_id, created_at, updated_at
   `;
 
   const rows = await executeQuery<Record<string, unknown>>(query, values);

@@ -19,7 +19,9 @@ import { maskErrorForClient } from '@/lib/types/errors';
  *     dateRange: { start: string, end: string },
  *     country?: string,
  *     product?: string,
- *     source?: string
+ *     source?: string,
+ *     excludeDeleted?: boolean,     // If true, exclude deleted subscriptions (s.deleted = 0)
+ *     excludeUpsellTags?: boolean   // If true, exclude upsell invoices (i.tag NOT LIKE '%parent-sub-id=%')
  *   },
  *   pagination?: { page: number, pageSize: number }
  * }
@@ -78,6 +80,8 @@ async function handleDashboardDetails(
         country: body.filters.country,
         product: body.filters.product,
         source: body.filters.source,
+        excludeDeleted: body.filters.excludeDeleted,
+        excludeUpsellTags: body.filters.excludeUpsellTags,
       },
       pagination
     );

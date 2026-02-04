@@ -8,6 +8,7 @@ import type {
   ProductWithStats,
   TrackerUser,
   AngleStatus,
+  ProductStatus,
   Geography,
 } from '@/types';
 
@@ -68,8 +69,7 @@ interface MarketingTrackerState {
   // Filters
   statusFilter: AngleStatus | 'all';
   geoFilter: Geography | 'all';
-  searchQuery: string;
-  ownerFilter: string | 'all';
+  productStatusFilter: ProductStatus | 'all';
 
   // UI State
   isLoading: boolean;
@@ -85,8 +85,7 @@ interface MarketingTrackerState {
   // Actions - Filters
   setStatusFilter: (status: AngleStatus | 'all') => void;
   setGeoFilter: (geo: Geography | 'all') => void;
-  setSearchQuery: (query: string) => void;
-  setOwnerFilter: (ownerId: string | 'all') => void;
+  setProductStatusFilter: (status: ProductStatus | 'all') => void;
 
   // Actions - Status Updates
   updateAngleStatus: (angleId: string, status: AngleStatus) => Promise<void>;
@@ -119,8 +118,7 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
   // Initial filter state
   statusFilter: 'all',
   geoFilter: 'all',
-  searchQuery: '',
-  ownerFilter: 'all',
+  productStatusFilter: 'active',
 
   // Initial UI state
   isLoading: false,
@@ -128,11 +126,15 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
 
   // Data Loading Actions
   loadDashboard: async () => {
+    const { productStatusFilter } = get();
     set({ isLoading: true, error: null });
     try {
-      // Fetch products and users in parallel (removed unused recentActivity fetch)
+      // Build URL with status filter
+      const statusParam = productStatusFilter !== 'all' ? `?status=${productStatusFilter}` : '';
+
+      // Fetch products and users in parallel
       const [productsResponse, users] = await Promise.all([
-        fetch('/api/marketing-tracker/products'),
+        fetch(`/api/marketing-tracker/products${statusParam}`),
         fetchUsers(),
       ]);
       const productsData = await productsResponse.json();
@@ -247,8 +249,7 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
   // Filter Actions
   setStatusFilter: (status) => set({ statusFilter: status }),
   setGeoFilter: (geo) => set({ geoFilter: geo }),
-  setSearchQuery: (query) => set({ searchQuery: query }),
-  setOwnerFilter: (ownerId) => set({ ownerFilter: ownerId }),
+  setProductStatusFilter: (status) => set({ productStatusFilter: status }),
 
   // Status Update Actions
   updateAngleStatus: async (angleId: string, status: AngleStatus) => {
@@ -374,20 +375,15 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
 
   // Computed getters
   getFilteredProducts: () => {
-    const { products, searchQuery, ownerFilter } = get();
-    return products.filter((product) => {
-      const matchesSearch = searchQuery === '' || product.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesOwner = ownerFilter === 'all' || product.ownerId === ownerFilter;
-      return matchesSearch && matchesOwner;
-    });
+    // Products are already filtered server-side by productStatusFilter
+    // This getter returns the products as-is (filtering happens in loadDashboard)
+    return get().products;
   },
 
   getFilteredAngles: () => {
-    const { angles, statusFilter, searchQuery } = get();
+    const { angles, statusFilter } = get();
     return angles.filter((angle) => {
-      const matchesStatus = statusFilter === 'all' || angle.status === statusFilter;
-      const matchesSearch = searchQuery === '' || angle.name.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesStatus && matchesSearch;
+      return statusFilter === 'all' || angle.status === statusFilter;
     });
   },
 

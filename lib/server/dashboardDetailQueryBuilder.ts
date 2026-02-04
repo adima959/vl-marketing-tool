@@ -5,6 +5,10 @@ interface DetailQueryOptions {
   country?: string;
   product?: string;
   source?: string;
+  /** If true, exclude deleted subscriptions (s.deleted = 0). Used by approval rate page. */
+  excludeDeleted?: boolean;
+  /** If true, exclude upsell invoices (i.tag NOT LIKE '%parent-sub-id=%'). Used by approval rate page. */
+  excludeUpsellTags?: boolean;
 }
 
 interface PaginationOptions {
@@ -38,7 +42,7 @@ export class DashboardDetailQueryBuilder {
 
   /**
    * Build WHERE clause from optional filters (country, product, source)
-   * Handles "Unknown" values by converting them to IS NULL conditions
+   * Handles "Unknown" values by converting them to IS NULL OR empty string conditions
    */
   private buildFilterClause(filters: DetailQueryOptions): { whereClause: string; params: any[] } {
     const params: any[] = [];
@@ -46,7 +50,8 @@ export class DashboardDetailQueryBuilder {
 
     if (filters.country) {
       if (filters.country === 'Unknown') {
-        conditions.push('c.country IS NULL');
+        // Match both NULL and empty string values
+        conditions.push("(c.country IS NULL OR c.country = '')");
       } else {
         conditions.push('c.country = ?');
         params.push(filters.country);
@@ -55,7 +60,8 @@ export class DashboardDetailQueryBuilder {
 
     if (filters.product) {
       if (filters.product === 'Unknown') {
-        conditions.push('p.product_name IS NULL');
+        // Match both NULL and empty string values
+        conditions.push("(p.product_name IS NULL OR p.product_name = '')");
       } else {
         conditions.push('p.product_name = ?');
         params.push(filters.product);
@@ -64,7 +70,8 @@ export class DashboardDetailQueryBuilder {
 
     if (filters.source) {
       if (filters.source === 'Unknown') {
-        conditions.push('sr.source IS NULL');
+        // Match both NULL and empty string values
+        conditions.push("(sr.source IS NULL OR sr.source = '')");
       } else {
         conditions.push('sr.source = ?');
         params.push(filters.source);
@@ -232,12 +239,17 @@ export class DashboardDetailQueryBuilder {
 
   /**
    * Build query for Trials metric (invoices where type = 1)
+   * Optional filters: excludeDeleted, excludeUpsellTags (used by approval rate page)
    */
   private buildTrialsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
     const startDate = this.formatDateForMariaDB(filters.dateRange.start, false);
     const endDate = this.formatDateForMariaDB(filters.dateRange.end, true);
     const { whereClause, params: filterParams } = this.buildFilterClause(filters);
     const { limitClause, params: paginationParams } = this.buildPaginationClause(pagination);
+
+    // Build optional filter conditions
+    const deletedFilter = filters.excludeDeleted ? 'AND s.deleted = 0' : '';
+    const tagFilter = filters.excludeUpsellTags ? "AND (i.tag IS NULL OR i.tag NOT LIKE '%parent-sub-id=%')" : '';
 
     const baseParams = [startDate, endDate, ...filterParams];
 
@@ -273,6 +285,8 @@ export class DashboardDetailQueryBuilder {
       LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
       LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
       WHERE s.date_create BETWEEN ? AND ?
+        ${deletedFilter}
+        ${tagFilter}
         ${whereClause}
       GROUP BY i.id
       ORDER BY i.order_date DESC
@@ -288,6 +302,8 @@ export class DashboardDetailQueryBuilder {
       LEFT JOIN product p ON p.id = ip.product_id
       LEFT JOIN source sr ON sr.id = i.source_id
       WHERE s.date_create BETWEEN ? AND ?
+        ${deletedFilter}
+        ${tagFilter}
         ${whereClause}
     `;
 
@@ -301,12 +317,17 @@ export class DashboardDetailQueryBuilder {
 
   /**
    * Build query for Trials Approved metric (invoices where type = 1 AND is_marked = 1)
+   * Optional filters: excludeDeleted, excludeUpsellTags (used by approval rate page)
    */
   private buildTrialsApprovedQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
     const startDate = this.formatDateForMariaDB(filters.dateRange.start, false);
     const endDate = this.formatDateForMariaDB(filters.dateRange.end, true);
     const { whereClause, params: filterParams } = this.buildFilterClause(filters);
     const { limitClause, params: paginationParams } = this.buildPaginationClause(pagination);
+
+    // Build optional filter conditions
+    const deletedFilter = filters.excludeDeleted ? 'AND s.deleted = 0' : '';
+    const tagFilter = filters.excludeUpsellTags ? "AND (i.tag IS NULL OR i.tag NOT LIKE '%parent-sub-id=%')" : '';
 
     const baseParams = [startDate, endDate, ...filterParams];
 
@@ -342,6 +363,8 @@ export class DashboardDetailQueryBuilder {
       LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
       LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
       WHERE s.date_create BETWEEN ? AND ?
+        ${deletedFilter}
+        ${tagFilter}
         ${whereClause}
       GROUP BY i.id
       ORDER BY i.order_date DESC
@@ -357,6 +380,8 @@ export class DashboardDetailQueryBuilder {
       LEFT JOIN product p ON p.id = ip.product_id
       LEFT JOIN source sr ON sr.id = i.source_id
       WHERE s.date_create BETWEEN ? AND ?
+        ${deletedFilter}
+        ${tagFilter}
         ${whereClause}
     `;
 

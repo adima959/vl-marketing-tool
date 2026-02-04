@@ -37,6 +37,7 @@ export interface TableStore<TRow extends BaseTableRow> {
   sortDirection: 'ascend' | 'descend' | null;
   setSort: (column: string | null, direction: 'ascend' | 'descend' | null) => Promise<void>;
   isLoading: boolean;
+  isLoadingSubLevels?: boolean;
   hasLoadedOnce: boolean;
   loadChildData: (key: string, value: string, depth: number) => Promise<void>;
   loadData: () => Promise<void>;

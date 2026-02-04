@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { ProductStatus } from '@/types/marketing-tracker';
 import {
   getProductById,
   updateProduct,
@@ -92,6 +93,7 @@ export async function PUT(
       name: body.name,
       description: body.description,
       notes: body.notes,
+      status: body.status,
       ownerId: body.ownerId,
     });
 
@@ -148,10 +150,11 @@ export async function PATCH(
     }
 
     // Build update object with only provided fields
-    const updateData: Partial<{ name: string; description: string; notes: string; ownerId: string }> = {};
+    const updateData: Partial<{ name: string; description: string; notes: string; status: ProductStatus; ownerId: string }> = {};
     if (body.name !== undefined) updateData.name = body.name;
     if (body.description !== undefined) updateData.description = body.description;
     if (body.notes !== undefined) updateData.notes = body.notes;
+    if (body.status !== undefined) updateData.status = body.status;
     if (body.ownerId !== undefined) updateData.ownerId = body.ownerId;
 
     // Ensure at least one field is being updated
@@ -163,15 +166,17 @@ export async function PATCH(
     }
 
     // Update the product in the database
-    const updatedProductBase = await updateProduct(productId, updateData);
+    await updateProduct(productId, updateData);
 
-    // Merge counts and owner from old product (they don't change on field updates)
-    const updatedProduct = {
-      ...updatedProductBase,
-      owner: oldProduct.owner,
-      angleCount: oldProduct.angleCount,
-      activeAngleCount: oldProduct.activeAngleCount,
-    };
+    // Re-fetch the product to get updated owner info (especially when ownerId changes)
+    const updatedProduct = await getProductById(productId);
+
+    if (!updatedProduct) {
+      return NextResponse.json(
+        { success: false, error: 'Failed to fetch updated product' },
+        { status: 500 }
+      );
+    }
 
     // Record update history (non-blocking for performance)
     recordUpdate(

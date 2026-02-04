@@ -2,6 +2,7 @@
 
 // Enums
 export type AngleStatus = 'idea' | 'in_production' | 'live' | 'paused' | 'retired';
+export type ProductStatus = 'active' | 'inactive';
 export type Geography = 'NO' | 'SE' | 'DK';
 export type AssetType = 'landing_page' | 'text_ad' | 'brief' | 'research';
 export type CreativeFormat = 'ugc_video' | 'static_image' | 'video';
@@ -13,6 +14,11 @@ export const STATUS_CONFIG: Record<AngleStatus, { label: string; color: string; 
   live: { label: 'Live', color: '#059669', bgColor: '#d1fae5' },
   paused: { label: 'Paused', color: '#dc2626', bgColor: '#fee2e2' },
   retired: { label: 'Retired', color: '#9ca3af', bgColor: '#e5e7eb' },
+};
+
+export const PRODUCT_STATUS_CONFIG: Record<ProductStatus, { label: string; color: string; bgColor: string }> = {
+  active: { label: 'Active', color: '#059669', bgColor: '#d1fae5' },
+  inactive: { label: 'Inactive', color: '#9ca3af', bgColor: '#e5e7eb' },
 };
 
 export const GEO_CONFIG: Record<Geography, { label: string; flag: string }> = {
@@ -53,6 +59,7 @@ export interface Product extends BaseEntity {
   name: string;
   description?: string;
   notes?: string;
+  status: ProductStatus;
   ownerId: string;
   owner?: TrackerUser;
   angleCount?: number;
@@ -131,6 +138,7 @@ export interface CreateProductRequest {
   name: string;
   description?: string;
   notes?: string;
+  status?: ProductStatus;
   ownerId: string;
 }
 

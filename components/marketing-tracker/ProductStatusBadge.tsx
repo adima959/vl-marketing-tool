@@ -2,29 +2,29 @@
 
 import { Tag, Dropdown, type MenuProps } from 'antd';
 import { useState } from 'react';
-import { AngleStatus, STATUS_CONFIG } from '@/types';
+import { ProductStatus, PRODUCT_STATUS_CONFIG } from '@/types';
 import styles from './StatusBadge.module.css';
 import dropdownStyles from '@/styles/components/dropdown.module.css';
 
-interface StatusBadgeProps {
-  status: AngleStatus;
-  onChange?: (newStatus: AngleStatus) => void;
+interface ProductStatusBadgeProps {
+  status: ProductStatus;
+  onChange?: (newStatus: ProductStatus) => void;
   editable?: boolean;
   size?: 'small' | 'default';
   variant?: 'tag' | 'dot';
 }
 
-export function StatusBadge({
+export function ProductStatusBadge({
   status,
   onChange,
   editable = false,
   size = 'default',
   variant = 'tag'
-}: StatusBadgeProps) {
+}: ProductStatusBadgeProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const config = STATUS_CONFIG[status];
+  const config = PRODUCT_STATUS_CONFIG[status];
 
-  const menuItems: MenuProps['items'] = Object.entries(STATUS_CONFIG).map(([key, value]) => ({
+  const menuItems: MenuProps['items'] = Object.entries(PRODUCT_STATUS_CONFIG).map(([key, value]) => ({
     key,
     label: (
       <span className={dropdownStyles.menuItemWithDot}>
@@ -41,7 +41,7 @@ export function StatusBadge({
   }));
 
   const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
-    onChange?.(key as AngleStatus);
+    onChange?.(key as ProductStatus);
     setIsOpen(false);
   };
 

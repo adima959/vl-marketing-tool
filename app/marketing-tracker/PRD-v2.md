@@ -271,14 +271,14 @@ Dashboard → Product → Angle → Message → Assets/Creatives
 
 ## API Endpoints
 
-### Renamed Endpoints
+### Current Endpoints
 
-| Old | New |
-|-----|-----|
-| `/api/marketing-tracker/angles` | `/api/marketing-tracker/angles` (same, but simplified data) |
-| `/api/marketing-tracker/sub-angles` | `/api/marketing-tracker/messages` |
-| `/api/marketing-tracker/assets` | `/api/marketing-tracker/assets` (reduced types) |
-| — | `/api/marketing-tracker/creatives` (NEW) |
+| Endpoint | Purpose |
+|----------|---------|
+| `/api/marketing-tracker/angles` | Manage marketing angles |
+| `/api/marketing-tracker/messages` | Manage messages (formerly sub-angles) |
+| `/api/marketing-tracker/assets` | Manage assets |
+| `/api/marketing-tracker/creatives` | Manage creatives |
 
 ### New Endpoints
 
@@ -415,7 +415,7 @@ From vitaliv.com catalog:
 - [ ] Update all action names and references
 
 ### API Routes
-- [ ] Rename `/sub-angles` → `/messages` endpoints
+- [x] Rename `/sub-angles` → `/messages` endpoints (deprecated routes removed)
 - [ ] Create `/creatives` endpoints
 - [ ] Update all API handlers
 

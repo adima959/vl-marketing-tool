@@ -11,6 +11,12 @@ import { normalizeError } from '@/lib/types/errors';
 import { DEFAULT_APPROVAL_RATE_DIMENSIONS } from '@/config/approvalRateDimensions';
 
 /**
+ * Request ID counter to prevent race conditions
+ * When multiple loadData calls overlap, only the latest response is applied
+ */
+let currentLoadRequestId = 0;
+
+/**
  * Tree utility to find a row by key
  */
 function findRowByKey(rows: ApprovalRateRow[], key: string): ApprovalRateRow | undefined {
@@ -126,7 +132,14 @@ export const useApprovalRateStore = create<ApprovalRateStore>((set, get) => ({
     }
   },
 
-  reorderDimensions: (newOrder) => set({ dimensions: newOrder, hasUnsavedChanges: true }),
+  reorderDimensions: (newOrder) => {
+    console.log('[ApprovalRateStore] reorderDimensions', { newOrder });
+    set({
+      dimensions: newOrder,
+      hasUnsavedChanges: true,
+      expandedRowKeys: [],  // Clear because key format is tied to dimension order
+    });
+  },
 
   setExpandedRowKeys: (keys) => set({ expandedRowKeys: keys }),
 
@@ -194,6 +207,14 @@ export const useApprovalRateStore = create<ApprovalRateStore>((set, get) => ({
     const state = get();
     const savedExpandedKeys = [...state.expandedRowKeys];
 
+    // Increment request ID to track this specific request
+    const requestId = ++currentLoadRequestId;
+
+    console.log(`[ApprovalRateStore] loadData START (request ${requestId})`, {
+      dimensions: state.dimensions,
+      hasLoadedOnce: state.hasLoadedOnce,
+    });
+
     set({ isLoading: true, error: null, reportData: [] });
 
     try {
@@ -204,6 +225,18 @@ export const useApprovalRateStore = create<ApprovalRateStore>((set, get) => ({
         timePeriod: state.timePeriod,
         sortBy: state.sortColumn || undefined,
         sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
+      });
+
+      // Ignore stale response if a newer request was made
+      if (requestId !== currentLoadRequestId) {
+        console.log(`[ApprovalRateStore] Ignoring stale response (request ${requestId}, current ${currentLoadRequestId})`);
+        return;
+      }
+
+      console.log(`[ApprovalRateStore] loadData SUCCESS (request ${requestId})`, {
+        dimensions: state.dimensions,
+        rowCount: data.length,
+        firstRowAttribute: data[0]?.attribute,
       });
 
       set({
@@ -299,16 +332,24 @@ export const useApprovalRateStore = create<ApprovalRateStore>((set, get) => ({
               });
             };
 
+            // Check staleness before updating
+            if (requestId !== currentLoadRequestId) return;
             set({ reportData: updateTree(get().reportData) });
             await new Promise((resolve) => setTimeout(resolve, 50));
           }
         }
 
+        // Check staleness before final update
+        if (requestId !== currentLoadRequestId) return;
         if (allValidKeys.length !== savedExpandedKeys.length) {
           set({ expandedRowKeys: allValidKeys });
         }
       }
     } catch (error: unknown) {
+      // Ignore errors from stale requests
+      if (requestId !== currentLoadRequestId) {
+        return;
+      }
       const appError = normalizeError(error);
       console.error('Failed to load data:', appError);
       set({ isLoading: false, error: appError.message });

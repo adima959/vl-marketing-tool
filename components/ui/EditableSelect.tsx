@@ -46,9 +46,16 @@ export function EditableSelect({
     if (!isEditing) return;
 
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsEditing(false);
+      const target = e.target as HTMLElement;
+      // Don't close if clicking inside the container
+      if (containerRef.current && containerRef.current.contains(target)) {
+        return;
       }
+      // Don't close if clicking inside the ant-select dropdown (rendered in portal)
+      if (target.closest('.ant-select-dropdown')) {
+        return;
+      }
+      setIsEditing(false);
     };
 
     // Small delay to allow the select dropdown to render
@@ -82,7 +89,10 @@ export function EditableSelect({
   // Get display value
   const currentValue = optimisticValue ?? value;
   const currentOption = options.find((opt) => opt.value === currentValue);
-  const displayText = displayLabel || currentOption?.label || placeholder;
+  // When we have an optimistic value, use the option label (not the stale displayLabel from parent)
+  const displayText = optimisticValue !== null
+    ? (currentOption?.label || placeholder)
+    : (displayLabel || currentOption?.label || placeholder);
   const isEmpty = !currentValue;
 
   if (isEditing) {
@@ -97,7 +107,7 @@ export function EditableSelect({
           autoFocus
           defaultOpen
           onKeyDown={handleKeyDown}
-          popupClassName={dropdownStyles.selectDropdown}
+          classNames={{ popup: { root: dropdownStyles.selectDropdown } }}
         />
       </div>
     );

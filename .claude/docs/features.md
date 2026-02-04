@@ -155,7 +155,7 @@ Feature-specific implementations and configurations.
 Example routes (based on page structure):
 - Angles: `/api/marketing-tracker/angles`
 - Products: `/api/marketing-tracker/products`
-- Sub-angles: `/api/marketing-tracker/sub-angles`
+- Messages: `/api/marketing-tracker/messages`
 
 ---
 

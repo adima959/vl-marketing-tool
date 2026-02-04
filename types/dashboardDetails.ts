@@ -13,6 +13,8 @@ export interface MetricClickContext {
     country?: string;        // Depth 0 filter (always present if depth >= 0)
     product?: string;        // Depth 1 filter (present if depth >= 1)
     source?: string;         // Depth 2 filter (present if depth >= 2)
+    excludeDeleted?: boolean;     // If true, exclude deleted subscriptions (s.deleted = 0)
+    excludeUpsellTags?: boolean;  // If true, exclude upsell invoices (i.tag NOT LIKE '%parent-sub-id=%')
   };
 }
 

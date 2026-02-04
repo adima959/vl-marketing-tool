@@ -64,11 +64,18 @@
 }
 
 /* Sync header scroll with body (hide its scrollbar) */
+/* Sticky header support - works with Ant Design's sticky prop */
 .dataTable :global(.ant-table-header) {
   overflow-x: auto !important;
   overflow-y: hidden !important;
   scrollbar-width: none;
   -ms-overflow-style: none;
+}
+
+/* Ensure sticky header has proper z-index and background */
+.dataTable :global(.ant-table-sticky-holder) {
+  z-index: 100 !important;
+  background: var(--color-background-primary) !important;
 }
 
 .dataTable :global(.ant-table-header::-webkit-scrollbar) {
@@ -104,9 +111,34 @@
 }
 
 /* =============================================================================
-   GROUP HEADERS (First Row)
+   CSS STICKY HEADERS (Single Table Approach)
    ============================================================================= */
 
+/* Make entire thead sticky as a unit */
+.dataTable :global(.ant-table-thead) {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--color-background-primary);
+}
+
+/* Remove any gaps between header rows */
+.dataTable :global(.ant-table-thead > tr) {
+  background: inherit;
+}
+
+/* First row needs higher z-index so Attributes cell (with rowSpan) stays on top */
+.dataTable :global(.ant-table-thead > tr:first-child) {
+  position: relative;
+  z-index: 2;
+}
+
+.dataTable :global(.ant-table-thead > tr:last-child) {
+  position: relative;
+  z-index: 1;
+}
+
+/* First header row (group headers) */
 .dataTable :global(.ant-table-thead > tr:first-child > th) {
   background: #f8f9fa !important;
   border-bottom: 2px solid var(--color-gray-300) !important;
@@ -118,8 +150,7 @@
   text-align: center;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  position: relative;
-  z-index: 3 !important;
+  z-index: 11 !important;
   vertical-align: middle !important;
   line-height: 1.2 !important;
 }
@@ -132,6 +163,7 @@
    METRIC HEADERS (Second Row)
    ============================================================================= */
 
+/* Second header row (metric columns) */
 .dataTable :global(.ant-table-thead > tr:last-child > th) {
   background: var(--color-gray-50) !important;
   border-bottom: 1px solid var(--color-gray-200) !important;
@@ -144,8 +176,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   transition: background var(--transition-fast), border var(--transition-fast);
-  position: relative;
-  z-index: 2 !important;
   box-sizing: border-box !important;
   vertical-align: middle !important;
   line-height: 1.2 !important;
@@ -168,6 +198,7 @@
    ATTRIBUTES COLUMN (Fixed/Sticky)
    ============================================================================= */
 
+/* First column in ALL header rows - sticky positioning */
 .dataTable :global(.ant-table-thead > tr > th:first-child) {
   background: #fafbfc !important;
   border-right: 1px solid var(--color-gray-200) !important;
@@ -175,7 +206,7 @@
   color: var(--color-navy-primary) !important;
   position: sticky !important;
   left: 0 !important;
-  z-index: 10 !important;
+  z-index: 200 !important;
   width: 350px !important;
 }
 
@@ -297,6 +328,7 @@
   max-height: 20px !important;
 }
 
+/* Measure row - not needed with single table structure, hide completely */
 .dataTable :global(.ant-table-measure-row) {
   display: none !important;
 }
@@ -485,4 +517,46 @@
   margin: 0;
   max-width: 500px;
   line-height: 1.6;
+}
+
+/* =============================================================================
+   SKELETON LOADING ROWS
+   ============================================================================= */
+
+.skeletonText {
+  width: 120px;
+  height: 14px;
+  background: linear-gradient(
+    90deg,
+    var(--color-gray-200) 0%,
+    var(--color-gray-100) 50%,
+    var(--color-gray-200) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+.skeletonMetric {
+  width: 50px;
+  height: 14px;
+  margin: 0 auto;
+  background: linear-gradient(
+    90deg,
+    var(--color-gray-200) 0%,
+    var(--color-gray-100) 50%,
+    var(--color-gray-200) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }

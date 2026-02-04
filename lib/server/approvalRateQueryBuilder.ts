@@ -41,6 +41,8 @@ interface RawApprovalRow {
  *
  * Periods are generated from the END date backwards to maintain
  * consistent ordering (most recent first in array index 0).
+ *
+ * Biweekly uses half-month boundaries: 1-14 and 15-end of month
  */
 export function generateTimePeriods(
   startDate: Date,
@@ -64,9 +66,14 @@ export function generateTimePeriods(
         break;
 
       case 'biweekly':
-        // 14-day intervals
-        currentStart = new Date(currentEnd);
-        currentStart.setDate(currentStart.getDate() - 13);
+        // Half-month boundaries: 1-14 and 15-end of month
+        if (currentEnd.getDate() >= 15) {
+          // Second half: 15 to end of month
+          currentStart = new Date(currentEnd.getFullYear(), currentEnd.getMonth(), 15);
+        } else {
+          // First half: 1 to 14
+          currentStart = new Date(currentEnd.getFullYear(), currentEnd.getMonth(), 1);
+        }
         break;
 
       case 'monthly':
@@ -93,8 +100,17 @@ export function generateTimePeriods(
       // Go to last day of previous month
       currentEnd = new Date(currentStart);
       currentEnd.setDate(currentEnd.getDate() - 1);
+    } else if (periodType === 'biweekly') {
+      // Go to end of previous half-month
+      if (currentStart.getDate() === 15) {
+        // Was second half, go to 14th of same month
+        currentEnd = new Date(currentStart.getFullYear(), currentStart.getMonth(), 14);
+      } else {
+        // Was first half, go to end of previous month
+        currentEnd = new Date(currentStart.getFullYear(), currentStart.getMonth(), 0);
+      }
     } else {
-      // Go back by period length
+      // Weekly: Go back by period length
       currentEnd = new Date(currentStart);
       currentEnd.setDate(currentEnd.getDate() - 1);
     }

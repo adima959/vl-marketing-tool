@@ -1,6 +1,6 @@
 import { Table, Tooltip } from 'antd';
 import type { ColumnsType, TableProps } from 'antd/es/table';
-import { useMemo, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef, useCallback } from 'react';
 import { MetricCell } from './MetricCell';
 import { ClickableMetricCell } from '@/components/dashboard/ClickableMetricCell';
 import { MarketingClickableMetricCell } from './MarketingClickableMetricCell';
@@ -33,6 +33,7 @@ export function GenericDataTable<TRow extends BaseTableRow>({
     sortDirection,
     setSort,
     isLoading,
+    isLoadingSubLevels,
     hasLoadedOnce,
     loadChildData,
     loadData,
@@ -50,6 +51,40 @@ export function GenericDataTable<TRow extends BaseTableRow>({
     return attributeWidth + visibleMetricsWidth;
   }, [metricColumns, visibleColumns]);
 
+  // Process data to inject skeleton rows for expanded parents that are loading
+  const processedData = useMemo(() => {
+    if (!isLoadingSubLevels) return reportData;
+
+    const injectSkeletons = (rows: TRow[]): TRow[] => {
+      return rows.map((row) => {
+        const isExpanded = expandedRowKeys.includes(row.key);
+        const needsSkeleton = isExpanded && row.hasChildren && (!row.children || row.children.length === 0);
+
+        if (needsSkeleton) {
+          // Create 2 skeleton placeholder children
+          const skeletonChildren = [1, 2].map((i) => ({
+            key: `${row.key}::skeleton-${i}`,
+            attribute: '',
+            depth: row.depth + 1,
+            hasChildren: false,
+            metrics: {},
+            _isSkeleton: true,
+          })) as unknown as TRow[];
+          return { ...row, children: skeletonChildren };
+        }
+
+        // Recursively process children
+        if (row.children && row.children.length > 0) {
+          return { ...row, children: injectSkeletons(row.children as TRow[]) };
+        }
+
+        return row;
+      });
+    };
+
+    return injectSkeletons(reportData);
+  }, [reportData, expandedRowKeys, isLoadingSubLevels]);
+
   // Build columns from config
   const columns: ColumnsType<TRow> = useMemo(() => {
     // First column: Attributes (always visible) - no grouping, so it spans both header rows
@@ -65,6 +100,17 @@ export function GenericDataTable<TRow extends BaseTableRow>({
       render: (value: string, record: TRow) => {
         const indent = record.depth * 20; // 20px per level
         const isExpanded = expandedRowKeys.includes(record.key);
+        const isSkeleton = (record as TRow & { _isSkeleton?: boolean })._isSkeleton;
+
+        // Render skeleton row
+        if (isSkeleton) {
+          return (
+            <div className={styles.attributeCell} style={{ paddingLeft: `${indent}px` }}>
+              <span className={styles.expandSpacer} />
+              <div className={styles.skeletonText} />
+            </div>
+          );
+        }
 
         // Format date values to dd/MM/yyyy
         const formatAttributeValue = (val: string): string => {
@@ -147,6 +193,12 @@ export function GenericDataTable<TRow extends BaseTableRow>({
           sortOrder: sortColumn === col.id ? sortDirection : null,
           showSorterTooltip: false,
           render: (value: number, record: TRow) => {
+            // Render skeleton for loading rows
+            const isSkeleton = (record as TRow & { _isSkeleton?: boolean })._isSkeleton;
+            if (isSkeleton) {
+              return <div className={styles.skeletonMetric} />;
+            }
+
             // Check if this is a marketing clickable metric
             if (onMarketingMetricClick && loadedDateRange && clickableMarketingMetrics.includes(col.id)) {
               return (
@@ -244,6 +296,15 @@ export function GenericDataTable<TRow extends BaseTableRow>({
 
   // Ref for table container
   const tableRef = useRef<HTMLDivElement>(null);
+
+  // Find the scroll container for sticky header
+  // Must be defined before any conditional returns to follow Rules of Hooks
+  const getScrollContainer = useCallback(() => {
+    if (typeof window === 'undefined') return window;
+    // Find the closest scrollable ancestor
+    const scrollContainer = tableRef.current?.closest('.overflow-auto');
+    return scrollContainer as HTMLElement || window;
+  }, []);
 
   // Implement native drag scrolling and scroll synchronization
   useEffect(() => {
@@ -345,7 +406,7 @@ export function GenericDataTable<TRow extends BaseTableRow>({
     <div ref={tableRef} className={`${styles.dataTable} ${colorClassName}`}>
       <Table<TRow>
         columns={columns}
-        dataSource={reportData}
+        dataSource={processedData}
         loading={isLoading && reportData.length > 0}
         pagination={false}
         size="middle"

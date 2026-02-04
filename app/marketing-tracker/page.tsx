@@ -1,14 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Input, Select, Spin, Empty, Button, Table, Avatar } from 'antd';
-import { SearchOutlined, UserOutlined, PlusOutlined } from '@ant-design/icons';
-import { Target, ChevronRight, Clock, Package } from 'lucide-react';
+import { Spin, Empty, Button, Table, Avatar, Radio } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import { Target, ChevronRight, Package } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { ProductModal } from '@/components/marketing-tracker';
+import { ProductModal, ProductStatusBadge } from '@/components/marketing-tracker';
+import { EditableSelect } from '@/components/ui/EditableSelect';
 import { useMarketingTrackerStore } from '@/stores/marketingTrackerStore';
 import type { ColumnsType } from 'antd/es/table';
+import type { ProductStatus } from '@/types';
 import styles from './page.module.css';
 
 interface ProductRow {
@@ -16,6 +18,8 @@ interface ProductRow {
   id: string;
   name: string;
   description?: string;
+  status: ProductStatus;
+  ownerId: string;
   ownerName: string;
   ownerInitials: string;
   angleCount: number;
@@ -29,12 +33,11 @@ export default function MarketingTrackerDashboard() {
     products,
     users,
     isLoading,
-    searchQuery,
-    ownerFilter,
+    productStatusFilter,
     loadDashboard,
-    setSearchQuery,
-    setOwnerFilter,
+    setProductStatusFilter,
     getFilteredProducts,
+    updateProductField,
   } = useMarketingTrackerStore();
 
   useEffect(() => {
@@ -43,10 +46,11 @@ export default function MarketingTrackerDashboard() {
 
   const filteredProducts = getFilteredProducts();
 
-  const ownerOptions = [
-    { value: 'all', label: 'All Owners' },
-    ...users.map((user) => ({ value: user.id, label: user.name })),
-  ];
+  // User options for EditableSelect
+  const userOptions = users.map((user) => ({
+    value: user.id,
+    label: user.name,
+  }));
 
   // Transform products for table
   const tableData: ProductRow[] = filteredProducts.map((product) => ({
@@ -54,11 +58,29 @@ export default function MarketingTrackerDashboard() {
     id: product.id,
     name: product.name,
     description: product.description || undefined,
+    status: product.status,
+    ownerId: product.ownerId,
     ownerName: product.owner?.name || 'Unknown',
     ownerInitials: product.owner?.name?.split(' ').map(n => n[0]).join('') || '?',
     angleCount: product.angleCount || 0,
     activeAngleCount: product.activeAngleCount || 0,
   }));
+
+  const handleStatusChange = async (productId: string, newStatus: ProductStatus) => {
+    await updateProductField(productId, 'status', newStatus);
+    // Reload to apply filter (product may disappear if switched to inactive while viewing active)
+    loadDashboard();
+  };
+
+  const handleOwnerChange = async (productId: string, newOwnerId: string) => {
+    await updateProductField(productId, 'ownerId', newOwnerId);
+  };
+
+  const handleStatusFilterChange = (value: ProductStatus | 'all') => {
+    setProductStatusFilter(value);
+    // Trigger reload with new filter
+    setTimeout(() => loadDashboard(), 0);
+  };
 
   const columns: ColumnsType<ProductRow> = [
     {
@@ -83,13 +105,33 @@ export default function MarketingTrackerDashboard() {
       title: 'OWNER',
       dataIndex: 'ownerName',
       key: 'owner',
-      width: 140,
-      render: (name: string, record: ProductRow) => (
-        <div className={styles.ownerCell}>
+      width: 160,
+      render: (_: string, record: ProductRow) => (
+        <div className={styles.ownerCell} onClick={(e) => e.stopPropagation()}>
           <Avatar size="small" className={styles.ownerAvatar}>
             {record.ownerInitials}
           </Avatar>
-          <span>{name.split(' ')[0]} {name.split(' ')[1]?.[0]}.</span>
+          <EditableSelect
+            value={record.ownerId}
+            options={userOptions}
+            onChange={(value) => handleOwnerChange(record.id, value)}
+            displayLabel={`${record.ownerName.split(' ')[0]} ${record.ownerName.split(' ')[1]?.[0] || ''}.`}
+          />
+        </div>
+      ),
+    },
+    {
+      title: 'STATUS',
+      dataIndex: 'status',
+      key: 'status',
+      width: 120,
+      render: (status: ProductStatus, record: ProductRow) => (
+        <div onClick={(e) => e.stopPropagation()}>
+          <ProductStatusBadge
+            status={status}
+            editable
+            onChange={(newStatus) => handleStatusChange(record.id, newStatus)}
+          />
         </div>
       ),
     },
@@ -123,13 +165,6 @@ export default function MarketingTrackerDashboard() {
     },
   ];
 
-  // Mock activity data
-  const recentActivity = [
-    { id: '1', type: 'asset', user: 'AR', action: 'You created asset', detail: 'uploaded new UGC video for Garden Play', time: '2 hours ago' },
-    { id: '2', type: 'angle', user: 'AR', action: 'You updated angle', detail: 'changed status of "The Active Grandparent" to Live', time: '1 day ago' },
-    { id: '3', type: 'product', user: 'JD', action: 'You created product', detail: 'created new product "SleepRepair Night"', time: '2 days ago' },
-  ];
-
   return (
     <>
       <PageHeader
@@ -149,76 +184,44 @@ export default function MarketingTrackerDashboard() {
         users={users}
       />
       <div className={styles.container}>
-        <div className={styles.mainGrid}>
-          {/* Products Section */}
-          <div className={styles.productsSection}>
-            <div className={styles.sectionHeader}>
-              <div className={styles.sectionTitleRow}>
-                <Package size={18} className={styles.sectionIcon} />
-                <h2 className={styles.sectionTitle}>Products</h2>
-                <span className={styles.totalBadge}>{filteredProducts.length} Total</span>
-              </div>
-              <div className={styles.filters}>
-                <Input
-                  placeholder="Search products..."
-                  prefix={<SearchOutlined />}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={styles.searchInput}
-                  allowClear
-                />
-                <Select
-                  value={ownerFilter}
-                  onChange={setOwnerFilter}
-                  options={ownerOptions}
-                  className={styles.ownerSelect}
-                  suffixIcon={<UserOutlined />}
-                />
-              </div>
+        <div className={styles.productsSection}>
+          <div className={styles.sectionHeader}>
+            <div className={styles.sectionTitleRow}>
+              <Package size={18} className={styles.sectionIcon} />
+              <h2 className={styles.sectionTitle}>Products</h2>
+              <span className={styles.totalBadge}>{filteredProducts.length} Total</span>
             </div>
-
-            {isLoading ? (
-              <div className={styles.loadingContainer}>
-                <Spin size="large" />
-              </div>
-            ) : filteredProducts.length === 0 ? (
-              <Empty
-                description={products.length === 0 ? 'No products yet' : 'No products match your filters'}
-              />
-            ) : (
-              <Table
-                columns={columns}
-                dataSource={tableData}
-                pagination={false}
-                className={styles.productsTable}
-                size="middle"
-                rowClassName={styles.tableRow}
-              />
-            )}
-          </div>
-
-          {/* Activity Section */}
-          <div className={styles.activitySection}>
-            <div className={styles.activityHeader}>
-              <Clock size={18} className={styles.sectionIcon} />
-              <h2 className={styles.sectionTitle}>Recent Activity</h2>
-            </div>
-            <div className={styles.activityList}>
-              {recentActivity.map((activity) => (
-                <div key={activity.id} className={styles.activityItem}>
-                  <Avatar size={36} className={styles.activityAvatar}>
-                    {activity.user}
-                  </Avatar>
-                  <div className={styles.activityContent}>
-                    <span className={styles.activityAction}>{activity.action}</span>
-                    <span className={styles.activityDetail}>{activity.detail}</span>
-                    <span className={styles.activityTime}>↻ {activity.time}</span>
-                  </div>
-                </div>
-              ))}
-              <button className={styles.viewAllButton}>View all activity</button>
+            <div className={styles.filters}>
+              <Radio.Group
+                value={productStatusFilter}
+                onChange={(e) => handleStatusFilterChange(e.target.value)}
+                buttonStyle="solid"
+                size="small"
+              >
+                <Radio.Button value="active">Active</Radio.Button>
+                <Radio.Button value="all">All</Radio.Button>
+              </Radio.Group>
             </div>
           </div>
+
+          {isLoading ? (
+            <div className={styles.loadingContainer}>
+              <Spin size="large" />
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <Empty
+              description={products.length === 0 ? 'No products yet' : 'No products match your filter'}
+            />
+          ) : (
+            <Table
+              columns={columns}
+              dataSource={tableData}
+              pagination={false}
+              className={styles.productsTable}
+              size="middle"
+              rowClassName={styles.tableRow}
+            />
+          )}
         </div>
       </div>
     </>

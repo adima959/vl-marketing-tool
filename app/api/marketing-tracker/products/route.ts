@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { CreateProductRequest } from '@/types/marketing-tracker';
+import type { CreateProductRequest, ProductStatus } from '@/types/marketing-tracker';
 import { getProducts, createProduct } from '@/lib/marketing-tracker/db';
 import { recordCreation } from '@/lib/marketing-tracker/historyService';
 
@@ -14,14 +14,10 @@ const SYSTEM_USER_ID: string | null = null;
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const { searchParams } = new URL(request.url);
-    const ownerId = searchParams.get('ownerId');
+    const status = searchParams.get('status') as ProductStatus | null;
 
-    let products = await getProducts();
-
-    // Filter by owner if provided
-    if (ownerId && ownerId !== 'all') {
-      products = products.filter((p) => p.ownerId === ownerId);
-    }
+    // Pass status filter to database query (null = all products)
+    const products = await getProducts(status);
 
     return NextResponse.json({
       success: true,
@@ -63,6 +59,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       name: body.name,
       description: body.description,
       notes: body.notes,
+      status: body.status,
       ownerId: body.ownerId,
     });
 
