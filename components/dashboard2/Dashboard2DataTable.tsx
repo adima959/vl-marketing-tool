@@ -9,11 +9,11 @@ import { DASHBOARD_METRIC_COLUMNS, DASHBOARD_COLUMN_GROUPS } from '@/config/dash
 import type { DashboardRow } from '@/types/dashboard';
 import type { MetricClickContext } from '@/types/dashboardDetails';
 import type { ColumnGroup } from '@/types/table';
-import styles from './dashboard.module.css';
+import styles from './dashboard2.module.css';
 
 const COLUMN_GROUPS: ColumnGroup[] = DASHBOARD_COLUMN_GROUPS;
 
-export function DashboardDataTable() {
+export function Dashboard2DataTable() {
   const [modalContext, setModalContext] = useState<MetricClickContext | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 

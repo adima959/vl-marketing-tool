@@ -2,12 +2,12 @@
 
 import { Button } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
-import { DashboardDateRangePicker } from './DashboardDateRangePicker';
-import { DashboardDimensionPills } from './DashboardDimensionPills';
+import { DashboardDateRangePicker } from '@/components/dashboard/DashboardDateRangePicker';
+import { DashboardDimensionPills } from '@/components/dashboard/DashboardDimensionPills';
 import { useDashboardStore } from '@/stores/dashboardStore';
-import styles from './dashboard.module.css';
+import styles from './dashboard2.module.css';
 
-export function DashboardFilterToolbar() {
+export function Dashboard2FilterBar() {
   const { loadData, isLoading, hasUnsavedChanges, hasLoadedOnce } = useDashboardStore();
 
   return (

@@ -19,13 +19,13 @@ import type {
  *
  * Uses ? placeholders for MariaDB (NOT $1, $2 like PostgreSQL).
  *
- * IMPORTANT: Table joins MUST match dashboardQueryBuilder.ts:
+ * IMPORTANT: Table joins:
  *   subscription s
  *   → customer c (via s.customer_id)
- *   → invoice i (via i.subscription_id, type=1 for trials)
+ *   → invoice i (INNER JOIN via i.subscription_id, type=1 for trials)
  *   → invoice_product ip (via ip.invoice_id)
  *   → product p (via ip.product_id)
- *   → source sr (via i.source_id - source from INVOICE, not subscription)
+ *   → source sr (via s.source_id - source from SUBSCRIPTION to match CRM)
  *
  * Approval rate = approved trials / total trials (same as dashboard)
  */
@@ -179,7 +179,7 @@ function buildApprovalRateQuery(
   const params: (string | number | boolean | null | Date)[] = [];
 
   // Build period SELECT columns
-  // Matches dashboard pattern: count trials (i.type=1) and approved trials (i.is_marked=1)
+  // Count trial invoices (i.id) grouped by subscription source (s.source_id)
   const periodSelects = periods.map((period) => {
     // Add params for trial count (date range check)
     params.push(period.startDate, period.endDate);
@@ -222,28 +222,28 @@ function buildApprovalRateQuery(
     }
   }
 
-  // Build HAVING clause to filter out dimension values with no trials
-  // Only show rows that have at least one trial in any period
+  // Build HAVING clause to filter out dimension values below display threshold
+  // Matches MIN_SUBSCRIPTIONS_THRESHOLD (3) in ApprovalRateCell.tsx
+  // Rows where no period reaches 3+ trials would have all cells hidden
   const havingConditions = periods.map((period) => {
     params.push(period.startDate, period.endDate);
-    return `COUNT(DISTINCT CASE WHEN DATE(s.date_create) BETWEEN ? AND ? THEN i.id END) > 0`;
+    return `COUNT(DISTINCT CASE WHEN DATE(s.date_create) BETWEEN ? AND ? THEN i.id END) >= 3`;
   });
   const havingClause = `HAVING (${havingConditions.join(' OR ')})`;
 
-  // Build full query - SAME JOIN PATTERN AS dashboardQueryBuilder.ts
-  // Note: source is joined via invoice.source_id, NOT subscription.source_id
+  // Build full query
+  // Note: source is joined via subscription.source_id to match CRM
   const query = `
     SELECT
       ${dimensionColumn} AS dimension_value,
       ${periodSelects}
     FROM subscription s
     LEFT JOIN customer c ON s.customer_id = c.id
-    LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
+    INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
     LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
     LEFT JOIN product p ON p.id = ip.product_id
-    LEFT JOIN source sr ON sr.id = i.source_id
-    WHERE s.deleted = 0
-      AND (i.tag IS NULL OR i.tag NOT LIKE '%parent-sub-id=%')
+    LEFT JOIN source sr ON sr.id = s.source_id
+    WHERE 1=1
       ${parentWhereClause}
     GROUP BY ${dimensionColumn}
     ${havingClause}
@@ -323,14 +323,6 @@ export async function getApprovalRateData(
 
   // Get current dimension to query
   const currentDimension = dimensions[depth];
-
-  // Debug logging
-  console.log('=== APPROVAL RATE QUERY DEBUG ===');
-  console.log('Dimensions:', dimensions);
-  console.log('Depth:', depth);
-  console.log('Current Dimension:', currentDimension);
-  console.log('Parent Filters:', parentFilters);
-  console.log('==================================');
 
   // Build parent key for child rows
   let parentKey = '';

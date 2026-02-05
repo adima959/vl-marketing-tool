@@ -69,8 +69,8 @@ export function ApprovalRateFilterToolbar() {
   return (
     <div className={styles.toolbar}>
       <div className={styles.mainRow}>
-        {/* Left: Dimensions */}
-        <div className={styles.leftSection}>
+        {/* Left: Dimensions — 2/3 width */}
+        <div className={styles.leftSection} style={{ flex: 2 }}>
           <div className={styles.dimensionsWrapper}>
             <span className={styles.dimensionsLabel}>DIMENSIONS:</span>
             <div className={styles.dimensionsContent}>
@@ -80,36 +80,37 @@ export function ApprovalRateFilterToolbar() {
           </div>
         </div>
 
-        {/* Center: Time Period Toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '12px', color: '#666', fontWeight: 500 }}>PERIOD:</span>
-          <TimePeriodToggle />
-        </div>
+        {/* Right: Date range, period, and controls — 1/3 width */}
+        <div className={styles.rightSection} style={{ flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <RangePicker
+              value={[dayjs(dateRange.start), dayjs(dateRange.end)]}
+              onChange={handleDateChange}
+              presets={presets}
+              format="DD/MM/YYYY"
+              allowClear={false}
+              size="small"
+            />
 
-        {/* Right: Date range and controls */}
-        <div className={styles.rightSection}>
-          <RangePicker
-            value={[dayjs(dateRange.start), dayjs(dateRange.end)]}
-            onChange={handleDateChange}
-            presets={presets}
-            format="DD/MM/YYYY"
-            allowClear={false}
-            size="small"
-          />
+            <div className={styles.loadButtonWrapper}>
+              <Button
+                type={!hasLoadedOnce || hasUnsavedChanges ? 'primary' : 'default'}
+                icon={<ReloadOutlined />}
+                onClick={loadData}
+                loading={isLoading}
+                disabled={hasLoadedOnce && !hasUnsavedChanges}
+              >
+                Load Data
+              </Button>
+              {hasUnsavedChanges && (
+                <span className={styles.unsavedDot} title="Unsaved filter changes" />
+              )}
+            </div>
+          </div>
 
-          <div className={styles.loadButtonWrapper}>
-            <Button
-              type={!hasLoadedOnce || hasUnsavedChanges ? 'primary' : 'default'}
-              icon={<ReloadOutlined />}
-              onClick={loadData}
-              loading={isLoading}
-              disabled={hasLoadedOnce && !hasUnsavedChanges}
-            >
-              Load Data
-            </Button>
-            {hasUnsavedChanges && (
-              <span className={styles.unsavedDot} title="Unsaved filter changes" />
-            )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '11px', color: '#999', fontWeight: 600, letterSpacing: '0.06em' }}>PERIOD:</span>
+            <TimePeriodToggle />
           </div>
         </div>
       </div>

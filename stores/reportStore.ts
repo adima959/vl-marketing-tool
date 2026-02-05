@@ -19,6 +19,7 @@ interface ReportState {
   sortColumn: string | null;
   sortDirection: 'ascend' | 'descend' | null;
   isLoading: boolean;
+  isLoadingSubLevels: boolean;
   hasUnsavedChanges: boolean;
   hasLoadedOnce: boolean;
   error: string | null;
@@ -57,6 +58,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
   sortColumn: 'clicks',
   sortDirection: 'descend',
   isLoading: false,
+  isLoadingSubLevels: false,
   hasUnsavedChanges: false,
   hasLoadedOnce: false,
   error: null,
@@ -188,6 +190,11 @@ export const useReportStore = create<ReportState>((set, get) => ({
     // Save expanded keys to restore after reload
     const savedExpandedKeys = [...state.expandedRowKeys];
 
+    // Check if dimensions have changed
+    const dimensionsChanged =
+      state.dimensions.length !== state.loadedDimensions.length ||
+      state.dimensions.some((dim, i) => dim !== state.loadedDimensions[i]);
+
     // Clear old data to prevent stale children from blocking fresh loads
     set({ isLoading: true, error: null, reportData: [] });
 
@@ -207,14 +214,66 @@ export const useReportStore = create<ReportState>((set, get) => ({
         loadedDimensions: state.dimensions,
         loadedDateRange: state.dateRange,
         reportData: data,
-        expandedRowKeys: savedExpandedKeys, // Keep expanded state
+        expandedRowKeys: dimensionsChanged ? [] : savedExpandedKeys,
       });
 
-      // Reload child data for previously expanded rows level-by-level
-      // ONLY if this is a manual "Load Data" button click (not initial page load)
-      // Initial page load restoration is handled by useGenericUrlSync hook
-      const isManualReload = state.hasLoadedOnce; // If hasLoadedOnce was already true, this is a manual reload
-      if (savedExpandedKeys.length > 0 && isManualReload) {
+      // Auto-expand level one if this is a fresh load or dimensions changed
+      if ((savedExpandedKeys.length === 0 || dimensionsChanged) && data.length > 0) {
+        const allExpandedKeys: string[] = [];
+
+        // Collect depth 0 keys that will be expanded
+        for (const row of data) {
+          if (row.hasChildren) {
+            allExpandedKeys.push(row.key);
+          }
+        }
+
+        // Set loading state and expanded keys early so skeleton rows can show
+        set({ isLoadingSubLevels: true, expandedRowKeys: [...allExpandedKeys] });
+
+        // Load depth 1 for all top-level rows in parallel
+        const depth1Promises = data.map((parentRow) => {
+          if (parentRow.hasChildren) {
+            const parentFilters: Record<string, string> = {
+              [state.dimensions[0]]: parentRow.attribute,
+            };
+
+            return fetchMarketingData({
+              dateRange: state.dateRange,
+              dimensions: state.dimensions,
+              depth: 1,
+              parentFilters,
+              sortBy: state.sortColumn || 'clicks',
+              sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
+            })
+              .then((children) => ({ success: true, key: parentRow.key, children }))
+              .catch((error) => {
+                console.warn(`Failed to load children for ${parentRow.key}:`, error);
+                return { success: false, key: parentRow.key, children: [] };
+              });
+          }
+          return Promise.resolve({ success: false, key: parentRow.key, children: [] });
+        });
+
+        const depth1Results = await Promise.allSettled(depth1Promises);
+
+        // Update tree with depth 1 data
+        const updateTreeDepth1 = (rows: ReportRow[]): ReportRow[] => {
+          return rows.map((row) => {
+            for (const result of depth1Results) {
+              if (result.status === 'fulfilled' && result.value.success && result.value.key === row.key) {
+                return { ...row, children: result.value.children };
+              }
+            }
+            return row;
+          });
+        };
+
+        set({ reportData: updateTreeDepth1(data), expandedRowKeys: allExpandedKeys, isLoadingSubLevels: false });
+      }
+      // If there are saved expanded keys, restore them (manual reload)
+      else if (savedExpandedKeys.length > 0 && state.hasLoadedOnce) {
+        set({ isLoadingSubLevels: true });
         const { sortKeysByDepth, findRowByKey } = await import('@/lib/treeUtils');
         const sortedKeys = sortKeysByDepth(savedExpandedKeys);
 
@@ -249,20 +308,19 @@ export const useReportStore = create<ReportState>((set, get) => ({
 
           // Load all rows at this depth in parallel, then update tree once
           if (rowsToLoad.length > 0) {
-            // Fetch all children data in parallel
             const childDataPromises = rowsToLoad.map(({ key, row }) => {
               const keyParts = key.split('::');
               const parentFilters: Record<string, string> = {};
               keyParts.forEach((value, index) => {
-                const dimension = state.dimensions[index];  // Use current dimensions, not loaded
+                const dimension = state.dimensions[index];
                 if (dimension) {
                   parentFilters[dimension] = value;
                 }
               });
 
               return fetchMarketingData({
-                dateRange: state.dateRange,  // Use current dateRange, not loaded
-                dimensions: state.dimensions,  // Use current dimensions, not loaded
+                dateRange: state.dateRange,
+                dimensions: state.dimensions,
                 depth: row.depth + 1,
                 parentFilters,
                 sortBy: state.sortColumn || 'clicks',
@@ -280,13 +338,11 @@ export const useReportStore = create<ReportState>((set, get) => ({
             // Update tree once with all children for this depth level
             const updateTree = (rows: ReportRow[]): ReportRow[] => {
               return rows.map((row) => {
-                // Check if this row has new children data
                 for (const result of results) {
                   if (result.status === 'fulfilled' && result.value.success && result.value.key === row.key) {
                     return { ...row, children: result.value.children };
                   }
                 }
-                // Recursively update children
                 if (row.children && row.children.length > 0) {
                   return { ...row, children: updateTree(row.children) };
                 }
@@ -305,6 +361,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
         if (allValidKeys.length !== savedExpandedKeys.length) {
           set({ expandedRowKeys: allValidKeys });
         }
+        set({ isLoadingSubLevels: false });
       }
     } catch (error: unknown) {
       const appError = normalizeError(error);
@@ -314,6 +371,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
       });
       set({
         isLoading: false,
+        isLoadingSubLevels: false,
         error: appError.message,
       });
     }
@@ -321,6 +379,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
 
   loadChildData: async (parentKey: string, parentValue: string, parentDepth: number) => {
     const state = get();
+    set({ isLoadingSubLevels: true });
 
     try {
       // Build complete parent filter chain by parsing the key hierarchy
@@ -357,8 +416,9 @@ export const useReportStore = create<ReportState>((set, get) => ({
         });
       };
 
-      set({ reportData: updateTree(state.reportData) });
+      set({ reportData: updateTree(state.reportData), isLoadingSubLevels: false });
     } catch (error: unknown) {
+      set({ isLoadingSubLevels: false });
       const appError = normalizeError(error);
       console.error('Failed to load child data:', {
         code: appError.code,

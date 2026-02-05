@@ -11,6 +11,7 @@ import { useOnPageUrlSync } from '@/hooks/useOnPageUrlSync';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useOnPageStore } from '@/stores/onPageStore';
 import { Eye } from 'lucide-react';
+import pageStyles from '@/components/dashboard/dashboard.module.css';
 
 function OnPageAnalysisContent() {
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
@@ -81,14 +82,14 @@ function OnPageAnalysisContent() {
 
   return (
     <>
-      <div className="flex flex-col h-full overflow-auto">
+      <div className={pageStyles.page}>
         <PageHeader
           title="On-Page Analysis"
           icon={<Eye className="h-5 w-5" />}
           actions={headerActions}
           warning={headerWarning}
         />
-        <div className="flex flex-col gap-3 p-3 bg-white flex-1">
+        <div className={pageStyles.content}>
           <OnPageFilterToolbar />
           <OnPageDataTable />
         </div>

@@ -40,6 +40,7 @@
   color: #f59e0b;
   font-size: 14px;
   flex-shrink: 0;
+  animation: pulse 2s ease-in-out infinite;
 }
 
 /* Delay Text */
@@ -60,11 +61,6 @@
   }
 }
 
-/* Pulse animation for icon */
-.delayIcon {
-  animation: pulse 2s ease-in-out infinite;
-}
-
 @keyframes pulse {
   0%, 100% {
     opacity: 1;
@@ -72,4 +68,229 @@
   50% {
     opacity: 0.6;
   }
+}
+
+/* ============================================
+   Date Picker Popup Overrides
+   ============================================ */
+
+/* Dropdown root — reset default Ant Design wrapper styles */
+.datePickerPopup {
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+/* Range wrapper — ensure no extra visuals */
+.datePickerPopup :global(.ant-picker-range-wrapper) {
+  padding: 0;
+}
+
+/* Hide the default range arrow */
+.datePickerPopup :global(.ant-picker-range-arrow) {
+  display: none;
+}
+
+/* Popup container — elevated, branded */
+.datePickerPopup :global(.ant-picker-panel-container) {
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1.5px solid #00B96B;
+  box-shadow:
+    0 0 0 3px rgba(0, 185, 107, 0.12),
+    0 24px 80px rgba(0, 185, 107, 0.10),
+    0 8px 24px rgba(0, 0, 0, 0.08),
+    0 2px 6px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  animation: popupEnter 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+@keyframes popupEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ---- Preset sidebar ---- */
+
+.datePickerPopup :global(.ant-picker-presets) {
+  min-width: 140px;
+  padding: 8px 6px;
+  border-right: 1px solid #e8eaed;
+  background: #f6f7f9;
+}
+
+.datePickerPopup :global(.ant-picker-presets ul) {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.datePickerPopup :global(.ant-picker-presets li) {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #4b5563;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-left: 2px solid transparent;
+}
+
+.datePickerPopup :global(.ant-picker-presets li:hover) {
+  background: rgba(0, 185, 107, 0.06);
+  color: #065f46;
+  border-left-color: #00B96B;
+}
+
+.datePickerPopup :global(.ant-picker-presets li:active) {
+  background: rgba(0, 185, 107, 0.12);
+}
+
+/* ---- Calendar panels ---- */
+
+.datePickerPopup :global(.ant-picker-panel) {
+  border-bottom: none;
+}
+
+/* Month/year header */
+.datePickerPopup :global(.ant-picker-header) {
+  border-bottom: 1px solid #f0f1f3;
+  padding: 8px 12px;
+}
+
+.datePickerPopup :global(.ant-picker-header button) {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 14px;
+  transition: color 0.15s ease;
+}
+
+.datePickerPopup :global(.ant-picker-header button:hover) {
+  color: #00B96B;
+}
+
+/* Navigation arrows */
+.datePickerPopup :global(.ant-picker-header .ant-picker-header-super-prev-btn),
+.datePickerPopup :global(.ant-picker-header .ant-picker-header-prev-btn),
+.datePickerPopup :global(.ant-picker-header .ant-picker-header-next-btn),
+.datePickerPopup :global(.ant-picker-header .ant-picker-header-super-next-btn) {
+  color: #9ca3af;
+  transition: color 0.15s ease;
+}
+
+.datePickerPopup :global(.ant-picker-header .ant-picker-header-super-prev-btn:hover),
+.datePickerPopup :global(.ant-picker-header .ant-picker-header-prev-btn:hover),
+.datePickerPopup :global(.ant-picker-header .ant-picker-header-next-btn:hover),
+.datePickerPopup :global(.ant-picker-header .ant-picker-header-super-next-btn:hover) {
+  color: #00B96B;
+}
+
+/* Day-of-week headers */
+.datePickerPopup :global(.ant-picker-content th) {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+  padding-bottom: 8px;
+}
+
+/* Calendar body */
+.datePickerPopup :global(.ant-picker-body) {
+  padding: 8px 12px 12px;
+}
+
+/* All day cells — tabular nums for alignment */
+.datePickerPopup :global(.ant-picker-content td) {
+  font-variant-numeric: tabular-nums;
+}
+
+.datePickerPopup :global(.ant-picker-cell .ant-picker-cell-inner) {
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 13px;
+  transition: all 0.12s ease;
+  min-width: 28px;
+  height: 28px;
+  line-height: 28px;
+}
+
+/* Hover state */
+.datePickerPopup :global(.ant-picker-cell:not(.ant-picker-cell-disabled):not(.ant-picker-cell-selected):not(.ant-picker-cell-range-start):not(.ant-picker-cell-range-end) .ant-picker-cell-inner:hover) {
+  background: #f0fdf4;
+  color: #065f46;
+}
+
+/* Today indicator — subtle ring */
+.datePickerPopup :global(.ant-picker-cell-today .ant-picker-cell-inner::before) {
+  border-color: #00B96B !important;
+  border-radius: 6px !important;
+  border-width: 1.5px !important;
+}
+
+/* Selected endpoints — brand green */
+.datePickerPopup :global(.ant-picker-cell-range-start .ant-picker-cell-inner),
+.datePickerPopup :global(.ant-picker-cell-range-end .ant-picker-cell-inner) {
+  background: #00B96B !important;
+  color: #ffffff !important;
+  border-radius: 6px !important;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 185, 107, 0.3);
+}
+
+/* Range fill between start and end */
+.datePickerPopup :global(.ant-picker-cell-in-range::before) {
+  background: #e6f9f0 !important;
+}
+
+/* Range hover fill */
+.datePickerPopup :global(.ant-picker-cell-range-hover::before),
+.datePickerPopup :global(.ant-picker-cell-range-hover-start::before),
+.datePickerPopup :global(.ant-picker-cell-range-hover-end::before) {
+  background: #e6f9f0 !important;
+}
+
+/* Range hover border color */
+.datePickerPopup :global(.ant-picker-cell-range-hover::after),
+.datePickerPopup :global(.ant-picker-cell-range-hover-start::after),
+.datePickerPopup :global(.ant-picker-cell-range-hover-end::after) {
+  border-color: #86efac !important;
+}
+
+/* Disabled cells */
+.datePickerPopup :global(.ant-picker-cell-disabled .ant-picker-cell-inner) {
+  color: #d1d5db;
+}
+
+/* ---- Footer area ---- */
+
+.datePickerPopup :global(.ant-picker-footer) {
+  border-top: 1px solid #f0f1f3;
+}
+
+/* Footer range inputs */
+.datePickerPopup :global(.ant-picker-ranges) {
+  padding: 8px 12px;
+}
+
+/* ---- Divider between calendar panels ---- */
+
+.datePickerPopup :global(.ant-picker-panel + .ant-picker-panel) {
+  border-left: 1px solid #f0f1f3;
+}
+
+/* ---- Date input fields in the popup header ---- */
+
+.datePickerPopup :global(.ant-picker-input > input) {
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }

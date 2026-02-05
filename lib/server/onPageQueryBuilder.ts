@@ -2,6 +2,18 @@ import type { QueryOptions } from './types';
 import { validateSortDirection } from './types';
 
 /**
+ * Format a Date as 'YYYY-MM-DD' using local timezone
+ * Avoids the timezone bug where toISOString().split('T')[0] returns
+ * the previous day for users ahead of UTC (e.g., Europe)
+ */
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * Builds dynamic SQL queries for on-page analytics reporting
  * Table: remote_session_tracker.event_page_view_enriched_v2
  */
@@ -190,8 +202,8 @@ export class OnPageQueryBuilder {
 
     // Build parameters
     const params: any[] = [
-      dateRange.start.toISOString().split('T')[0], // $1
-      dateRange.end.toISOString().split('T')[0],   // $2
+      formatLocalDate(dateRange.start), // $1
+      formatLocalDate(dateRange.end),   // $2
     ];
 
     // Build parent filters

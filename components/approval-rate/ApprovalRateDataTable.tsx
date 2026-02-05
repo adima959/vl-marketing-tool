@@ -3,13 +3,14 @@
 import { Table, Tooltip } from 'antd';
 import type { ColumnsType, TableProps } from 'antd/es/table';
 import { useMemo, useEffect, useRef, useState } from 'react';
-import { ApprovalRateCell } from './ApprovalRateCell';
+import { ApprovalRateCell, MIN_SUBSCRIPTIONS_THRESHOLD } from './ApprovalRateCell';
 import { useApprovalRateStore } from '@/stores/approvalRateStore';
 import { useToast } from '@/hooks/useToast';
 import { ErrorMessage } from '@/components/ErrorMessage';
 import { EmptyState } from '@/components/EmptyState';
 import { TableSkeleton } from '@/components/loading/TableSkeleton';
 import { CustomerSubscriptionDetailModal } from '@/components/modals/CustomerSubscriptionDetailModal';
+import { TableInfoBanner } from '@/components/ui/TableInfoBanner';
 import type { ApprovalRateRow } from '@/types';
 import type { MetricClickContext } from '@/types/dashboardDetails';
 import styles from '@/styles/tables/base.module.css';
@@ -129,10 +130,8 @@ export function ApprovalRateDataTable() {
         country: filters.country,
         product: filters.product,
         source: filters.source,
-        // Approval rate page needs to exclude deleted subscriptions and upsell invoices
-        // to match the aggregate counts in the table
-        excludeDeleted: true,
-        excludeUpsellTags: true,
+        excludeDeleted: false,
+        excludeUpsellTags: false,
       },
     };
 
@@ -366,6 +365,12 @@ export function ApprovalRateDataTable() {
 
   return (
     <>
+      {hasLoadedOnce && reportData.length > 0 && (
+        <TableInfoBanner
+          message={`Cells with less than ${MIN_SUBSCRIPTIONS_THRESHOLD} subscriptions are filtered out.`}
+        />
+      )}
+
       <div ref={tableRef} className={`${styles.dataTable} ${compactStyles.compactTable}`}>
         <Table<ApprovalRateRowWithSkeleton>
           columns={columns}

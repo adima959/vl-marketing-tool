@@ -38,6 +38,8 @@ export async function fetchDashboardDetails(
         country: context.filters.country,
         product: context.filters.product,
         source: context.filters.source,
+        excludeDeleted: context.filters.excludeDeleted,
+        excludeUpsellTags: context.filters.excludeUpsellTags,
       },
       pagination: pagination || { page: 1, pageSize: 50 },
     }),

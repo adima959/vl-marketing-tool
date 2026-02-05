@@ -8,6 +8,9 @@ interface ApprovalRateCellProps {
   onClick?: () => void;
 }
 
+/** Minimum subscriptions required for a cell to display */
+export const MIN_SUBSCRIPTIONS_THRESHOLD = 3;
+
 /**
  * Color-coded cell for approval rate percentages
  *
@@ -18,12 +21,13 @@ interface ApprovalRateCellProps {
  *
  * Display: Trial count on top, percentage below
  * Trial count is clickable to show details modal
+ * Cells with fewer than MIN_SUBSCRIPTIONS_THRESHOLD trials are filtered out
  */
 export function ApprovalRateCell({ metric, onClick }: ApprovalRateCellProps) {
   const { rate, trials } = metric;
 
-  // Show nothing if no trials
-  if (trials === 0) {
+  // Show nothing if below threshold
+  if (trials < MIN_SUBSCRIPTIONS_THRESHOLD) {
     return null;
   }
 

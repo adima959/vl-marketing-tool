@@ -6,28 +6,26 @@ import { useDashboardUrlSync } from '@/hooks/useDashboardUrlSync';
 import { DashboardFilterToolbar } from '@/components/dashboard/DashboardFilterToolbar';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { LayoutDashboard } from 'lucide-react';
+import styles from '@/components/dashboard/dashboard.module.css';
 
-// Lazy load the heavy data table component
 const DashboardDataTable = lazy(() =>
   import('@/components/dashboard/DashboardDataTable').then((mod) => ({ default: mod.DashboardDataTable }))
 );
 
 function DashboardContent() {
-  // Automatically syncs URL state with store and loads data
   useDashboardUrlSync();
 
-  // Set page title
   useEffect(() => {
     document.title = 'Dashboard | Vitaliv Analytics';
   }, []);
 
   return (
-    <div className="flex flex-col h-full overflow-auto">
+    <div className={styles.page}>
       <PageHeader
         title="Dashboard"
         icon={<LayoutDashboard className="h-5 w-5" />}
       />
-      <div className="flex flex-col gap-3 p-3 bg-white flex-1">
+      <div className={styles.content}>
         <DashboardFilterToolbar />
         <Suspense fallback={<div className="flex items-center justify-center p-8"><Spin size="large" /></div>}>
           <DashboardDataTable />

@@ -9,7 +9,10 @@ import {
 import { useApprovalRateStore } from '@/stores/approvalRateStore';
 import { fetchApprovalRateData } from '@/lib/api/approvalRateClient';
 import type { ApprovalRateRow, TimePeriod } from '@/types';
-import { DEFAULT_APPROVAL_RATE_DIMENSIONS } from '@/config/approvalRateDimensions';
+import {
+  DEFAULT_APPROVAL_RATE_DIMENSIONS,
+  APPROVAL_RATE_DIMENSION_COLUMN_MAP,
+} from '@/config/approvalRateDimensions';
 
 /**
  * Find a row by key in the tree
@@ -111,9 +114,14 @@ export function useApprovalRateUrlSync() {
         });
       }
 
-      // Apply dimensions from URL
+      // Apply dimensions from URL (filter to only valid approval rate dimensions)
       if (urlState.dimensions && urlState.dimensions.length > 0) {
-        store.setState({ dimensions: urlState.dimensions });
+        const validDimensions = urlState.dimensions.filter(
+          (d) => d in APPROVAL_RATE_DIMENSION_COLUMN_MAP
+        );
+        store.setState({
+          dimensions: validDimensions.length > 0 ? validDimensions : DEFAULT_APPROVAL_RATE_DIMENSIONS,
+        });
       }
 
       // Apply time period from URL

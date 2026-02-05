@@ -1,0 +1,104 @@
+/* =============================================================================
+   Dashboard — Clean grid, strong type hierarchy, purposeful space
+   ============================================================================= */
+
+/* === Page Layout === */
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+  background: #f7f8fa;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+  padding: 16px 20px 20px;
+}
+
+/* === Filter Bar === */
+.filterBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border: 1px solid var(--color-gray-200);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.filterLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.filterRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.filterLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-gray-400);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* === Table Section === */
+.tableSection {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* === Dashboard Table Theme === */
+.tableTheme :global(.ant-table-thead > tr:first-child > th:nth-child(2)) {
+  background: #f0fdf4 !important;
+  border-bottom: 2px solid #bbf7d0 !important;
+}
+
+.tableTheme :global(.ant-table-thead > tr:last-child > th:nth-child(2)),
+.tableTheme :global(.ant-table-thead > tr:last-child > th:nth-child(3)),
+.tableTheme :global(.ant-table-thead > tr:last-child > th:nth-child(4)),
+.tableTheme :global(.ant-table-thead > tr:last-child > th:nth-child(5)),
+.tableTheme :global(.ant-table-thead > tr:last-child > th:nth-child(6)) {
+  background: #fafdf9 !important;
+}
+
+.tableTheme :global(.ant-table-tbody > tr:hover > td:nth-child(2)),
+.tableTheme :global(.ant-table-tbody > tr:hover > td:nth-child(3)),
+.tableTheme :global(.ant-table-tbody > tr:hover > td:nth-child(4)),
+.tableTheme :global(.ant-table-tbody > tr:hover > td:nth-child(5)),
+.tableTheme :global(.ant-table-tbody > tr:hover > td:nth-child(6)) {
+  background: rgba(220, 252, 231, 0.35) !important;
+}
+
+.tableTheme :global(.ant-table-row-expand-icon) {
+  color: var(--color-primary-500);
+}
+
+/* === Responsive === */
+@media (max-width: 768px) {
+  .content {
+    padding: 12px;
+  }
+
+  .filterBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

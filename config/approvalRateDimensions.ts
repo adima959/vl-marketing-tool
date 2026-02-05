@@ -40,7 +40,7 @@ export const DEFAULT_APPROVAL_RATE_DIMENSIONS = ['source', 'country', 'product']
  * IMPORTANT: Must match dashboardQueryBuilder.ts mappings:
  * - country: c.country (via subscription.customer_id → customer)
  * - product: p.product_name (via invoice_product → product)
- * - source: sr.source (via invoice.source_id → source)
+ * - source: sr.source (via subscription.source_id → source)
  */
 export const APPROVAL_RATE_DIMENSION_COLUMN_MAP: Record<string, string> = {
   country: 'c.country',

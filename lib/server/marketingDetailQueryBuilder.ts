@@ -1,12 +1,15 @@
 import type { DateRange } from '@/types';
 
+interface TrackingIdTuple {
+  campaign_id: string;
+  adset_id: string;
+  ad_id: string;
+}
+
 interface DetailQueryOptions {
   dateRange: DateRange;
-  network?: string;       // Maps to source (Google Ads -> adwords/google, Facebook -> facebook/meta)
-  campaignIds?: string[]; // Array of campaign_ids (tracking_id_4) resolved from campaign names
-  adsetIds?: string[];    // Array of adset_ids (tracking_id_2) resolved from adset names
-  adIds?: string[];       // Array of ad_ids (tracking_id) resolved from ad names
-  date?: string;          // Specific date (ISO string)
+  trackingIdTuples: TrackingIdTuple[];
+  date?: string;          // Specific date (ISO string) for date dimension filtering
 }
 
 interface PaginationOptions {
@@ -24,6 +27,10 @@ interface QueryResult {
 /**
  * Query builder for fetching individual CRM detail records from MariaDB
  * Used when user clicks on CRM metrics in Marketing Report
+ *
+ * Filters CRM subscriptions using tracking ID tuples resolved from PostgreSQL.
+ * Uses MariaDB row-value constructor for precise tuple matching:
+ * (tracking_id_4, tracking_id_2, tracking_id) IN ((v1,v2,v3), ...)
  */
 export class MarketingDetailQueryBuilder {
   /**
@@ -38,66 +45,25 @@ export class MarketingDetailQueryBuilder {
   }
 
   /**
-   * Map network name to source values for filtering
-   */
-  private getSourcePatterns(network: string): string[] {
-    const networkLower = network.toLowerCase();
-
-    if (networkLower === 'google ads') {
-      return ['adwords', 'google'];
-    }
-
-    if (networkLower === 'facebook') {
-      return ['facebook', 'meta'];
-    }
-
-    // For other networks, try to match by name
-    return [networkLower];
-  }
-
-  /**
-   * Build WHERE clause from marketing filters
-   * Uses resolved IDs from PostgreSQL to filter CRM data by tracking fields
+   * Build WHERE clause from tracking ID tuples
+   * Uses MariaDB row-value constructor for precise tuple matching
    */
   private buildFilterClause(filters: DetailQueryOptions): { whereClause: string; params: any[] } {
     const params: any[] = [];
     const conditions: string[] = [];
 
-    // Filter by network -> source mapping
-    if (filters.network && filters.network !== 'Unknown') {
-      const sourcePatterns = this.getSourcePatterns(filters.network);
-      if (sourcePatterns.length === 1) {
-        conditions.push('LOWER(sr.source) = LOWER(?)');
-        params.push(sourcePatterns[0]);
-      } else {
-        const placeholders = sourcePatterns.map(() => 'LOWER(?)').join(', ');
-        conditions.push(`LOWER(sr.source) IN (${placeholders})`);
-        params.push(...sourcePatterns);
+    // Filter by tracking ID tuples from PostgreSQL
+    if (filters.trackingIdTuples.length > 0) {
+      const tuplePlaceholders = filters.trackingIdTuples.map(() => '(?, ?, ?)').join(', ');
+      conditions.push(
+        `(s.tracking_id_4, s.tracking_id_2, s.tracking_id) IN (${tuplePlaceholders})`
+      );
+      for (const tuple of filters.trackingIdTuples) {
+        params.push(tuple.campaign_id, tuple.adset_id, tuple.ad_id);
       }
     }
 
-    // Filter by campaign IDs (tracking_id_4)
-    if (filters.campaignIds && filters.campaignIds.length > 0) {
-      const placeholders = filters.campaignIds.map(() => '?').join(', ');
-      conditions.push(`s.tracking_id_4 IN (${placeholders})`);
-      params.push(...filters.campaignIds);
-    }
-
-    // Filter by adset IDs (tracking_id_2)
-    if (filters.adsetIds && filters.adsetIds.length > 0) {
-      const placeholders = filters.adsetIds.map(() => '?').join(', ');
-      conditions.push(`s.tracking_id_2 IN (${placeholders})`);
-      params.push(...filters.adsetIds);
-    }
-
-    // Filter by ad IDs (tracking_id)
-    if (filters.adIds && filters.adIds.length > 0) {
-      const placeholders = filters.adIds.map(() => '?').join(', ');
-      conditions.push(`s.tracking_id IN (${placeholders})`);
-      params.push(...filters.adIds);
-    }
-
-    // Handle specific date filter (when date dimension is used)
+    // Specific date filter (when date dimension is used)
     if (filters.date) {
       conditions.push('DATE(s.date_create) = DATE(?)');
       params.push(filters.date);

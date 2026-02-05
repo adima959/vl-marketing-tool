@@ -1,8 +1,14 @@
 .toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 10px 16px;
-  background-color: var(--color-background-primary);
-  border-bottom: 1px solid var(--color-gray-200);
+  background: #ffffff;
+  border: 1px solid var(--color-gray-200);
+  border-radius: 8px;
   flex-shrink: 0;
+  margin-bottom: 16px;
 }
 
 /* Single row layout */
@@ -11,12 +17,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  width: 100%;
 }
 
 /* Left section: Dimensions */
 .leftSection {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   flex: 1;
   min-width: 0;
@@ -24,20 +31,21 @@
 
 .dimensionsWrapper {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 12px;
   flex: 1;
   min-width: 0;
 }
 
 .dimensionsLabel {
-  font-size: 10px;
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-gray-400);
   white-space: nowrap;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .dimensionsContent {
@@ -57,11 +65,6 @@
   flex-shrink: 0;
 }
 
-.rightSection :global(.ant-picker),
-.rightSection :global(.ant-btn) {
-  height: 32px !important;
-}
-
 /* Load button wrapper with unsaved indicator */
 .loadButtonWrapper {
   position: relative;
@@ -76,7 +79,7 @@
   height: 8px;
   border-radius: 50%;
   background: var(--color-warning);
-  border: 2px solid var(--color-background-primary);
+  border: 2px solid #ffffff;
   animation: pulseOrange 2s ease-in-out infinite;
   z-index: 1;
 }

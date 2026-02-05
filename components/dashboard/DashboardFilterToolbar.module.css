@@ -1,24 +1,26 @@
 .toolbar {
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-  padding: var(--spacing-md);
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border: 1px solid var(--color-gray-200);
+  border-radius: 8px;
 }
 
 .mainRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--spacing-md);
+  gap: 16px;
+  width: 100%;
 }
 
 /* Left section: Dimensions */
 .leftSection {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   flex: 1;
   min-width: 0;
@@ -26,26 +28,27 @@
 
 .dimensionsWrapper {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 12px;
   flex: 1;
   min-width: 0;
 }
 
 .dimensionsLabel {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--color-gray-400);
   white-space: nowrap;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .dimensionsContent {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: 8px;
   flex-wrap: wrap;
   flex: 1;
   min-width: 0;
@@ -65,12 +68,26 @@
 
 .unsavedDot {
   position: absolute;
-  top: -4px;
-  right: -4px;
+  top: -3px;
+  right: -3px;
   width: 8px;
   height: 8px;
-  background: var(--color-accent);
-  border: 2px solid var(--color-bg-secondary);
+  background: var(--color-warning, #f59e0b);
+  border: 2px solid #ffffff;
   border-radius: 50%;
   pointer-events: none;
+  animation: pulseOrange 2s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes pulseOrange {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.2);
+  }
 }

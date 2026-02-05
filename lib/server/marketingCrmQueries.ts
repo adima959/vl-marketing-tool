@@ -6,7 +6,6 @@ export interface CRMSubscriptionRow {
   adset_id: string;
   ad_id: string;
   date: string;
-  product_name: string | null;
   subscription_count: number;
   approved_count: number;
 }
@@ -31,7 +30,7 @@ export interface CRMQueryFilters {
  * approved_count: Only non-deleted invoices with is_marked = 1
  *
  * @param filters - Date range and optional product filter
- * @returns CRM subscription rows grouped by source, campaign, adset, ad, date, product
+ * @returns CRM subscription rows grouped by source, campaign, adset, ad, date
  */
 export async function getCRMSubscriptions(
   filters: CRMQueryFilters
@@ -64,8 +63,13 @@ export async function getCRMSubscriptions(
     whereClauses.push('s.tracking_id = ?');
     params.push(filters.ad_id);
   }
+  // Product filter uses EXISTS subquery to avoid overcounting from product JOINs
   if (filters.productFilter) {
-    whereClauses.push('p.product_name LIKE ?');
+    whereClauses.push(`EXISTS (
+      SELECT 1 FROM invoice_product ip
+      INNER JOIN product p ON p.id = ip.product_id
+      WHERE ip.invoice_id = i.id AND p.product_name LIKE ?
+    )`);
     params.push(filters.productFilter);
   }
 
@@ -76,17 +80,14 @@ export async function getCRMSubscriptions(
       s.tracking_id_2 as adset_id,
       s.tracking_id as ad_id,
       DATE(s.date_create) as date,
-      p.product_name,
       COUNT(DISTINCT s.id) as subscription_count,
       COUNT(DISTINCT CASE WHEN i.is_marked = 1 AND i.deleted = 0 THEN i.id END) as approved_count
     FROM subscription s
     INNER JOIN invoice i ON i.subscription_id = s.id
       AND i.type = 1
     LEFT JOIN source sr ON sr.id = s.source_id
-    LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
-    LEFT JOIN product p ON p.id = ip.product_id
     WHERE ${whereClauses.join(' AND ')}
-    GROUP BY sr.source, s.tracking_id_4, s.tracking_id_2, s.tracking_id, DATE(s.date_create), p.product_name
+    GROUP BY sr.source, s.tracking_id_4, s.tracking_id_2, s.tracking_id, DATE(s.date_create)
   `;
 
   return executeMariaDBQuery<CRMSubscriptionRow>(query, params);

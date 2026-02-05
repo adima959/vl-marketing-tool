@@ -8,12 +8,13 @@ import {
   BarChart,
   Target,
   LogOut,
-  CheckCircle2,
+  ClipboardCheck,
   Settings,
 } from "lucide-react"
 import { usePathname } from "next/navigation"
 
 import { NavMain } from "@/components/nav-main"
+import { NavMainCollapsible, type NavItem } from "@/components/nav-main-collapsible"
 import { useAuth } from "@/contexts/AuthContext"
 import { UserRole } from "@/types/user"
 import {
@@ -54,10 +55,28 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       url: "/on-page-analysis",
       icon: FileSearch,
     },
+  ];
+
+  // Validation Reports section (collapsible with sub-items)
+  const validationReportsItems: NavItem[] = [
     {
-      title: "Approval Rate",
-      url: "/approval-rate",
-      icon: CheckCircle2,
+      title: "Validation Reports",
+      url: "/validation-reports",
+      icon: ClipboardCheck,
+      items: [
+        {
+          title: "Approval Rate",
+          url: "/validation-reports/approval-rate",
+        },
+        {
+          title: "Buy Rate",
+          url: "/validation-reports/buy-rate",
+        },
+        {
+          title: "Pay Rate",
+          url: "/validation-reports/pay-rate",
+        },
+      ],
     },
   ];
 
@@ -94,6 +113,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain label="Menu" items={menuItems} />
+        <NavMainCollapsible label="Reports" items={validationReportsItems} />
         <NavMain label="Tools" items={toolItems} />
       </SidebarContent>
       <SidebarFooter>

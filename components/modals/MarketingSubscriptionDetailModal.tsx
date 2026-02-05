@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Modal, Table, Tooltip } from 'antd';
+import { useState, useEffect, useCallback } from 'react';
+import { Modal, Table, Tooltip, Button } from 'antd';
+import { DownloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { MarketingMetricClickContext } from '@/types/marketingDetails';
 import type { DetailRecord } from '@/types/dashboardDetails';
@@ -16,21 +17,16 @@ interface MarketingSubscriptionDetailModalProps {
 
 /**
  * Modal for displaying detailed CRM subscription/order records from Marketing Report
- * Shows individual subscriptions/invoices with customer info, tracking IDs, amounts, dates
- *
- * Features:
- * - NEW badge: Shows for customers where registration date = subscription date
- * - Green checkmark: Approved orders (is_marked = 1)
- * - Red X: Cancelled subscriptions (status 4 or 5) with reason tooltip
+ * Shows individual subscriptions/invoices with customer info, campaign/ad IDs, amounts, dates
  */
 export function MarketingSubscriptionDetailModal({ open, onClose, context }: MarketingSubscriptionDetailModalProps) {
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<{ records: DetailRecord[]; total: number } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 50;
+  const pageSize = 100;
 
-  // Fetch data when modal opens or page changes
   useEffect(() => {
     if (open && context) {
       loadData();
@@ -57,121 +53,120 @@ export function MarketingSubscriptionDetailModal({ open, onClose, context }: Mar
     }
   };
 
-  // Reset page when modal opens with new context
   useEffect(() => {
     if (open) {
       setCurrentPage(1);
     }
   }, [open, context?.metricId]);
 
-  // Build filter summary for display
-  const buildFilterSummary = () => {
-    if (!context) return [];
+  // Export all records to CSV
+  const exportToCSV = useCallback(async () => {
+    if (!context || !data?.total) return;
 
-    const parts: string[] = [];
+    setExporting(true);
 
-    // Date range
-    parts.push(
-      `${context.filters.dateRange.start.toLocaleDateString('en-GB')} - ${context.filters.dateRange.end.toLocaleDateString('en-GB')}`
-    );
+    try {
+      const allData = await fetchMarketingDetails(context, {
+        page: 1,
+        pageSize: Math.min(data.total, 10000),
+      });
 
-    // Marketing dimension filters
-    if (context.filters.network) {
-      parts.push(`Network: ${context.filters.network}`);
-    }
-    if (context.filters.campaign) {
-      parts.push(`Campaign: ${context.filters.campaign}`);
-    }
-    if (context.filters.adset) {
-      parts.push(`Ad Set: ${context.filters.adset}`);
-    }
-    if (context.filters.ad) {
-      parts.push(`Ad: ${context.filters.ad}`);
-    }
-    if (context.filters.date) {
-      parts.push(`Date: ${new Date(context.filters.date).toLocaleDateString('en-GB')}`);
-    }
+      const headers = [
+        'Customer Name',
+        'Source',
+        'Campaign ID',
+        'Ad Set ID',
+        'Ad ID',
+        'Product',
+        'Amount',
+        'Date',
+      ];
 
-    return parts;
-  };
+      const csvRows = [
+        headers.join(','),
+        ...allData.records.map((record) => {
+          const row = [
+            `"${(record.customerName || '').replace(/"/g, '""')}"`,
+            `"${(record.source || '').replace(/"/g, '""')}"`,
+            `"${(record.trackingId4 || '').replace(/"/g, '""')}"`,
+            `"${(record.trackingId2 || '').replace(/"/g, '""')}"`,
+            `"${(record.trackingId1 || '').replace(/"/g, '""')}"`,
+            `"${(record.productName || '').replace(/"/g, '""')}"`,
+            record.amount !== null && record.amount !== undefined ? Number(record.amount).toFixed(2) : '0.00',
+            new Date(record.date).toLocaleDateString('en-GB'),
+          ];
+          return row.join(',');
+        }),
+      ];
 
-  // Table columns
+      const csvContent = csvRows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${context.metricLabel || 'marketing_details'}_export.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed:', err);
+    } finally {
+      setExporting(false);
+    }
+  }, [context, data?.total]);
+
+  // Build filter tags
+  const filterTags: string[] = [];
+  if (context) {
+    const { start, end } = context.filters.dateRange;
+    filterTags.push(`${start.toLocaleDateString('en-GB')} – ${end.toLocaleDateString('en-GB')}`);
+    if (context.filters.network) filterTags.push(context.filters.network);
+    if (context.filters.campaign) filterTags.push(`Campaign: ${context.filters.campaign}`);
+    if (context.filters.adset) filterTags.push(`Ad Set: ${context.filters.adset}`);
+    if (context.filters.ad) filterTags.push(`Ad: ${context.filters.ad}`);
+    if (context.filters.date) filterTags.push(new Date(context.filters.date).toLocaleDateString('en-GB'));
+  }
+
   const columns: ColumnsType<DetailRecord> = [
     {
-      title: 'Customer Name',
+      title: 'Customer',
       dataIndex: 'customerName',
-      width: 180,
+      width: 190,
       fixed: 'left',
-      ellipsis: {
-        showTitle: false,
-      },
+      ellipsis: { showTitle: false },
       render: (name: string, record: DetailRecord) => (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+        <div className={styles.customerCell}>
           <Tooltip title={name} placement="topLeft">
             <a
               href={`https://vitaliv.no/admin/customers/${record.customerId}`}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ color: 'var(--color-accent-blue)', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}
-              onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
-              onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+              className={styles.customerLink}
             >
               {name}
             </a>
           </Tooltip>
           {record.customerDateRegistered &&
            new Date(record.customerDateRegistered).toDateString() === new Date(record.date).toDateString() && (
-            <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              borderRadius: '4px',
-              backgroundColor: '#f9fafb',
-              padding: '2px 6px',
-              fontSize: '10px',
-              fontWeight: 'var(--font-weight-medium)',
-              color: '#6b7280',
-              border: '1px solid rgba(107, 114, 128, 0.1)',
-              marginLeft: 'var(--spacing-xs)',
-              flexShrink: 0
-            }}>
-              NEW
-            </span>
+            <span className={styles.badgeNew}>NEW</span>
           )}
           {!!record.isApproved && (
-            <Tooltip title="Approved" placement="top">
-              <span style={{
-                color: 'var(--color-success)',
-                marginLeft: 'var(--spacing-xs)',
-                fontSize: 'var(--font-size-sm)',
-                fontWeight: 'var(--font-weight-bold)',
-                cursor: 'default',
-                flexShrink: 0
-              }}>
-                ✓
-              </span>
+            <Tooltip title="Approved">
+              <span className={styles.badgeApproved}>✓</span>
             </Tooltip>
           )}
           {(record.subscriptionStatus === 4 || record.subscriptionStatus === 5) && (
             <Tooltip
               title={
                 <div>
-                  <div>Status: {record.subscriptionStatus === 4 ? 'Soft Cancel' : 'Cancel Forever'}</div>
-                  <div>Reason: {record.cancelReason || 'No reason provided'}</div>
-                  {record.cancelReasonAbout && <div>Details: {record.cancelReasonAbout}</div>}
+                  <div>{record.subscriptionStatus === 4 ? 'Soft Cancel' : 'Cancel Forever'}</div>
+                  {record.cancelReason && <div>{record.cancelReason}</div>}
+                  {record.cancelReasonAbout && <div>{record.cancelReasonAbout}</div>}
                 </div>
               }
-              placement="top"
             >
-              <span style={{
-                color: 'var(--color-error)',
-                marginLeft: 'var(--spacing-xs)',
-                fontSize: 'var(--font-size-sm)',
-                fontWeight: 'var(--font-weight-bold)',
-                cursor: 'default',
-                flexShrink: 0
-              }}>
-                ✕
-              </span>
+              <span className={styles.badgeCancelled}>✕</span>
             </Tooltip>
           )}
         </div>
@@ -180,125 +175,127 @@ export function MarketingSubscriptionDetailModal({ open, onClose, context }: Mar
     {
       title: 'Source',
       dataIndex: 'source',
-      width: 120,
-      ellipsis: {
-        showTitle: false,
-      },
-      render: (val) => <Tooltip title={val}>{val}</Tooltip>,
+      width: 100,
+      ellipsis: { showTitle: false },
+      render: (val) => <Tooltip title={val}><span className={styles.sourceCell}>{val}</span></Tooltip>,
     },
     {
       title: 'Campaign ID',
       dataIndex: 'trackingId4',
       width: 120,
-      ellipsis: {
-        showTitle: false,
-      },
-      render: (val) => <Tooltip title={val || '-'}>{val || '-'}</Tooltip>,
+      ellipsis: { showTitle: false },
+      render: (val) => <Tooltip title={val || '–'}><span className={styles.monoCell}>{val || '–'}</span></Tooltip>,
     },
     {
       title: 'Ad Set ID',
       dataIndex: 'trackingId2',
       width: 120,
-      ellipsis: {
-        showTitle: false,
-      },
-      render: (val) => <Tooltip title={val || '-'}>{val || '-'}</Tooltip>,
+      ellipsis: { showTitle: false },
+      render: (val) => <Tooltip title={val || '–'}><span className={styles.monoCell}>{val || '–'}</span></Tooltip>,
     },
     {
       title: 'Ad ID',
       dataIndex: 'trackingId1',
       width: 120,
-      ellipsis: {
-        showTitle: false,
-      },
-      render: (val) => <Tooltip title={val || '-'}>{val || '-'}</Tooltip>,
+      ellipsis: { showTitle: false },
+      render: (val) => <Tooltip title={val || '–'}><span className={styles.monoCell}>{val || '–'}</span></Tooltip>,
     },
     {
       title: 'Product',
       dataIndex: 'productName',
       width: 150,
-      ellipsis: {
-        showTitle: false,
-      },
-      render: (val) => <Tooltip title={val || '-'}>{val || '-'}</Tooltip>,
+      ellipsis: { showTitle: false },
+      render: (val) => <Tooltip title={val || '–'}><span className={styles.sourceCell}>{val || '–'}</span></Tooltip>,
     },
     {
       title: 'Amount',
       dataIndex: 'amount',
-      width: 100,
+      width: 90,
       align: 'right',
-      ellipsis: {
-        showTitle: false,
-      },
       render: (val) => {
         const formatted = val !== null && val !== undefined ? Number(val).toFixed(2) : '0.00';
-        return <Tooltip title={formatted}>{formatted}</Tooltip>;
+        return <span className={styles.amountCell}>{formatted}</span>;
       },
     },
     {
       title: 'Date',
       dataIndex: 'date',
-      width: 120,
-      ellipsis: {
-        showTitle: false,
-      },
-      render: (val) => {
-        const formatted = new Date(val).toLocaleDateString('en-GB');
-        return <Tooltip title={formatted}>{formatted}</Tooltip>;
-      },
+      width: 90,
+      render: (val) => (
+        <span className={styles.dateCell}>
+          {new Date(val).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
+        </span>
+      ),
     },
   ];
 
-  const filterParts = buildFilterSummary();
-
   return (
     <Modal
-      title={context ? `${context.metricLabel} Details` : 'Details'}
+      title="Details"
       open={open}
       onCancel={onClose}
       width={1200}
       centered
       footer={null}
       className={styles.modal}
-      styles={{
-        header: { paddingBottom: 12, borderBottom: '1px solid #e8eaed' },
-        body: { paddingTop: 0 },
-      }}
     >
-      {context && (
-        <div className={styles.filterSummary}>
-          <span className={styles.summaryCount}>{context.value} records</span>
-          {filterParts.map((part, index) => (
-            <span key={index}>
-              <span className={styles.separator}>•</span>
-              <span className={styles.summaryText}>{part}</span>
-            </span>
+      <div className={styles.header}>
+        <div className={styles.headerLeft}>
+          <span className={styles.title}>
+            {context?.metricLabel || 'Details'}
+          </span>
+          <span className={styles.recordCount}>
+            {data?.total ?? context?.value ?? 0} records
+          </span>
+        </div>
+        <div className={styles.headerRight}>
+          <Button
+            type="text"
+            size="small"
+            icon={<DownloadOutlined />}
+            onClick={exportToCSV}
+            disabled={!data?.total || exporting}
+            loading={exporting}
+          >
+            {exporting ? 'Exporting…' : 'Export'}
+          </Button>
+        </div>
+      </div>
+
+      {filterTags.length > 0 && (
+        <div className={styles.filterBar}>
+          {filterTags.map((tag, i) => (
+            <span key={i} className={styles.filterTag}>{tag}</span>
           ))}
         </div>
       )}
 
       {error && (
-        <div className={styles.error}>
-          Error: {error}
-        </div>
+        <div className={styles.error}>{error}</div>
       )}
 
-      <Table
-        columns={columns}
-        dataSource={data?.records || []}
-        loading={loading}
-        pagination={{
-          current: currentPage,
-          pageSize,
-          total: data?.total || 0,
-          onChange: setCurrentPage,
-          showSizeChanger: false,
-          showTotal: (total) => `Total ${total} records`,
-        }}
-        rowKey="id"
-        scroll={{ x: 1120 }}
-        size="small"
-      />
+      <div className={styles.tableWrap}>
+        <Table
+          columns={columns}
+          dataSource={data?.records || []}
+          loading={loading}
+          pagination={{
+            current: currentPage,
+            pageSize,
+            total: data?.total || 0,
+            onChange: setCurrentPage,
+            showSizeChanger: false,
+            showTotal: (total) => (
+              <span style={{ fontSize: 12, color: 'var(--color-gray-500)' }}>
+                {total} total
+              </span>
+            ),
+          }}
+          rowKey="id"
+          scroll={{ x: 1120 }}
+          size="small"
+        />
+      </div>
     </Modal>
   );
 }

@@ -53,7 +53,7 @@ export function DashboardDateRangePicker() {
     <div className={styles.datePickerWrapper}>
       <RangePicker
         className={styles.rangePicker}
-        size="large"
+        size="middle"
         format="DD/MM/YYYY"
         value={[dayjs(dateRange.start), dayjs(dateRange.end)]}
         onChange={handleChange}

@@ -39,3 +39,4 @@
 .compactTable :global(.ant-table-tbody > tr > td > *) {
   max-height: none !important;
 }
+

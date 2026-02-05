@@ -79,6 +79,18 @@ const metricMap: Record<string, string> = {
 };
 
 /**
+ * Format a Date as 'YYYY-MM-DD' using local timezone
+ * Avoids the timezone bug where toISOString().split('T')[0] returns
+ * the previous day for users ahead of UTC (e.g., Europe)
+ */
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * Match network name to CRM source
  */
 function matchSource(network: string, source: string | null): boolean {
@@ -134,30 +146,6 @@ function buildParentFilters(
   };
 }
 
-/**
- * Auto-detect product filter from campaign name
- * Looks for product names in campaign name and returns LIKE pattern
- */
-function detectProductFilter(campaignName: string | undefined): string | undefined {
-  if (!campaignName) return undefined;
-
-  const campaignLower = campaignName.toLowerCase();
-
-  // Known products - add more as needed
-  const productPatterns = [
-    { pattern: 'balansera', filter: '%Balansera%' },
-    { pattern: 'brainy', filter: '%Brainy%' },
-    // Add more products here as needed
-  ];
-
-  for (const { pattern, filter } of productPatterns) {
-    if (campaignLower.includes(pattern)) {
-      return filter;
-    }
-  }
-
-  return undefined;
-}
 
 /**
  * Get marketing data with two-database approach (PostgreSQL for ads, MariaDB for CRM)
@@ -177,9 +165,8 @@ export async function getMarketingData(
     limit = 1000,
   } = params;
 
-  // Keep explicit product filter if provided (for manual testing)
-  // But don't auto-detect globally - we'll detect per-row instead
-  let effectiveProductFilter = productFilter;
+  // Product filter is only used when explicitly provided via API
+  const effectiveProductFilter = productFilter;
 
   // Validate depth
   if (depth >= dimensions.length) {
@@ -207,8 +194,8 @@ export async function getMarketingData(
   // When we do date::date, PostgreSQL extracts the date in the database's timezone
   // So no date adjustment needed - use dates as-is from frontend
   const pgParams: any[] = [
-    dateRange.start.toISOString().split('T')[0], // $1 - e.g., "2026-02-01"
-    dateRange.end.toISOString().split('T')[0],   // $2 - e.g., "2026-02-01"
+    formatLocalDate(dateRange.start), // $1 - e.g., "2026-02-05"
+    formatLocalDate(dateRange.end),   // $2 - e.g., "2026-02-05"
   ];
 
   // Build parent filters
@@ -240,14 +227,12 @@ export async function getMarketingData(
 
   const adsData = await executeQuery<AggregatedMetrics>(adsQuery, pgParams);
 
-  // Step 2: Query MariaDB for ALL CRM data (no product filter)
-  // We'll filter by product per-row during matching to ensure each campaign
-  // only counts its own product's subscriptions
-  // Use the original dates (no shifting needed)
+  // Step 2: Query MariaDB for CRM data
+  // Product filter is only applied when explicitly provided via API
   const crmFilters: CRMQueryFilters = {
-    dateStart: `${dateRange.start.toISOString().split('T')[0]} 00:00:00`,
-    dateEnd: `${dateRange.end.toISOString().split('T')[0]} 23:59:59`,
-    // No global product filter - we filter per dimension value during matching
+    dateStart: `${formatLocalDate(dateRange.start)} 00:00:00`,
+    dateEnd: `${formatLocalDate(dateRange.end)} 23:59:59`,
+    productFilter: effectiveProductFilter,
   };
 
   const crmData = await getCRMSubscriptions(crmFilters);
@@ -285,30 +270,22 @@ export async function getMarketingData(
     mappingsByDimension.get(key)!.push(mapping);
   }
 
-  // Step 4: Match CRM data to aggregated ads data
+  // Step 4: Match CRM data to aggregated ads data by tracking ID tuples
   const result = adsData.map(row => {
     const mappings = mappingsByDimension.get(row.dimension_value) || [];
     let crm_subscriptions = 0;
     let approved_sales = 0;
 
-    // Detect product filter for this specific dimension value
-    // This ensures each campaign filters to its own product, even at depth 0/1
-    const rowProductFilter = effectiveProductFilter || detectProductFilter(row.dimension_value);
-
     // For each possible ad combination that rolls up to this dimension value
     for (const mapping of mappings) {
-      // Find matching CRM rows
+      // Find matching CRM rows by tracking ID tuple + source
       const matches = crmData.filter(crm => {
         const campaignMatch = mapping.campaign_id === crm.campaign_id;
         const adsetMatch = mapping.adset_id === crm.adset_id;
         const adMatch = mapping.ad_id === crm.ad_id;
         const sourceMatch = matchSource(mapping.network, crm.source);
 
-        // Apply product filter per dimension value
-        const productMatch = !rowProductFilter ||
-          (crm.product_name && crm.product_name.toLowerCase().includes(rowProductFilter.replace(/%/g, '').toLowerCase()));
-
-        return campaignMatch && adsetMatch && adMatch && sourceMatch && productMatch;
+        return campaignMatch && adsetMatch && adMatch && sourceMatch;
       });
 
       // Sum up CRM metrics

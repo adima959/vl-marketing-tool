@@ -2,7 +2,7 @@
 
 import { useState, Suspense, useEffect, useRef, useMemo, lazy } from 'react';
 import { Button } from 'antd';
-import { SettingOutlined, WarningOutlined } from '@ant-design/icons';
+import { SettingOutlined } from '@ant-design/icons';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FilterToolbar } from '@/components/filters/FilterToolbar';
 import { DataTable } from '@/components/table/DataTable';
@@ -10,6 +10,8 @@ import { useUrlSync } from '@/hooks/useUrlSync';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useReportStore } from '@/stores/reportStore';
 import { BarChart3 } from 'lucide-react';
+import { TableInfoBanner } from '@/components/ui/TableInfoBanner';
+import pageStyles from '@/components/dashboard/dashboard.module.css';
 import type { MarketingMetricClickContext } from '@/types/marketingDetails';
 
 const ColumnSettingsModal = lazy(() =>
@@ -85,34 +87,19 @@ function MarketingReportContent() {
     </>
   );
 
-  const headerWarning = includesToday ? (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '6px',
-      padding: '4px 12px',
-      background: '#fffbeb',
-      border: '1px solid #fef3c7',
-      borderRadius: '6px',
-      fontSize: '13px',
-      color: '#92400e'
-    }}>
-      <WarningOutlined style={{ fontSize: '14px', color: '#f59e0b' }} />
-      <span style={{ fontWeight: 500 }}>Today's data may be incomplete</span>
-    </div>
-  ) : null;
-
   return (
     <>
-      <div className="flex flex-col h-full overflow-auto">
+      <div className={pageStyles.page}>
         <PageHeader
           title="Marketing Report"
           icon={<BarChart3 className="h-5 w-5" />}
           actions={headerActions}
-          warning={headerWarning}
         />
-        <div className="flex flex-col gap-3 p-3 bg-white flex-1">
+        <div className={pageStyles.content}>
           <FilterToolbar />
+          {includesToday && (
+            <TableInfoBanner message="Today's data may be incomplete" />
+          )}
           <DataTable onMarketingMetricClick={handleMarketingMetricClick} />
         </div>
       </div>

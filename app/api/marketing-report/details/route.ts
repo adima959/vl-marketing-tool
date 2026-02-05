@@ -8,71 +8,100 @@ import { withAdmin } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { maskErrorForClient } from '@/lib/types/errors';
 
+interface TrackingIdTuple {
+  campaign_id: string;
+  adset_id: string;
+  ad_id: string;
+}
+
 /**
- * Resolve campaign/adset/ad names to their IDs using PostgreSQL ads database
- * Returns arrays of IDs that match the given names within the date range
+ * Format a Date as 'YYYY-MM-DD' using local timezone
+ * Avoids the timezone bug where toISOString().split('T')[0] returns
+ * the previous day for users ahead of UTC (e.g., Europe)
  */
-async function resolveMarketingIdsFromNames(
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Resolve tracking ID tuples from PostgreSQL for the given filters.
+ * Returns the full set of (campaign_id, adset_id, ad_id) tuples that match,
+ * preserving the relationship between IDs. These tuples are passed directly
+ * to the CRM query to filter subscriptions by exact ad combinations.
+ */
+async function resolveTrackingIdTuples(
   dateRange: { start: Date; end: Date },
   filters: {
     network?: string;
     campaign?: string;
     adset?: string;
     ad?: string;
+    date?: string;
   }
-): Promise<{
-  campaignIds: string[];
-  adsetIds: string[];
-  adIds: string[];
-}> {
+): Promise<TrackingIdTuple[]> {
   const params: any[] = [
-    dateRange.start.toISOString().split('T')[0],
-    dateRange.end.toISOString().split('T')[0],
+    formatLocalDate(dateRange.start),
+    formatLocalDate(dateRange.end),
   ];
 
-  const conditions: string[] = ['date::date BETWEEN $1::date AND $2::date'];
+  const conditions: string[] = [
+    'date::date BETWEEN $1::date AND $2::date',
+    'campaign_id IS NOT NULL',
+    'adset_id IS NOT NULL',
+    'ad_id IS NOT NULL',
+  ];
 
   if (filters.network) {
-    params.push(filters.network);
-    conditions.push(`network = $${params.length}`);
+    if (filters.network === 'Unknown') {
+      conditions.push('network IS NULL');
+    } else {
+      params.push(filters.network);
+      conditions.push(`network = $${params.length}`);
+    }
   }
 
   if (filters.campaign) {
-    params.push(filters.campaign);
-    conditions.push(`campaign_name = $${params.length}`);
+    if (filters.campaign === 'Unknown') {
+      conditions.push('campaign_name IS NULL');
+    } else {
+      params.push(filters.campaign);
+      conditions.push(`campaign_name = $${params.length}`);
+    }
   }
 
   if (filters.adset) {
-    params.push(filters.adset);
-    conditions.push(`adset_name = $${params.length}`);
+    if (filters.adset === 'Unknown') {
+      conditions.push('adset_name IS NULL');
+    } else {
+      params.push(filters.adset);
+      conditions.push(`adset_name = $${params.length}`);
+    }
   }
 
   if (filters.ad) {
-    params.push(filters.ad);
-    conditions.push(`ad_name = $${params.length}`);
+    if (filters.ad === 'Unknown') {
+      conditions.push('ad_name IS NULL');
+    } else {
+      params.push(filters.ad);
+      conditions.push(`ad_name = $${params.length}`);
+    }
+  }
+
+  if (filters.date) {
+    params.push(filters.date);
+    conditions.push(`date::date = $${params.length}::date`);
   }
 
   const query = `
-    SELECT DISTINCT
-      campaign_id,
-      adset_id,
-      ad_id
+    SELECT DISTINCT campaign_id, adset_id, ad_id
     FROM merged_ads_spending
     WHERE ${conditions.join(' AND ')}
   `;
 
-  const results = await executeQuery<{
-    campaign_id: string;
-    adset_id: string;
-    ad_id: string;
-  }>(query, params);
-
-  // Extract unique IDs
-  const campaignIds = [...new Set(results.map(r => r.campaign_id).filter(Boolean))];
-  const adsetIds = [...new Set(results.map(r => r.adset_id).filter(Boolean))];
-  const adIds = [...new Set(results.map(r => r.ad_id).filter(Boolean))];
-
-  return { campaignIds, adsetIds, adIds };
+  return executeQuery<TrackingIdTuple>(query, params);
 }
 
 /**
@@ -148,24 +177,22 @@ async function handleMarketingDetails(
     // Default pagination
     const pagination = body.pagination || { page: 1, pageSize: 50 };
 
-    // Resolve campaign/adset/ad names to IDs using PostgreSQL
-    // This is necessary because Marketing Report shows names but CRM stores IDs in tracking fields
-    const { campaignIds, adsetIds, adIds } = await resolveMarketingIdsFromNames(
+    // Resolve tracking ID tuples from PostgreSQL
+    // Always resolve all matching (campaign_id, adset_id, ad_id) tuples
+    // regardless of which dimension filters are provided
+    const trackingIdTuples = await resolveTrackingIdTuples(
       dateRange,
       {
         network: body.filters.network,
         campaign: body.filters.campaign,
         adset: body.filters.adset,
         ad: body.filters.ad,
+        date: body.filters.date,
       }
     );
 
-    // If we have filters but no matching IDs found, return empty result
-    if (
-      (body.filters.campaign && campaignIds.length === 0) ||
-      (body.filters.adset && adsetIds.length === 0) ||
-      (body.filters.ad && adIds.length === 0)
-    ) {
+    // If no matching tuples found, no CRM records can match
+    if (trackingIdTuples.length === 0) {
       return NextResponse.json({
         success: true,
         data: {
@@ -177,15 +204,12 @@ async function handleMarketingDetails(
       });
     }
 
-    // Build queries with resolved IDs
+    // Build queries with resolved ID tuples
     const { query, params, countQuery, countParams } = marketingDetailQueryBuilder.buildDetailQuery(
       body.metricId,
       {
         dateRange,
-        network: body.filters.network,
-        campaignIds: body.filters.campaign ? campaignIds : undefined,
-        adsetIds: body.filters.adset ? adsetIds : undefined,
-        adIds: body.filters.ad ? adIds : undefined,
+        trackingIdTuples,
         date: body.filters.date,
       },
       pagination
