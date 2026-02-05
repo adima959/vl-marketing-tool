@@ -55,7 +55,7 @@ export function ApprovalRateDataTable() {
 
   // Calculate table width: attribute column + period columns
   const tableWidth = useMemo(() => {
-    const attributeWidth = 350;
+    const attributeWidth = 250;
     const periodWidth = 110; // Width per period column
     return attributeWidth + periodColumns.length * periodWidth;
   }, [periodColumns]);
@@ -152,7 +152,7 @@ export function ApprovalRateDataTable() {
       dataIndex: 'attribute',
       key: 'attribute',
       fixed: 'left',
-      width: 350,
+      width: 250,
       render: (value: string, record: ApprovalRateRowWithSkeleton) => {
         const indent = record.depth * 20;
         const isExpanded = expandedRowKeys.includes(record.key);

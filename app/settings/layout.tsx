@@ -1,24 +1,15 @@
-'use client';
+import type { Metadata } from 'next';
+import { SettingsShell } from '@/components/settings/SettingsShell';
 
-import { Settings } from 'lucide-react';
-import { PageHeader } from '@/components/layout/PageHeader';
-import { SettingsNav } from '@/components/settings/SettingsNav';
+export const metadata: Metadata = {
+  title: 'Settings | Vitaliv Analytics',
+  description: 'Application settings and configuration',
+};
 
 export default function SettingsLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div className="flex flex-col h-full overflow-auto">
-      <PageHeader
-        title="Settings"
-        icon={<Settings className="h-5 w-5" />}
-      />
-      <SettingsNav />
-      <main className="flex-1 overflow-auto bg-[var(--color-background-secondary)]">
-        {children}
-      </main>
-    </div>
-  );
+  return <SettingsShell>{children}</SettingsShell>;
 }

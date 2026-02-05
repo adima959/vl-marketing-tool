@@ -9,6 +9,7 @@ import { useApprovalRateUrlSync } from '@/hooks/useApprovalRateUrlSync';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useApprovalRateStore } from '@/stores/approvalRateStore';
 import { TrendingUp } from 'lucide-react';
+import pageStyles from '@/components/dashboard/dashboard.module.css';
 
 function ApprovalRateContent() {
   const { setOpen } = useSidebar();
@@ -37,13 +38,13 @@ function ApprovalRateContent() {
   );
 
   return (
-    <div className="flex flex-col h-full overflow-auto">
+    <div className={pageStyles.page}>
       <PageHeader
         title="Approval Rate"
         icon={<TrendingUp className="h-5 w-5" />}
         actions={headerActions}
       />
-      <div className="flex flex-col gap-3 p-3 bg-white flex-1">
+      <div className={pageStyles.content}>
         <ApprovalRateFilterToolbar />
         <ApprovalRateDataTable />
       </div>

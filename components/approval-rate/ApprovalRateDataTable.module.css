@@ -20,9 +20,14 @@
   height: 32px !important;
 }
 
-/* Adjust attribute cell for compact layout */
+/* Narrower attribute column for approval rate (fewer data columns than marketing) */
+.compactTable :global(.ant-table-thead > tr > th:first-child) {
+  width: 250px !important;
+}
+
 .compactTable :global(.ant-table-tbody > tr > td:first-child) {
   padding: 4px 8px !important;
+  width: 250px !important;
 }
 
 /* Compact attribute text */

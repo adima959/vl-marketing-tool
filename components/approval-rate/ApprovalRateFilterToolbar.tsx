@@ -1,7 +1,7 @@
 'use client';
 
 import { Button, DatePicker } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+import { ReloadOutlined, SwapRightOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { ApprovalRateDimensionPicker } from './ApprovalRateDimensionPicker';
@@ -9,6 +9,7 @@ import { ApprovalRateDimensionPills } from './ApprovalRateDimensionPills';
 import { TimePeriodToggle } from './TimePeriodToggle';
 import { useApprovalRateStore } from '@/stores/approvalRateStore';
 import styles from '@/components/filters/FilterToolbar.module.css';
+import datePickerStyles from '@/components/filters/DateRangePicker.module.css';
 
 dayjs.extend(utc);
 
@@ -83,14 +84,19 @@ export function ApprovalRateFilterToolbar() {
         {/* Right: Date range, period, and controls — 1/3 width */}
         <div className={styles.rightSection} style={{ flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <RangePicker
-              value={[dayjs(dateRange.start), dayjs(dateRange.end)]}
-              onChange={handleDateChange}
-              presets={presets}
-              format="DD/MM/YYYY"
-              allowClear={false}
-              size="small"
-            />
+            <div className={datePickerStyles.datePickerWrapper}>
+              <RangePicker
+                className={datePickerStyles.rangePicker}
+                classNames={{ popup: { root: datePickerStyles.datePickerPopup } }}
+                value={[dayjs(dateRange.start), dayjs(dateRange.end)]}
+                onChange={handleDateChange}
+                presets={presets}
+                format="DD/MM/YYYY"
+                allowClear={false}
+                size="large"
+                separator={<SwapRightOutlined className={datePickerStyles.separator} />}
+              />
+            </div>
 
             <div className={styles.loadButtonWrapper}>
               <Button
