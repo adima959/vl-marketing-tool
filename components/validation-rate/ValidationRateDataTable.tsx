@@ -326,6 +326,7 @@ export function ValidationRateDataTable({
           pagination={false}
           size="small"
           scroll={{ x: tableWidth }}
+          sticky={{ offsetHeader: 0 }}
           rowKey="key"
           expandable={{
             expandedRowKeys,

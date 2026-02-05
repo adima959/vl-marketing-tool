@@ -265,6 +265,7 @@ function buildValidationRateQuery(
   const havingClause = `HAVING (${havingConditions.join(' OR ')})`;
 
   // Build full query
+  // Filter out NULL/empty dimension values at SQL level to prevent empty rows
   const query = `
     SELECT
       ${dimensionColumn} AS dimension_value,
@@ -277,6 +278,8 @@ function buildValidationRateQuery(
     LEFT JOIN source sr ON sr.id = s.source_id
     ${extraJoin}
     WHERE 1=1
+      AND ${dimensionColumn} IS NOT NULL
+      AND ${dimensionColumn} <> ''
       ${parentWhereClause}
     GROUP BY ${dimensionColumn}
     ${havingClause}
@@ -296,7 +299,14 @@ function transformResults(
   depth: number,
   parentKey: string
 ): ValidationRateRow[] {
-  return rows.map((row) => {
+  return rows
+    .filter((row) => {
+      // Filter out rows with NULL or empty dimension values
+      // These would display as empty rows in the table
+      const value = row.dimension_value;
+      return value !== null && value !== '' && value !== undefined;
+    })
+    .map((row) => {
     const dimensionValue = row.dimension_value ?? 'Unknown';
     const key = parentKey ? `${parentKey}::${dimensionValue}` : dimensionValue;
 
