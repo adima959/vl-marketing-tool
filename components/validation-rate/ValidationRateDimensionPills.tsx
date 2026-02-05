@@ -20,8 +20,9 @@ import {
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useApprovalRateStore } from '@/stores/approvalRateStore';
-import { getApprovalRateDimensionLabel } from '@/config/approvalRateDimensions';
+import { getValidationRateDimensionLabel } from '@/config/validationRateDimensions';
+import type { ValidationRateStore } from '@/types';
+import type { UseBoundStore, StoreApi } from 'zustand';
 import styles from '@/components/filters/DimensionPills.module.css';
 
 interface SortableTagProps {
@@ -59,7 +60,7 @@ function SortableTag({ dimId, onRemove, canRemove }: SortableTagProps) {
       {...attributes}
     >
       <HolderOutlined className={styles.dragHandle} {...listeners} />
-      <span {...listeners}>{getApprovalRateDimensionLabel(dimId)}</span>
+      <span {...listeners}>{getValidationRateDimensionLabel(dimId)}</span>
       {canRemove && (
         <CloseOutlined
           className={styles.closeIcon}
@@ -71,8 +72,12 @@ function SortableTag({ dimId, onRemove, canRemove }: SortableTagProps) {
   );
 }
 
-export function ApprovalRateDimensionPills() {
-  const { dimensions, removeDimension, reorderDimensions } = useApprovalRateStore();
+interface ValidationRateDimensionPillsProps {
+  useStore: UseBoundStore<StoreApi<ValidationRateStore>>;
+}
+
+export function ValidationRateDimensionPills({ useStore }: ValidationRateDimensionPillsProps) {
+  const { dimensions, removeDimension, reorderDimensions } = useStore();
   const [mounted, setMounted] = useState(false);
 
   // Only render DnD after client-side mount to avoid hydration issues

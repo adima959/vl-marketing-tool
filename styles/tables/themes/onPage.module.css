@@ -16,10 +16,10 @@
   border-bottom: 2px solid #bfdbfe !important;
 }
 
-/* Interactions group - green tint */
+/* Interactions group - green tint (matches brand primary) */
 .theme :global(.ant-table-thead > tr:first-child > th:nth-child(3)) {
-  background: #dcfce7 !important;
-  border-bottom: 2px solid #bbf7d0 !important;
+  background: var(--color-primary-50) !important;
+  border-bottom: 2px solid var(--color-primary-100) !important;
 }
 
 /* =============================================================================
@@ -41,7 +41,7 @@
 .theme :global(.ant-table-thead > tr:last-child > th:nth-child(9)),
 .theme :global(.ant-table-thead > tr:last-child > th:nth-child(10)),
 .theme :global(.ant-table-thead > tr:last-child > th:nth-child(11)) {
-  background: #fafdf9 !important;
+  background: color-mix(in srgb, var(--color-primary-50) 20%, #ffffff) !important;
 }
 
 /* =============================================================================
@@ -72,5 +72,5 @@
 .theme :global(.ant-table-tbody > tr:hover > td:nth-child(9)),
 .theme :global(.ant-table-tbody > tr:hover > td:nth-child(10)),
 .theme :global(.ant-table-tbody > tr:hover > td:nth-child(11)) {
-  background: rgba(220, 252, 231, 0.5) !important;
+  background: color-mix(in srgb, var(--color-primary-50) 50%, #ffffff) !important;
 }

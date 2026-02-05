@@ -1,6 +1,7 @@
 /**
- * Compact table styling for Approval Rate table
+ * Compact table styling for Validation Rate tables
  * Overrides base table styles to make rows more compact
+ * Shared by approval rate, pay rate, and buy rate pages
  */
 
 /* Reduce cell padding for compact layout */
@@ -20,7 +21,7 @@
   height: 32px !important;
 }
 
-/* Narrower attribute column for approval rate (fewer data columns than marketing) */
+/* Narrower attribute column for validation rate (fewer data columns than marketing) */
 .compactTable :global(.ant-table-thead > tr > th:first-child) {
   width: 250px !important;
 }
@@ -44,4 +45,3 @@
 .compactTable :global(.ant-table-tbody > tr > td > *) {
   max-height: none !important;
 }
-

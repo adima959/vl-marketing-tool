@@ -1,15 +1,15 @@
 import type { DimensionGroupConfig } from '@/types';
 
 /**
- * Approval Rate Report Dimensions
+ * Validation Rate Report Dimensions
  *
- * These dimensions are available for the approval rate pivot table.
+ * Shared dimensions for all validation rate pages (approval, pay, buy).
  * Data comes from MariaDB CRM database.
  *
- * Default dimensions: ['country', 'source']
+ * Default dimensions: ['source', 'country', 'product']
  */
 
-export const APPROVAL_RATE_DIMENSION_GROUPS: DimensionGroupConfig[] = [
+export const VALIDATION_RATE_DIMENSION_GROUPS: DimensionGroupConfig[] = [
   {
     id: 'crm',
     label: 'CRM',
@@ -21,17 +21,17 @@ export const APPROVAL_RATE_DIMENSION_GROUPS: DimensionGroupConfig[] = [
   },
 ];
 
-export const ALL_APPROVAL_RATE_DIMENSIONS = APPROVAL_RATE_DIMENSION_GROUPS.flatMap(
+export const ALL_VALIDATION_RATE_DIMENSIONS = VALIDATION_RATE_DIMENSION_GROUPS.flatMap(
   (g) => g.dimensions
 );
 
-export const getApprovalRateDimensionLabel = (id: string): string => {
-  const dim = ALL_APPROVAL_RATE_DIMENSIONS.find((d) => d.id === id);
+export const getValidationRateDimensionLabel = (id: string): string => {
+  const dim = ALL_VALIDATION_RATE_DIMENSIONS.find((d) => d.id === id);
   return dim?.label ?? id;
 };
 
-// Default dimensions for the approval rate report
-export const DEFAULT_APPROVAL_RATE_DIMENSIONS = ['source', 'country', 'product'];
+// Default dimensions for all validation rate reports
+export const DEFAULT_VALIDATION_RATE_DIMENSIONS = ['source', 'country', 'product'];
 
 /**
  * Database column mapping for each dimension
@@ -42,7 +42,7 @@ export const DEFAULT_APPROVAL_RATE_DIMENSIONS = ['source', 'country', 'product']
  * - product: p.product_name (via invoice_product → product)
  * - source: sr.source (via subscription.source_id → source)
  */
-export const APPROVAL_RATE_DIMENSION_COLUMN_MAP: Record<string, string> = {
+export const VALIDATION_RATE_DIMENSION_COLUMN_MAP: Record<string, string> = {
   country: 'c.country',
   source: 'sr.source',
   product: 'p.product_name',
@@ -51,6 +51,6 @@ export const APPROVAL_RATE_DIMENSION_COLUMN_MAP: Record<string, string> = {
 /**
  * Get the SQL column expression for a dimension
  */
-export function getDimensionColumn(dimensionId: string): string | undefined {
-  return APPROVAL_RATE_DIMENSION_COLUMN_MAP[dimensionId];
+export function getValidationRateDimensionColumn(dimensionId: string): string | undefined {
+  return VALIDATION_RATE_DIMENSION_COLUMN_MAP[dimensionId];
 }

@@ -1,12 +1,16 @@
 /**
- * Approval Rate Report Types
+ * Validation Rate Report Types
  *
- * Pivot-style report showing approval rates across time periods.
+ * Shared types for all validation rate pages (approval, pay, buy).
+ * Pivot-style report showing rates across time periods.
  * Rows: Hierarchical dimensions (country → source → product)
  * Columns: Dynamic time periods (weekly/biweekly/monthly)
  */
 
 import type { DateRange } from './report';
+
+// Rate type discriminator
+export type ValidationRateType = 'approval' | 'pay' | 'buy';
 
 // Time period options
 export type TimePeriod = 'weekly' | 'biweekly' | 'monthly';
@@ -20,24 +24,25 @@ export interface TimePeriodColumn {
 }
 
 // Metric value for a single period (rate + count)
-export interface ApprovalRateMetric {
-  rate: number;    // 0-1 scale (e.g., 0.85 = 85%)
-  trials: number;  // Total trial count
-  approved: number; // Approved count
+export interface ValidationRateMetric {
+  rate: number;      // 0-1 scale (e.g., 0.85 = 85%)
+  trials: number;    // Total trial count
+  approved: number;  // Matched count (approved/paid/bought depending on rate type)
 }
 
-// A row in the approval rate table
-export interface ApprovalRateRow {
-  key: string;                                      // 'SWEDEN::Adwords' (dimension values joined by ::)
-  attribute: string;                                // Display name for this row
-  depth: number;                                    // 0=first dimension, 1=second, etc.
-  hasChildren?: boolean;                            // True if row can be expanded
-  children?: ApprovalRateRow[];                     // Lazy-loaded child rows
-  metrics: Record<string, ApprovalRateMetric>;      // { period_0: { rate: 0.76, trials: 100, approved: 76 } }
+// A row in the validation rate table
+export interface ValidationRateRow {
+  key: string;                                        // 'SWEDEN::Adwords' (dimension values joined by ::)
+  attribute: string;                                  // Display name for this row
+  depth: number;                                      // 0=first dimension, 1=second, etc.
+  hasChildren?: boolean;                              // True if row can be expanded
+  children?: ValidationRateRow[];                     // Lazy-loaded child rows
+  metrics: Record<string, ValidationRateMetric>;      // { period_0: { rate: 0.76, trials: 100, approved: 76 } }
 }
 
 // API request body
-export interface ApprovalRateQueryParams {
+export interface ValidationRateQueryParams {
+  rateType: ValidationRateType;
   dateRange: DateRange;
   dimensions: string[];
   depth: number;
@@ -48,15 +53,15 @@ export interface ApprovalRateQueryParams {
 }
 
 // API response
-export interface ApprovalRateResponse {
+export interface ValidationRateResponse {
   success: boolean;
-  data: ApprovalRateRow[];
+  data: ValidationRateRow[];
   periodColumns: TimePeriodColumn[];
   error?: string;
 }
 
 // Store state interface
-export interface ApprovalRateState {
+export interface ValidationRateState {
   // Time period
   timePeriod: TimePeriod;
   loadedTimePeriod: TimePeriod;
@@ -71,7 +76,7 @@ export interface ApprovalRateState {
   loadedDimensions: string[];
 
   // Data
-  reportData: ApprovalRateRow[];
+  reportData: ValidationRateRow[];
   expandedRowKeys: string[];
 
   // Sorting
@@ -86,7 +91,7 @@ export interface ApprovalRateState {
 }
 
 // Store actions
-export interface ApprovalRateActions {
+export interface ValidationRateActions {
   // Time period
   setTimePeriod: (period: TimePeriod) => void;
 
@@ -113,10 +118,10 @@ export interface ApprovalRateActions {
   setLoadedDateRange: (range: DateRange) => void;
   setLoadedTimePeriod: (period: TimePeriod) => void;
   setPeriodColumns: (columns: TimePeriodColumn[]) => void;
-  setReportData: (data: ApprovalRateRow[]) => void;
+  setReportData: (data: ValidationRateRow[]) => void;
 
   // Reset
   resetFilters: () => void;
 }
 
-export type ApprovalRateStore = ApprovalRateState & ApprovalRateActions;
+export type ValidationRateStore = ValidationRateState & ValidationRateActions;

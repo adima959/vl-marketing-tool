@@ -2,32 +2,46 @@
 
 import { Table, Tooltip } from 'antd';
 import type { ColumnsType, TableProps } from 'antd/es/table';
-import { useMemo, useEffect, useRef, useState } from 'react';
-import { ApprovalRateCell, MIN_SUBSCRIPTIONS_THRESHOLD } from './ApprovalRateCell';
-import { useApprovalRateStore } from '@/stores/approvalRateStore';
+import { useMemo, useRef, useState } from 'react';
+import { ValidationRateCell, MIN_SUBSCRIPTIONS_THRESHOLD } from './ValidationRateCell';
 import { useToast } from '@/hooks/useToast';
+import { useDragScroll } from '@/hooks/useDragScroll';
 import { ErrorMessage } from '@/components/ErrorMessage';
 import { EmptyState } from '@/components/EmptyState';
 import { TableSkeleton } from '@/components/loading/TableSkeleton';
 import { CustomerSubscriptionDetailModal } from '@/components/modals/CustomerSubscriptionDetailModal';
 import { TableInfoBanner } from '@/components/ui/TableInfoBanner';
-import type { ApprovalRateRow } from '@/types';
+import type { ValidationRateRow, ValidationRateStore } from '@/types';
 import type { MetricClickContext } from '@/types/dashboardDetails';
+import type { UseBoundStore, StoreApi } from 'zustand';
 import styles from '@/styles/tables/base.module.css';
-import compactStyles from './ApprovalRateDataTable.module.css';
+import compactStyles from './ValidationRateDataTable.module.css';
 
 /**
- * Approval Rate Data Table
+ * Validation Rate Data Table
  *
- * Pivot-style table with:
+ * Shared pivot-style table for all validation rate pages (approval, pay, buy).
  * - Rows: Hierarchical dimensions (country → source → product)
  * - Columns: Dynamic time periods (weekly/biweekly/monthly)
- * - Values: Color-coded approval rate percentages
+ * - Values: Color-coded rate percentages
+ *
+ * Accepts a store hook as prop for use across different rate types.
  */
-// Extended row type to support skeleton rows
-type ApprovalRateRowWithSkeleton = ApprovalRateRow & { _isSkeleton?: boolean };
 
-export function ApprovalRateDataTable() {
+// Extended row type to support skeleton rows
+type ValidationRateRowWithSkeleton = ValidationRateRow & { _isSkeleton?: boolean };
+
+interface ValidationRateDataTableProps {
+  useStore: UseBoundStore<StoreApi<ValidationRateStore>>;
+  promptTitle?: string;
+  promptText?: string;
+}
+
+export function ValidationRateDataTable({
+  useStore,
+  promptTitle = 'Ready to analyze rates?',
+  promptText = 'Select your dimensions, time period, and date range above, then click "Load Data" to get started.',
+}: ValidationRateDataTableProps) {
   const {
     reportData,
     periodColumns,
@@ -42,9 +56,12 @@ export function ApprovalRateDataTable() {
     loadData,
     error,
     dimensions,
-  } = useApprovalRateStore();
+  } = useStore();
   const toast = useToast();
   const tableRef = useRef<HTMLDivElement>(null);
+
+  // Drag-to-scroll + header/body scroll sync
+  useDragScroll(tableRef);
 
   // Modal state
   const [modalContext, setModalContext] = useState<MetricClickContext | null>(null);
@@ -64,7 +81,7 @@ export function ApprovalRateDataTable() {
   const processedData = useMemo(() => {
     if (loadingRowKeys.size === 0) return reportData;
 
-    const injectSkeletons = (rows: ApprovalRateRow[]): ApprovalRateRowWithSkeleton[] => {
+    const injectSkeletons = (rows: ValidationRateRow[]): ValidationRateRowWithSkeleton[] => {
       return rows.map((row) => {
         const isExpanded = expandedRowKeys.includes(row.key);
         const isLoadingChildren = loadingRowKeys.has(row.key);
@@ -72,7 +89,7 @@ export function ApprovalRateDataTable() {
 
         if (needsSkeleton) {
           // Create 2 skeleton placeholder children
-          const skeletonChildren: ApprovalRateRowWithSkeleton[] = [1, 2].map((i) => ({
+          const skeletonChildren: ValidationRateRowWithSkeleton[] = [1, 2].map((i) => ({
             key: `${row.key}::skeleton-${i}`,
             attribute: '',
             depth: row.depth + 1,
@@ -112,7 +129,7 @@ export function ApprovalRateDataTable() {
   };
 
   // Handle metric click
-  const handleMetricClick = (row: ApprovalRateRow, periodKey: string, periodLabel: string, periodStart: string, periodEnd: string) => {
+  const handleMetricClick = (row: ValidationRateRow, periodKey: string, periodLabel: string, periodStart: string, periodEnd: string) => {
     const metric = row.metrics[periodKey];
     if (!metric || metric.trials === 0) return;
 
@@ -145,15 +162,15 @@ export function ApprovalRateDataTable() {
   };
 
   // Build columns from period columns
-  const columns: ColumnsType<ApprovalRateRowWithSkeleton> = useMemo(() => {
+  const columns: ColumnsType<ValidationRateRowWithSkeleton> = useMemo(() => {
     // Attribute column (fixed left)
-    const attributeColumn: ColumnsType<ApprovalRateRowWithSkeleton>[0] = {
+    const attributeColumn: ColumnsType<ValidationRateRowWithSkeleton>[0] = {
       title: 'Attributes',
       dataIndex: 'attribute',
       key: 'attribute',
       fixed: 'left',
       width: 250,
-      render: (value: string, record: ApprovalRateRowWithSkeleton) => {
+      render: (value: string, record: ValidationRateRowWithSkeleton) => {
         const indent = record.depth * 20;
         const isExpanded = expandedRowKeys.includes(record.key);
 
@@ -231,13 +248,13 @@ export function ApprovalRateDataTable() {
       sorter: true,
       sortOrder: sortColumn === period.key ? sortDirection : null,
       showSorterTooltip: false,
-      render: (metric: { rate: number; trials: number; approved: number } | undefined, record: ApprovalRateRowWithSkeleton) => {
+      render: (metric: { rate: number; trials: number; approved: number } | undefined, record: ValidationRateRowWithSkeleton) => {
         // Render skeleton for loading rows
         if (record._isSkeleton) {
           return <div className={styles.skeletonMetric} />;
         }
         return (
-          <ApprovalRateCell
+          <ValidationRateCell
             metric={metric ?? { rate: 0, trials: 0, approved: 0 }}
             onClick={() => handleMetricClick(record, period.key, period.label, period.startDate, period.endDate)}
           />
@@ -258,7 +275,7 @@ export function ApprovalRateDataTable() {
   ]);
 
   // Handle sort change
-  const handleTableChange: TableProps<ApprovalRateRowWithSkeleton>['onChange'] = (
+  const handleTableChange: TableProps<ValidationRateRowWithSkeleton>['onChange'] = (
     _pagination,
     _filters,
     sorter
@@ -267,73 +284,6 @@ export function ApprovalRateDataTable() {
       setSort(sorter.columnKey as string ?? null, sorter.order ?? null);
     }
   };
-
-  // Implement drag scrolling and scroll synchronization
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const tableContainer = tableRef.current;
-      if (!tableContainer) return;
-
-      const header = tableContainer.querySelector('.ant-table-header') as HTMLElement;
-      const body = tableContainer.querySelector('.ant-table-body') as HTMLElement;
-
-      if (!header || !body) return;
-
-      // Sync header scroll with body
-      const syncScroll = () => {
-        header.scrollLeft = body.scrollLeft;
-      };
-      body.addEventListener('scroll', syncScroll);
-
-      // Drag scrolling
-      let isDown = false;
-      let startX: number;
-      let scrollLeft: number;
-
-      const handleMouseDown = (e: MouseEvent) => {
-        const target = e.target as HTMLElement;
-        if (target.closest('button, a, .ant-table-column-sorters')) return;
-
-        isDown = true;
-        body.style.cursor = 'grabbing';
-        startX = e.pageX - body.offsetLeft;
-        scrollLeft = body.scrollLeft;
-      };
-
-      const handleMouseLeave = () => {
-        isDown = false;
-        body.style.cursor = 'grab';
-      };
-
-      const handleMouseUp = () => {
-        isDown = false;
-        body.style.cursor = 'grab';
-      };
-
-      const handleMouseMove = (e: MouseEvent) => {
-        if (!isDown) return;
-        e.preventDefault();
-        const x = e.pageX - body.offsetLeft;
-        const walk = (x - startX) * 2;
-        body.scrollLeft = scrollLeft - walk;
-      };
-
-      body.addEventListener('mousedown', handleMouseDown);
-      body.addEventListener('mouseleave', handleMouseLeave);
-      body.addEventListener('mouseup', handleMouseUp);
-      body.addEventListener('mousemove', handleMouseMove);
-
-      return () => {
-        body.removeEventListener('scroll', syncScroll);
-        body.removeEventListener('mousedown', handleMouseDown);
-        body.removeEventListener('mouseleave', handleMouseLeave);
-        body.removeEventListener('mouseup', handleMouseUp);
-        body.removeEventListener('mousemove', handleMouseMove);
-      };
-    }, 0);
-
-    return () => clearTimeout(timer);
-  }, [reportData, isLoading]);
 
   // Error state
   if (error) {
@@ -349,11 +299,8 @@ export function ApprovalRateDataTable() {
   if (!hasLoadedOnce && !isLoading && reportData.length === 0) {
     return (
       <div className={styles.initialPrompt}>
-        <h3 className={styles.promptTitle}>Ready to analyze approval rates?</h3>
-        <p className={styles.promptText}>
-          Select your dimensions, time period, and date range above, then click "Load Data" to get
-          started.
-        </p>
+        <h3 className={styles.promptTitle}>{promptTitle}</h3>
+        <p className={styles.promptText}>{promptText}</p>
       </div>
     );
   }
@@ -372,7 +319,7 @@ export function ApprovalRateDataTable() {
       )}
 
       <div ref={tableRef} className={`${styles.dataTable} ${compactStyles.compactTable}`}>
-        <Table<ApprovalRateRowWithSkeleton>
+        <Table<ValidationRateRowWithSkeleton>
           columns={columns}
           dataSource={processedData}
           loading={isLoading && reportData.length > 0}

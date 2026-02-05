@@ -1,14 +1,18 @@
 'use client';
 
 import { Radio } from 'antd';
-import { useApprovalRateStore } from '@/stores/approvalRateStore';
-import type { TimePeriod } from '@/types';
+import type { ValidationRateStore, TimePeriod } from '@/types';
+import type { UseBoundStore, StoreApi } from 'zustand';
+
+interface TimePeriodToggleProps {
+  useStore: UseBoundStore<StoreApi<ValidationRateStore>>;
+}
 
 /**
  * Toggle between Weekly, Bi-weekly, and Monthly time periods
  */
-export function TimePeriodToggle() {
-  const { timePeriod, setTimePeriod } = useApprovalRateStore();
+export function TimePeriodToggle({ useStore }: TimePeriodToggleProps) {
+  const { timePeriod, setTimePeriod } = useStore();
 
   return (
     <Radio.Group

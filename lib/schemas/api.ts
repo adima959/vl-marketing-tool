@@ -59,6 +59,20 @@ export const approvalRateQueryRequestSchema = queryRequestSchema.extend({
 });
 
 /**
+ * Validation rate type schema
+ */
+const validationRateTypeSchema = z.enum(['approval', 'pay', 'buy']);
+
+/**
+ * Validation rate query request schema (extends base with timePeriod + rateType)
+ * Used by all validation rate pages (approval, pay, buy)
+ */
+export const validationRateQueryRequestSchema = queryRequestSchema.extend({
+  timePeriod: timePeriodSchema.default('biweekly'),
+  rateType: validationRateTypeSchema,
+});
+
+/**
  * Dashboard details request schema
  * For fetching individual detail records
  */
@@ -83,6 +97,7 @@ export const dashboardDetailsRequestSchema = z.object({
 export type QueryRequest = z.infer<typeof queryRequestSchema>;
 export type MarketingQueryRequest = z.infer<typeof marketingQueryRequestSchema>;
 export type ApprovalRateQueryRequest = z.infer<typeof approvalRateQueryRequestSchema>;
+export type ValidationRateQueryRequest = z.infer<typeof validationRateQueryRequestSchema>;
 export type DashboardDetailsRequest = z.infer<typeof dashboardDetailsRequestSchema>;
 
 /**

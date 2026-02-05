@@ -1,10 +1,11 @@
 import { Table, Tooltip } from 'antd';
 import type { ColumnsType, TableProps } from 'antd/es/table';
-import { useMemo, useEffect, useRef, useCallback } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { MetricCell } from './MetricCell';
 import { ClickableMetricCell } from '@/components/dashboard/ClickableMetricCell';
 import { MarketingClickableMetricCell } from './MarketingClickableMetricCell';
 import { useToast } from '@/hooks/useToast';
+import { useDragScroll } from '@/hooks/useDragScroll';
 import { ErrorMessage } from '@/components/ErrorMessage';
 import { EmptyState } from '@/components/EmptyState';
 import { TableSkeleton } from '@/components/loading/TableSkeleton';
@@ -297,83 +298,25 @@ export function GenericDataTable<TRow extends BaseTableRow>({
   // Ref for table container
   const tableRef = useRef<HTMLDivElement>(null);
 
-  // Find the scroll container for sticky header
-  // Must be defined before any conditional returns to follow Rules of Hooks
-  const getScrollContainer = useCallback(() => {
-    if (typeof window === 'undefined') return window;
-    // Find the closest scrollable ancestor
-    const scrollContainer = tableRef.current?.closest('.overflow-auto');
-    return scrollContainer as HTMLElement || window;
-  }, []);
+  // Drag-to-scroll + header/body scroll sync
+  useDragScroll(tableRef);
 
-  // Implement native drag scrolling and scroll synchronization
+  // DEBUG: Log ancestor overflow chain to find what traps sticky
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const tableContainer = tableRef.current;
-      if (!tableContainer) return;
-
-      const header = tableContainer.querySelector('.ant-table-header') as HTMLElement;
-      const body = tableContainer.querySelector('.ant-table-body') as HTMLElement;
-
-      if (!header || !body) return;
-
-      // Sync header scroll with body
-      const syncScroll = () => {
-        header.scrollLeft = body.scrollLeft;
-      };
-      body.addEventListener('scroll', syncScroll);
-
-      // Drag scrolling implementation
-      let isDown = false;
-      let startX: number;
-      let scrollLeft: number;
-
-      const handleMouseDown = (e: MouseEvent) => {
-        // Don't interfere with interactive elements
-        const target = e.target as HTMLElement;
-        if (target.closest('button, a, .ant-table-column-sorters')) return;
-
-        isDown = true;
-        body.style.cursor = 'grabbing';
-        startX = e.pageX - body.offsetLeft;
-        scrollLeft = body.scrollLeft;
-      };
-
-      const handleMouseLeave = () => {
-        isDown = false;
-        body.style.cursor = 'grab';
-      };
-
-      const handleMouseUp = () => {
-        isDown = false;
-        body.style.cursor = 'grab';
-      };
-
-      const handleMouseMove = (e: MouseEvent) => {
-        if (!isDown) return;
-        e.preventDefault();
-        const x = e.pageX - body.offsetLeft;
-        const walk = (x - startX) * 2; // Scroll speed multiplier
-        body.scrollLeft = scrollLeft - walk;
-      };
-
-      body.addEventListener('mousedown', handleMouseDown);
-      body.addEventListener('mouseleave', handleMouseLeave);
-      body.addEventListener('mouseup', handleMouseUp);
-      body.addEventListener('mousemove', handleMouseMove);
-
-      // Cleanup
-      return () => {
-        body.removeEventListener('scroll', syncScroll);
-        body.removeEventListener('mousedown', handleMouseDown);
-        body.removeEventListener('mouseleave', handleMouseLeave);
-        body.removeEventListener('mouseup', handleMouseUp);
-        body.removeEventListener('mousemove', handleMouseMove);
-      };
-    }, 0); // Run immediately on next tick
-
-    return () => clearTimeout(timer);
-  }, [reportData, isLoading]);
+    const header = tableRef.current?.querySelector('.ant-table-header') as HTMLElement;
+    if (!header) { document.title = 'DEBUG: no .ant-table-header found'; return; }
+    const ancestors: string[] = [];
+    let el: HTMLElement | null = header;
+    while (el && el !== document.body) {
+      const s = getComputedStyle(el);
+      if (s.overflowX !== 'visible' || s.overflowY !== 'visible') {
+        const cls = el.className.replace(/\s+/g, '.').substring(0, 50);
+        ancestors.push(`${el.tagName}.${cls}[ox:${s.overflowX},oy:${s.overflowY},pos:${s.position}]`);
+      }
+      el = el.parentElement;
+    }
+    document.title = `STICKY-DBG: header.pos=${getComputedStyle(header).position} | ancestors=${ancestors.join(' > ')}`;
+  });
 
   // Show error state
   if (error) {
@@ -411,6 +354,7 @@ export function GenericDataTable<TRow extends BaseTableRow>({
         pagination={false}
         size="middle"
         scroll={{ x: tableWidth }}
+        sticky={{ offsetHeader: 0 }}
         rowKey="key"
         expandable={{
           expandedRowKeys,

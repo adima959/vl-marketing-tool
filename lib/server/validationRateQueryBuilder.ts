@@ -1,23 +1,30 @@
 import { executeMariaDBQuery } from './mariadb';
 import {
-  APPROVAL_RATE_DIMENSION_COLUMN_MAP,
-  getDimensionColumn,
-} from '@/config/approvalRateDimensions';
+  VALIDATION_RATE_DIMENSION_COLUMN_MAP,
+  getValidationRateDimensionColumn,
+} from '@/config/validationRateDimensions';
 import type {
+  ValidationRateType,
   TimePeriod,
   TimePeriodColumn,
-  ApprovalRateRow,
-  ApprovalRateQueryParams,
-  ApprovalRateResponse,
+  ValidationRateRow,
+  ValidationRateQueryParams,
+  ValidationRateResponse,
 } from '@/types';
 
 /**
- * Approval Rate Query Builder
+ * Validation Rate Query Builder
  *
- * Generates pivot-style data with approval rates by dimension and time period.
+ * Generates pivot-style data with rates by dimension and time period.
+ * Supports approval rate, pay rate, and buy rate calculations.
  * Data source: MariaDB CRM database only (no PostgreSQL).
  *
  * Uses ? placeholders for MariaDB (NOT $1, $2 like PostgreSQL).
+ *
+ * Rate type differences (the ONLY SQL-level change):
+ * - approval: i.is_marked = 1 (no extra join)
+ * - pay: ipr.date_paid IS NOT NULL (needs invoice_proccessed join)
+ * - buy: ipr.date_bought IS NOT NULL (needs invoice_proccessed join)
  *
  * IMPORTANT: Table joins:
  *   subscription s
@@ -25,13 +32,12 @@ import type {
  *   → invoice i (INNER JOIN via i.subscription_id, type=1 for trials)
  *   → invoice_product ip (via ip.invoice_id)
  *   → product p (via ip.product_id)
- *   → source sr (via s.source_id - source from SUBSCRIPTION to match CRM)
- *
- * Approval rate = approved trials / total trials (same as dashboard)
+ *   → source sr (via s.source_id)
+ *   → invoice_proccessed ipr (via ipr.invoice_id) [pay/buy only]
  */
 
 // Raw row from MariaDB query
-interface RawApprovalRow {
+interface RawValidationRow {
   dimension_value: string | null;
   [key: string]: string | number | null; // Dynamic period columns
 }
@@ -53,7 +59,7 @@ export function generateTimePeriods(
 
   // Clone dates to avoid mutation
   let currentEnd = new Date(endDate);
-  let currentStart: Date;
+  let currentStart: Date = new Date(endDate);
   let periodIndex = 0;
 
   // Work backwards from end date
@@ -164,27 +170,54 @@ function formatDateForSQL(date: Date): string {
 }
 
 /**
- * Build SQL query for approval rates with dynamic period columns
+ * Get the SQL matched condition and extra JOIN based on rate type
  */
-function buildApprovalRateQuery(
+function getRateTypeConfig(rateType: ValidationRateType): {
+  matchedCondition: string;
+  extraJoin: string;
+} {
+  switch (rateType) {
+    case 'approval':
+      return {
+        matchedCondition: 'AND i.is_marked = 1',
+        extraJoin: '',
+      };
+    case 'pay':
+      return {
+        matchedCondition: 'AND ipr.date_paid IS NOT NULL',
+        extraJoin: 'LEFT JOIN invoice_proccessed ipr ON ipr.invoice_id = i.id',
+      };
+    case 'buy':
+      return {
+        matchedCondition: 'AND ipr.date_bought IS NOT NULL',
+        extraJoin: 'LEFT JOIN invoice_proccessed ipr ON ipr.invoice_id = i.id',
+      };
+  }
+}
+
+/**
+ * Build SQL query for validation rates with dynamic period columns
+ */
+function buildValidationRateQuery(
+  rateType: ValidationRateType,
   dimension: string,
   periods: TimePeriodColumn[],
   parentFilters?: Record<string, string>
 ): { query: string; params: (string | number | boolean | null | Date)[] } {
-  const dimensionColumn = getDimensionColumn(dimension);
+  const dimensionColumn = getValidationRateDimensionColumn(dimension);
   if (!dimensionColumn) {
     throw new Error(`Unknown dimension: ${dimension}`);
   }
 
+  const { matchedCondition, extraJoin } = getRateTypeConfig(rateType);
   const params: (string | number | boolean | null | Date)[] = [];
 
   // Build period SELECT columns
-  // Count trial invoices (i.id) grouped by subscription source (s.source_id)
   const periodSelects = periods.map((period) => {
     // Add params for trial count (date range check)
     params.push(period.startDate, period.endDate);
 
-    // Add params for approved count (same date range)
+    // Add params for matched count (same date range)
     params.push(period.startDate, period.endDate);
 
     return `
@@ -194,7 +227,7 @@ function buildApprovalRateQuery(
       END) as ${period.key}_trials,
       COUNT(DISTINCT CASE
         WHEN DATE(s.date_create) BETWEEN ? AND ?
-        AND i.is_marked = 1
+        ${matchedCondition}
         THEN i.id
       END) as ${period.key}_approved`;
   }).join(',\n      ');
@@ -205,7 +238,7 @@ function buildApprovalRateQuery(
     const parentConditions: string[] = [];
 
     for (const [dim, value] of Object.entries(parentFilters)) {
-      const parentColumn = APPROVAL_RATE_DIMENSION_COLUMN_MAP[dim];
+      const parentColumn = VALIDATION_RATE_DIMENSION_COLUMN_MAP[dim];
       if (!parentColumn) continue;
 
       if (value === 'Unknown' || value === '') {
@@ -223,7 +256,7 @@ function buildApprovalRateQuery(
   }
 
   // Build HAVING clause to filter out dimension values below display threshold
-  // Matches MIN_SUBSCRIPTIONS_THRESHOLD (3) in ApprovalRateCell.tsx
+  // Matches MIN_SUBSCRIPTIONS_THRESHOLD (3) in ValidationRateCell.tsx
   // Rows where no period reaches 3+ trials would have all cells hidden
   const havingConditions = periods.map((period) => {
     params.push(period.startDate, period.endDate);
@@ -232,7 +265,6 @@ function buildApprovalRateQuery(
   const havingClause = `HAVING (${havingConditions.join(' OR ')})`;
 
   // Build full query
-  // Note: source is joined via subscription.source_id to match CRM
   const query = `
     SELECT
       ${dimensionColumn} AS dimension_value,
@@ -243,6 +275,7 @@ function buildApprovalRateQuery(
     LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
     LEFT JOIN product p ON p.id = ip.product_id
     LEFT JOIN source sr ON sr.id = s.source_id
+    ${extraJoin}
     WHERE 1=1
       ${parentWhereClause}
     GROUP BY ${dimensionColumn}
@@ -254,15 +287,15 @@ function buildApprovalRateQuery(
 }
 
 /**
- * Transform raw SQL results to ApprovalRateRow format
+ * Transform raw SQL results to ValidationRateRow format
  */
 function transformResults(
-  rows: RawApprovalRow[],
+  rows: RawValidationRow[],
   periods: TimePeriodColumn[],
   dimensions: string[],
   depth: number,
   parentKey: string
-): ApprovalRateRow[] {
+): ValidationRateRow[] {
   return rows.map((row) => {
     const dimensionValue = row.dimension_value ?? 'Unknown';
     const key = parentKey ? `${parentKey}::${dimensionValue}` : dimensionValue;
@@ -290,12 +323,13 @@ function transformResults(
 }
 
 /**
- * Main query function for approval rate data
+ * Main query function for validation rate data
  */
-export async function getApprovalRateData(
-  params: ApprovalRateQueryParams
-): Promise<ApprovalRateResponse> {
+export async function getValidationRateData(
+  params: ValidationRateQueryParams
+): Promise<ValidationRateResponse> {
   const {
+    rateType,
     dateRange,
     dimensions,
     depth,
@@ -333,15 +367,16 @@ export async function getApprovalRateData(
 
   try {
     // Build and execute query
-    const { query, params: queryParams } = buildApprovalRateQuery(
+    const { query, params: queryParams } = buildValidationRateQuery(
+      rateType,
       currentDimension,
       periodColumns,
       parentFilters
     );
 
-    const rows = await executeMariaDBQuery<RawApprovalRow>(query, queryParams);
+    const rows = await executeMariaDBQuery<RawValidationRow>(query, queryParams);
 
-    // Transform to ApprovalRateRow format
+    // Transform to ValidationRateRow format
     const data = transformResults(rows, periodColumns, dimensions, depth, parentKey);
 
     return {
@@ -350,7 +385,7 @@ export async function getApprovalRateData(
       periodColumns,
     };
   } catch (error) {
-    console.error('Approval rate query error:', error);
+    console.error(`Validation rate query error (${rateType}):`, error);
     return {
       success: false,
       data: [],

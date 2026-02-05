@@ -6,21 +6,21 @@ import {
   parseAsString,
   parseAsStringLiteral,
 } from 'nuqs';
-import { useApprovalRateStore } from '@/stores/approvalRateStore';
-import { fetchApprovalRateData } from '@/lib/api/approvalRateClient';
-import type { ApprovalRateRow, TimePeriod } from '@/types';
+import { fetchValidationRateData } from '@/lib/api/validationRateClient';
+import type { ValidationRateType, ValidationRateRow, ValidationRateStore, TimePeriod } from '@/types';
+import type { UseBoundStore, StoreApi } from 'zustand';
 import {
-  DEFAULT_APPROVAL_RATE_DIMENSIONS,
-  APPROVAL_RATE_DIMENSION_COLUMN_MAP,
-} from '@/config/approvalRateDimensions';
+  DEFAULT_VALIDATION_RATE_DIMENSIONS,
+  VALIDATION_RATE_DIMENSION_COLUMN_MAP,
+} from '@/config/validationRateDimensions';
 
 /**
  * Find a row by key in the tree
  */
 function findRowByKey(
-  rows: ApprovalRateRow[],
+  rows: ValidationRateRow[],
   key: string
-): ApprovalRateRow | undefined {
+): ValidationRateRow | undefined {
   for (const row of rows) {
     if (row.key === key) return row;
     if (row.children) {
@@ -53,15 +53,21 @@ function getDefaultDateRange(): Date {
 }
 
 /**
- * Hook to sync approval rate store state with URL query parameters
- * Enables sharing and bookmarking of dashboard state
+ * Shared hook to sync validation rate store state with URL query parameters.
+ * Enables sharing and bookmarking of dashboard state.
+ *
+ * Accepts the store hook and rate type as parameters so it can be
+ * reused across all validation rate pages (approval, pay, buy).
  */
-export function useApprovalRateUrlSync() {
+export function useValidationRateUrlSync(
+  useStore: UseBoundStore<StoreApi<ValidationRateStore>>,
+  rateType: ValidationRateType
+) {
   // URL parsers with defaults
   const urlParsers = {
     start: parseAsIsoDate.withDefault(getDefaultDateRange()),
     end: parseAsIsoDate.withDefault(new Date()),
-    dimensions: parseAsArrayOf(parseAsString).withDefault(DEFAULT_APPROVAL_RATE_DIMENSIONS),
+    dimensions: parseAsArrayOf(parseAsString).withDefault(DEFAULT_VALIDATION_RATE_DIMENSIONS),
     expanded: parseAsArrayOf(parseAsString).withDefault([]),
     period: parseAsStringLiteral(['weekly', 'biweekly', 'monthly'] as const).withDefault('monthly'),
     sortBy: parseAsString.withDefault(''),
@@ -95,9 +101,9 @@ export function useApprovalRateUrlSync() {
     setSort,
     loadData,
     setExpandedRowKeys,
-  } = useApprovalRateStore();
+  } = useStore();
 
-  const store = useApprovalRateStore;
+  const store = useStore;
 
   // Initialize state from URL on mount
   useEffect(() => {
@@ -114,13 +120,13 @@ export function useApprovalRateUrlSync() {
         });
       }
 
-      // Apply dimensions from URL (filter to only valid approval rate dimensions)
+      // Apply dimensions from URL (filter to only valid dimensions)
       if (urlState.dimensions && urlState.dimensions.length > 0) {
         const validDimensions = urlState.dimensions.filter(
-          (d) => d in APPROVAL_RATE_DIMENSION_COLUMN_MAP
+          (d) => d in VALIDATION_RATE_DIMENSION_COLUMN_MAP
         );
         store.setState({
-          dimensions: validDimensions.length > 0 ? validDimensions : DEFAULT_APPROVAL_RATE_DIMENSIONS,
+          dimensions: validDimensions.length > 0 ? validDimensions : DEFAULT_VALIDATION_RATE_DIMENSIONS,
         });
       }
 
@@ -177,7 +183,7 @@ export function useApprovalRateUrlSync() {
       // Process each depth level
       for (const depth of depths) {
         const keysAtDepth = keysByDepth.get(depth)!;
-        const rowsToLoad: Array<{ key: string; row: ApprovalRateRow }> = [];
+        const rowsToLoad: Array<{ key: string; row: ValidationRateRow }> = [];
         const state = store.getState();
 
         for (const key of keysAtDepth) {
@@ -204,7 +210,8 @@ export function useApprovalRateUrlSync() {
               }
             });
 
-            return fetchApprovalRateData({
+            return fetchValidationRateData({
+              rateType,
               dateRange: state.loadedDateRange,
               dimensions: state.loadedDimensions,
               depth: row.depth + 1,
@@ -216,14 +223,14 @@ export function useApprovalRateUrlSync() {
               .then(({ data: children }) => ({ success: true, key, children }))
               .catch((error) => {
                 console.warn(`Failed to restore expanded row ${key}:`, error);
-                return { success: false, key, children: [] as ApprovalRateRow[] };
+                return { success: false, key, children: [] as ValidationRateRow[] };
               });
           });
 
           const results = await Promise.allSettled(childDataPromises);
 
           // Update tree with children
-          const updateTree = (rows: ApprovalRateRow[]): ApprovalRateRow[] => {
+          const updateTree = (rows: ValidationRateRow[]): ValidationRateRow[] => {
             return rows.map((row) => {
               for (const result of results) {
                 if (
@@ -252,7 +259,7 @@ export function useApprovalRateUrlSync() {
     };
 
     restoreRows();
-  }, [reportData.length, isMounted, setExpandedRowKeys]);
+  }, [reportData.length, isMounted, setExpandedRowKeys, rateType, store]);
 
   // Update URL when store state changes
   useEffect(() => {

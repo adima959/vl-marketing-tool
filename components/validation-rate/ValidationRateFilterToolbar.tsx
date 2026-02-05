@@ -4,10 +4,11 @@ import { Button, DatePicker } from 'antd';
 import { ReloadOutlined, SwapRightOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
-import { ApprovalRateDimensionPicker } from './ApprovalRateDimensionPicker';
-import { ApprovalRateDimensionPills } from './ApprovalRateDimensionPills';
+import { ValidationRateDimensionPicker } from './ValidationRateDimensionPicker';
+import { ValidationRateDimensionPills } from './ValidationRateDimensionPills';
 import { TimePeriodToggle } from './TimePeriodToggle';
-import { useApprovalRateStore } from '@/stores/approvalRateStore';
+import type { ValidationRateStore } from '@/types';
+import type { UseBoundStore, StoreApi } from 'zustand';
 import styles from '@/components/filters/FilterToolbar.module.css';
 import datePickerStyles from '@/components/filters/DateRangePicker.module.css';
 
@@ -46,7 +47,11 @@ const presets: { label: string; value: [dayjs.Dayjs, dayjs.Dayjs] }[] = [
   },
 ];
 
-export function ApprovalRateFilterToolbar() {
+interface ValidationRateFilterToolbarProps {
+  useStore: UseBoundStore<StoreApi<ValidationRateStore>>;
+}
+
+export function ValidationRateFilterToolbar({ useStore }: ValidationRateFilterToolbarProps) {
   const {
     dateRange,
     setDateRange,
@@ -54,7 +59,7 @@ export function ApprovalRateFilterToolbar() {
     isLoading,
     hasUnsavedChanges,
     hasLoadedOnce,
-  } = useApprovalRateStore();
+  } = useStore();
 
   const handleDateChange = (
     dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null
@@ -75,8 +80,8 @@ export function ApprovalRateFilterToolbar() {
           <div className={styles.dimensionsWrapper}>
             <span className={styles.dimensionsLabel}>DIMENSIONS:</span>
             <div className={styles.dimensionsContent}>
-              <ApprovalRateDimensionPills />
-              <ApprovalRateDimensionPicker />
+              <ValidationRateDimensionPills useStore={useStore} />
+              <ValidationRateDimensionPicker useStore={useStore} />
             </div>
           </div>
         </div>
@@ -116,7 +121,7 @@ export function ApprovalRateFilterToolbar() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '11px', color: '#999', fontWeight: 600, letterSpacing: '0.06em' }}>PERIOD:</span>
-            <TimePeriodToggle />
+            <TimePeriodToggle useStore={useStore} />
           </div>
         </div>
       </div>

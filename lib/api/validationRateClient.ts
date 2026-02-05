@@ -1,17 +1,19 @@
 import { normalizeError, createTimeoutError, createNetworkError } from '@/lib/types/errors';
 import { triggerAuthError, isAuthError } from '@/lib/api/authErrorHandler';
 import type {
+  ValidationRateType,
   TimePeriod,
-  ApprovalRateRow,
-  ApprovalRateResponse,
+  ValidationRateRow,
+  ValidationRateResponse,
   TimePeriodColumn,
 } from '@/types';
 import type { DateRange } from '@/types/report';
 
 /**
- * Request parameters for approval rate API
+ * Request parameters for validation rate API
  */
-export interface ApprovalRateClientParams {
+export interface ValidationRateClientParams {
+  rateType: ValidationRateType;
   dateRange: DateRange;
   dimensions: string[];
   depth: number;
@@ -32,19 +34,21 @@ function serializeDateRange(dateRange: DateRange): { start: string; end: string 
 }
 
 /**
- * Fetch approval rate data from API with timeout support
- * Queries MariaDB CRM for approval rates by dimension and time period
+ * Fetch validation rate data from API with timeout support
+ * Queries MariaDB CRM for rates by dimension and time period
+ * Supports all rate types: approval, pay, buy
  */
-export async function fetchApprovalRateData(
-  params: ApprovalRateClientParams,
+export async function fetchValidationRateData(
+  params: ValidationRateClientParams,
   timeoutMs: number = 30000
-): Promise<{ data: ApprovalRateRow[]; periodColumns: TimePeriodColumn[] }> {
+): Promise<{ data: ValidationRateRow[]; periodColumns: TimePeriodColumn[] }> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     // Serialize params to request format
     const requestBody = {
+      rateType: params.rateType,
       dateRange: serializeDateRange(params.dateRange),
       dimensions: params.dimensions,
       depth: params.depth,
@@ -54,7 +58,7 @@ export async function fetchApprovalRateData(
       sortDirection: params.sortDirection,
     };
 
-    const response = await fetch('/api/approval-rate/query', {
+    const response = await fetch('/api/validation-rate/query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody),
@@ -76,7 +80,7 @@ export async function fetchApprovalRateData(
       );
     }
 
-    const result: ApprovalRateResponse = await response.json();
+    const result: ValidationRateResponse = await response.json();
 
     if (!result.success) {
       throw new Error(result.error || 'Unknown error');

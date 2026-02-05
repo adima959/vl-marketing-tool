@@ -3,9 +3,9 @@
 import { Suspense } from 'react';
 import { Button } from 'antd';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { ApprovalRateFilterToolbar } from '@/components/approval-rate/ApprovalRateFilterToolbar';
-import { ApprovalRateDataTable } from '@/components/approval-rate/ApprovalRateDataTable';
-import { useApprovalRateUrlSync } from '@/hooks/useApprovalRateUrlSync';
+import { ValidationRateFilterToolbar } from '@/components/validation-rate/ValidationRateFilterToolbar';
+import { ValidationRateDataTable } from '@/components/validation-rate/ValidationRateDataTable';
+import { useValidationRateUrlSync } from '@/hooks/useValidationRateUrlSync';
 import { useApprovalRateStore } from '@/stores/approvalRateStore';
 import { TrendingUp } from 'lucide-react';
 import pageStyles from '@/components/dashboard/dashboard.module.css';
@@ -14,7 +14,7 @@ function ApprovalRateContent() {
   const { hasUnsavedChanges, resetFilters } = useApprovalRateStore();
 
   // Sync store state with URL parameters and auto-load data
-  useApprovalRateUrlSync();
+  useValidationRateUrlSync(useApprovalRateStore, 'approval');
 
   const headerActions = (
     <>
@@ -34,8 +34,12 @@ function ApprovalRateContent() {
         actions={headerActions}
       />
       <div className={pageStyles.content}>
-        <ApprovalRateFilterToolbar />
-        <ApprovalRateDataTable />
+        <ValidationRateFilterToolbar useStore={useApprovalRateStore} />
+        <ValidationRateDataTable
+          useStore={useApprovalRateStore}
+          promptTitle="Ready to analyze approval rates?"
+          promptText="Select your dimensions, time period, and date range above, then click &quot;Load Data&quot; to get started."
+        />
       </div>
     </div>
   );

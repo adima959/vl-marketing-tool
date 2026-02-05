@@ -1,30 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApprovalRateData } from '@/lib/server/approvalRateQueryBuilder';
+import { getValidationRateData } from '@/lib/server/validationRateQueryBuilder';
 import { maskErrorForClient } from '@/lib/types/errors';
 import { withAdmin } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
-import { approvalRateQueryRequestSchema } from '@/lib/schemas/api';
-import type { ApprovalRateResponse, ApprovalRateQueryParams } from '@/types';
+import { validationRateQueryRequestSchema } from '@/lib/schemas/api';
+import type { ValidationRateResponse, ValidationRateQueryParams } from '@/types';
 import { z } from 'zod';
 
 /**
- * POST /api/approval-rate/query
+ * POST /api/validation-rate/query
  *
- * Approval Rate Report API endpoint
- * Queries MariaDB CRM data for approval rates by dimension and time period
+ * Validation Rate Report API endpoint
+ * Handles all rate types: approval, pay, buy
+ * Queries MariaDB CRM data for rates by dimension and time period
  * Requires admin authentication
  */
-async function handleApprovalRateQuery(
+async function handleValidationRateQuery(
   request: NextRequest,
   _user: AppUser
-): Promise<NextResponse<ApprovalRateResponse>> {
+): Promise<NextResponse<ValidationRateResponse>> {
   try {
     // Parse and validate request body with Zod
     const rawBody = await request.json();
-    const body = approvalRateQueryRequestSchema.parse(rawBody);
+    const body = validationRateQueryRequestSchema.parse(rawBody);
 
     // Build query parameters
-    const queryParams: ApprovalRateQueryParams = {
+    const queryParams: ValidationRateQueryParams = {
+      rateType: body.rateType,
       dateRange: {
         start: new Date(body.dateRange.start),
         end: new Date(body.dateRange.end),
@@ -38,7 +40,7 @@ async function handleApprovalRateQuery(
     };
 
     // Execute query
-    const result = await getApprovalRateData(queryParams);
+    const result = await getValidationRateData(queryParams);
 
     return NextResponse.json(result);
   } catch (error: unknown) {
@@ -55,7 +57,7 @@ async function handleApprovalRateQuery(
       );
     }
 
-    const { message, statusCode } = maskErrorForClient(error, 'Approval Rate API');
+    const { message, statusCode } = maskErrorForClient(error, 'Validation Rate API');
 
     return NextResponse.json(
       {
@@ -70,18 +72,18 @@ async function handleApprovalRateQuery(
 }
 
 // Export with admin authentication
-export const POST = withAdmin(handleApprovalRateQuery);
+export const POST = withAdmin(handleValidationRateQuery);
 
 /**
- * GET /api/approval-rate/query
+ * GET /api/validation-rate/query
  * Health check endpoint
  */
 export async function GET(): Promise<NextResponse> {
   return NextResponse.json({
     status: 'ok',
-    endpoint: '/api/approval-rate/query',
+    endpoint: '/api/validation-rate/query',
     methods: ['POST'],
-    description: 'Approval Rate pivot report (MariaDB CRM)',
+    description: 'Validation Rate pivot report - approval, pay, buy (MariaDB CRM)',
     timestamp: new Date().toISOString(),
   });
 }

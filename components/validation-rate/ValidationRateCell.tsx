@@ -1,10 +1,10 @@
 'use client';
 
 import { useMemo } from 'react';
-import type { ApprovalRateMetric } from '@/types';
+import type { ValidationRateMetric } from '@/types';
 
-interface ApprovalRateCellProps {
-  metric: ApprovalRateMetric; // { rate, trials, approved }
+interface ValidationRateCellProps {
+  metric: ValidationRateMetric; // { rate, trials, approved }
   onClick?: () => void;
 }
 
@@ -12,7 +12,7 @@ interface ApprovalRateCellProps {
 export const MIN_SUBSCRIPTIONS_THRESHOLD = 3;
 
 /**
- * Color-coded cell for approval rate percentages
+ * Color-coded cell for validation rate percentages
  *
  * Color scale (text color):
  * - <80%: Red
@@ -23,7 +23,7 @@ export const MIN_SUBSCRIPTIONS_THRESHOLD = 3;
  * Trial count is clickable to show details modal
  * Cells with fewer than MIN_SUBSCRIPTIONS_THRESHOLD trials are filtered out
  */
-export function ApprovalRateCell({ metric, onClick }: ApprovalRateCellProps) {
+export function ValidationRateCell({ metric, onClick }: ValidationRateCellProps) {
   const { rate, trials } = metric;
 
   // Show nothing if below threshold

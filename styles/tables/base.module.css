@@ -29,6 +29,13 @@
    TABLE BASE
    ============================================================================= */
 
+/* Ant Design's CSS-in-JS sets overflow:hidden on .ant-table-wrapper,
+   which traps position:sticky. Override to allow sticky header to
+   reach the .page scroll container. */
+.dataTable :global(.ant-table-wrapper) {
+  overflow: visible !important;
+}
+
 .dataTable :global(.ant-table) {
   background: var(--color-background-primary);
   font-size: var(--font-size-sm);
@@ -51,23 +58,35 @@
    ============================================================================= */
 
 /* Scroll container - horizontal scrolling only */
-.dataTable :global(.ant-table-body) {
+/* Ant Design uses .ant-table-body (with scroll.y) or .ant-table-content (scroll.x only) */
+.dataTable :global(.ant-table-body),
+.dataTable :global(.ant-table-content) {
   overflow-x: auto !important;
   overflow-y: visible !important;
-  cursor: grab;
 }
 
-/* Inherit cursor on table cells for drag scrolling */
-.dataTable :global(.ant-table-body td),
-.dataTable :global(.ant-table-body tr) {
-  cursor: inherit;
+/* Drag-to-scroll cursor states via data attribute (set by useDragScroll hook) */
+/* idle = grab cursor, dragging = grabbing cursor */
+/* Excludes the sticky first column (Attributes) which doesn't scroll */
+.dataTable[data-drag-scroll="idle"] :global(.ant-table-header),
+.dataTable[data-drag-scroll="idle"] :global(.ant-table-content),
+.dataTable[data-drag-scroll="idle"] :global(.ant-table-body),
+.dataTable[data-drag-scroll="idle"] :global(th:not(:first-child)),
+.dataTable[data-drag-scroll="idle"] :global(td:not(:first-child)) {
+  cursor: grab !important;
 }
 
-/* Sync header scroll with body (hide its scrollbar) */
-/* Sticky header support - works with Ant Design's sticky prop */
+.dataTable[data-drag-scroll="dragging"] :global(.ant-table-header),
+.dataTable[data-drag-scroll="dragging"] :global(.ant-table-content),
+.dataTable[data-drag-scroll="dragging"] :global(.ant-table-body),
+.dataTable[data-drag-scroll="dragging"] :global(th:not(:first-child)),
+.dataTable[data-drag-scroll="dragging"] :global(td:not(:first-child)) {
+  cursor: grabbing !important;
+}
+
+/* Header scroll sync — FixedHolder sets overflow:hidden inline, scrollLeft is synced via JS */
+/* Hide any scrollbar that might appear as fallback */
 .dataTable :global(.ant-table-header) {
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -83,42 +102,44 @@
 }
 
 /* Custom scrollbar styling */
-.dataTable :global(.ant-table-body)::-webkit-scrollbar {
+.dataTable :global(.ant-table-body)::-webkit-scrollbar,
+.dataTable :global(.ant-table-content)::-webkit-scrollbar {
   height: 12px;
   width: 12px;
 }
 
-.dataTable :global(.ant-table-body)::-webkit-scrollbar-track {
+.dataTable :global(.ant-table-body)::-webkit-scrollbar-track,
+.dataTable :global(.ant-table-content)::-webkit-scrollbar-track {
   background: var(--color-gray-100);
   border-radius: 6px;
   margin: 2px;
 }
 
-.dataTable :global(.ant-table-body)::-webkit-scrollbar-thumb {
+.dataTable :global(.ant-table-body)::-webkit-scrollbar-thumb,
+.dataTable :global(.ant-table-content)::-webkit-scrollbar-thumb {
   background: var(--color-gray-400);
   border-radius: 6px;
   transition: background var(--transition-fast);
   border: 2px solid var(--color-gray-100);
 }
 
-.dataTable :global(.ant-table-body)::-webkit-scrollbar-thumb:hover {
+.dataTable :global(.ant-table-body)::-webkit-scrollbar-thumb:hover,
+.dataTable :global(.ant-table-content)::-webkit-scrollbar-thumb:hover {
   background: var(--color-gray-600);
   border-color: var(--color-gray-200);
 }
 
-.dataTable :global(.ant-table-body)::-webkit-scrollbar-corner {
+.dataTable :global(.ant-table-body)::-webkit-scrollbar-corner,
+.dataTable :global(.ant-table-content)::-webkit-scrollbar-corner {
   background: var(--color-gray-100);
 }
 
 /* =============================================================================
-   CSS STICKY HEADERS (Single Table Approach)
+   STICKY HEADERS (via Ant Design's sticky prop — splits header/body)
    ============================================================================= */
 
-/* Make entire thead sticky as a unit */
+/* Thead background (sticky positioning handled by .ant-table-sticky-holder) */
 .dataTable :global(.ant-table-thead) {
-  position: sticky;
-  top: 0;
-  z-index: 10;
   background: var(--color-background-primary);
 }
 
@@ -328,9 +349,11 @@
   max-height: 20px !important;
 }
 
-/* Measure row - not needed with single table structure, hide completely */
+/* Measure row — needed in split mode (sticky) for column width sync between header/body */
 .dataTable :global(.ant-table-measure-row) {
-  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  line-height: 0 !important;
 }
 
 .dataTable :global(.ant-table-expanded-row:empty) {
