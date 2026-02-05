@@ -11,6 +11,7 @@ Dense reference for styling approach, design tokens, and CSS patterns.
 5. [Ant Overrides](#ant-overrides) - When theme isn't enough
 6. [Typography](#typography) - Font patterns, tabular-nums
 7. [Responsive Design](#responsive-design) - Breakpoints, mobile
+8. [Ant Design Table: Sticky Headers & Scroll Sync](#ant-design-table-sticky-headers--scroll-sync) - Split rendering, scroll sync
 
 ---
 
@@ -788,6 +789,141 @@ input:focus-visible {
   outline-offset: 2px;
 }
 ```
+
+---
+
+## Ant Design Table: Sticky Headers & Scroll Sync
+
+### Overview
+
+Ant Design's `<Table>` supports sticky headers via the `sticky` prop. When enabled, the table splits into two separate DOM elements for proper sticky behavior.
+
+### How It Works
+
+**Without sticky** (single table):
+```
+.ant-table-content (overflow-x: auto)
+  └── <table>
+        ├── <thead>
+        └── <tbody>
+```
+
+**With sticky** (split tables):
+```
+.ant-table-header (overflow: hidden, position: sticky)
+  └── <table> (header only)
+.ant-table-body (overflow-x: auto)
+  └── <table> (body only)
+```
+
+### Required Configuration
+
+```tsx
+// GenericDataTable.tsx
+<Table
+  scroll={{ x: tableWidth }}      // REQUIRED: explicit width in pixels
+  sticky={{ offsetHeader: 0 }}    // Enable sticky header
+  // ...
+/>
+```
+
+### Critical CSS Rules
+
+```css
+/* styles/tables/base.module.css */
+
+/* 1. Allow sticky to escape wrapper */
+.dataTable :global(.ant-table-wrapper) {
+  overflow: visible !important;
+}
+
+/* 2. Fixed layout, but DO NOT override width */
+.dataTable :global(.ant-table-header table),
+.dataTable :global(.ant-table-body table) {
+  table-layout: fixed !important;
+  /* ⚠️ NEVER add: width: max-content !important; — breaks scroll sync */
+}
+
+/* 3. Body handles horizontal scroll */
+.dataTable :global(.ant-table-body) {
+  overflow-x: auto !important;
+}
+
+/* 4. Sticky holder styling */
+.dataTable :global(.ant-table-sticky-holder) {
+  z-index: 100 !important;
+  background: var(--color-background-primary) !important;
+}
+```
+
+### Why Width Override Breaks Scroll Sync
+
+**Root cause**: When you set `width: max-content !important` on header and body tables:
+
+1. Header table width = sum of **measured column widths** (from ResizeObserver)
+2. Body table width = sum of **configured column widths** (from column definitions)
+3. These can differ by a few pixels due to rendering variations
+4. Different widths = different `scrollWidth` = different `maxScrollLeft`
+5. Scrolling body to max doesn't align with header's max → **desync**
+
+**Solution**: Let Ant Design control table width via `scroll.x` prop. Both tables get the **same width** → identical scroll behavior.
+
+### Scroll Sync Mechanism
+
+Ant Design syncs header/body scroll positions via JavaScript:
+
+```
+User scrolls .ant-table-body
+  ↓
+onScroll event fires
+  ↓
+onInternalScroll() handler in Table.js
+  ↓
+forceScroll(scrollLeft, scrollHeaderRef.current)
+  ↓
+Header's scrollLeft = Body's scrollLeft
+```
+
+The header has `overflow: hidden` (set inline by FixedHolder), so it doesn't scroll natively. Its `scrollLeft` is controlled programmatically.
+
+### useDragScroll Hook Integration
+
+The `useDragScroll` hook adds redundant scroll sync for safety:
+
+```typescript
+// hooks/useDragScroll.ts
+if (header && body) {
+  syncScroll = () => { header.scrollLeft = body.scrollLeft; };
+  body.addEventListener('scroll', syncScroll);
+}
+```
+
+This is safe because it syncs in the same direction as Ant Design's built-in sync.
+
+### Common Pitfalls
+
+| Mistake | Result | Fix |
+|---------|--------|-----|
+| `width: max-content` on tables | Header/body scroll desync | Remove, let Ant Design control via `scroll.x` |
+| `overflow: auto` on `.ant-table-header` | Two independent scrollbars | Let Ant Design's `overflow: hidden` remain |
+| `overflow: hidden` on `.ant-table-wrapper` | Sticky trapped, won't stick | Add `overflow: visible !important` |
+| Missing `scroll.x` value | No horizontal scroll | Always calculate: `attributeWidth + visibleMetricsWidth` |
+
+### Debugging Scroll Desync
+
+1. Open DevTools → Elements panel
+2. Find `.ant-table-header table` and `.ant-table-body table`
+3. Compare their `width` values in Computed styles
+4. If different, CSS is overriding Ant Design's width
+5. Check for `width: max-content` or similar overrides
+
+### Files Reference
+
+| File | Purpose |
+|------|---------|
+| `styles/tables/base.module.css` | Sticky and scroll CSS rules |
+| `hooks/useDragScroll.ts` | Drag-to-scroll + backup sync |
+| `components/table/GenericDataTable.tsx` | `sticky` prop configuration |
 
 ---
 

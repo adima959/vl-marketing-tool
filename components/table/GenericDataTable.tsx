@@ -1,6 +1,6 @@
 import { Table, Tooltip } from 'antd';
 import type { ColumnsType, TableProps } from 'antd/es/table';
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { MetricCell } from './MetricCell';
 import { ClickableMetricCell } from '@/components/dashboard/ClickableMetricCell';
 import { MarketingClickableMetricCell } from './MarketingClickableMetricCell';
@@ -300,23 +300,6 @@ export function GenericDataTable<TRow extends BaseTableRow>({
 
   // Drag-to-scroll + header/body scroll sync
   useDragScroll(tableRef);
-
-  // DEBUG: Log ancestor overflow chain to find what traps sticky
-  useEffect(() => {
-    const header = tableRef.current?.querySelector('.ant-table-header') as HTMLElement;
-    if (!header) { document.title = 'DEBUG: no .ant-table-header found'; return; }
-    const ancestors: string[] = [];
-    let el: HTMLElement | null = header;
-    while (el && el !== document.body) {
-      const s = getComputedStyle(el);
-      if (s.overflowX !== 'visible' || s.overflowY !== 'visible') {
-        const cls = el.className.replace(/\s+/g, '.').substring(0, 50);
-        ancestors.push(`${el.tagName}.${cls}[ox:${s.overflowX},oy:${s.overflowY},pos:${s.position}]`);
-      }
-      el = el.parentElement;
-    }
-    document.title = `STICKY-DBG: header.pos=${getComputedStyle(header).position} | ancestors=${ancestors.join(' > ')}`;
-  });
 
   // Show error state
   if (error) {

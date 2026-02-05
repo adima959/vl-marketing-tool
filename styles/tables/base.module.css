@@ -41,11 +41,12 @@
   font-size: var(--font-size-sm);
 }
 
-/* Fixed table layout with explicit column widths */
+/* Fixed table layout with explicit column widths.
+   IMPORTANT: Do NOT override width here — Ant Design sets width via scroll.x prop
+   to ensure header and body tables have identical widths for scroll sync. */
 .dataTable :global(.ant-table-header table),
 .dataTable :global(.ant-table-body table) {
   table-layout: fixed !important;
-  width: max-content !important;
 }
 
 .dataTable :global(.ant-table-container) {
@@ -57,9 +58,13 @@
    SCROLL BEHAVIOR
    ============================================================================= */
 
-/* Scroll container - horizontal scrolling only */
-/* Ant Design uses .ant-table-body (with scroll.y) or .ant-table-content (scroll.x only) */
-.dataTable :global(.ant-table-body),
+/* Scroll containers — horizontal scrolling only */
+/* Split mode (sticky): .ant-table-body — let Ant Design control overflow-y for proper scrollbar compensation */
+.dataTable :global(.ant-table-body) {
+  overflow-x: auto !important;
+}
+
+/* Single mode (fallback): .ant-table-content — force visible overflow-y so page scrolls */
 .dataTable :global(.ant-table-content) {
   overflow-x: auto !important;
   overflow-y: visible !important;
@@ -349,12 +354,8 @@
   max-height: 20px !important;
 }
 
-/* Measure row — needed in split mode (sticky) for column width sync between header/body */
-.dataTable :global(.ant-table-measure-row) {
-  visibility: hidden !important;
-  height: 0 !important;
-  line-height: 0 !important;
-}
+/* Measure row — Ant Design uses this for column width sync in split mode (sticky).
+   Do NOT hide with display:none — it breaks width measurement. Let Ant Design handle it. */
 
 .dataTable :global(.ant-table-expanded-row:empty) {
   display: none !important;
