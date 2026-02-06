@@ -26,3 +26,25 @@ export interface DateRange {
   start: Date;
   end: Date;
 }
+
+/**
+ * Time series data point for dashboard chart
+ * Each point represents aggregated metrics for a single day
+ */
+export interface TimeSeriesDataPoint {
+  date: string;           // Format: 'YYYY-MM-DD'
+  subscriptions: number;
+  trials: number;
+  trialsApproved: number;
+  customers: number;
+  upsells: number;
+}
+
+/**
+ * API response for time series data
+ */
+export interface TimeSeriesResponse {
+  success: boolean;
+  data: TimeSeriesDataPoint[];
+  error?: string;
+}

@@ -1,0 +1,253 @@
+.container {
+  background: var(--color-background-primary, #ffffff);
+  border: 1px solid var(--color-border, #e8eaed);
+  border-radius: var(--radius-md, 8px);
+  padding: var(--spacing-md, 12px) var(--spacing-lg, 16px);
+  margin-bottom: var(--spacing-lg, 16px);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-md, 12px);
+  flex-wrap: wrap;
+  gap: var(--spacing-sm, 8px);
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs, 4px);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary, #6b7280);
+  background: var(--color-background-secondary, #fafbfc);
+  border: 1px solid var(--color-border, #e8eaed);
+  border-radius: var(--radius-full, 9999px);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.legendItem:hover {
+  background: var(--color-background-tertiary, #f5f6f7);
+}
+
+.legendItemActive {
+  color: var(--color-text-primary, #1a1a1a);
+  background: var(--color-background-primary, #ffffff);
+  border-color: var(--metric-color, #00B96B);
+}
+
+.legendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--metric-color, #00B96B);
+  opacity: 0.4;
+  transition: opacity 0.15s ease;
+}
+
+.legendItemActive .legendDot {
+  opacity: 1;
+}
+
+/* Area indicator for percentage/background metrics */
+.legendDotArea {
+  background: linear-gradient(
+    to bottom,
+    var(--metric-color, #10b981) 0%,
+    transparent 100%
+  );
+  opacity: 0.3;
+  border-radius: 2px;
+  width: 12px;
+  height: 8px;
+}
+
+.legendItemActive .legendDotArea {
+  opacity: 0.5;
+}
+
+/* Area metric styling in legend */
+.legendItemArea {
+  /* Keep consistent styling with other legend items */
+}
+
+.chartWrapper {
+  width: 100%;
+  min-width: 0;
+  position: relative;
+}
+
+/* Skeleton loading styles */
+.skeleton {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  padding: 16px 16px 0 0;
+}
+
+.skeletonYAxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 40px;
+  padding-right: 8px;
+}
+
+.skeletonYTick {
+  width: 24px;
+  height: 12px;
+  background: var(--color-background-tertiary, #f5f6f7);
+  border-radius: 2px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.skeletonContent {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeletonGrid {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+
+.skeletonGridLine {
+  height: 1px;
+  background: var(--color-border, #e8eaed);
+}
+
+.skeletonLine {
+  position: absolute;
+  top: 40%;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--color-background-tertiary, #f5f6f7) 0%,
+    var(--color-border, #e8eaed) 50%,
+    var(--color-background-tertiary, #f5f6f7) 100%
+  );
+  background-size: 200% 100%;
+  border-radius: 2px;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Tooltip styles */
+.tooltip {
+  background: var(--color-background-primary, #ffffff);
+  border: 1px solid var(--color-border, #e8eaed);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: var(--shadow-lg, 0 4px 12px rgba(0, 0, 0, 0.1));
+  padding: var(--spacing-sm, 8px) var(--spacing-md, 12px);
+  min-width: 140px;
+}
+
+.tooltipDate {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-secondary, #6b7280);
+  margin-bottom: var(--spacing-xs, 4px);
+  padding-bottom: var(--spacing-xs, 4px);
+  border-bottom: 1px solid var(--color-border, #e8eaed);
+}
+
+.tooltipMetrics {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tooltipRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.tooltipDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tooltipLabel {
+  color: var(--color-text-secondary, #6b7280);
+  flex: 1;
+}
+
+.tooltipValue {
+  font-weight: 600;
+  color: var(--color-text-primary, #1a1a1a);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Empty and error states */
+.empty,
+.error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 13px;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.error {
+  color: var(--color-error, #ef4444);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .legend {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}

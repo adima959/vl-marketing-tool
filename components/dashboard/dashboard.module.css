@@ -17,6 +17,8 @@
   gap: 0;
   flex: 1;
   padding: 16px 20px 20px;
+  min-width: 0;
+  width: 100%;
 }
 
 /* === Filter Bar === */
@@ -92,13 +94,22 @@
 }
 
 /* === Responsive === */
+@media (max-width: 900px) {
+  .filterLeft {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .filterRight {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+}
+
 @media (max-width: 768px) {
   .content {
     padding: 12px;
-  }
-
-  .filterBar {
-    flex-direction: column;
-    align-items: stretch;
   }
 }

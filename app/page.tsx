@@ -4,6 +4,7 @@ import { Suspense, lazy, useEffect } from 'react';
 import { Spin } from 'antd';
 import { useDashboardUrlSync } from '@/hooks/useDashboardUrlSync';
 import { DashboardFilterToolbar } from '@/components/dashboard/DashboardFilterToolbar';
+import { DashboardTimeSeriesChart } from '@/components/dashboard/DashboardTimeSeriesChart';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { LayoutDashboard } from 'lucide-react';
 import styles from '@/components/dashboard/dashboard.module.css';
@@ -27,6 +28,7 @@ function DashboardContent() {
       />
       <div className={styles.content}>
         <DashboardFilterToolbar />
+        <DashboardTimeSeriesChart />
         <Suspense fallback={<div className="flex items-center justify-center p-8"><Spin size="large" /></div>}>
           <DashboardDataTable />
         </Suspense>

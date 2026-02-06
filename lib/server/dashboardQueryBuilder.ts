@@ -272,6 +272,36 @@ export class DashboardQueryBuilder {
   }
 
   /**
+   * Build query for time series chart (daily aggregation)
+   * Groups metrics by date for line chart visualization
+   */
+  public buildTimeSeriesQuery(dateRange: DateRange): { query: string; params: any[] } {
+    const startDate = this.formatDateForMariaDB(dateRange.start, false);
+    const endDate = this.formatDateForMariaDB(dateRange.end, true);
+
+    const query = `
+      SELECT
+        DATE(s.date_create) AS date,
+        COUNT(DISTINCT CASE WHEN DATE(c.date_registered) = DATE(s.date_create) THEN s.customer_id END) AS customers,
+        COUNT(DISTINCT s.id) AS subscriptions,
+        COUNT(DISTINCT CASE WHEN i.type = 1 THEN i.id END) AS trials,
+        COUNT(DISTINCT CASE WHEN i.type = 1 AND i.is_marked = 1 THEN i.id END) AS trialsApproved,
+        COUNT(DISTINCT uo.id) AS upsells
+      FROM subscription s
+      LEFT JOIN customer c ON s.customer_id = c.id
+      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
+      LEFT JOIN invoice uo ON uo.customer_id = s.customer_id
+        AND uo.tag LIKE CONCAT('%parent-sub-id=', s.id, '%')
+      WHERE s.date_create BETWEEN ? AND ?
+        AND (i.tag IS NULL OR i.tag NOT LIKE '%parent-sub-id=%')
+      GROUP BY DATE(s.date_create)
+      ORDER BY date ASC
+    `;
+
+    return { query, params: [startDate, endDate] };
+  }
+
+  /**
    * Main entry point - routes to appropriate depth query
    */
   public buildQuery(options: QueryOptions): { query: string; params: any[] } {
