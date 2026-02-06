@@ -1,5 +1,5 @@
 import { AntdRegistry } from '@ant-design/nextjs-registry';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, App } from 'antd';
 import theme from '@/styles/theme';
 import { ToastContainer } from '@/components/notifications/Toast';
 import { KeyboardShortcuts } from '@/components/accessibility/KeyboardShortcuts';
@@ -26,6 +26,7 @@ export default function RootLayout({
       <body suppressHydrationWarning>
         <AntdRegistry>
           <ConfigProvider theme={theme}>
+            <App>
             <AuthProvider>
               <RouteGuard>
                 <NuqsAdapter>
@@ -40,6 +41,7 @@ export default function RootLayout({
                 </NuqsAdapter>
               </RouteGuard>
             </AuthProvider>
+            </App>
           </ConfigProvider>
         </AntdRegistry>
       </body>
