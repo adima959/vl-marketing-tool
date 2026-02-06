@@ -9,6 +9,9 @@ import { type RefObject, useEffect } from 'react';
  *
  * Uses a `data-drag-scroll` attribute on the wrapper div for cursor control.
  * CSS in base.module.css handles the actual cursor styling via this attribute.
+ *
+ * Only enables drag-to-scroll when the content is wider than the container
+ * (i.e., when horizontal scrolling is actually possible).
  */
 export function useDragScroll(tableRef: RefObject<HTMLDivElement | null>): void {
   useEffect(() => {
@@ -26,8 +29,28 @@ export function useDragScroll(tableRef: RefObject<HTMLDivElement | null>): void 
     const scrollEl = body || content;
     if (!scrollEl) return;
 
-    // Set initial state — CSS uses this attribute for cursor styling
-    wrapper.setAttribute('data-drag-scroll', 'idle');
+    // Check if horizontal scrolling is possible
+    const checkScrollable = () => {
+      const isScrollable = scrollEl.scrollWidth > scrollEl.clientWidth;
+      if (isScrollable) {
+        // Only show grab cursor if we're not currently dragging
+        if (wrapper.getAttribute('data-drag-scroll') !== 'dragging') {
+          wrapper.setAttribute('data-drag-scroll', 'idle');
+        }
+      } else {
+        // Remove the attribute entirely when not scrollable
+        wrapper.removeAttribute('data-drag-scroll');
+      }
+      return isScrollable;
+    };
+
+    // Initial check
+    let isScrollable = checkScrollable();
+
+    // Re-check on resize
+    const resizeObserver = new ResizeObserver(() => {
+      isScrollable = checkScrollable();
+    });
 
     // --- Scroll sync (only needed in split mode) ---
     let syncScroll: (() => void) | null = null;
@@ -44,6 +67,9 @@ export function useDragScroll(tableRef: RefObject<HTMLDivElement | null>): void 
     const DRAG_THRESHOLD = 5; // px before drag activates (allows clicks through)
 
     const handleMouseDown = (e: MouseEvent) => {
+      // Don't enable drag if not scrollable
+      if (!isScrollable) return;
+
       const target = e.target as HTMLElement;
       // Don't hijack interactive elements
       if (target.closest('button, a, .ant-table-column-sorters, .expandIcon')) return;
@@ -76,9 +102,13 @@ export function useDragScroll(tableRef: RefObject<HTMLDivElement | null>): void 
       if (!isDown) return;
       isDown = false;
       isDragging = false;
-      wrapper.setAttribute('data-drag-scroll', 'idle');
+      // Re-check scrollable state and set appropriate cursor
+      checkScrollable();
       scrollEl.style.userSelect = '';
     };
+
+    // Start observing for size changes
+    resizeObserver.observe(scrollEl);
 
     // Attach mousedown to all scrollable areas
     scrollEl.addEventListener('mousedown', handleMouseDown);
@@ -93,6 +123,7 @@ export function useDragScroll(tableRef: RefObject<HTMLDivElement | null>): void 
 
     return () => {
       wrapper.removeAttribute('data-drag-scroll');
+      resizeObserver.disconnect();
       if (syncScroll && body) {
         body.removeEventListener('scroll', syncScroll);
       }

@@ -1,5 +1,18 @@
 import type { MetricFormat } from '@/types';
 
+/**
+ * Convert string to title case (capitalize first letter of each word)
+ * Handles edge cases like already capitalized strings, single words, etc.
+ */
+export function toTitleCase(str: string): string {
+  if (!str) return str;
+  return str
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 export function formatNumber(value: number): string {
   return new Intl.NumberFormat('en-US').format(value).replace(/,/g, ' ');
 }

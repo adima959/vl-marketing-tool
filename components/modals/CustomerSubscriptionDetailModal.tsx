@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Modal, Table, Tooltip, Button } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -58,6 +58,9 @@ export function CustomerSubscriptionDetailModal({ open, onClose, context }: Cust
     }
   }, [open, context?.metricId]);
 
+  // Check if we're in buy/pay rate context for showing extra columns
+  const isBuyOrPayRate = context?.filters.rateType === 'buy' || context?.filters.rateType === 'pay';
+
   const exportToCSV = useCallback(async () => {
     if (!context || !data?.total) return;
 
@@ -79,6 +82,7 @@ export function CustomerSubscriptionDetailModal({ open, onClose, context }: Cust
         'Tracking ID 5',
         'Amount',
         'Date',
+        ...(isBuyOrPayRate ? ['Bought at', 'Paid at'] : []),
       ];
 
       const csvRows = [
@@ -94,6 +98,10 @@ export function CustomerSubscriptionDetailModal({ open, onClose, context }: Cust
             `"${(record.trackingId5 || '').replace(/"/g, '""')}"`,
             record.amount !== null && record.amount !== undefined ? Number(record.amount).toFixed(2) : '0.00',
             new Date(record.date).toLocaleDateString('en-GB'),
+            ...(isBuyOrPayRate ? [
+              record.dateBought ? new Date(record.dateBought).toLocaleDateString('en-GB') : '',
+              record.datePaid ? new Date(record.datePaid).toLocaleDateString('en-GB') : '',
+            ] : []),
           ];
           return row.join(',');
         }),
@@ -114,7 +122,7 @@ export function CustomerSubscriptionDetailModal({ open, onClose, context }: Cust
     } finally {
       setExporting(false);
     }
-  }, [context, data?.total]);
+  }, [context, data?.total, isBuyOrPayRate]);
 
   // Build filter tags
   const filterTags: string[] = [];
@@ -126,113 +134,143 @@ export function CustomerSubscriptionDetailModal({ open, onClose, context }: Cust
     if (context.filters.source) filterTags.push(context.filters.source);
   }
 
-  const columns: ColumnsType<DetailRecord> = [
-    {
-      title: 'Customer',
-      dataIndex: 'customerName',
-      width: 190,
-      fixed: 'left',
-      ellipsis: { showTitle: false },
-      render: (name: string, record: DetailRecord) => (
-        <div className={styles.customerCell}>
-          <Tooltip title={name} placement="topLeft">
-            <a
-              href={`https://vitaliv.no/admin/customers/${record.customerId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.customerLink}
-            >
-              {name}
-            </a>
-          </Tooltip>
-          {record.customerDateRegistered &&
-           new Date(record.customerDateRegistered).toDateString() === new Date(record.date).toDateString() && (
-            <span className={styles.badgeNew}>NEW</span>
-          )}
-          {!!record.isApproved && (
-            <Tooltip title="Approved">
-              <span className={styles.badgeApproved}>✓</span>
+  const columns: ColumnsType<DetailRecord> = useMemo(() => {
+    const baseColumns: ColumnsType<DetailRecord> = [
+      {
+        title: 'Customer',
+        dataIndex: 'customerName',
+        width: 190,
+        fixed: 'left',
+        ellipsis: { showTitle: false },
+        render: (name: string, record: DetailRecord) => (
+          <div className={styles.customerCell}>
+            <Tooltip title={name} placement="topLeft">
+              <a
+                href={`https://vitaliv.no/admin/customers/${record.customerId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.customerLink}
+              >
+                {name}
+              </a>
             </Tooltip>
-          )}
-          {(record.subscriptionStatus === 4 || record.subscriptionStatus === 5) && (
-            <Tooltip
-              title={
-                <div>
-                  <div>{record.subscriptionStatus === 4 ? 'Soft Cancel' : 'Cancel Forever'}</div>
-                  {record.cancelReason && <div>{record.cancelReason}</div>}
-                  {record.cancelReasonAbout && <div>{record.cancelReasonAbout}</div>}
-                </div>
-              }
-            >
-              <span className={styles.badgeCancelled}>✕</span>
-            </Tooltip>
-          )}
-        </div>
-      ),
-    },
-    {
-      title: 'Source',
-      dataIndex: 'source',
-      width: 100,
-      ellipsis: { showTitle: false },
-      render: (val) => <Tooltip title={val}><span className={styles.sourceCell}>{val}</span></Tooltip>,
-    },
-    {
-      title: 'Tracking 1',
-      dataIndex: 'trackingId1',
-      width: 110,
-      ellipsis: { showTitle: false },
-      render: (val) => <Tooltip title={val || '–'}><span className={styles.monoCell}>{val || '–'}</span></Tooltip>,
-    },
-    {
-      title: 'Tracking 2',
-      dataIndex: 'trackingId2',
-      width: 110,
-      ellipsis: { showTitle: false },
-      render: (val) => <Tooltip title={val || '–'}><span className={styles.monoCell}>{val || '–'}</span></Tooltip>,
-    },
-    {
-      title: 'Tracking 3',
-      dataIndex: 'trackingId3',
-      width: 110,
-      ellipsis: { showTitle: false },
-      render: (val) => <Tooltip title={val || '–'}><span className={styles.monoCell}>{val || '–'}</span></Tooltip>,
-    },
-    {
-      title: 'Tracking 4',
-      dataIndex: 'trackingId4',
-      width: 110,
-      ellipsis: { showTitle: false },
-      render: (val) => <Tooltip title={val || '–'}><span className={styles.monoCell}>{val || '–'}</span></Tooltip>,
-    },
-    {
-      title: 'Tracking 5',
-      dataIndex: 'trackingId5',
-      width: 110,
-      ellipsis: { showTitle: false },
-      render: (val) => <Tooltip title={val || '–'}><span className={styles.monoCell}>{val || '–'}</span></Tooltip>,
-    },
-    {
-      title: 'Amount',
-      dataIndex: 'amount',
-      width: 90,
-      align: 'right',
-      render: (val) => {
-        const formatted = val !== null && val !== undefined ? Number(val).toFixed(2) : '0.00';
-        return <span className={styles.amountCell}>{formatted}</span>;
+            {record.customerDateRegistered &&
+             new Date(record.customerDateRegistered).toDateString() === new Date(record.date).toDateString() && (
+              <span className={styles.badgeNew}>NEW</span>
+            )}
+            {!!record.isApproved && (
+              <Tooltip title="Approved">
+                <span className={styles.badgeApproved}>✓</span>
+              </Tooltip>
+            )}
+            {(record.subscriptionStatus === 4 || record.subscriptionStatus === 5) && (
+              <Tooltip
+                title={
+                  <div>
+                    <div>{record.subscriptionStatus === 4 ? 'Soft Cancel' : 'Cancel Forever'}</div>
+                    {record.cancelReason && <div>{record.cancelReason}</div>}
+                    {record.cancelReasonAbout && <div>{record.cancelReasonAbout}</div>}
+                  </div>
+                }
+              >
+                <span className={styles.badgeCancelled}>✕</span>
+              </Tooltip>
+            )}
+          </div>
+        ),
       },
-    },
-    {
-      title: 'Date',
-      dataIndex: 'date',
-      width: 90,
-      render: (val) => (
-        <span className={styles.dateCell}>
-          {new Date(val).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
-        </span>
-      ),
-    },
-  ];
+      {
+        title: 'Source',
+        dataIndex: 'source',
+        width: 100,
+        ellipsis: { showTitle: false },
+        render: (val) => <Tooltip title={val}><span className={styles.sourceCell}>{val}</span></Tooltip>,
+      },
+      {
+        title: 'Tracking 1',
+        dataIndex: 'trackingId1',
+        width: 110,
+        ellipsis: { showTitle: false },
+        render: (val) => <Tooltip title={val || '–'}><span className={styles.monoCell}>{val || '–'}</span></Tooltip>,
+      },
+      {
+        title: 'Tracking 2',
+        dataIndex: 'trackingId2',
+        width: 110,
+        ellipsis: { showTitle: false },
+        render: (val) => <Tooltip title={val || '–'}><span className={styles.monoCell}>{val || '–'}</span></Tooltip>,
+      },
+      {
+        title: 'Tracking 3',
+        dataIndex: 'trackingId3',
+        width: 110,
+        ellipsis: { showTitle: false },
+        render: (val) => <Tooltip title={val || '–'}><span className={styles.monoCell}>{val || '–'}</span></Tooltip>,
+      },
+      {
+        title: 'Tracking 4',
+        dataIndex: 'trackingId4',
+        width: 110,
+        ellipsis: { showTitle: false },
+        render: (val) => <Tooltip title={val || '–'}><span className={styles.monoCell}>{val || '–'}</span></Tooltip>,
+      },
+      {
+        title: 'Tracking 5',
+        dataIndex: 'trackingId5',
+        width: 110,
+        ellipsis: { showTitle: false },
+        render: (val) => <Tooltip title={val || '–'}><span className={styles.monoCell}>{val || '–'}</span></Tooltip>,
+      },
+      {
+        title: 'Amount',
+        dataIndex: 'amount',
+        width: 90,
+        align: 'right',
+        render: (val) => {
+          const formatted = val !== null && val !== undefined ? Number(val).toFixed(2) : '0.00';
+          return <span className={styles.amountCell}>{formatted}</span>;
+        },
+      },
+      {
+        title: 'Date',
+        dataIndex: 'date',
+        width: 90,
+        render: (val) => (
+          <span className={styles.dateCell}>
+            {new Date(val).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
+          </span>
+        ),
+      },
+    ];
+
+    // Add Bought at and Paid at columns for buy/pay rate
+    if (isBuyOrPayRate) {
+      baseColumns.push(
+        {
+          title: 'Bought at',
+          dataIndex: 'dateBought',
+          width: 90,
+          render: (val) => (
+            <span className={styles.dateCell}>
+              {val ? new Date(val).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '–'}
+            </span>
+          ),
+        },
+        {
+          title: 'Paid at',
+          dataIndex: 'datePaid',
+          width: 90,
+          render: (val) => (
+            <span className={styles.dateCell}>
+              {val ? new Date(val).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '–'}
+            </span>
+          ),
+        }
+      );
+    }
+
+    return baseColumns;
+  }, [isBuyOrPayRate]);
 
   return (
     <Modal
@@ -297,7 +335,7 @@ export function CustomerSubscriptionDetailModal({ open, onClose, context }: Cust
             ),
           }}
           rowKey="id"
-          scroll={{ x: 1120 }}
+          scroll={{ x: isBuyOrPayRate ? 1300 : 1120 }}
           size="small"
         />
       </div>

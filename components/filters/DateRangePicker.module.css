@@ -1,17 +1,43 @@
 /* Date picker wrapper */
 .datePickerWrapper {
-  position: relative;
-  display: inline-block;
+  display: flex;
+  align-items: center;
 }
 
 /* Date range picker */
 .rangePicker {
-  width: 320px;
+  font-size: 13px;
+  border-radius: 6px;
+  border-color: var(--color-gray-200);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  font-variant-numeric: tabular-nums;
+}
+
+.rangePicker:hover {
+  border-color: var(--color-gray-300);
+}
+
+.rangePicker :global(.ant-picker-input > input) {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-gray-700);
+  letter-spacing: 0.01em;
+}
+
+.rangePicker :global(.ant-picker-suffix) {
+  color: var(--color-gray-400);
+  font-size: 14px;
+}
+
+.rangePicker :global(.ant-picker-active-bar) {
+  background: var(--color-primary-500);
 }
 
 /* Separator icon styling */
 .separator {
-  color: #bfbfbf;
+  color: var(--color-gray-300);
+  font-size: 11px;
 }
 
 /* Delay Indicator */

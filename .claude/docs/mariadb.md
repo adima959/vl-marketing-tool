@@ -146,26 +146,32 @@ CREATE TABLE `subscription` (
 
 ### invoice Table
 
-**Purpose:** Invoices for trials (type=1), upsells (type=3), and refunds (type=4).
+**Purpose:** Invoices for trials, rebills, upsells, and refunds.
 
 **Key Columns:**
-- `id` (int, PK) - Unique invoice identifier
+- `id` (int, PK) - Internal invoice ID (NOT what CRM displays - see invoice_proccessed.id)
 - `parent_id` (int, FK → invoice_proccessed.id) - Parent invoice (for refunds)
 - `customer_id` (int, FK → customer.id) - Invoice customer
 - `subscription_id` (int, FK → subscription.id) - Related subscription (nullable for upsells)
-- `order_date` (datetime) - Order creation date
-- `type` (tinyint) - Invoice type: **1=trial**, **3=upsell (OTS)**, **4=refund**
+- `order_date` (datetime) - Order creation date (when order was placed)
+- `invoice_date` (datetime) - Invoice finalization date (when invoice was created/processed)
+- `type` (tinyint) - Invoice type: **1=trial**, **2=rebill**, **3=upsell (OTS)**, **4=refund**
 - `total` (decimal 10,2) - Total invoice amount
 - `is_marked` (tinyint) - Approval status: **1=approved**, **0=pending/rejected**
 - `deleted` (tinyint 1) - Soft delete flag (0=active, 1=deleted)
-- `source_id` (int, FK → source.id) - Traffic source
+- `source_id` (int, FK → source.id) - Traffic source (only set for trials/OTS, NULL for rebills)
 - `tracking_id`, `tracking_id_2`, `tracking_id_3`, `tracking_id_4`, `tracking_id_5` (varchar 300) - Tracking identifiers
 - `tag` (text) - Metadata tags (upsells contain `parent-sub-id=X`)
 
 **Invoice Types:**
 - **Type 1 (Trial):** Initial subscription trial invoice
+- **Type 2 (Rebill):** Recurring subscription rebill invoice
 - **Type 3 (OTS - One Time Sale):** Upsell invoice (linked via `tag` field)
 - **Type 4 (Refund):** Refund invoice (linked via `parent_id`)
+
+**Date Fields (IMPORTANT):**
+- `order_date`: When the order was placed/created
+- `invoice_date`: When the invoice was finalized (CRM uses this for Buy Rate date filtering)
 
 **Approval States:**
 - `is_marked = 1` → Approved/validated
@@ -382,15 +388,23 @@ CREATE TABLE `invoice_product` (
 
 **Purpose:** Tracks processed and paid invoices, indicates trial conversion.
 
+**CRITICAL: CRM "Invoice ID" Mapping:**
+- The CRM UI displays `invoice_proccessed.id` as "Invoice ID", NOT `invoice.id`
+- To find the actual invoice data, join: `invoice_proccessed.invoice_id → invoice.id`
+- Example: CRM shows "Invoice ID 702792" → `invoice_proccessed.id = 702792` → `invoice.id = 1593448`
+
 **Key Columns:**
-- `id` (int, PK) - Unique record identifier
-- `invoice_id` (int, FK → invoice.id) - Related invoice
+- `id` (int, PK) - **CRM-displayed Invoice ID** (what users see in CRM)
+- `invoice_id` (int, FK → invoice.id) - Actual invoice record
 - `customer_id` (int, FK → customer.id) - Customer reference
 - `date_paid` (datetime) - Payment date
 - `date_bought` (date) - **Trial conversion date** (if trial was converted to paid)
 - `total_paid` (decimal 10,2) - Amount paid
+- `public_invoice_id` (int) - Same as `id`, public-facing invoice number
 
-**Important:** `date_bought IS NOT NULL` indicates trial was converted to paid subscription.
+**Important:**
+- `date_bought IS NOT NULL` indicates trial was converted to paid subscription.
+- Only invoices in this table are considered "processed" by the CRM
 
 **Schema:**
 ```sql
@@ -405,10 +419,49 @@ CREATE TABLE `invoice_proccessed` (
   `status` tinyint(4) NOT NULL,
   `date_bought` date DEFAULT NULL,
   `date_rebuy` date DEFAULT NULL,
+  `public_invoice_id` int(11),
   PRIMARY KEY (`id`),
   KEY `invoice_id` (`invoice_id`,`customer_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 ```
+
+---
+
+### Pay Rate & Buy Rate Query Pattern (Matching CRM)
+
+**CRITICAL:** To match CRM Pay/Buy Rate numbers exactly, use these rules:
+
+1. **Use `invoice_date` not `order_date`** - CRM filters by when invoice was finalized
+2. **INNER JOIN `invoice_proccessed`** - Only count processed invoices
+3. **Case-insensitive country matching** - Use `LOWER(c.country)`
+
+**Rate Definitions:**
+- **Pay Rate**: `ipr.date_paid IS NOT NULL` (invoice was paid)
+- **Buy Rate**: `ipr.date_bought IS NOT NULL` (trial was converted)
+
+**Correct Pay/Buy Rate Query:**
+```sql
+SELECT
+  COUNT(DISTINCT ipr.id) as total,
+  SUM(CASE WHEN i.type = 1 THEN 1 ELSE 0 END) as trials,
+  SUM(CASE WHEN i.type = 2 THEN 1 ELSE 0 END) as rebills,
+  SUM(CASE WHEN i.type = 4 THEN 1 ELSE 0 END) as refunds
+FROM invoice_proccessed ipr
+INNER JOIN invoice i ON i.id = ipr.invoice_id
+JOIN subscription s ON s.id = i.subscription_id
+JOIN customer c ON c.id = s.customer_id
+JOIN source sr ON sr.id = s.source_id
+WHERE LOWER(c.country) = 'sweden'
+  AND sr.source = 'Adwords'
+  AND i.type != 4  -- Exclude refunds
+  AND DATE(i.invoice_date) BETWEEN '2025-12-01' AND '2025-12-14'
+```
+
+**Common Mistakes:**
+- ❌ Using `order_date` instead of `invoice_date`
+- ❌ Using LEFT JOIN to `invoice_proccessed` (counts unprocessed invoices)
+- ❌ Case-sensitive country matching (`c.country = 'Sweden'` misses `'sweden'`)
+- ❌ Counting by `invoice.id` instead of `invoice_proccessed.id`
 
 ---
 

@@ -40,6 +40,7 @@ export async function fetchDashboardDetails(
         source: context.filters.source,
         excludeDeleted: context.filters.excludeDeleted,
         excludeUpsellTags: context.filters.excludeUpsellTags,
+        rateType: context.filters.rateType,
       },
       pagination: pagination || { page: 1, pageSize: 50 },
     }),

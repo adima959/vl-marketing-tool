@@ -15,6 +15,7 @@ export interface MetricClickContext {
     source?: string;         // Depth 2 filter (present if depth >= 2)
     excludeDeleted?: boolean;     // If true, exclude deleted subscriptions (s.deleted = 0)
     excludeUpsellTags?: boolean;  // If true, exclude upsell invoices (i.tag NOT LIKE '%parent-sub-id=%')
+    rateType?: 'approval' | 'pay' | 'buy';  // Rate type for validation rate pages (affects query logic)
   };
 }
 
@@ -46,6 +47,8 @@ export interface DetailRecord {
   cancelReason?: string | null; // Cancel reason caption from cancel_reason table
   cancelReasonAbout?: string | null; // Additional cancellation details
   customerDateRegistered?: string; // Customer registration date for NEW badge check
+  dateBought?: string | null;   // Date invoice was bought (for buy rate)
+  datePaid?: string | null;     // Date invoice was paid (for pay rate)
 }
 
 /**

@@ -7,6 +7,7 @@ import type { ReportRow } from '@/types/report';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { marketingQueryRequestSchema } from '@/lib/schemas/api';
+import { toTitleCase } from '@/lib/formatters';
 import { z } from 'zod';
 
 /**
@@ -56,7 +57,7 @@ async function handleMarketingQuery(
     // Transform database rows to frontend format (same as /api/reports/query)
     const data: ReportRow[] = rows.map((row) => ({
       key: `${keyPrefix}${row.dimension_value || 'Unknown'}`,
-      attribute: row.dimension_value || 'Unknown',
+      attribute: toTitleCase(row.dimension_value || 'Unknown'),
       depth: body.depth,
       hasChildren: hasMoreDimensions,
       metrics: {

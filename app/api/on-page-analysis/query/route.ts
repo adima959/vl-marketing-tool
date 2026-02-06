@@ -4,6 +4,7 @@ import { onPageQueryBuilder } from '@/lib/server/onPageQueryBuilder';
 import type { QueryRequest } from '@/lib/types/api';
 import { parseQueryRequest } from '@/lib/types/api';
 import { createValidationError, maskErrorForClient } from '@/lib/types/errors';
+import { toTitleCase } from '@/lib/formatters';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 
@@ -85,7 +86,7 @@ async function handleOnPageQuery(
         : (row.dimension_value != null ? String(row.dimension_value) : 'Unknown');
 
       const displayValue = row.dimension_value != null
-        ? String(row.dimension_value)
+        ? toTitleCase(String(row.dimension_value))
         : 'Unknown';
 
       return {

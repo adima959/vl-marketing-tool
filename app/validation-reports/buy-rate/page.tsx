@@ -39,6 +39,8 @@ function BuyRateContent() {
           useStore={useBuyRateStore}
           promptTitle="Ready to analyze buy rates?"
           promptText="Select your dimensions, time period, and date range above, then click &quot;Load Data&quot; to get started."
+          rateType="buy"
+          modalRecordLabel="Invoices"
         />
       </div>
     </div>

@@ -15,9 +15,8 @@ export const MIN_SUBSCRIPTIONS_THRESHOLD = 3;
  * Color-coded cell for validation rate percentages
  *
  * Color scale (text color):
- * - <80%: Red
- * - <95%: Normal (gray)
- * - 96%+: Green
+ * - >81%: Green
+ * - ≤81%: Red
  *
  * Display: Trial count on top, percentage below
  * Trial count is clickable to show details modal
@@ -36,16 +35,8 @@ export function ValidationRateCell({ metric, onClick }: ValidationRateCellProps)
     const rateDisplay = `${percentage}%`;
 
     // Determine text color based on rate
-    let textColor: string;
-    if (rate >= 0.96) {
-      textColor = '#16a34a'; // Green-600 (darker for better readability)
-    } else if (rate >= 0.95) {
-      textColor = '#374151'; // Gray-700 (normal)
-    } else if (rate >= 0.80) {
-      textColor = '#374151'; // Gray-700 (normal)
-    } else {
-      textColor = '#ef4444'; // Red-500
-    }
+    // >81% = green, ≤81% = red
+    const textColor = rate > 0.81 ? '#16a34a' : '#ef4444';
 
     return {
       textColor,

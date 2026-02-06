@@ -9,6 +9,8 @@ interface DetailQueryOptions {
   excludeDeleted?: boolean;
   /** If true, exclude upsell invoices (i.tag NOT LIKE '%parent-sub-id=%'). Used by approval rate page. */
   excludeUpsellTags?: boolean;
+  /** Rate type for validation rate pages (affects query logic for modal details) */
+  rateType?: 'approval' | 'pay' | 'buy';
 }
 
 interface PaginationOptions {
@@ -71,6 +73,48 @@ export class DashboardDetailQueryBuilder {
     if (filters.source) {
       if (filters.source === 'Unknown') {
         // Match both NULL and empty string values
+        conditions.push("(sr.source IS NULL OR sr.source = '')");
+      } else {
+        conditions.push('sr.source = ?');
+        params.push(filters.source);
+      }
+    }
+
+    return {
+      whereClause: conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '',
+      params,
+    };
+  }
+
+  /**
+   * Build WHERE clause with case-insensitive country matching
+   * Used by pay rate and buy rate pages to match CRM behavior
+   */
+  private buildFilterClauseCaseInsensitive(filters: DetailQueryOptions): { whereClause: string; params: any[] } {
+    const params: any[] = [];
+    const conditions: string[] = [];
+
+    if (filters.country) {
+      if (filters.country === 'Unknown') {
+        conditions.push("(c.country IS NULL OR c.country = '')");
+      } else {
+        // Case-insensitive matching for country (matches CRM behavior)
+        conditions.push('LOWER(c.country) = LOWER(?)');
+        params.push(filters.country);
+      }
+    }
+
+    if (filters.product) {
+      if (filters.product === 'Unknown') {
+        conditions.push("(p.product_name IS NULL OR p.product_name = '')");
+      } else {
+        conditions.push('p.product_name = ?');
+        params.push(filters.product);
+      }
+    }
+
+    if (filters.source) {
+      if (filters.source === 'Unknown') {
         conditions.push("(sr.source IS NULL OR sr.source = '')");
       } else {
         conditions.push('sr.source = ?');
@@ -148,14 +192,18 @@ export class DashboardDetailQueryBuilder {
       ${limitClause}
     `;
 
+    // Optimized count query - only include JOINs needed for filters
+    const needsProductJoin = !!filters.product;
+    const needsSourceJoin = !!filters.source;
+    const needsInvoiceJoin = needsProductJoin || needsSourceJoin;
+
     const countQuery = `
       SELECT COUNT(DISTINCT s.id) as total
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
-      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
-      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
-      LEFT JOIN product p ON p.id = ip.product_id
-      LEFT JOIN source sr ON sr.id = i.source_id
+      ${needsInvoiceJoin ? 'LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1' : ''}
+      ${needsProductJoin ? 'LEFT JOIN invoice_product ip ON ip.invoice_id = i.id LEFT JOIN product p ON p.id = ip.product_id' : ''}
+      ${needsSourceJoin ? 'LEFT JOIN source sr ON sr.id = i.source_id' : ''}
       WHERE s.date_create BETWEEN ? AND ?
         AND DATE(c.date_registered) = DATE(s.date_create)
         ${whereClause}
@@ -217,14 +265,18 @@ export class DashboardDetailQueryBuilder {
       ${limitClause}
     `;
 
+    // Optimized count query - only include JOINs needed for filters
+    const needsProductJoin = !!filters.product;
+    const needsSourceJoin = !!filters.source;
+    const needsInvoiceJoin = needsProductJoin || needsSourceJoin;
+
     const countQuery = `
       SELECT COUNT(DISTINCT s.id) as total
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
-      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
-      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
-      LEFT JOIN product p ON p.id = ip.product_id
-      LEFT JOIN source sr ON sr.id = i.source_id
+      ${needsInvoiceJoin ? 'LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1' : ''}
+      ${needsProductJoin ? 'LEFT JOIN invoice_product ip ON ip.invoice_id = i.id LEFT JOIN product p ON p.id = ip.product_id' : ''}
+      ${needsSourceJoin ? 'LEFT JOIN source sr ON sr.id = i.source_id' : ''}
       WHERE s.date_create BETWEEN ? AND ?
         ${whereClause}
     `;
@@ -293,14 +345,17 @@ export class DashboardDetailQueryBuilder {
       ${limitClause}
     `;
 
+    // Optimized count query - only include JOINs needed for filters
+    const needsProductJoin = !!filters.product;
+    const needsSourceJoin = !!filters.source;
+
     const countQuery = `
       SELECT COUNT(DISTINCT i.id) as total
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
       INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
-      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
-      LEFT JOIN product p ON p.id = ip.product_id
-      LEFT JOIN source sr ON sr.id = i.source_id
+      ${needsProductJoin ? 'LEFT JOIN invoice_product ip ON ip.invoice_id = i.id LEFT JOIN product p ON p.id = ip.product_id' : ''}
+      ${needsSourceJoin ? 'LEFT JOIN source sr ON sr.id = i.source_id' : ''}
       WHERE s.date_create BETWEEN ? AND ?
         ${deletedFilter}
         ${tagFilter}
@@ -371,14 +426,17 @@ export class DashboardDetailQueryBuilder {
       ${limitClause}
     `;
 
+    // Optimized count query - only include JOINs needed for filters
+    const needsProductJoin = !!filters.product;
+    const needsSourceJoin = !!filters.source;
+
     const countQuery = `
       SELECT COUNT(DISTINCT i.id) as total
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
       INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.is_marked = 1
-      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
-      LEFT JOIN product p ON p.id = ip.product_id
-      LEFT JOIN source sr ON sr.id = i.source_id
+      ${needsProductJoin ? 'LEFT JOIN invoice_product ip ON ip.invoice_id = i.id LEFT JOIN product p ON p.id = ip.product_id' : ''}
+      ${needsSourceJoin ? 'LEFT JOIN source sr ON sr.id = i.source_id' : ''}
       WHERE s.date_create BETWEEN ? AND ?
         ${deletedFilter}
         ${tagFilter}
@@ -467,6 +525,166 @@ export class DashboardDetailQueryBuilder {
   }
 
   /**
+   * Build query for Pay Rate Trials metric (matches CRM logic)
+   * Uses invoice_date, INNER JOIN invoice_proccessed, excludes refunds (type != 4)
+   */
+  private buildPayRateTrialsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
+    const startDate = this.formatDateForMariaDB(filters.dateRange.start, false);
+    const endDate = this.formatDateForMariaDB(filters.dateRange.end, true);
+    const { whereClause, params: filterParams } = this.buildFilterClauseCaseInsensitive(filters);
+    const { limitClause, params: paginationParams } = this.buildPaginationClause(pagination);
+
+    const baseParams = [startDate, endDate, ...filterParams];
+
+    // Build optimized count query - only include JOINs needed for filters
+    const needsProductJoin = !!filters.product;
+    const needsSourceJoin = !!filters.source;
+
+    const query = `
+      SELECT
+        ipr.id as id,
+        i.id as invoiceId,
+        s.id as subscriptionId,
+        CONCAT(c.first_name, ' ', c.last_name) as customerName,
+        c.email as customerEmail,
+        c.id as customerId,
+        COALESCE(sr.source, '(not set)') as source,
+        s.tracking_id as trackingId1,
+        s.tracking_id_2 as trackingId2,
+        s.tracking_id_3 as trackingId3,
+        s.tracking_id_4 as trackingId4,
+        s.tracking_id_5 as trackingId5,
+        COALESCE(i.total, 0) as amount,
+        i.invoice_date as date,
+        GROUP_CONCAT(DISTINCT COALESCE(p.product_name, '(not set)') SEPARATOR ', ') as productName,
+        c.country,
+        IF(ipr.date_paid IS NOT NULL, 1, 0) as isApproved,
+        s.status as subscriptionStatus,
+        MAX(cr.caption) as cancelReason,
+        s.canceled_reason_about as cancelReasonAbout,
+        c.date_registered as customerDateRegistered,
+        ipr.date_bought as dateBought,
+        ipr.date_paid as datePaid
+      FROM invoice i
+      INNER JOIN invoice_proccessed ipr ON ipr.invoice_id = i.id
+      INNER JOIN subscription s ON i.subscription_id = s.id
+      INNER JOIN customer c ON s.customer_id = c.id
+      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
+      LEFT JOIN product p ON p.id = ip.product_id
+      LEFT JOIN source sr ON s.source_id = sr.id
+      LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
+      LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
+      WHERE i.invoice_date >= ? AND i.invoice_date <= ?
+        AND i.type != 4
+        ${whereClause}
+      GROUP BY ipr.id
+      ORDER BY i.invoice_date DESC
+      ${limitClause}
+    `;
+
+    // Optimized count query - minimal JOINs based on filters
+    const countQuery = `
+      SELECT COUNT(DISTINCT ipr.id) as total
+      FROM invoice i
+      INNER JOIN invoice_proccessed ipr ON ipr.invoice_id = i.id
+      INNER JOIN subscription s ON i.subscription_id = s.id
+      INNER JOIN customer c ON s.customer_id = c.id
+      ${needsProductJoin ? 'LEFT JOIN invoice_product ip ON ip.invoice_id = i.id LEFT JOIN product p ON p.id = ip.product_id' : ''}
+      ${needsSourceJoin ? 'LEFT JOIN source sr ON s.source_id = sr.id' : ''}
+      WHERE i.invoice_date >= ? AND i.invoice_date <= ?
+        AND i.type != 4
+        ${whereClause}
+    `;
+
+    return {
+      query,
+      params: [...baseParams, ...paginationParams],
+      countQuery,
+      countParams: baseParams,
+    };
+  }
+
+  /**
+   * Build query for Buy Rate Trials metric (matches CRM logic)
+   * Uses invoice_date, INNER JOIN invoice_proccessed, excludes refunds (type != 4)
+   */
+  private buildBuyRateTrialsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
+    const startDate = this.formatDateForMariaDB(filters.dateRange.start, false);
+    const endDate = this.formatDateForMariaDB(filters.dateRange.end, true);
+    const { whereClause, params: filterParams } = this.buildFilterClauseCaseInsensitive(filters);
+    const { limitClause, params: paginationParams } = this.buildPaginationClause(pagination);
+
+    const baseParams = [startDate, endDate, ...filterParams];
+
+    // Build optimized count query - only include JOINs needed for filters
+    const needsProductJoin = !!filters.product;
+    const needsSourceJoin = !!filters.source;
+
+    const query = `
+      SELECT
+        ipr.id as id,
+        i.id as invoiceId,
+        s.id as subscriptionId,
+        CONCAT(c.first_name, ' ', c.last_name) as customerName,
+        c.email as customerEmail,
+        c.id as customerId,
+        COALESCE(sr.source, '(not set)') as source,
+        s.tracking_id as trackingId1,
+        s.tracking_id_2 as trackingId2,
+        s.tracking_id_3 as trackingId3,
+        s.tracking_id_4 as trackingId4,
+        s.tracking_id_5 as trackingId5,
+        COALESCE(i.total, 0) as amount,
+        i.invoice_date as date,
+        GROUP_CONCAT(DISTINCT COALESCE(p.product_name, '(not set)') SEPARATOR ', ') as productName,
+        c.country,
+        IF(ipr.date_bought IS NOT NULL, 1, 0) as isApproved,
+        s.status as subscriptionStatus,
+        MAX(cr.caption) as cancelReason,
+        s.canceled_reason_about as cancelReasonAbout,
+        c.date_registered as customerDateRegistered,
+        ipr.date_bought as dateBought,
+        ipr.date_paid as datePaid
+      FROM invoice i
+      INNER JOIN invoice_proccessed ipr ON ipr.invoice_id = i.id
+      INNER JOIN subscription s ON i.subscription_id = s.id
+      INNER JOIN customer c ON s.customer_id = c.id
+      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
+      LEFT JOIN product p ON p.id = ip.product_id
+      LEFT JOIN source sr ON s.source_id = sr.id
+      LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
+      LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
+      WHERE i.invoice_date >= ? AND i.invoice_date <= ?
+        AND i.type != 4
+        ${whereClause}
+      GROUP BY ipr.id
+      ORDER BY i.invoice_date DESC
+      ${limitClause}
+    `;
+
+    // Optimized count query - minimal JOINs based on filters
+    const countQuery = `
+      SELECT COUNT(DISTINCT ipr.id) as total
+      FROM invoice i
+      INNER JOIN invoice_proccessed ipr ON ipr.invoice_id = i.id
+      INNER JOIN subscription s ON i.subscription_id = s.id
+      INNER JOIN customer c ON s.customer_id = c.id
+      ${needsProductJoin ? 'LEFT JOIN invoice_product ip ON ip.invoice_id = i.id LEFT JOIN product p ON p.id = ip.product_id' : ''}
+      ${needsSourceJoin ? 'LEFT JOIN source sr ON s.source_id = sr.id' : ''}
+      WHERE i.invoice_date >= ? AND i.invoice_date <= ?
+        AND i.type != 4
+        ${whereClause}
+    `;
+
+    return {
+      query,
+      params: [...baseParams, ...paginationParams],
+      countQuery,
+      countParams: baseParams,
+    };
+  }
+
+  /**
    * Main entry point: routes to appropriate query builder based on metricId
    */
   public buildDetailQuery(
@@ -474,6 +692,14 @@ export class DashboardDetailQueryBuilder {
     filters: DetailQueryOptions,
     pagination?: PaginationOptions
   ): QueryResult {
+    // Handle pay rate and buy rate trials with their specific query logic
+    if (metricId === 'trials' && filters.rateType === 'pay') {
+      return this.buildPayRateTrialsQuery(filters, pagination);
+    }
+    if (metricId === 'trials' && filters.rateType === 'buy') {
+      return this.buildBuyRateTrialsQuery(filters, pagination);
+    }
+
     switch (metricId) {
       case 'customers':
         return this.buildCustomersQuery(filters, pagination);

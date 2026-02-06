@@ -39,6 +39,8 @@ function PayRateContent() {
           useStore={usePayRateStore}
           promptTitle="Ready to analyze pay rates?"
           promptText="Select your dimensions, time period, and date range above, then click &quot;Load Data&quot; to get started."
+          rateType="pay"
+          modalRecordLabel="Invoices"
         />
       </div>
     </div>

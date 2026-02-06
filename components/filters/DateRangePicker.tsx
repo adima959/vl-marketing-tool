@@ -54,7 +54,7 @@ export function DateRangePicker() {
       <RangePicker
         className={styles.rangePicker}
         classNames={{ popup: { root: styles.datePickerPopup } }}
-        size="large"
+        size="middle"
         format="DD/MM/YYYY"
         value={[dayjs(dateRange.start), dayjs(dateRange.end)]}
         onChange={handleChange}

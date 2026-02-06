@@ -82,6 +82,7 @@ async function handleDashboardDetails(
         source: body.filters.source,
         excludeDeleted: body.filters.excludeDeleted,
         excludeUpsellTags: body.filters.excludeUpsellTags,
+        rateType: body.filters.rateType,
       },
       pagination
     );
@@ -89,6 +90,7 @@ async function handleDashboardDetails(
     // Debug logging
     console.log('=== DASHBOARD DETAILS DEBUG ===');
     console.log('MetricId:', body.metricId);
+    console.log('RateType:', body.filters.rateType || 'none');
     console.log('Date Range:', dateRange);
     console.log('Query:', query);
     console.log('Params:', params);

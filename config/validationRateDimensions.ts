@@ -6,7 +6,7 @@ import type { DimensionGroupConfig } from '@/types';
  * Shared dimensions for all validation rate pages (approval, pay, buy).
  * Data comes from MariaDB CRM database.
  *
- * Default dimensions: ['source', 'country', 'product']
+ * Default dimensions: ['country', 'source', 'product']
  */
 
 export const VALIDATION_RATE_DIMENSION_GROUPS: DimensionGroupConfig[] = [
@@ -31,7 +31,7 @@ export const getValidationRateDimensionLabel = (id: string): string => {
 };
 
 // Default dimensions for all validation rate reports
-export const DEFAULT_VALIDATION_RATE_DIMENSIONS = ['source', 'country', 'product'];
+export const DEFAULT_VALIDATION_RATE_DIMENSIONS = ['country', 'source', 'product'];
 
 /**
  * Database column mapping for each dimension

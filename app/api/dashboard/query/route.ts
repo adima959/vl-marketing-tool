@@ -6,6 +6,7 @@ import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { maskErrorForClient } from '@/lib/types/errors';
 import { queryRequestSchema } from '@/lib/schemas/api';
+import { toTitleCase } from '@/lib/formatters';
 import { z } from 'zod';
 
 interface QueryRequest {
@@ -87,8 +88,8 @@ async function handleDashboardQuery(
     // Transform database rows to frontend format (dynamic based on dimension order)
     const data: DashboardRow[] = rows.map((row) => {
       const rawValue = row[columnName] || 'Unknown';
-      // Uppercase country names for consistency
-      const displayValue = currentDimension === 'country' ? rawValue.toUpperCase() : rawValue;
+      // Apply title case for proper capitalization (e.g., "denmark" -> "Denmark")
+      const displayValue = toTitleCase(rawValue);
 
       return {
         key: `${keyPrefix}${displayValue}`,

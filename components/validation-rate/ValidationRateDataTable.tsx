@@ -35,12 +35,16 @@ interface ValidationRateDataTableProps {
   useStore: UseBoundStore<StoreApi<ValidationRateStore>>;
   promptTitle?: string;
   promptText?: string;
+  rateType?: 'approval' | 'pay' | 'buy';  // For modal query logic
+  modalRecordLabel?: string;  // Label for records in modal (e.g., "Trials" or "Invoices")
 }
 
 export function ValidationRateDataTable({
   useStore,
   promptTitle = 'Ready to analyze rates?',
   promptText = 'Select your dimensions, time period, and date range above, then click "Load Data" to get started.',
+  rateType,
+  modalRecordLabel = 'Trials',
 }: ValidationRateDataTableProps) {
   const {
     reportData,
@@ -137,7 +141,7 @@ export function ValidationRateDataTable({
 
     const context: MetricClickContext = {
       metricId: 'trials',
-      metricLabel: `Trials (${periodLabel})`,
+      metricLabel: `${modalRecordLabel} (${periodLabel})`,
       value: metric.trials,
       filters: {
         dateRange: {
@@ -149,6 +153,7 @@ export function ValidationRateDataTable({
         source: filters.source,
         excludeDeleted: false,
         excludeUpsellTags: false,
+        rateType,
       },
     };
 

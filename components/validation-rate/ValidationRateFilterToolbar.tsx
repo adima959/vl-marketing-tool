@@ -74,20 +74,18 @@ export function ValidationRateFilterToolbar({ useStore }: ValidationRateFilterTo
 
   return (
     <div className={styles.toolbar}>
-      <div className={styles.mainRow}>
-        {/* Left: Dimensions — 2/3 width */}
-        <div className={styles.leftSection} style={{ flex: 2 }}>
-          <div className={styles.dimensionsWrapper}>
-            <span className={styles.dimensionsLabel}>DIMENSIONS:</span>
-            <div className={styles.dimensionsContent}>
-              <ValidationRateDimensionPills useStore={useStore} />
-              <ValidationRateDimensionPicker useStore={useStore} />
-            </div>
+      <div className={styles.mainRow} style={{ alignItems: 'flex-start' }}>
+        {/* Left: Dimensions with label above */}
+        <div className={styles.leftSection} style={{ flex: 2, flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+          <span className={styles.dimensionsLabel}>DIMENSIONS</span>
+          <div className={styles.dimensionsContent}>
+            <ValidationRateDimensionPills useStore={useStore} />
+            <ValidationRateDimensionPicker useStore={useStore} />
           </div>
         </div>
 
-        {/* Right: Date range, period, and controls — 1/3 width */}
-        <div className={styles.rightSection} style={{ flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+        {/* Right: Date range, period, and controls */}
+        <div className={styles.rightSection} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div className={datePickerStyles.datePickerWrapper}>
               <RangePicker
@@ -98,7 +96,7 @@ export function ValidationRateFilterToolbar({ useStore }: ValidationRateFilterTo
                 presets={presets}
                 format="DD/MM/YYYY"
                 allowClear={false}
-                size="large"
+                size="middle"
                 separator={<SwapRightOutlined className={datePickerStyles.separator} />}
               />
             </div>

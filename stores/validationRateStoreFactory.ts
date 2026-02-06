@@ -55,8 +55,8 @@ export function createValidationRateStore(rateType: ValidationRateType) {
 
   return create<ValidationRateStore>((set, get) => ({
     // Initial state
-    timePeriod: 'monthly',
-    loadedTimePeriod: 'monthly',
+    timePeriod: 'biweekly',
+    loadedTimePeriod: 'biweekly',
     periodColumns: [],
 
     dateRange: getDefaultDateRange(),
