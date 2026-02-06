@@ -35,8 +35,13 @@ export async function executeQuery<T = unknown>(
   query: string,
   params: unknown[] = []
 ): Promise<T[]> {
+  const start = performance.now();
   try {
     const result = await getPool().query(query, params);
+    const duration = performance.now() - start;
+    if (duration > 500) {
+      console.warn(`[PG SLOW] ${duration.toFixed(0)}ms — ${query.replace(/\s+/g, ' ').substring(0, 120)}`);
+    }
     return result.rows as T[];
   } catch (error: unknown) {
     const normalized = normalizeError(error);

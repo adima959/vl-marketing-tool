@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import { Spin, Empty, Button, Modal, Tabs } from 'antd';
-import { PlusOutlined, EditOutlined, ExportOutlined, LinkOutlined } from '@ant-design/icons';
+import { Spin, Empty, Button, Modal, Tabs, message as antMessage } from 'antd';
+import { PlusOutlined, EditOutlined, ExportOutlined, LinkOutlined, CheckOutlined, DeleteOutlined } from '@ant-design/icons';
 import { Target, ChevronRight, Globe, FileText, ExternalLink, Lightbulb, MessageSquare, Video } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatusBadge, AssetTypeIcon } from '@/components/marketing-tracker';
+import { StatusBadge, AssetTypeIcon, AssetModal, CreativeModal } from '@/components/marketing-tracker';
 import { EditableField } from '@/components/ui/EditableField';
 import { EditableTags } from '@/components/ui/EditableTags';
 import { useMarketingTrackerStore } from '@/stores/marketingTrackerStore';
@@ -33,27 +33,24 @@ export default function MessagePage() {
     isLoading,
     loadMessage,
     updateMessageStatus,
+    updateMessageField,
   } = useMarketingTrackerStore();
-
-  // Local editable state (not persisted yet)
-  const [editedFields, setEditedFields] = useState<{
-    specificPainPoint?: string;
-    corePromise?: string;
-    keyIdea?: string;
-    primaryHookDirection?: string;
-    headlines?: string[];
-    description?: string;
-  }>({});
 
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [selectedCreative, setSelectedCreative] = useState<Creative | null>(null);
-  const [assetModalOpen, setAssetModalOpen] = useState(false);
-  const [creativeModalOpen, setCreativeModalOpen] = useState(false);
+  const [assetDetailOpen, setAssetDetailOpen] = useState(false);
+  const [creativeDetailOpen, setCreativeDetailOpen] = useState(false);
+  const [assetCreateOpen, setAssetCreateOpen] = useState(false);
+  const [creativeCreateOpen, setCreativeCreateOpen] = useState(false);
+  const [assetEditOpen, setAssetEditOpen] = useState(false);
+  const [creativeEditOpen, setCreativeEditOpen] = useState(false);
   const [activeGeo, setActiveGeo] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<string>('assets');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   const params = useParams<{ messageId: string }>();
   const messageId = params.messageId;
+  const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
   useEffect(() => {
     if (messageId) {
@@ -61,19 +58,30 @@ export default function MessagePage() {
     }
   }, [messageId, loadMessage]);
 
-  // Reset edited fields when message changes
+  // Cleanup debounce timers on unmount
   useEffect(() => {
-    setEditedFields({});
-  }, [currentMessage?.id]);
+    return () => {
+      Object.values(debounceTimers.current).forEach(clearTimeout);
+    };
+  }, []);
 
-  // Get the current value (edited or original)
-  const getValue = <T,>(field: keyof typeof editedFields, original: T): T => {
-    return (editedFields[field] !== undefined ? editedFields[field] : original) as T;
-  };
+  // Debounced auto-save for field changes
+  const handleFieldChange = useCallback((field: string, value: string | string[]) => {
+    if (!messageId) return;
 
-  const handleFieldChange = (field: keyof typeof editedFields, value: string | string[]) => {
-    setEditedFields((prev) => ({ ...prev, [field]: value }));
-  };
+    // Clear existing timer for this field
+    if (debounceTimers.current[field]) {
+      clearTimeout(debounceTimers.current[field]);
+    }
+
+    setSaveStatus('saving');
+
+    debounceTimers.current[field] = setTimeout(async () => {
+      await updateMessageField(messageId, field, value);
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 1500);
+    }, 600);
+  }, [messageId, updateMessageField]);
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
@@ -84,24 +92,64 @@ export default function MessagePage() {
     });
   };
 
-  const openAssetModal = (asset: Asset) => {
+  const openAssetDetail = (asset: Asset) => {
     setSelectedAsset(asset);
-    setAssetModalOpen(true);
+    setAssetDetailOpen(true);
   };
 
-  const closeAssetModal = () => {
-    setAssetModalOpen(false);
+  const closeAssetDetail = () => {
+    setAssetDetailOpen(false);
     setSelectedAsset(null);
   };
 
-  const openCreativeModal = (creative: Creative) => {
+  const openCreativeDetail = (creative: Creative) => {
     setSelectedCreative(creative);
-    setCreativeModalOpen(true);
+    setCreativeDetailOpen(true);
   };
 
-  const closeCreativeModal = () => {
-    setCreativeModalOpen(false);
+  const closeCreativeDetail = () => {
+    setCreativeDetailOpen(false);
     setSelectedCreative(null);
+  };
+
+  const handleCreateSuccess = () => {
+    if (messageId) loadMessage(messageId);
+  };
+
+  const handleEditAsset = () => {
+    setAssetDetailOpen(false);
+    setAssetEditOpen(true);
+  };
+
+  const handleEditCreative = () => {
+    setCreativeDetailOpen(false);
+    setCreativeEditOpen(true);
+  };
+
+  const handleDeleteAsset = async (assetId: string) => {
+    try {
+      const response = await fetch(`/api/marketing-tracker/assets/${assetId}`, { method: 'DELETE' });
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error || 'Failed to delete asset');
+      antMessage.success('Asset deleted');
+      closeAssetDetail();
+      if (messageId) loadMessage(messageId);
+    } catch (error) {
+      antMessage.error(error instanceof Error ? error.message : 'Failed to delete asset');
+    }
+  };
+
+  const handleDeleteCreative = async (creativeId: string) => {
+    try {
+      const response = await fetch(`/api/marketing-tracker/creatives/${creativeId}`, { method: 'DELETE' });
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error || 'Failed to delete creative');
+      antMessage.success('Creative deleted');
+      closeCreativeDetail();
+      if (messageId) loadMessage(messageId);
+    } catch (error) {
+      antMessage.error(error instanceof Error ? error.message : 'Failed to delete creative');
+    }
   };
 
   // Filter assets and creatives by geo
@@ -194,13 +242,13 @@ export default function MessagePage() {
     );
   }
 
-  // Get current values (with edits applied)
-  const painPoint = getValue('specificPainPoint', currentMessage.specificPainPoint || '');
-  const corePromise = getValue('corePromise', currentMessage.corePromise || '');
-  const keyIdea = getValue('keyIdea', currentMessage.keyIdea || '');
-  const hookDirection = getValue('primaryHookDirection', currentMessage.primaryHookDirection || '');
-  const headlines = getValue('headlines', currentMessage.headlines || []);
-  const description = getValue('description', currentMessage.description || '');
+  // Get current values from server state
+  const painPoint = currentMessage.specificPainPoint || '';
+  const corePromise = currentMessage.corePromise || '';
+  const keyIdea = currentMessage.keyIdea || '';
+  const hookDirection = currentMessage.primaryHookDirection || '';
+  const headlines = currentMessage.headlines || [];
+  const description = currentMessage.description || '';
 
   // Strip HTML from description for editing (simple approach)
   const plainDescription = description.replace(/<[^>]*>/g, '');
@@ -245,7 +293,8 @@ export default function MessagePage() {
                 editable
                 onChange={(newStatus) => updateMessageStatus(currentMessage.id, newStatus)}
               />
-              <Button icon={<EditOutlined />}>Edit</Button>
+              {saveStatus === 'saving' && <span className={styles.saveIndicator}>Saving...</span>}
+              {saveStatus === 'saved' && <span className={styles.saveIndicatorDone}><CheckOutlined /> Saved</span>}
             </div>
           </div>
           <h1 className={styles.headerTitle}>{currentMessage.name}</h1>
@@ -362,7 +411,11 @@ export default function MessagePage() {
           {/* Content based on active tab */}
           <div className={styles.assetsList}>
             <div className={styles.assetsHeader}>
-              <Button type="primary" icon={<PlusOutlined />}>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => activeTab === 'assets' ? setAssetCreateOpen(true) : setCreativeCreateOpen(true)}
+              >
                 {activeTab === 'assets' ? 'Add Asset' : 'Add Creative'}
               </Button>
             </div>
@@ -381,7 +434,7 @@ export default function MessagePage() {
                     </div>
                     <div className={styles.assetTypeItems}>
                       {typeAssets.map((asset) => (
-                        <div key={asset.id} className={styles.assetItem} onClick={() => openAssetModal(asset)}>
+                        <div key={asset.id} className={styles.assetItem} onClick={() => openAssetDetail(asset)}>
                           <LinkOutlined className={styles.assetIcon} />
                           <div className={styles.assetInfo}>
                             <span className={styles.assetName}>
@@ -422,7 +475,7 @@ export default function MessagePage() {
                   </div>
                   <div className={styles.assetTypeItems}>
                     {formatCreatives.map((creative) => (
-                      <div key={creative.id} className={styles.assetItem} onClick={() => openCreativeModal(creative)}>
+                      <div key={creative.id} className={styles.assetItem} onClick={() => openCreativeDetail(creative)}>
                         <Video size={16} className={styles.assetIcon} />
                         <div className={styles.assetInfo}>
                           <span className={styles.assetName}>
@@ -452,21 +505,69 @@ export default function MessagePage() {
         </div>
       </div>
 
+      {/* Asset Create Modal */}
+      <AssetModal
+        open={assetCreateOpen}
+        onClose={() => setAssetCreateOpen(false)}
+        onSuccess={handleCreateSuccess}
+        messageId={messageId}
+      />
+
+      {/* Creative Create Modal */}
+      <CreativeModal
+        open={creativeCreateOpen}
+        onClose={() => setCreativeCreateOpen(false)}
+        onSuccess={handleCreateSuccess}
+        messageId={messageId}
+      />
+
+      {/* Asset Edit Modal */}
+      <AssetModal
+        open={assetEditOpen}
+        onClose={() => { setAssetEditOpen(false); setSelectedAsset(null); }}
+        onSuccess={handleCreateSuccess}
+        messageId={messageId}
+        asset={selectedAsset}
+      />
+
+      {/* Creative Edit Modal */}
+      <CreativeModal
+        open={creativeEditOpen}
+        onClose={() => { setCreativeEditOpen(false); setSelectedCreative(null); }}
+        onSuccess={handleCreateSuccess}
+        messageId={messageId}
+        creative={selectedCreative}
+      />
+
       {/* Asset Detail Modal */}
       <Modal
         title={selectedAsset?.name}
-        open={assetModalOpen}
-        onCancel={closeAssetModal}
+        open={assetDetailOpen}
+        onCancel={closeAssetDetail}
         footer={[
           selectedAsset?.url && (
             <Button key="open" type="primary" icon={<ExportOutlined />} href={selectedAsset.url} target="_blank">
               Open Link
             </Button>
           ),
-          <Button key="edit" icon={<EditOutlined />}>
+          <Button key="edit" icon={<EditOutlined />} onClick={handleEditAsset}>
             Edit
           </Button>,
-          <Button key="close" onClick={closeAssetModal}>
+          <Button
+            key="delete"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => selectedAsset && Modal.confirm({
+              title: 'Delete Asset',
+              content: `Are you sure you want to delete "${selectedAsset.name}"?`,
+              okText: 'Delete',
+              okType: 'danger',
+              onOk: () => handleDeleteAsset(selectedAsset.id),
+            })}
+          >
+            Delete
+          </Button>,
+          <Button key="close" onClick={closeAssetDetail}>
             Close
           </Button>,
         ]}
@@ -522,18 +623,32 @@ export default function MessagePage() {
       {/* Creative Detail Modal */}
       <Modal
         title={selectedCreative?.name}
-        open={creativeModalOpen}
-        onCancel={closeCreativeModal}
+        open={creativeDetailOpen}
+        onCancel={closeCreativeDetail}
         footer={[
           selectedCreative?.url && (
             <Button key="open" type="primary" icon={<ExportOutlined />} href={selectedCreative.url} target="_blank">
               Open Link
             </Button>
           ),
-          <Button key="edit" icon={<EditOutlined />}>
+          <Button key="edit" icon={<EditOutlined />} onClick={handleEditCreative}>
             Edit
           </Button>,
-          <Button key="close" onClick={closeCreativeModal}>
+          <Button
+            key="delete"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => selectedCreative && Modal.confirm({
+              title: 'Delete Creative',
+              content: `Are you sure you want to delete "${selectedCreative.name}"?`,
+              okText: 'Delete',
+              okType: 'danger',
+              onOk: () => handleDeleteCreative(selectedCreative.id),
+            })}
+          >
+            Delete
+          </Button>,
+          <Button key="close" onClick={closeCreativeDetail}>
             Close
           </Button>,
         ]}

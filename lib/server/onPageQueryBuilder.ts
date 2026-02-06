@@ -248,6 +248,7 @@ export class OnPageQueryBuilder {
       FROM remote_session_tracker.event_page_view_enriched_v2 pv
       LEFT JOIN (
         SELECT DISTINCT ${distinctColumns} FROM merged_ads_spending
+        WHERE date::date BETWEEN $1::date AND $2::date
       ) mas ON pv.utm_campaign::text = mas.campaign_id::text${extraJoinCondition}`;
     } else {
       fromClause = `FROM remote_session_tracker.event_page_view_enriched_v2`;

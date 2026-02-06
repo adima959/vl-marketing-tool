@@ -468,6 +468,24 @@
   line-height: 1.5;
 }
 
+/* Save indicator */
+.saveIndicator {
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-500);
+  animation: fadeIn 0.2s ease;
+}
+
+.saveIndicatorDone {
+  font-size: var(--font-size-xs);
+  color: var(--color-primary-500);
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* Empty state */
 .container :global(.ant-empty) {
   padding: var(--spacing-8);

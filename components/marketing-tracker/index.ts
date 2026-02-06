@@ -4,3 +4,6 @@ export { AssetTypeIcon } from './AssetTypeIcon';
 export { ProductModal } from './ProductModal';
 export { AngleModal } from './AngleModal';
 export { MessageModal } from './MessageModal';
+export { AssetModal } from './AssetModal';
+export { CreativeModal } from './CreativeModal';
+export { ActivityFeed } from './ActivityFeed';

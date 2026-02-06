@@ -128,9 +128,9 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
         useStore.setState({ dimensions: urlState.dimensions });
       }
 
-      // Save expanded keys for later restoration
+      // Save expanded keys for later restoration (deduplicate from URL)
       if (urlState.expanded && urlState.expanded.length > 0) {
-        savedExpandedKeys.current = urlState.expanded;
+        savedExpandedKeys.current = Array.from(new Set(urlState.expanded));
       }
 
       // Parse and apply sort from URL
@@ -264,7 +264,7 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
       start: dateRange.start,
       end: dateRange.end,
       dimensions: dimensions.length > 0 ? dimensions : null, // null removes param
-      expanded: expandedRowKeys.length > 0 ? expandedRowKeys : null,
+      expanded: expandedRowKeys.length > 0 ? Array.from(new Set(expandedRowKeys)) : null,
       sortBy: sortColumn || defaultSortColumn,
       sortDir: sortDirection || 'descend',
     });

@@ -94,6 +94,7 @@ interface MarketingTrackerState {
   // Actions - Inline Field Updates
   updateAngleField: (angleId: string, field: string, value: string) => Promise<void>;
   updateProductField: (productId: string, field: string, value: string) => Promise<void>;
+  updateMessageField: (messageId: string, field: string, value: string | string[]) => Promise<void>;
 
   // Computed
   getFilteredProducts: () => ProductWithStats[];
@@ -369,6 +370,38 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
       }));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to update product';
+      set({ error: message });
+    }
+  },
+
+  updateMessageField: async (messageId: string, field: string, value: string | string[]) => {
+    try {
+      const response = await fetch(`/api/marketing-tracker/messages/${messageId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to update message');
+      }
+
+      const updatedMessage = data.data as Message;
+
+      // Update local state
+      set((state) => ({
+        messages: state.messages.map((message) =>
+          message.id === messageId ? updatedMessage : message
+        ),
+        currentMessage:
+          state.currentMessage?.id === messageId
+            ? { ...state.currentMessage, ...updatedMessage }
+            : state.currentMessage,
+      }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update message';
       set({ error: message });
     }
   },

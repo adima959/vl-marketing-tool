@@ -135,9 +135,9 @@ export function useValidationRateUrlSync(
         store.setState({ timePeriod: urlState.period as TimePeriod });
       }
 
-      // Save expanded keys for later restoration
+      // Save expanded keys for later restoration (deduplicate from URL)
       if (urlState.expanded && urlState.expanded.length > 0) {
-        savedExpandedKeys.current = urlState.expanded;
+        savedExpandedKeys.current = Array.from(new Set(urlState.expanded));
       }
 
       // Apply sort from URL
@@ -269,7 +269,7 @@ export function useValidationRateUrlSync(
       start: dateRange.start,
       end: dateRange.end,
       dimensions: dimensions.length > 0 ? dimensions : null,
-      expanded: expandedRowKeys.length > 0 ? expandedRowKeys : null,
+      expanded: expandedRowKeys.length > 0 ? Array.from(new Set(expandedRowKeys)) : null,
       period: timePeriod,
       sortBy: sortColumn || null,
       sortDir: sortDirection || 'descend',

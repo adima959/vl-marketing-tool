@@ -231,9 +231,14 @@ export const useReportStore = create<ReportState>((set, get) => ({
         // Set loading state and expanded keys early so skeleton rows can show
         set({ isLoadingSubLevels: true, expandedRowKeys: [...allExpandedKeys] });
 
-        // Load depth 1 for all top-level rows in parallel
-        const depth1Promises = data.map((parentRow) => {
-          if (parentRow.hasChildren) {
+        // Load depth 1 for all top-level rows in batches of 10 to avoid overwhelming the server
+        const expandableRows = data.filter(row => row.hasChildren);
+        const BATCH_SIZE = 10;
+        const allDepth1Results: Array<{ status: string; value: { success: boolean; key: string; children: ReportRow[] } }> = [];
+
+        for (let i = 0; i < expandableRows.length; i += BATCH_SIZE) {
+          const batch = expandableRows.slice(i, i + BATCH_SIZE);
+          const batchPromises = batch.map((parentRow) => {
             const parentFilters: Record<string, string> = {
               [state.dimensions[0]]: parentRow.attribute,
             };
@@ -249,18 +254,20 @@ export const useReportStore = create<ReportState>((set, get) => ({
               .then((children) => ({ success: true, key: parentRow.key, children }))
               .catch((error) => {
                 console.warn(`Failed to load children for ${parentRow.key}:`, error);
-                return { success: false, key: parentRow.key, children: [] };
+                return { success: false, key: parentRow.key, children: [] as ReportRow[] };
               });
-          }
-          return Promise.resolve({ success: false, key: parentRow.key, children: [] });
-        });
+          });
 
-        const depth1Results = await Promise.allSettled(depth1Promises);
+          const batchResults = await Promise.allSettled(batchPromises);
+          for (const result of batchResults) {
+            allDepth1Results.push(result as typeof allDepth1Results[number]);
+          }
+        }
 
         // Update tree with depth 1 data
         const updateTreeDepth1 = (rows: ReportRow[]): ReportRow[] => {
           return rows.map((row) => {
-            for (const result of depth1Results) {
+            for (const result of allDepth1Results) {
               if (result.status === 'fulfilled' && result.value.success && result.value.key === row.key) {
                 return { ...row, children: result.value.children };
               }

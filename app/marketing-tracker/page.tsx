@@ -6,7 +6,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import { Target, ChevronRight, Package } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { ProductModal, ProductStatusBadge } from '@/components/marketing-tracker';
+import { ProductModal, ProductStatusBadge, ActivityFeed } from '@/components/marketing-tracker';
 import { EditableSelect } from '@/components/ui/EditableSelect';
 import { useMarketingTrackerStore } from '@/stores/marketingTrackerStore';
 import type { ColumnsType } from 'antd/es/table';
@@ -223,6 +223,8 @@ export default function MarketingTrackerDashboard() {
             />
           )}
         </div>
+
+        <ActivityFeed />
       </div>
     </>
   );

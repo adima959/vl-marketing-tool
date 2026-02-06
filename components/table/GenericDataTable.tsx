@@ -139,7 +139,9 @@ export function GenericDataTable<TRow extends BaseTableRow>({
                   if (isExpanded) {
                     setExpandedRowKeys(expandedRowKeys.filter((k) => k !== record.key));
                   } else {
-                    setExpandedRowKeys([...expandedRowKeys, record.key]);
+                    if (!expandedRowKeys.includes(record.key)) {
+                      setExpandedRowKeys([...expandedRowKeys, record.key]);
+                    }
                     if (!record.children || record.children.length === 0) {
                       try {
                         await loadChildData(record.key, record.attribute, record.depth);
@@ -284,7 +286,9 @@ export function GenericDataTable<TRow extends BaseTableRow>({
   // Handle row expansion with lazy loading
   const handleExpand = async (expanded: boolean, record: TRow) => {
     if (expanded) {
-      setExpandedRowKeys([...expandedRowKeys, record.key]);
+      if (!expandedRowKeys.includes(record.key)) {
+        setExpandedRowKeys([...expandedRowKeys, record.key]);
+      }
 
       // Lazy load children if they haven't been loaded yet
       if ((!record.children || record.children.length === 0) && record.hasChildren) {

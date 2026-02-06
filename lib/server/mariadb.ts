@@ -65,6 +65,7 @@ export async function executeMariaDBQuery<T = Record<string, unknown>>(
   query: string,
   params: (string | number | boolean | null | Date)[] = []
 ): Promise<T[]> {
+  const start = performance.now();
   try {
     const pool = getPool();
 
@@ -73,6 +74,11 @@ export async function executeMariaDBQuery<T = Record<string, unknown>>(
     const [rows] = params.length > 0
       ? await pool.execute(query, params)
       : await pool.query(query);
+
+    const duration = performance.now() - start;
+    if (duration > 500) {
+      console.warn(`[MariaDB SLOW] ${duration.toFixed(0)}ms — ${query.replace(/\s+/g, ' ').substring(0, 120)}`);
+    }
 
     return rows as T[];
   } catch (error: unknown) {

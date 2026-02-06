@@ -1,5 +1,5 @@
 import { executeQuery } from './db';
-import { getCRMSubscriptions, type CRMQueryFilters } from './marketingCrmQueries';
+import { getCRMSubscriptions, type CRMQueryFilters, type CRMSubscriptionRow } from './marketingCrmQueries';
 import { validateSortDirection } from './types';
 
 export interface AdsRow {
@@ -205,7 +205,8 @@ export async function getMarketingData(
   );
   pgParams.push(...filterParams);
 
-  // Query ads data grouped by current dimension
+  // Query ads data grouped by current dimension, including ID mappings via array_agg
+  // This eliminates the need for a separate ID mapping query (was a second round-trip)
   const adsQuery = `
     SELECT
       ${sqlColumn} AS dimension_value,
@@ -216,7 +217,11 @@ export async function getMarketingData(
       ROUND(SUM(clicks::integer)::numeric / NULLIF(SUM(impressions::integer), 0), 4) AS ctr_percent,
       ROUND(SUM(cost::numeric) / NULLIF(SUM(clicks::integer), 0), 2) AS cpc,
       ROUND(SUM(cost::numeric) / NULLIF(SUM(impressions::integer), 0) * 1000, 2) AS cpm,
-      ROUND(SUM(conversions::numeric) / NULLIF(SUM(impressions::integer), 0), 6) AS conversion_rate
+      ROUND(SUM(conversions::numeric) / NULLIF(SUM(impressions::integer), 0), 6) AS conversion_rate,
+      array_agg(DISTINCT campaign_id) AS campaign_ids,
+      array_agg(DISTINCT adset_id) AS adset_ids,
+      array_agg(DISTINCT ad_id) AS ad_ids,
+      array_agg(DISTINCT network) AS networks
     FROM merged_ads_spending
     WHERE date::date BETWEEN $1::date AND $2::date
       ${whereClause}
@@ -225,73 +230,63 @@ export async function getMarketingData(
     LIMIT ${safeLimit}
   `;
 
-  const adsData = await executeQuery<AggregatedMetrics>(adsQuery, pgParams);
+  type AdsRowWithMappings = AggregatedMetrics & {
+    campaign_ids: string[];
+    adset_ids: string[];
+    ad_ids: string[];
+    networks: string[];
+  };
 
-  // Step 2: Query MariaDB for CRM data
-  // Product filter is only applied when explicitly provided via API
+  // Step 1 & 2: Run PostgreSQL ads query and MariaDB CRM query in parallel
   const crmFilters: CRMQueryFilters = {
     dateStart: `${formatLocalDate(dateRange.start)} 00:00:00`,
     dateEnd: `${formatLocalDate(dateRange.end)} 23:59:59`,
     productFilter: effectiveProductFilter,
   };
 
-  const crmData = await getCRMSubscriptions(crmFilters);
+  const [adsData, crmData] = await Promise.all([
+    executeQuery<AdsRowWithMappings>(adsQuery, pgParams),
+    getCRMSubscriptions(crmFilters),
+  ]);
 
-  // Step 3: For each aggregated ads row, match with CRM data
-  // We need to query raw ads data to get the mapping between dimension_value and campaign_id/adset_id/ad_id
-  // Build a query to get the ID mapping for each dimension value
-  const idMappingQuery = `
-    SELECT DISTINCT
-      ${sqlColumn} AS dimension_value,
-      campaign_id,
-      adset_id,
-      ad_id,
-      network
-    FROM merged_ads_spending
-    WHERE date::date BETWEEN $1::date AND $2::date
-      ${whereClause}
-  `;
-
-  const idMappings = await executeQuery<{
-    dimension_value: string;
-    campaign_id: string;
-    adset_id: string;
-    ad_id: string;
-    network: string;
-  }>(idMappingQuery, pgParams);
-
-  // Group mappings by dimension_value
-  const mappingsByDimension = new Map<string, typeof idMappings>();
-  for (const mapping of idMappings) {
-    const key = mapping.dimension_value;
-    if (!mappingsByDimension.has(key)) {
-      mappingsByDimension.set(key, []);
+  // Step 3: Pre-index CRM data into a Map for O(1) lookups instead of O(n) scans
+  const crmIndex = new Map<string, CRMSubscriptionRow[]>();
+  for (const crm of crmData) {
+    const key = `${crm.campaign_id}|${crm.adset_id}|${crm.ad_id}`;
+    if (!crmIndex.has(key)) {
+      crmIndex.set(key, []);
     }
-    mappingsByDimension.get(key)!.push(mapping);
+    crmIndex.get(key)!.push(crm);
   }
 
-  // Step 4: Match CRM data to aggregated ads data by tracking ID tuples
+  // Step 4: Match CRM data to aggregated ads data using indexed lookups
   const result = adsData.map(row => {
-    const mappings = mappingsByDimension.get(row.dimension_value) || [];
     let crm_subscriptions = 0;
     let approved_sales = 0;
 
-    // For each possible ad combination that rolls up to this dimension value
-    for (const mapping of mappings) {
-      // Find matching CRM rows by tracking ID tuple + source
-      const matches = crmData.filter(crm => {
-        const campaignMatch = mapping.campaign_id === crm.campaign_id;
-        const adsetMatch = mapping.adset_id === crm.adset_id;
-        const adMatch = mapping.ad_id === crm.ad_id;
-        const sourceMatch = matchSource(mapping.network, crm.source);
+    // Build all unique (campaign, adset, ad, network) combinations from array_agg results
+    const campaignIds = row.campaign_ids || [];
+    const adsetIds = row.adset_ids || [];
+    const adIds = row.ad_ids || [];
+    const networkList = row.networks || [];
 
-        return campaignMatch && adsetMatch && adMatch && sourceMatch;
-      });
+    // For each unique ad ID tuple, look up CRM data via the index
+    for (const campaignId of campaignIds) {
+      for (const adsetId of adsetIds) {
+        for (const adId of adIds) {
+          const key = `${campaignId}|${adsetId}|${adId}`;
+          const crmRows = crmIndex.get(key);
+          if (!crmRows) continue;
 
-      // Sum up CRM metrics
-      for (const match of matches) {
-        crm_subscriptions += Number(match.subscription_count || 0);
-        approved_sales += Number(match.approved_count || 0);
+          for (const crm of crmRows) {
+            // Check network/source match
+            const sourceMatched = networkList.some(n => matchSource(n, crm.source));
+            if (sourceMatched) {
+              crm_subscriptions += Number(crm.subscription_count || 0);
+              approved_sales += Number(crm.approved_count || 0);
+            }
+          }
+        }
       }
     }
 

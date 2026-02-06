@@ -194,7 +194,9 @@ export function ValidationRateDataTable({
                   if (isExpanded) {
                     setExpandedRowKeys(expandedRowKeys.filter((k) => k !== record.key));
                   } else {
-                    setExpandedRowKeys([...expandedRowKeys, record.key]);
+                    if (!expandedRowKeys.includes(record.key)) {
+                      setExpandedRowKeys([...expandedRowKeys, record.key]);
+                    }
                     if (!record.children || record.children.length === 0) {
                       // Start loading - add to loading set
                       setLoadingRowKeys((prev) => new Set(prev).add(record.key));

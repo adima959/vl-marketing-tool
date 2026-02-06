@@ -145,7 +145,7 @@ export async function PUT(
 
 /**
  * PATCH /api/marketing-tracker/messages/[messageId]
- * Update message status only
+ * Partial update of message fields (status, hypothesis fields, etc.)
  */
 export async function PATCH(
   request: NextRequest,
@@ -165,25 +165,38 @@ export async function PATCH(
       );
     }
 
-    if (!body.status) {
+    // Validate status if provided
+    if (body.status !== undefined) {
+      const validStatuses: AngleStatus[] = ['idea', 'in_production', 'live', 'paused', 'retired'];
+      if (!validStatuses.includes(body.status)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid status value' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Build update object with only provided fields
+    const updateData: Record<string, unknown> = {};
+    if (body.name !== undefined) updateData.name = body.name;
+    if (body.description !== undefined) updateData.description = body.description;
+    if (body.status !== undefined) updateData.status = body.status;
+    if (body.specificPainPoint !== undefined) updateData.specificPainPoint = body.specificPainPoint;
+    if (body.corePromise !== undefined) updateData.corePromise = body.corePromise;
+    if (body.keyIdea !== undefined) updateData.keyIdea = body.keyIdea;
+    if (body.primaryHookDirection !== undefined) updateData.primaryHookDirection = body.primaryHookDirection;
+    if (body.headlines !== undefined) updateData.headlines = body.headlines;
+
+    // Ensure at least one field is being updated
+    if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
-        { success: false, error: 'Status is required' },
+        { success: false, error: 'No valid fields to update' },
         { status: 400 }
       );
     }
 
-    const validStatuses: AngleStatus[] = ['idea', 'in_production', 'live', 'paused', 'retired'];
-    if (!validStatuses.includes(body.status)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid status value' },
-        { status: 400 }
-      );
-    }
-
-    // Update the message status in the database
-    const updatedMessageBase = await updateMessage(messageId, {
-      status: body.status,
-    });
+    // Update the message in the database
+    const updatedMessageBase = await updateMessage(messageId, updateData);
 
     // Merge counts from old message (they don't change on field updates)
     const updatedMessage = {

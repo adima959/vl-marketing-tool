@@ -127,53 +127,14 @@ export class DashboardQueryBuilder {
   }
 
   /**
-   * Build query for depth 0 (first dimension aggregation)
+   * Build query for any depth level (consolidated from depth0/1/2)
+   * Dynamically builds SELECT, GROUP BY, WHERE based on depth and parent filters
    */
-  private buildDepth0Query(options: QueryOptions): { query: string; params: any[] } {
-    const { dateRange, dimensions, sortBy = 'subscriptions', sortDirection = 'DESC', limit = 1000 } = options;
-
-    const sortColumn = this.metricMap[sortBy] || 'subscription_count';
-    const safeLimit = Math.max(1, Math.min(10000, Math.floor(limit)));
-
-    const startDate = this.formatDateForMariaDB(dateRange.start, false);
-    const endDate = this.formatDateForMariaDB(dateRange.end, true);
-
-    const selectColumns = this.buildSelectColumns(dimensions, 0);
-    const groupByClause = this.buildGroupByClause(dimensions, 0);
-
-    const query = `
-      SELECT
-        ${selectColumns},
-        COUNT(DISTINCT CASE WHEN DATE(c.date_registered) = DATE(s.date_create) THEN s.customer_id END) AS customer_count,
-        COUNT(DISTINCT s.id) AS subscription_count,
-        COUNT(DISTINCT CASE WHEN i.type = 1 THEN i.id END) AS trial_count,
-        COUNT(DISTINCT CASE WHEN i.type = 1 AND i.is_marked = 1 THEN i.id END) AS trials_approved_count,
-        COUNT(DISTINCT uo.id) AS upsell_count
-      FROM subscription s
-      LEFT JOIN customer c ON s.customer_id = c.id
-      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
-      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
-      LEFT JOIN product p ON p.id = ip.product_id
-      LEFT JOIN source sr ON sr.id = i.source_id
-      LEFT JOIN invoice uo ON uo.customer_id = s.customer_id
-        AND uo.tag LIKE CONCAT('%parent-sub-id=', s.id, '%')
-      WHERE s.date_create BETWEEN ? AND ?
-        AND (i.tag IS NULL OR i.tag NOT LIKE '%parent-sub-id=%')
-      GROUP BY ${groupByClause}
-      ORDER BY ${sortColumn} ${validateSortDirection(sortDirection)}
-      LIMIT ${safeLimit}
-    `;
-
-    return { query, params: [startDate, endDate] };
-  }
-
-  /**
-   * Build query for depth 1 (second dimension aggregation)
-   */
-  private buildDepth1Query(options: QueryOptions): { query: string; params: any[] } {
+  private buildDepthQuery(options: QueryOptions): { query: string; params: any[] } {
     const {
       dateRange,
       dimensions,
+      depth,
       parentFilters,
       sortBy = 'subscriptions',
       sortDirection = 'DESC',
@@ -188,60 +149,8 @@ export class DashboardQueryBuilder {
 
     const { whereClause, params: filterParams } = this.buildParentFilters(parentFilters);
 
-    const selectColumns = this.buildSelectColumns(dimensions, 1);
-    const groupByClause = this.buildGroupByClause(dimensions, 1);
-
-    const query = `
-      SELECT
-        ${selectColumns},
-        COUNT(DISTINCT CASE WHEN DATE(c.date_registered) = DATE(s.date_create) THEN s.customer_id END) AS customer_count,
-        COUNT(DISTINCT s.id) AS subscription_count,
-        COUNT(DISTINCT CASE WHEN i.type = 1 THEN i.id END) AS trial_count,
-        COUNT(DISTINCT CASE WHEN i.type = 1 AND i.is_marked = 1 THEN i.id END) AS trials_approved_count,
-        COUNT(DISTINCT uo.id) AS upsell_count
-      FROM subscription s
-      LEFT JOIN customer c ON s.customer_id = c.id
-      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
-      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
-      LEFT JOIN product p ON p.id = ip.product_id
-      LEFT JOIN source sr ON sr.id = i.source_id
-      LEFT JOIN invoice uo ON uo.customer_id = s.customer_id
-        AND uo.tag LIKE CONCAT('%parent-sub-id=', s.id, '%')
-      WHERE s.date_create BETWEEN ? AND ?
-        AND (i.tag IS NULL OR i.tag NOT LIKE '%parent-sub-id=%')
-        ${whereClause}
-      GROUP BY ${groupByClause}
-      ORDER BY ${sortColumn} ${validateSortDirection(sortDirection)}
-      LIMIT ${safeLimit}
-    `;
-
-    const params = [startDate, endDate, ...filterParams];
-    return { query, params };
-  }
-
-  /**
-   * Build query for depth 2 (third dimension aggregation)
-   */
-  private buildDepth2Query(options: QueryOptions): { query: string; params: any[] } {
-    const {
-      dateRange,
-      dimensions,
-      parentFilters,
-      sortBy = 'subscriptions',
-      sortDirection = 'DESC',
-      limit = 1000
-    } = options;
-
-    const sortColumn = this.metricMap[sortBy] || 'subscription_count';
-    const safeLimit = Math.max(1, Math.min(10000, Math.floor(limit)));
-
-    const startDate = this.formatDateForMariaDB(dateRange.start, false);
-    const endDate = this.formatDateForMariaDB(dateRange.end, true);
-
-    const { whereClause, params: filterParams } = this.buildParentFilters(parentFilters);
-
-    const selectColumns = this.buildSelectColumns(dimensions, 2);
-    const groupByClause = this.buildGroupByClause(dimensions, 2);
+    const selectColumns = this.buildSelectColumns(dimensions, depth);
+    const groupByClause = this.buildGroupByClause(dimensions, depth);
 
     const query = `
       SELECT
@@ -302,31 +211,17 @@ export class DashboardQueryBuilder {
   }
 
   /**
-   * Main entry point - routes to appropriate depth query
+   * Main entry point - builds query for any valid depth
    */
   public buildQuery(options: QueryOptions): { query: string; params: any[] } {
     const { depth, dimensions } = options;
 
     // Validate depth
-    if (depth < 0 || depth > 2) {
-      throw new Error(`Invalid depth: ${depth}. Must be 0, 1, or 2.`);
+    if (depth < 0 || depth >= dimensions.length) {
+      throw new Error(`Invalid depth: ${depth}. Must be 0 to ${dimensions.length - 1}.`);
     }
 
-    // Validate dimensions
-    if (depth >= dimensions.length) {
-      throw new Error(`Depth ${depth} exceeds dimensions length ${dimensions.length}`);
-    }
-
-    switch (depth) {
-      case 0:
-        return this.buildDepth0Query(options);
-      case 1:
-        return this.buildDepth1Query(options);
-      case 2:
-        return this.buildDepth2Query(options);
-      default:
-        throw new Error(`Unsupported depth: ${depth}`);
-    }
+    return this.buildDepthQuery(options);
   }
 }
 

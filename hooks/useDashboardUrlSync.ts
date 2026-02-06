@@ -71,9 +71,9 @@ export function useDashboardUrlSync() {
       // NOTE: Dashboard uses fixed dimensions [country, product, source]
       // DO NOT restore dimensions from URL
 
-      // Save expanded keys for later restoration
+      // Save expanded keys for later restoration (deduplicate from URL)
       if (urlState.expanded && urlState.expanded.length > 0) {
-        savedExpandedKeys.current = urlState.expanded;
+        savedExpandedKeys.current = Array.from(new Set(urlState.expanded));
       }
 
       // Parse and apply sort from URL
@@ -193,7 +193,7 @@ export function useDashboardUrlSync() {
     setUrlState({
       start: dateRange.start,
       end: dateRange.end,
-      expanded: expandedRowKeys.length > 0 ? expandedRowKeys : null,
+      expanded: expandedRowKeys.length > 0 ? Array.from(new Set(expandedRowKeys)) : null,
       sortBy: sortColumn || 'subscriptions',
       sortDir: sortDirection || 'descend',
     });
