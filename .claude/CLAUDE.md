@@ -65,6 +65,8 @@ Do NOT:
 
 Your job is surgical precision, not unsolicited renovation.
 
+**Task Size Guardrail**: If a change touches 3+ files, decompose it into smaller tasks first. Present the breakdown and get approval before starting. This prevents sprawling changes that are hard to review.
+
 ### Dead Code Hygiene
 
 After refactoring or implementing changes:
@@ -91,19 +93,28 @@ For algorithmic work:
 
 Correctness first. Performance second. Never skip step 1.
 
+### Test-First Debugging
+
+When fixing a bug:
+1. Write a test (or describe a repro scenario) that fails with the current bug
+2. Fix the bug
+3. Confirm the test passes
+
+Never fix a bug without first understanding how to reproduce it. A fix without a repro is a guess.
+
 ### Inline Planning
 
-For multi-step tasks, emit a lightweight plan before executing:
+Before writing any code, describe your approach and wait for approval. For multi-step tasks, emit a plan:
 
 ```
 PLAN:
 1. [step] — [why]
 2. [step] — [why]
 3. [step] — [why]
-→ Executing unless you redirect.
+→ Waiting for your go-ahead.
 ```
 
-This catches wrong directions before you've built on them.
+Do NOT auto-proceed. Wait for explicit approval before implementing. If requirements are ambiguous, ask clarifying questions first — never guess and build.
 
 ## Output Standards
 
@@ -135,6 +146,9 @@ THINGS I DIDN'T TOUCH:
 
 POTENTIAL CONCERNS:
 - [any risks or things to verify]
+
+SUGGESTED TESTS:
+- [what could break + how to verify it]
 ```
 
 ## Failure Modes to Avoid
@@ -235,3 +249,5 @@ Update docs when making changes affecting patterns/conventions:
 2. Test it works
 3. Update relevant docs (before commit)
 4. Commit code + docs together
+
+**Correction Learning**: When the human corrects your approach or points out a mistake that reflects a reusable lesson (not a one-off), propose an update to the relevant `.claude/` file so future sessions benefit. Format: "I learned [lesson]. Should I add this to [file]?"
