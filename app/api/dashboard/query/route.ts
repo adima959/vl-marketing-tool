@@ -91,7 +91,7 @@ async function handleDashboardQuery(
       const displayValue = currentDimension === 'country' ? rawValue.toUpperCase() : rawValue;
 
       return {
-        key: `${keyPrefix}${rawValue}`,
+        key: `${keyPrefix}${displayValue}`,
         attribute: displayValue,
         depth: body.depth,
         hasChildren: hasMoreDimensions,
