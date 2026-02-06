@@ -1,9 +1,3 @@
----
-paths:
-  - "hooks/**/*.ts"
-  - "app/**/page.tsx"
----
-
 # Component Template: useGenericUrlSync
 
 ## Overview
@@ -155,7 +149,7 @@ interface RequiredStoreState {
 }
 ```
 
-See `.claude/rules/components/store-pattern.md` for complete store template.
+See `.claude/docs/components/store-pattern.md` for complete store template.
 
 ## API Client Requirements
 
@@ -318,8 +312,8 @@ describe('useMyUrlSync', () => {
 **Syncs**: Date range, dimensions (page, section, element), sort, expanded keys
 
 ## Related Documentation
-- See `.claude/rules/workflows/new-dashboard.md` for complete workflow
-- See `.claude/rules/components/generic-table.md` for table component
-- See `.claude/rules/components/store-pattern.md` for store requirements
+- See `.claude/docs/workflows/new-dashboard.md` for complete workflow
+- See `.claude/docs/components/generic-table.md` for table component
+- See `.claude/docs/components/store-pattern.md` for store requirements
 - See `.claude/docs/state.md` for detailed state management guide
 - See `hooks/useGenericUrlSync.ts` for implementation details

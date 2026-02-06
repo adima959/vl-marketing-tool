@@ -1,10 +1,3 @@
----
-paths:
-  - "stores/**/*.ts"
-  - "**/*Store*.ts"
-  - "**/*store*.ts"
----
-
 # Component Template: Report Store Pattern
 
 ## Overview
@@ -490,8 +483,8 @@ const hasChanged = JSON.stringify(dimensions) !== JSON.stringify(loadedDimension
 **Features**: Page hierarchy, similar structure to report store, 98% identical
 
 ## Related Documentation
-- See `.claude/rules/workflows/new-dashboard.md` for complete workflow
-- See `.claude/rules/components/generic-table.md` for table integration
-- See `.claude/rules/components/url-sync.md` for URL sync integration
+- See `.claude/docs/workflows/new-dashboard.md` for complete workflow
+- See `.claude/docs/components/generic-table.md` for table integration
+- See `.claude/docs/components/url-sync.md` for URL sync integration
 - See `.claude/docs/state.md` for detailed state management guide
 - See `stores/reportStore.ts` and `stores/onPageStore.ts` for real examples

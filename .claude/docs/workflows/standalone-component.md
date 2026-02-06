@@ -1,9 +1,3 @@
----
-paths:
-  - "components/**/*.tsx"
-  - "components/**/*.module.css"
----
-
 # Workflow: Create Standalone Component
 
 ## Overview
@@ -173,36 +167,7 @@ export function MyComponent({ title, onAction }: MyComponentProps) {
 }
 ```
 
-**Design token usage**:
-- ✅ ALWAYS use CSS variables (`var(--color-bg-primary)`)
-- ❌ NEVER hardcode values (`background: #ffffff`)
-
-**Common tokens**:
-```css
-/* Colors */
---color-bg-primary: #ffffff
---color-bg-secondary: #fafbfc
---color-border: #e8eaed
---color-accent: #00B96B
---color-text-primary: #111827
---color-text-secondary: #6b7280
-
-/* Spacing */
---spacing-xs: 4px
---spacing-sm: 8px
---spacing-md: 12px
---spacing-lg: 16px
-
-/* Radius */
---radius-sm: 4px
---radius-md: 8px
-
-/* Shadow */
---shadow-sm: 0 1px 2px rgba(0,0,0,0.05)
---shadow-md: 0 4px 6px rgba(0,0,0,0.07)
-```
-
-See `styles/tokens.css` for complete list.
+**Design tokens**: ALWAYS use CSS variables, NEVER hardcode values. See `styles/tokens.css` and `rules/project-overview.md` for token reference.
 
 ### Step 6: Export from Index
 
@@ -243,20 +208,7 @@ export default function MyPage() {
 }
 ```
 
-**Import rules**:
-- ✅ ALWAYS use absolute paths with @ alias
-- ❌ NEVER use relative paths across directories
-
-```typescript
-// ✅ CORRECT
-import { MyComponent } from '@/components/my-feature';
-
-// ❌ WRONG
-import { MyComponent } from '../../../components/my-feature';
-
-// ✅ OK - same directory only
-import { helperFunction } from './utils';
-```
+> Import rules: see CLAUDE.md "Code Conventions" — always use `@/` paths.
 
 ### Step 8: Test
 

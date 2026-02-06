@@ -1,10 +1,3 @@
----
-paths:
-  - "components/table/**/*.tsx"
-  - "components/**/*Table*.tsx"
-  - "components/**/*table*.tsx"
----
-
 # Component Template: GenericDataTable
 
 ## Overview
@@ -372,26 +365,7 @@ interface MetricColumn {
 />
 ```
 
-## Critical: Table Scroll Width Bug
-
-**CRITICAL**: Always calculate exact pixel width for `scroll.x`, NEVER use `'max-content'`
-
-**Problem**: Ant Design bug causes column width miscalculation with grouped columns when using `scroll={{ x: 'max-content' }}`
-
-**Symptom**: First column in each group renders 3x wider than configured
-
-**Solution**:
-```typescript
-// Calculate total width
-const attributeColumnWidth = 350;
-const metricColumnWidth = visibleMetrics.reduce((sum, col) => sum + col.width, 0);
-const tableWidth = attributeColumnWidth + metricColumnWidth;
-
-// Use calculated width
-<Table scroll={{ x: tableWidth }} />
-```
-
-See [components/table/GenericDataTable.tsx](components/table/GenericDataTable.tsx) for implementation.
+> See CLAUDE.md "Critical Warnings" for the table scroll width bug.
 
 ## Real-World Examples
 
@@ -408,8 +382,8 @@ See [components/table/GenericDataTable.tsx](components/table/GenericDataTable.ts
 - Location: [components/on-page-analysis/OnPageDataTable.tsx](components/on-page-analysis/OnPageDataTable.tsx)
 
 ## Related Documentation
-- See `.claude/rules/workflows/new-dashboard.md` for complete workflow
-- See `.claude/rules/components/url-sync.md` for URL sync pattern
-- See `.claude/rules/components/store-pattern.md` for store implementation
+- See `.claude/docs/workflows/new-dashboard.md` for complete workflow
+- See `.claude/docs/components/url-sync.md` for URL sync pattern
+- See `.claude/docs/components/store-pattern.md` for store implementation
 - See `.claude/docs/design.md` for table styling guidelines
 - See `types/table.ts` for all TypeScript interfaces

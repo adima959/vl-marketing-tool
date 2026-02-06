@@ -1,12 +1,6 @@
 # Git Workflow Rules
 
-## ⚠️ CRITICAL: Never Auto-Push
-
-**NEVER push to remote without explicit user permission**
-
-**Why**: Auto-pushing can expose unfinished work, trigger CI/CD prematurely, break production, violate workflow expectations, and cannot be easily undone.
-
----
+> See CLAUDE.md "Critical Warnings" for the git push rule. This file covers operational details.
 
 ## When to Commit
 
@@ -20,24 +14,17 @@
 **DO commit**: Feature complete, bug fixed, before switching tasks, natural breakpoints
 **DON'T commit**: Single typos, mid-implementation, quick experiments (batch these)
 
----
-
 ## When to Push
 
-**Rules**:
-- ⛔ NEVER auto-push
-- ⛔ NEVER push without asking - even after multiple commits
-- ✅ ALWAYS ask before EVERY push
-- ✅ "Commit" = local only, NEVER includes push
-- ✅ Each session = new permission needed
+- NEVER auto-push, NEVER push without asking — even after multiple commits
+- ALWAYS ask before EVERY push. Each session = new permission needed
+- "Commit" = local only, NEVER includes push
 
 **Ask Pattern**:
 ```
 "I've committed [description]. There are [N] unpushed commits.
 Would you like me to push them to remote now?"
 ```
-
----
 
 ## Commit Messages
 
@@ -60,22 +47,17 @@ EOF
 )"
 ```
 
----
-
 ## Pull Requests
 
 **When**: Feature complete + tests pass + user requests
 **Never**: From main, with uncommitted changes, before approval, mid-development
 
-**Workflow**:
 ```bash
 git branch              # Verify not on main
 git commit -m "..."
 git push -u origin feature-branch
 gh pr create --title "..." --body "..."
 ```
-
----
 
 ## Git Safety
 
@@ -90,8 +72,6 @@ gh pr create --title "..." --body "..."
 
 **Staging**: Prefer specific files over `git add .` to avoid accidentally staging secrets
 
----
-
 ## Common Commands
 
 ```bash
@@ -99,48 +79,24 @@ git status              # Check status (NEVER -uall)
 git diff                # Unstaged changes
 git diff --cached       # Staged changes
 git log --oneline -10   # Recent commits
-
-git stash               # Stash work
-git stash pop           # Apply stash
-
+git stash / git stash pop
 git reset --soft HEAD~1 # Undo commit, keep staged
-git reset HEAD~1        # Undo commit, unstage
-
 git checkout -b feature # New branch
 ```
 
----
-
 ## Hook Failures
 
-**If pre-commit hook fails**:
+If pre-commit hook fails:
 1. Read error message
 2. Fix issues (lint, format, tests)
 3. Re-stage files
 4. Create NEW commit (NOT --amend)
 
-**Example**:
 ```bash
-# Hook failed
 npm run lint:fix
 git add .
 git commit -m "fix: Address lint errors"  # NEW commit
 ```
-
----
-
-## Summary Table
-
-| Action | Rule | Frequency |
-|--------|------|-----------|
-| **Commit** | Automatic | When work complete |
-| **Push** | Ask first | Every time |
-| **PR** | User request | When feature done |
-| **Force push** | Never* | *unless explicitly requested |
-| **Amend** | Never* | *unless explicitly requested |
-| **Skip hooks** | Never | Security/quality |
-
----
 
 ## View PR Comments
 

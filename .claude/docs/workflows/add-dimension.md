@@ -1,12 +1,3 @@
----
-paths:
-  - "types/**/*dimension*.ts"
-  - "types/**/*Dimension*.ts"
-  - "lib/server/**/*queryBuilder*.ts"
-  - "lib/server/**/*QueryBuilder*.ts"
-  - "components/filters/**/*.tsx"
-  - "components/**/Dimension*.tsx"
----
 
 # Workflow: Add Dimension to Existing Report
 

@@ -1,11 +1,3 @@
----
-paths:
-  - "app/**/page.tsx"
-  - "components/**/*Report*.tsx"
-  - "components/**/*Dashboard*.tsx"
-  - "components/**/*Analysis*.tsx"
----
-
 # Workflow: Build New Dashboard/Report Page
 
 ## Overview
@@ -265,14 +257,13 @@ npm run dev
 ## Common Issues
 
 ### Issue: Columns render wrong width
-**Cause**: Using `scroll={{ x: 'max-content' }}` with grouped columns
-**Solution**: Calculate exact width: `scroll={{ x: 350 + totalMetricWidth }}`
+See CLAUDE.md "Critical Warnings" — must calculate exact scroll width.
 
 ### Issue: Data not loading
 **Check**:
 1. API route returns `{ success: true, data: [...] }`
 2. Store `loadData()` calls correct endpoint
-3. Database query uses correct placeholders ($1 for PostgreSQL, ? for MariaDB)
+3. Database query uses correct placeholders (see CLAUDE.md "Critical Warnings")
 
 ### Issue: URL not updating
 **Check**:
@@ -281,8 +272,8 @@ npm run dev
 3. Store actions update active state (not just loaded state)
 
 ## Related Documentation
-- See `.claude/rules/components/generic-table.md` for GenericDataTable details
-- See `.claude/rules/components/url-sync.md` for URL sync pattern
-- See `.claude/rules/components/store-pattern.md` for store implementation
+- See `.claude/docs/components/generic-table.md` for GenericDataTable details
+- See `.claude/docs/components/url-sync.md` for URL sync pattern
+- See `.claude/docs/components/store-pattern.md` for store implementation
 - See `.claude/docs/api.md` for API patterns
 - See `.claude/docs/state.md` for state management details

@@ -1,12 +1,3 @@
----
-paths:
-  - "config/**/*columns*.ts"
-  - "config/**/*Columns*.ts"
-  - "lib/server/**/*queryBuilder*.ts"
-  - "lib/server/**/*QueryBuilder*.ts"
-  - "types/**/*.ts"
----
-
 # Workflow: Add Metric Column to Existing Report
 
 ## Overview
@@ -93,9 +84,7 @@ const query = `
 
 **Important considerations**:
 
-**Database placeholders**:
-- PostgreSQL: Use `$1, $2, $3` (NEVER use `?`)
-- MariaDB: Use `?, ?, ?` (NEVER use `$1`)
+> Database placeholders: see CLAUDE.md "Critical Warnings" for PostgreSQL vs MariaDB rules.
 
 **Aggregation functions**:
 - `SUM()` - Total across rows
