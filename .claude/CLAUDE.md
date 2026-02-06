@@ -214,6 +214,15 @@ npm run lint        # ESLint
 | `rules/git-workflow.md` | Commit/push/PR rules, git safety, hook failure handling |
 | `rules/build-rules.md` | When to run builds, build commands, common build errors |
 | `rules/workflows/new-feature-checklist.md` | Feature review mandate, similarity scoring, implementation path selection |
+| `rules/security.md` | SQL injection prevention, API route validation, secrets, error handling |
+| `rules/workflows/verify.md` | Pre-commit/PR verification phases: build, types, lint, security scan |
+
+## Slash Commands
+
+| Command | What it does |
+|---------|-------------|
+| `/plan` | Structured implementation plan with assumptions, risks, steps. Waits for approval |
+| `/code-review` | Review uncommitted changes for security, conventions, code quality |
 
 ## Reference Docs (NOT auto-loaded — read on demand when working in relevant area)
 
@@ -241,6 +250,7 @@ npm run lint        # ESLint
 | `docs/css.md` | Styling approach, design tokens, Ant Design overrides |
 | `docs/features.md` | Feature-specific implementations |
 | `docs/mariadb.md` | CRM database guide (MariaDB schema, queries) |
+| `docs/postgres.md` | PostgreSQL index types, query patterns, anti-patterns, Neon-specific notes |
 
 ## Documentation Maintenance
 
