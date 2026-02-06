@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Spin, Empty, Button, Table } from 'antd';
 import { PlusOutlined, UserOutlined, CalendarOutlined } from '@ant-design/icons';
-import { Target, ChevronRight } from 'lucide-react';
+import { Target, ChevronRight, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatusBadge, ProductStatusBadge, AngleModal } from '@/components/marketing-tracker';
+import { StatusBadge, ProductStatusBadge, AngleModal, DeleteConfirmModal } from '@/components/marketing-tracker';
 import { EditableField } from '@/components/ui/EditableField';
 import { EditableSelect } from '@/components/ui/EditableSelect';
 import { RichEditableField } from '@/components/ui/RichEditableField';
@@ -27,6 +27,7 @@ interface AngleRow {
 
 export default function ProductPage() {
   const [angleModalOpen, setAngleModalOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<AngleRow | null>(null);
 
   const {
     currentProduct,
@@ -118,12 +119,16 @@ export default function ProductPage() {
     },
     {
       title: '',
-      key: 'action',
+      key: 'delete',
       width: 40,
       render: (_: unknown, record: AngleRow) => (
-        <Link href={`/marketing-tracker/angle/${record.id}`}>
-          <ChevronRight size={16} className={styles.rowChevron} />
-        </Link>
+        <button
+          className={styles.deleteButton}
+          onClick={(e) => { e.stopPropagation(); setDeleteTarget(record); }}
+          title="Delete angle"
+        >
+          <Trash2 size={14} />
+        </button>
       ),
     },
   ];
@@ -184,7 +189,7 @@ export default function ProductPage() {
               />
             </div>
             <div className={styles.productMeta}>
-              <span className={styles.metaItem}>
+              <span className={`${styles.metaItem} ${styles.ownerMeta}`}>
                 <UserOutlined /> Owner:{' '}
                 <EditableSelect
                   value={currentProduct.ownerId}
@@ -243,6 +248,22 @@ export default function ProductPage() {
             />
           )}
         </div>
+
+        {deleteTarget && (
+          <DeleteConfirmModal
+            open={!!deleteTarget}
+            onClose={() => setDeleteTarget(null)}
+            onSuccess={() => loadProduct(productId)}
+            entityType="angle"
+            entityId={deleteTarget.id}
+            entityName={deleteTarget.name}
+            childCount={deleteTarget.messageCount}
+            childLabel="messages"
+            moveTargets={angles
+              .filter((a) => a.id !== deleteTarget.id)
+              .map((a) => ({ id: a.id, name: a.name }))}
+          />
+        )}
       </div>
     </>
   );

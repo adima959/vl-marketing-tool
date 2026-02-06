@@ -205,14 +205,21 @@
   color: var(--color-text-primary);
 }
 
-.rowChevron {
+.deleteButton {
+  all: unset;
+  cursor: pointer;
   color: var(--color-gray-400);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: all var(--transition-fast);
 }
 
-.tableRow:hover .rowChevron {
-  color: var(--color-primary-500);
-  transform: translateX(2px);
+.deleteButton:hover {
+  color: #ff4d4f;
+  background: rgba(255, 77, 79, 0.06);
 }
 
 /* Empty state */

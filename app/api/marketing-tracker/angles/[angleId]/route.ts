@@ -6,15 +6,14 @@ import {
   getMessagesByAngleId,
   updateAngle,
   deleteAngle,
+  cascadeDeleteAngle,
+  moveMessagesToAngle,
 } from '@/lib/marketing-tracker/db';
 import {
   recordUpdate,
   recordDeletion,
 } from '@/lib/marketing-tracker/historyService';
-
-// Use null for changed_by until auth is implemented
-// The schema supports NULL: "NULL if system or auth not implemented"
-const SYSTEM_USER_ID: string | null = null;
+import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 
 interface RouteParams {
   params: Promise<{ angleId: string }>;
@@ -81,6 +80,7 @@ export async function PUT(
   try {
     const { angleId } = await params;
     const body = await request.json();
+    const changedBy = await getChangedBy(request);
 
     // Get the old angle for history diff
     const oldAngle = await getAngleById(angleId);
@@ -112,7 +112,7 @@ export async function PUT(
       angleId,
       oldAngle as unknown as Record<string, unknown>,
       updatedAngle as unknown as Record<string, unknown>,
-      SYSTEM_USER_ID
+      changedBy
     ).catch((err) => console.error('Failed to record angle update history:', err));
 
     return NextResponse.json({
@@ -139,6 +139,7 @@ export async function PATCH(
   try {
     const { angleId } = await params;
     const body = await request.json();
+    const changedBy = await getChangedBy(request);
 
     // Get the old angle for history diff
     const oldAngle = await getAngleById(angleId);
@@ -190,7 +191,7 @@ export async function PATCH(
       angleId,
       oldAngle as unknown as Record<string, unknown>,
       updatedAngle as unknown as Record<string, unknown>,
-      SYSTEM_USER_ID
+      changedBy
     ).catch((err) => console.error('Failed to record angle update history:', err));
 
     return NextResponse.json({
@@ -209,6 +210,11 @@ export async function PATCH(
 /**
  * DELETE /api/marketing-tracker/angles/[angleId]
  * Delete an angle (soft delete)
+ *
+ * Supports three modes via request body:
+ * - { mode: "cascade" } — delete angle + all children
+ * - { mode: "move", targetParentId: "..." } — move messages to another angle, then delete
+ * - No body / default — delete angle only (backward compatible)
  */
 export async function DELETE(
   request: NextRequest,
@@ -216,6 +222,18 @@ export async function DELETE(
 ): Promise<NextResponse> {
   try {
     const { angleId } = await params;
+    const changedBy = await getChangedBy(request);
+
+    // Parse optional body
+    let mode: string = 'default';
+    let targetParentId: string | undefined;
+    try {
+      const body = await request.json();
+      if (body.mode) mode = body.mode;
+      if (body.targetParentId) targetParentId = body.targetParentId;
+    } catch {
+      // No body — use default mode
+    }
 
     // Get angle first for history snapshot
     const angle = await getAngleById(angleId);
@@ -227,15 +245,34 @@ export async function DELETE(
       );
     }
 
-    // Soft delete the angle
-    await deleteAngle(angleId);
+    if (mode === 'move') {
+      if (!targetParentId) {
+        return NextResponse.json(
+          { success: false, error: 'targetParentId is required for move mode' },
+          { status: 400 }
+        );
+      }
+      const targetAngle = await getAngleById(targetParentId);
+      if (!targetAngle) {
+        return NextResponse.json(
+          { success: false, error: 'Target angle not found' },
+          { status: 404 }
+        );
+      }
+      await moveMessagesToAngle(angleId, targetParentId);
+      await deleteAngle(angleId);
+    } else if (mode === 'cascade') {
+      await cascadeDeleteAngle(angleId);
+    } else {
+      await deleteAngle(angleId);
+    }
 
     // Record deletion history
     await recordDeletion(
       'angle',
       angleId,
       angle as unknown as Record<string, unknown>,
-      SYSTEM_USER_ID
+      changedBy
     );
 
     return NextResponse.json({

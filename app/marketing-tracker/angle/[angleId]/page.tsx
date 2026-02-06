@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Spin, Empty, Button, Table } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { Target, ChevronRight, MessageSquare } from 'lucide-react';
+import { Target, ChevronRight, MessageSquare, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatusBadge, MessageModal } from '@/components/marketing-tracker';
+import { StatusBadge, MessageModal, DeleteConfirmModal } from '@/components/marketing-tracker';
 import { EditableField } from '@/components/ui/EditableField';
 import { RichEditableField } from '@/components/ui/RichEditableField';
 import { useMarketingTrackerStore } from '@/stores/marketingTrackerStore';
@@ -28,6 +28,7 @@ interface MessageRow {
 
 export default function AnglePage() {
   const [messageModalOpen, setMessageModalOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<MessageRow | null>(null);
 
   const {
     currentProduct,
@@ -124,12 +125,16 @@ export default function AnglePage() {
     },
     {
       title: '',
-      key: 'action',
+      key: 'delete',
       width: 40,
       render: (_: unknown, record: MessageRow) => (
-        <Link href={`/marketing-tracker/message/${record.id}`}>
-          <ChevronRight size={16} className={styles.rowChevron} />
-        </Link>
+        <button
+          className={styles.deleteButton}
+          onClick={(e) => { e.stopPropagation(); setDeleteTarget(record); }}
+          title="Delete message"
+        >
+          <Trash2 size={14} />
+        </button>
       ),
     },
   ];
@@ -248,6 +253,22 @@ export default function AnglePage() {
             />
           )}
         </div>
+
+        {deleteTarget && (
+          <DeleteConfirmModal
+            open={!!deleteTarget}
+            onClose={() => setDeleteTarget(null)}
+            onSuccess={() => loadAngle(angleId)}
+            entityType="message"
+            entityId={deleteTarget.id}
+            entityName={deleteTarget.name}
+            childCount={deleteTarget.assetCount + deleteTarget.creativeCount}
+            childLabel="assets & creatives"
+            moveTargets={messages
+              .filter((m) => m.id !== deleteTarget.id)
+              .map((m) => ({ id: m.id, name: m.name }))}
+          />
+        )}
       </div>
     </>
   );

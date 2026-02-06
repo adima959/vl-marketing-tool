@@ -12,10 +12,7 @@ import {
   recordUpdate,
   recordDeletion,
 } from '@/lib/marketing-tracker/historyService';
-
-// Use null for changed_by until auth is implemented
-// The schema supports NULL: "NULL if system or auth not implemented"
-const SYSTEM_USER_ID: string | null = null;
+import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 
 interface RouteParams {
   params: Promise<{ assetId: string }>;
@@ -73,6 +70,7 @@ export async function PUT(
   try {
     const { assetId } = await params;
     const body = await request.json();
+    const changedBy = await getChangedBy(request);
 
     // Get old asset for history diff
     const oldAsset = await getAssetById(assetId);
@@ -122,7 +120,7 @@ export async function PUT(
       assetId,
       oldAsset as unknown as Record<string, unknown>,
       updatedAsset as unknown as Record<string, unknown>,
-      SYSTEM_USER_ID
+      changedBy
     );
 
     return NextResponse.json({
@@ -148,6 +146,7 @@ export async function DELETE(
 ): Promise<NextResponse> {
   try {
     const { assetId } = await params;
+    const changedBy = await getChangedBy(request);
 
     // Get asset first for history snapshot
     const asset = await getAssetById(assetId);
@@ -167,7 +166,7 @@ export async function DELETE(
       'asset',
       assetId,
       asset as unknown as Record<string, unknown>,
-      SYSTEM_USER_ID
+      changedBy
     );
 
     return NextResponse.json({

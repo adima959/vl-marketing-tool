@@ -928,3 +928,203 @@ export async function deleteAsset(id: string): Promise<void> {
 
   await executeQuery(query, [id]);
 }
+
+// ============================================================================
+// Cascade Deletes
+// ============================================================================
+
+/**
+ * Cascade soft-delete a product and ALL descendants (angles → messages → assets/creatives).
+ * Deletes bottom-up: assets/creatives first, then messages, then angles, then product.
+ */
+export async function cascadeDeleteProduct(id: string): Promise<void> {
+  // 1. Soft-delete assets of messages of angles of this product
+  await executeQuery(`
+    UPDATE app_assets SET deleted_at = NOW(), updated_at = NOW()
+    WHERE deleted_at IS NULL AND message_id IN (
+      SELECT m.id FROM app_messages m
+      JOIN app_angles a ON a.id = m.angle_id
+      WHERE a.product_id = $1 AND a.deleted_at IS NULL AND m.deleted_at IS NULL
+    )
+  `, [id]);
+
+  // 2. Soft-delete creatives of messages of angles of this product
+  await executeQuery(`
+    UPDATE app_creatives SET deleted_at = NOW(), updated_at = NOW()
+    WHERE deleted_at IS NULL AND message_id IN (
+      SELECT m.id FROM app_messages m
+      JOIN app_angles a ON a.id = m.angle_id
+      WHERE a.product_id = $1 AND a.deleted_at IS NULL AND m.deleted_at IS NULL
+    )
+  `, [id]);
+
+  // 3. Soft-delete messages of angles of this product
+  await executeQuery(`
+    UPDATE app_messages SET deleted_at = NOW(), updated_at = NOW()
+    WHERE deleted_at IS NULL AND angle_id IN (
+      SELECT id FROM app_angles WHERE product_id = $1 AND deleted_at IS NULL
+    )
+  `, [id]);
+
+  // 4. Soft-delete angles of this product
+  await executeQuery(`
+    UPDATE app_angles SET deleted_at = NOW(), updated_at = NOW()
+    WHERE product_id = $1 AND deleted_at IS NULL
+  `, [id]);
+
+  // 5. Soft-delete the product itself
+  await deleteProduct(id);
+}
+
+/**
+ * Cascade soft-delete an angle and ALL descendants (messages → assets/creatives).
+ */
+export async function cascadeDeleteAngle(id: string): Promise<void> {
+  // 1. Soft-delete assets of messages of this angle
+  await executeQuery(`
+    UPDATE app_assets SET deleted_at = NOW(), updated_at = NOW()
+    WHERE deleted_at IS NULL AND message_id IN (
+      SELECT id FROM app_messages WHERE angle_id = $1 AND deleted_at IS NULL
+    )
+  `, [id]);
+
+  // 2. Soft-delete creatives of messages of this angle
+  await executeQuery(`
+    UPDATE app_creatives SET deleted_at = NOW(), updated_at = NOW()
+    WHERE deleted_at IS NULL AND message_id IN (
+      SELECT id FROM app_messages WHERE angle_id = $1 AND deleted_at IS NULL
+    )
+  `, [id]);
+
+  // 3. Soft-delete messages of this angle
+  await executeQuery(`
+    UPDATE app_messages SET deleted_at = NOW(), updated_at = NOW()
+    WHERE angle_id = $1 AND deleted_at IS NULL
+  `, [id]);
+
+  // 4. Soft-delete the angle itself
+  await deleteAngle(id);
+}
+
+/**
+ * Cascade soft-delete a message and ALL its assets/creatives.
+ */
+export async function cascadeDeleteMessage(id: string): Promise<void> {
+  // 1. Soft-delete assets of this message
+  await executeQuery(`
+    UPDATE app_assets SET deleted_at = NOW(), updated_at = NOW()
+    WHERE message_id = $1 AND deleted_at IS NULL
+  `, [id]);
+
+  // 2. Soft-delete creatives of this message
+  await executeQuery(`
+    UPDATE app_creatives SET deleted_at = NOW(), updated_at = NOW()
+    WHERE message_id = $1 AND deleted_at IS NULL
+  `, [id]);
+
+  // 3. Soft-delete the message itself
+  await deleteMessage(id);
+}
+
+// ============================================================================
+// Move Children
+// ============================================================================
+
+/**
+ * Move all angles from one product to another.
+ */
+export async function moveAnglesToProduct(sourceProductId: string, targetProductId: string): Promise<void> {
+  await executeQuery(`
+    UPDATE app_angles SET product_id = $1, updated_at = NOW()
+    WHERE product_id = $2 AND deleted_at IS NULL
+  `, [targetProductId, sourceProductId]);
+}
+
+/**
+ * Move all messages from one angle to another.
+ */
+export async function moveMessagesToAngle(sourceAngleId: string, targetAngleId: string): Promise<void> {
+  await executeQuery(`
+    UPDATE app_messages SET angle_id = $1, updated_at = NOW()
+    WHERE angle_id = $2 AND deleted_at IS NULL
+  `, [targetAngleId, sourceAngleId]);
+}
+
+/**
+ * Move all assets and creatives from one message to another.
+ */
+export async function moveChildrenToMessage(sourceMessageId: string, targetMessageId: string): Promise<void> {
+  await executeQuery(`
+    UPDATE app_assets SET message_id = $1, updated_at = NOW()
+    WHERE message_id = $2 AND deleted_at IS NULL
+  `, [targetMessageId, sourceMessageId]);
+
+  await executeQuery(`
+    UPDATE app_creatives SET message_id = $1, updated_at = NOW()
+    WHERE message_id = $2 AND deleted_at IS NULL
+  `, [targetMessageId, sourceMessageId]);
+}
+
+// ============================================================================
+// Cascade Restore
+// ============================================================================
+
+/**
+ * Restore a soft-deleted product and ALL its descendants.
+ * Clears deleted_at for product, its angles, their messages, and their assets/creatives.
+ */
+export async function cascadeRestoreProduct(id: string): Promise<void> {
+  // 1. Restore the product
+  await executeQuery(`
+    UPDATE app_products SET deleted_at = NULL, updated_at = NOW()
+    WHERE id = $1 AND deleted_at IS NOT NULL
+  `, [id]);
+
+  // 2. Restore angles of this product
+  await executeQuery(`
+    UPDATE app_angles SET deleted_at = NULL, updated_at = NOW()
+    WHERE product_id = $1 AND deleted_at IS NOT NULL
+  `, [id]);
+
+  // 3. Restore messages of angles of this product
+  await executeQuery(`
+    UPDATE app_messages SET deleted_at = NULL, updated_at = NOW()
+    WHERE angle_id IN (
+      SELECT id FROM app_angles WHERE product_id = $1
+    ) AND deleted_at IS NOT NULL
+  `, [id]);
+
+  // 4. Restore assets of messages of angles of this product
+  await executeQuery(`
+    UPDATE app_assets SET deleted_at = NULL, updated_at = NOW()
+    WHERE message_id IN (
+      SELECT m.id FROM app_messages m
+      JOIN app_angles a ON a.id = m.angle_id
+      WHERE a.product_id = $1
+    ) AND deleted_at IS NOT NULL
+  `, [id]);
+
+  // 5. Restore creatives of messages of angles of this product
+  await executeQuery(`
+    UPDATE app_creatives SET deleted_at = NULL, updated_at = NOW()
+    WHERE message_id IN (
+      SELECT m.id FROM app_messages m
+      JOIN app_angles a ON a.id = m.angle_id
+      WHERE a.product_id = $1
+    ) AND deleted_at IS NOT NULL
+  `, [id]);
+}
+
+/**
+ * Find a deleted product by name (for restore operations).
+ */
+export async function findDeletedProductByName(name: string): Promise<{ id: string; name: string } | null> {
+  const rows = await executeQuery<Record<string, unknown>>(`
+    SELECT id, name FROM app_products
+    WHERE name ILIKE $1 AND deleted_at IS NOT NULL
+    ORDER BY updated_at DESC LIMIT 1
+  `, [name]);
+
+  if (rows.length === 0) return null;
+  return { id: rows[0].id as string, name: rows[0].name as string };
+}

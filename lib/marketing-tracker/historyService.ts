@@ -31,16 +31,39 @@ export interface HistoryRecord {
   id: string;
   entityType: EntityType;
   entityId: string;
+  entityName: string | null;
   fieldName: string;
   oldValue: unknown;
   newValue: unknown;
+  oldValueDisplay: string | null;  // Human-readable old value (e.g., user name for ownerId)
+  newValueDisplay: string | null;  // Human-readable new value
   action: HistoryAction;
-  changedBy: string | null;  // NULL if system or auth not implemented
+  changedBy: string | null;
+  changedByName: string | null;
   changedAt: string;
 }
 
-// Fields to skip when generating diff (system-managed fields)
-const SKIP_FIELDS = new Set(['id', 'createdAt', 'updatedAt']);
+// Fields to skip when generating diff (system-managed + derived/computed fields)
+const SKIP_FIELDS = new Set([
+  // System-managed fields
+  'id', 'createdAt', 'updatedAt', 'deletedAt',
+  // Derived from JOINs (would duplicate the FK field change)
+  'owner', 'userId', 'userName', 'userEmail',
+  // Computed counts from subqueries
+  'angleCount', 'activeAngleCount',
+  'messageCount',
+  'assetCount', 'creativeCount',
+  'assetsByGeo', 'creativesByGeo',
+]);
+
+// Derived field names to filter out of history queries (cleans up old data)
+const DERIVED_FIELD_NAMES = [
+  'owner', 'userId', 'userName', 'userEmail',
+  'angleCount', 'activeAngleCount',
+  'messageCount',
+  'assetCount', 'creativeCount',
+  'assetsByGeo', 'creativesByGeo',
+];
 
 // ============================================================================
 // Helper Functions
@@ -260,23 +283,39 @@ export async function getEntityHistory(
   entityType: EntityType,
   entityId: string
 ): Promise<HistoryRecord[]> {
+  // Build exclusion list for derived fields (old data cleanup)
+  const exclusionPlaceholders = DERIVED_FIELD_NAMES.map((_, i) => `$${i + 3}`).join(', ');
+
   const query = `
     SELECT
-      id,
-      entity_type,
-      entity_id,
-      field_name,
-      old_value,
-      new_value,
-      action,
-      changed_by,
-      changed_at
-    FROM app_entity_history
-    WHERE entity_type = $1 AND entity_id = $2
-    ORDER BY changed_at DESC
+      h.id,
+      h.entity_type,
+      h.entity_id,
+      h.field_name,
+      h.old_value,
+      h.new_value,
+      h.action,
+      h.changed_by,
+      h.changed_at,
+      COALESCE(p.name, ang.name, m.name, ast.name, c.name) AS entity_name,
+      old_u.name AS old_value_display,
+      new_u.name AS new_value_display,
+      cb.name AS changed_by_name
+    FROM app_entity_history h
+    LEFT JOIN app_products p ON h.entity_type = 'product' AND h.entity_id = p.id
+    LEFT JOIN app_angles ang ON h.entity_type = 'angle' AND h.entity_id = ang.id
+    LEFT JOIN app_messages m ON h.entity_type = 'message' AND h.entity_id = m.id
+    LEFT JOIN app_assets ast ON h.entity_type = 'asset' AND h.entity_id = ast.id
+    LEFT JOIN app_creatives c ON h.entity_type = 'creative' AND h.entity_id = c.id
+    LEFT JOIN app_users old_u ON h.field_name = 'ownerId' AND old_u.id::text = TRIM(BOTH '"' FROM h.old_value::text)
+    LEFT JOIN app_users new_u ON h.field_name = 'ownerId' AND new_u.id::text = TRIM(BOTH '"' FROM h.new_value::text)
+    LEFT JOIN app_users cb ON cb.id = h.changed_by
+    WHERE h.entity_type = $1 AND h.entity_id = $2
+      AND h.field_name NOT IN (${exclusionPlaceholders})
+    ORDER BY h.changed_at DESC
   `;
 
-  const rows = await executeQuery<Record<string, unknown>>(query, [entityType, entityId]);
+  const rows = await executeQuery<Record<string, unknown>>(query, [entityType, entityId, ...DERIVED_FIELD_NAMES]);
 
   return rows.map(row => {
     const record = toCamelCase<HistoryRecord>(row);
@@ -305,23 +344,39 @@ export async function getEntityHistory(
  * @returns Array of history records, newest first
  */
 export async function getRecentHistory(limit: number = 50): Promise<HistoryRecord[]> {
+  // Build exclusion list for derived fields (old data cleanup)
+  const exclusionPlaceholders = DERIVED_FIELD_NAMES.map((_, i) => `$${i + 2}`).join(', ');
+
   const query = `
     SELECT
-      id,
-      entity_type,
-      entity_id,
-      field_name,
-      old_value,
-      new_value,
-      action,
-      changed_by,
-      changed_at
-    FROM app_entity_history
-    ORDER BY changed_at DESC
+      h.id,
+      h.entity_type,
+      h.entity_id,
+      h.field_name,
+      h.old_value,
+      h.new_value,
+      h.action,
+      h.changed_by,
+      h.changed_at,
+      COALESCE(p.name, ang.name, m.name, ast.name, c.name) AS entity_name,
+      old_u.name AS old_value_display,
+      new_u.name AS new_value_display,
+      cb.name AS changed_by_name
+    FROM app_entity_history h
+    LEFT JOIN app_products p ON h.entity_type = 'product' AND h.entity_id = p.id
+    LEFT JOIN app_angles ang ON h.entity_type = 'angle' AND h.entity_id = ang.id
+    LEFT JOIN app_messages m ON h.entity_type = 'message' AND h.entity_id = m.id
+    LEFT JOIN app_assets ast ON h.entity_type = 'asset' AND h.entity_id = ast.id
+    LEFT JOIN app_creatives c ON h.entity_type = 'creative' AND h.entity_id = c.id
+    LEFT JOIN app_users old_u ON h.field_name = 'ownerId' AND old_u.id::text = TRIM(BOTH '"' FROM h.old_value::text)
+    LEFT JOIN app_users new_u ON h.field_name = 'ownerId' AND new_u.id::text = TRIM(BOTH '"' FROM h.new_value::text)
+    LEFT JOIN app_users cb ON cb.id = h.changed_by
+    WHERE h.field_name NOT IN (${exclusionPlaceholders})
+    ORDER BY h.changed_at DESC
     LIMIT $1
   `;
 
-  const rows = await executeQuery<Record<string, unknown>>(query, [limit]);
+  const rows = await executeQuery<Record<string, unknown>>(query, [limit, ...DERIVED_FIELD_NAMES]);
 
   return rows.map(row => {
     const record = toCamelCase<HistoryRecord>(row);

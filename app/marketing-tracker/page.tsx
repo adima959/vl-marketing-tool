@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Spin, Empty, Button, Table, Avatar, Radio } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { Target, ChevronRight, Package } from 'lucide-react';
+import { Target, Package, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { ProductModal, ProductStatusBadge, ActivityFeed } from '@/components/marketing-tracker';
+import { ProductModal, ProductStatusBadge, ActivityFeed, DeleteConfirmModal } from '@/components/marketing-tracker';
 import { EditableSelect } from '@/components/ui/EditableSelect';
 import { useMarketingTrackerStore } from '@/stores/marketingTrackerStore';
 import type { ColumnsType } from 'antd/es/table';
@@ -28,6 +28,9 @@ interface ProductRow {
 
 export default function MarketingTrackerDashboard() {
   const [productModalOpen, setProductModalOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ProductRow | null>(null);
+  const [activityKey, setActivityKey] = useState(0);
+  const refreshActivity = useCallback(() => setActivityKey((k) => k + 1), []);
 
   const {
     products,
@@ -70,10 +73,12 @@ export default function MarketingTrackerDashboard() {
     await updateProductField(productId, 'status', newStatus);
     // Reload to apply filter (product may disappear if switched to inactive while viewing active)
     loadDashboard();
+    refreshActivity();
   };
 
   const handleOwnerChange = async (productId: string, newOwnerId: string) => {
     await updateProductField(productId, 'ownerId', newOwnerId);
+    refreshActivity();
   };
 
   const handleStatusFilterChange = (value: ProductStatus | 'all') => {
@@ -105,7 +110,7 @@ export default function MarketingTrackerDashboard() {
       title: 'OWNER',
       dataIndex: 'ownerName',
       key: 'owner',
-      width: 160,
+      width: 220,
       render: (_: string, record: ProductRow) => (
         <div className={styles.ownerCell} onClick={(e) => e.stopPropagation()}>
           <Avatar size="small" className={styles.ownerAvatar}>
@@ -155,12 +160,16 @@ export default function MarketingTrackerDashboard() {
     },
     {
       title: '',
-      key: 'action',
+      key: 'delete',
       width: 40,
       render: (_: unknown, record: ProductRow) => (
-        <Link href={`/marketing-tracker/product/${record.id}`}>
-          <ChevronRight size={16} className={styles.rowChevron} />
-        </Link>
+        <button
+          className={styles.deleteButton}
+          onClick={(e) => { e.stopPropagation(); setDeleteTarget(record); }}
+          title="Delete product"
+        >
+          <Trash2 size={14} />
+        </button>
       ),
     },
   ];
@@ -180,7 +189,7 @@ export default function MarketingTrackerDashboard() {
       <ProductModal
         open={productModalOpen}
         onClose={() => setProductModalOpen(false)}
-        onSuccess={() => loadDashboard()}
+        onSuccess={() => { loadDashboard(); refreshActivity(); }}
         users={users}
       />
       <div className={styles.container}>
@@ -220,12 +229,29 @@ export default function MarketingTrackerDashboard() {
               className={styles.productsTable}
               size="middle"
               rowClassName={styles.tableRow}
+              tableLayout="fixed"
             />
           )}
         </div>
 
-        <ActivityFeed />
+        <ActivityFeed refreshKey={activityKey} />
       </div>
+
+      {deleteTarget && (
+        <DeleteConfirmModal
+          open={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onSuccess={() => { loadDashboard(); refreshActivity(); }}
+          entityType="product"
+          entityId={deleteTarget.id}
+          entityName={deleteTarget.name}
+          childCount={deleteTarget.angleCount}
+          childLabel="angles"
+          moveTargets={filteredProducts
+            .filter((p) => p.id !== deleteTarget.id)
+            .map((p) => ({ id: p.id, name: p.name }))}
+        />
+      )}
     </>
   );
 }

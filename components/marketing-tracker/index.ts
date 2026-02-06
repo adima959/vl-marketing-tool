@@ -7,3 +7,4 @@ export { MessageModal } from './MessageModal';
 export { AssetModal } from './AssetModal';
 export { CreativeModal } from './CreativeModal';
 export { ActivityFeed } from './ActivityFeed';
+export { DeleteConfirmModal } from './DeleteConfirmModal';

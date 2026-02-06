@@ -17,11 +17,15 @@ export interface ActivityRecord {
   id: string;
   entityType: string;
   entityId: string;
+  entityName: string | null;
   fieldName: string;
   oldValue: unknown;
   newValue: unknown;
+  oldValueDisplay: string | null;
+  newValueDisplay: string | null;
   action: string;
   changedBy: string | null;
+  changedByName: string | null;
   changedAt: string;
 }
 

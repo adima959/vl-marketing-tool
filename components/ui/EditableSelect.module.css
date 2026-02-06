@@ -5,8 +5,11 @@
   gap: var(--spacing-2);
   padding: var(--spacing-1) var(--spacing-2);
   margin-left: calc(-1 * var(--spacing-2));
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   cursor: pointer;
+  height: 30px;
+  box-sizing: border-box;
   transition: background var(--transition-fast);
 }
 
@@ -22,7 +25,7 @@
   font-size: inherit;
   font-weight: inherit;
   color: inherit;
-  line-height: inherit;
+  line-height: 1;
 }
 
 .editableSelectEmpty .editableSelectText {
@@ -41,19 +44,28 @@
 .editableSelectEditing {
   display: inline-block;
   margin-left: calc(-1 * var(--spacing-2) - 1px);
-  min-width: 160px;
+  min-width: 120px;
+  max-width: 100%;
+  height: 30px;
 }
 
 .selectInput {
   width: 100%;
+  height: 30px !important;
 }
 
 .selectInput :global(.ant-select-selector) {
   font-size: inherit !important;
   padding: var(--spacing-1) var(--spacing-2) !important;
+  height: 30px !important;
+  min-height: 30px !important;
   border: 1px solid var(--color-primary-300) !important;
   box-shadow: 0 0 0 2px rgba(0, 185, 107, 0.1) !important;
   border-radius: var(--radius-sm) !important;
+}
+
+.selectInput :global(.ant-select-selection-item) {
+  line-height: 28px !important;
 }
 
 .selectInput:global(.ant-select-focused) :global(.ant-select-selector) {

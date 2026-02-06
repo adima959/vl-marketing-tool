@@ -12,10 +12,7 @@ import {
   recordUpdate,
   recordDeletion,
 } from '@/lib/marketing-tracker/historyService';
-
-// Use null for changed_by until auth is implemented
-// The schema supports NULL: "NULL if system or auth not implemented"
-const SYSTEM_USER_ID: string | null = null;
+import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 
 interface RouteParams {
   params: Promise<{ creativeId: string }>;
@@ -73,6 +70,7 @@ export async function PUT(
   try {
     const { creativeId } = await params;
     const body = await request.json();
+    const changedBy = await getChangedBy(request);
 
     // Get old creative for history diff
     const oldCreative = await getCreativeById(creativeId);
@@ -122,7 +120,7 @@ export async function PUT(
       creativeId,
       oldCreative as unknown as Record<string, unknown>,
       updatedCreative as unknown as Record<string, unknown>,
-      SYSTEM_USER_ID
+      changedBy
     );
 
     return NextResponse.json({
@@ -148,6 +146,7 @@ export async function DELETE(
 ): Promise<NextResponse> {
   try {
     const { creativeId } = await params;
+    const changedBy = await getChangedBy(request);
 
     // Get creative first for history snapshot
     const creative = await getCreativeById(creativeId);
@@ -167,7 +166,7 @@ export async function DELETE(
       'creative',
       creativeId,
       creative as unknown as Record<string, unknown>,
-      SYSTEM_USER_ID
+      changedBy
     );
 
     return NextResponse.json({

@@ -5,15 +5,14 @@ import {
   updateProduct,
   deleteProduct,
   getAnglesByProductId,
+  cascadeDeleteProduct,
+  moveAnglesToProduct,
 } from '@/lib/marketing-tracker/db';
 import {
   recordUpdate,
   recordDeletion,
 } from '@/lib/marketing-tracker/historyService';
-
-// Use null for changed_by until auth is implemented
-// The schema supports NULL: "NULL if system or user deleted"
-const SYSTEM_USER_ID: string | null = null;
+import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 
 interface RouteParams {
   params: Promise<{ productId: string }>;
@@ -77,6 +76,7 @@ export async function PUT(
   try {
     const { productId } = await params;
     const body = await request.json();
+    const changedBy = await getChangedBy(request);
 
     // Get the old product for history diff
     const oldProduct = await getProductById(productId);
@@ -111,7 +111,7 @@ export async function PUT(
       productId,
       oldProduct as unknown as Record<string, unknown>,
       updatedProduct as unknown as Record<string, unknown>,
-      SYSTEM_USER_ID
+      changedBy
     ).catch((err) => console.error('Failed to record product update history:', err));
 
     return NextResponse.json({
@@ -138,6 +138,7 @@ export async function PATCH(
   try {
     const { productId } = await params;
     const body = await request.json();
+    const changedBy = await getChangedBy(request);
 
     // Get the old product for history diff
     const oldProduct = await getProductById(productId);
@@ -184,7 +185,7 @@ export async function PATCH(
       productId,
       oldProduct as unknown as Record<string, unknown>,
       updatedProduct as unknown as Record<string, unknown>,
-      SYSTEM_USER_ID
+      changedBy
     ).catch((err) => console.error('Failed to record product update history:', err));
 
     return NextResponse.json({
@@ -203,6 +204,11 @@ export async function PATCH(
 /**
  * DELETE /api/marketing-tracker/products/[productId]
  * Delete a product (soft delete)
+ *
+ * Supports three modes via request body:
+ * - { mode: "cascade" } — delete product + all children
+ * - { mode: "move", targetParentId: "..." } — move angles to another product, then delete
+ * - No body / default — delete product only (backward compatible)
  */
 export async function DELETE(
   request: NextRequest,
@@ -210,6 +216,18 @@ export async function DELETE(
 ): Promise<NextResponse> {
   try {
     const { productId } = await params;
+    const changedBy = await getChangedBy(request);
+
+    // Parse optional body
+    let mode: string = 'default';
+    let targetParentId: string | undefined;
+    try {
+      const body = await request.json();
+      if (body.mode) mode = body.mode;
+      if (body.targetParentId) targetParentId = body.targetParentId;
+    } catch {
+      // No body — use default mode
+    }
 
     // Get product first for history snapshot
     const product = await getProductById(productId);
@@ -221,15 +239,34 @@ export async function DELETE(
       );
     }
 
-    // Soft delete the product
-    await deleteProduct(productId);
+    if (mode === 'move') {
+      if (!targetParentId) {
+        return NextResponse.json(
+          { success: false, error: 'targetParentId is required for move mode' },
+          { status: 400 }
+        );
+      }
+      const targetProduct = await getProductById(targetParentId);
+      if (!targetProduct) {
+        return NextResponse.json(
+          { success: false, error: 'Target product not found' },
+          { status: 404 }
+        );
+      }
+      await moveAnglesToProduct(productId, targetParentId);
+      await deleteProduct(productId);
+    } else if (mode === 'cascade') {
+      await cascadeDeleteProduct(productId);
+    } else {
+      await deleteProduct(productId);
+    }
 
     // Record deletion history
     await recordDeletion(
       'product',
       productId,
       product as unknown as Record<string, unknown>,
-      SYSTEM_USER_ID
+      changedBy
     );
 
     return NextResponse.json({

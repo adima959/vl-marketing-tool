@@ -8,15 +8,14 @@ import {
   getCreativesByMessageId,
   updateMessage,
   deleteMessage,
+  cascadeDeleteMessage,
+  moveChildrenToMessage,
 } from '@/lib/marketing-tracker/db';
 import {
   recordUpdate,
   recordDeletion,
 } from '@/lib/marketing-tracker/historyService';
-
-// Use null for changed_by until auth is implemented
-// The schema supports NULL: "NULL if system or auth not implemented"
-const SYSTEM_USER_ID: string | null = null;
+import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 
 interface RouteParams {
   params: Promise<{ messageId: string }>;
@@ -90,6 +89,7 @@ export async function PUT(
   try {
     const { messageId } = await params;
     const body = await request.json();
+    const changedBy = await getChangedBy(request);
 
     // Get the old message for history diff
     const oldMessage = await getMessageById(messageId);
@@ -127,7 +127,7 @@ export async function PUT(
       messageId,
       oldMessage as unknown as Record<string, unknown>,
       updatedMessage as unknown as Record<string, unknown>,
-      SYSTEM_USER_ID
+      changedBy
     ).catch((err) => console.error('Failed to record message update history:', err));
 
     return NextResponse.json({
@@ -154,6 +154,7 @@ export async function PATCH(
   try {
     const { messageId } = await params;
     const body = await request.json();
+    const changedBy = await getChangedBy(request);
 
     // Get the old message for history diff
     const oldMessage = await getMessageById(messageId);
@@ -211,7 +212,7 @@ export async function PATCH(
       messageId,
       oldMessage as unknown as Record<string, unknown>,
       updatedMessage as unknown as Record<string, unknown>,
-      SYSTEM_USER_ID
+      changedBy
     ).catch((err) => console.error('Failed to record message update history:', err));
 
     return NextResponse.json({
@@ -230,6 +231,11 @@ export async function PATCH(
 /**
  * DELETE /api/marketing-tracker/messages/[messageId]
  * Delete a message (soft delete)
+ *
+ * Supports three modes via request body:
+ * - { mode: "cascade" } — delete message + all assets/creatives
+ * - { mode: "move", targetParentId: "..." } — move assets/creatives to another message, then delete
+ * - No body / default — delete message only (backward compatible)
  */
 export async function DELETE(
   request: NextRequest,
@@ -237,6 +243,18 @@ export async function DELETE(
 ): Promise<NextResponse> {
   try {
     const { messageId } = await params;
+    const changedBy = await getChangedBy(request);
+
+    // Parse optional body
+    let mode: string = 'default';
+    let targetParentId: string | undefined;
+    try {
+      const body = await request.json();
+      if (body.mode) mode = body.mode;
+      if (body.targetParentId) targetParentId = body.targetParentId;
+    } catch {
+      // No body — use default mode
+    }
 
     // Get message first for history snapshot
     const message = await getMessageById(messageId);
@@ -248,15 +266,34 @@ export async function DELETE(
       );
     }
 
-    // Soft delete the message
-    await deleteMessage(messageId);
+    if (mode === 'move') {
+      if (!targetParentId) {
+        return NextResponse.json(
+          { success: false, error: 'targetParentId is required for move mode' },
+          { status: 400 }
+        );
+      }
+      const targetMessage = await getMessageById(targetParentId);
+      if (!targetMessage) {
+        return NextResponse.json(
+          { success: false, error: 'Target message not found' },
+          { status: 404 }
+        );
+      }
+      await moveChildrenToMessage(messageId, targetParentId);
+      await deleteMessage(messageId);
+    } else if (mode === 'cascade') {
+      await cascadeDeleteMessage(messageId);
+    } else {
+      await deleteMessage(messageId);
+    }
 
     // Record deletion history
     await recordDeletion(
       'message',
       messageId,
       message as unknown as Record<string, unknown>,
-      SYSTEM_USER_ID
+      changedBy
     );
 
     return NextResponse.json({

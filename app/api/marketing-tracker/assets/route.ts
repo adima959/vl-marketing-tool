@@ -6,10 +6,7 @@ import {
   createAsset,
 } from '@/lib/marketing-tracker/db';
 import { recordCreation } from '@/lib/marketing-tracker/historyService';
-
-// Use null for changed_by until auth is implemented
-// The schema supports NULL: "NULL if system or auth not implemented"
-const SYSTEM_USER_ID: string | null = null;
+import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 
 /**
  * GET /api/marketing-tracker/assets
@@ -61,6 +58,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const body: CreateAssetRequest = await request.json();
+    const changedBy = await getChangedBy(request);
 
     if (!body.name) {
       return NextResponse.json(
@@ -133,7 +131,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       'asset',
       newAsset.id,
       newAsset as unknown as Record<string, unknown>,
-      SYSTEM_USER_ID
+      changedBy
     );
 
     return NextResponse.json({

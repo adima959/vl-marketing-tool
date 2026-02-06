@@ -106,6 +106,7 @@ export function EditableSelect({
           className={styles.selectInput}
           autoFocus
           defaultOpen
+          popupMatchSelectWidth={false}
           onKeyDown={handleKeyDown}
           classNames={{ popup: { root: dropdownStyles.selectDropdown } }}
         />
