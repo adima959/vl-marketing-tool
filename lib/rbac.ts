@@ -137,6 +137,27 @@ export function withRole<TArgs extends unknown[]>(
 }
 
 /**
+ * Higher-order function to protect API routes requiring authentication only (any role).
+ * Use for data/report endpoints accessible to all authenticated users.
+ */
+export function withAuth<TArgs extends unknown[]>(
+  handler: (request: NextRequest, user: AppUser, ...args: TArgs) => Promise<NextResponse>
+) {
+  return async (request: NextRequest, ...args: TArgs): Promise<NextResponse> => {
+    const user = await getUserFromRequest(request);
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    return handler(request, user, ...args);
+  };
+}
+
+/**
  * Shorthand for admin-only routes
  */
 export function withAdmin<TArgs extends unknown[]>(

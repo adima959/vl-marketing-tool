@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeMariaDBQuery } from '@/lib/server/mariadb';
 import { dashboardQueryBuilder } from '@/lib/server/dashboardQueryBuilder';
 import type { DashboardRow } from '@/types/dashboard';
-import { withAdmin } from '@/lib/rbac';
+import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { maskErrorForClient } from '@/lib/types/errors';
 import { queryRequestSchema } from '@/lib/schemas/api';
@@ -134,7 +134,7 @@ async function handleDashboardQuery(
 }
 
 // Export with admin authentication
-export const POST = withAdmin(handleDashboardQuery);
+export const POST = withAuth(handleDashboardQuery);
 
 /**
  * GET /api/dashboard/query

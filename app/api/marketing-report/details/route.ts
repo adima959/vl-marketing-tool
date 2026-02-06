@@ -4,7 +4,7 @@ import { executeQuery } from '@/lib/server/db';
 import { marketingDetailQueryBuilder } from '@/lib/server/marketingDetailQueryBuilder';
 import type { DetailRecord } from '@/types/dashboardDetails';
 import type { MarketingDetailResponse } from '@/types/marketingDetails';
-import { withAdmin } from '@/lib/rbac';
+import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { maskErrorForClient } from '@/lib/types/errors';
 
@@ -248,4 +248,4 @@ async function handleMarketingDetails(
 }
 
 // Export with admin authentication
-export const POST = withAdmin(handleMarketingDetails);
+export const POST = withAuth(handleMarketingDetails);

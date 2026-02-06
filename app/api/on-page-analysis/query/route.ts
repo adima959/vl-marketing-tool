@@ -4,7 +4,7 @@ import { onPageQueryBuilder } from '@/lib/server/onPageQueryBuilder';
 import type { QueryRequest } from '@/lib/types/api';
 import { parseQueryRequest } from '@/lib/types/api';
 import { createValidationError, maskErrorForClient } from '@/lib/types/errors';
-import { withAdmin } from '@/lib/rbac';
+import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 
 interface OnPageAggregatedRow {
@@ -126,4 +126,4 @@ async function handleOnPageQuery(
 }
 
 // Export with admin authentication
-export const POST = withAdmin(handleOnPageQuery);
+export const POST = withAuth(handleOnPageQuery);

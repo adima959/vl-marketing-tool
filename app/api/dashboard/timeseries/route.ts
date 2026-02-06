@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeMariaDBQuery } from '@/lib/server/mariadb';
 import { dashboardQueryBuilder } from '@/lib/server/dashboardQueryBuilder';
 import type { TimeSeriesDataPoint, TimeSeriesResponse } from '@/types/dashboard';
-import { withAdmin } from '@/lib/rbac';
+import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { maskErrorForClient } from '@/lib/types/errors';
 import { z } from 'zod';
@@ -103,7 +103,7 @@ async function handleTimeSeriesQuery(
 }
 
 // Export with admin authentication
-export const POST = withAdmin(handleTimeSeriesQuery);
+export const POST = withAuth(handleTimeSeriesQuery);
 
 /**
  * GET /api/dashboard/timeseries

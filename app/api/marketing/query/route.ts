@@ -4,7 +4,7 @@ import type { QueryResponse } from '@/lib/types/api';
 import { parseQueryRequest } from '@/lib/types/api';
 import { maskErrorForClient } from '@/lib/types/errors';
 import type { ReportRow } from '@/types/report';
-import { withAdmin } from '@/lib/rbac';
+import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { marketingQueryRequestSchema } from '@/lib/schemas/api';
 import { z } from 'zod';
@@ -104,7 +104,7 @@ async function handleMarketingQuery(
 }
 
 // Export with admin authentication
-export const POST = withAdmin(handleMarketingQuery);
+export const POST = withAuth(handleMarketingQuery);
 
 /**
  * GET /api/marketing/query
