@@ -1,6 +1,7 @@
 import type { DetailRecord } from '@/types/dashboardDetails';
 import type { MarketingMetricClickContext } from '@/types/marketingDetails';
 import { triggerAuthError, isAuthError } from '@/lib/api/authErrorHandler';
+import { formatLocalDate } from '@/lib/types/api';
 
 /**
  * Response from the marketing details API
@@ -33,8 +34,8 @@ export async function fetchMarketingDetails(
       metricId: context.metricId,
       filters: {
         dateRange: {
-          start: context.filters.dateRange.start.toISOString(),
-          end: context.filters.dateRange.end.toISOString(),
+          start: formatLocalDate(context.filters.dateRange.start),
+          end: formatLocalDate(context.filters.dateRange.end),
         },
         network: context.filters.network,
         campaign: context.filters.campaign,

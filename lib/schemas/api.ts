@@ -14,8 +14,8 @@ import { z } from 'zod';
  * Date range schema - validates ISO date strings
  */
 const dateRangeSchema = z.object({
-  start: z.string().datetime({ message: 'start must be a valid ISO date string' }),
-  end: z.string().datetime({ message: 'end must be a valid ISO date string' }),
+  start: z.string().date('start must be a valid YYYY-MM-DD date string'),
+  end: z.string().date('end must be a valid YYYY-MM-DD date string'),
 }).refine(
   (data) => new Date(data.start) <= new Date(data.end),
   { message: 'start date must be before or equal to end date' }

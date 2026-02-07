@@ -91,9 +91,9 @@ export class DashboardQueryBuilder {
    * Format date for MariaDB DATETIME (YYYY-MM-DD HH:MM:SS)
    */
   private formatDateForMariaDB(date: Date, endOfDay: boolean = false): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
 
     if (endOfDay) {
       return `${year}-${month}-${day} 23:59:59`;

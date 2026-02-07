@@ -1,4 +1,4 @@
-import { serializeQueryParams } from '@/lib/types/api';
+import { serializeQueryParams, formatLocalDate } from '@/lib/types/api';
 import type { QueryParams } from '@/lib/types/api';
 import type { DashboardRow, DateRange, TimeSeriesDataPoint, TimeSeriesResponse } from '@/types/dashboard';
 import { normalizeError, createTimeoutError, createNetworkError } from '@/lib/types/errors';
@@ -79,8 +79,8 @@ export async function fetchDashboardTimeSeries(
   try {
     const requestBody = {
       dateRange: {
-        start: dateRange.start.toISOString(),
-        end: dateRange.end.toISOString(),
+        start: formatLocalDate(dateRange.start),
+        end: formatLocalDate(dateRange.end),
       },
     };
 

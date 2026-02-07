@@ -57,10 +57,16 @@ async function handleTimeSeriesQuery(
 
     // Transform to frontend format
     const data: TimeSeriesDataPoint[] = rows.map((row) => {
-      // Format date as YYYY-MM-DD string
-      const dateValue = row.date instanceof Date
-        ? row.date.toISOString().split('T')[0]
-        : String(row.date).split('T')[0];
+      // Format date as YYYY-MM-DD string (use local methods to avoid UTC shift)
+      let dateValue: string;
+      if (row.date instanceof Date) {
+        const y = row.date.getFullYear();
+        const m = String(row.date.getMonth() + 1).padStart(2, '0');
+        const d = String(row.date.getDate()).padStart(2, '0');
+        dateValue = `${y}-${m}-${d}`;
+      } else {
+        dateValue = String(row.date).split('T')[0];
+      }
 
       return {
         date: dateValue,

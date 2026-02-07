@@ -15,14 +15,14 @@ interface TrackingIdTuple {
 }
 
 /**
- * Format a Date as 'YYYY-MM-DD' using local timezone
- * Avoids the timezone bug where toISOString().split('T')[0] returns
- * the previous day for users ahead of UTC (e.g., Europe)
+ * Format a Date as 'YYYY-MM-DD' using UTC methods
+ * Input dates are parsed from YYYY-MM-DD strings (UTC midnight),
+ * so UTC methods preserve the correct date regardless of server timezone
  */
-function formatLocalDate(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
+function formatDateAsYMD(date: Date): string {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
@@ -43,8 +43,8 @@ async function resolveTrackingIdTuples(
   }
 ): Promise<TrackingIdTuple[]> {
   const params: any[] = [
-    formatLocalDate(dateRange.start),
-    formatLocalDate(dateRange.end),
+    formatDateAsYMD(dateRange.start),
+    formatDateAsYMD(dateRange.end),
   ];
 
   const conditions: string[] = [

@@ -35,9 +35,9 @@ export class DashboardDetailQueryBuilder {
    * Reuses pattern from dashboardQueryBuilder
    */
   private formatDateForMariaDB(date: Date, endOfDay: boolean): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
     const time = endOfDay ? '23:59:59' : '00:00:00';
     return `${year}-${month}-${day} ${time}`;
   }
@@ -172,6 +172,7 @@ export class DashboardDetailQueryBuilder {
         GROUP_CONCAT(DISTINCT COALESCE(p.product_name, '(not set)') SEPARATOR ', ') as productName,
         c.country,
         MAX(IF(i.is_marked = 1, TRUE, FALSE)) as isApproved,
+        MAX(IF(i.on_hold_date IS NOT NULL, 1, 0)) as isOnHold,
         s.status as subscriptionStatus,
         MAX(cr.caption) as cancelReason,
         s.canceled_reason_about as cancelReasonAbout,
@@ -246,6 +247,7 @@ export class DashboardDetailQueryBuilder {
         GROUP_CONCAT(DISTINCT COALESCE(p.product_name, '(not set)') SEPARATOR ', ') as productName,
         c.country,
         MAX(IF(i.is_marked = 1, TRUE, FALSE)) as isApproved,
+        MAX(IF(i.on_hold_date IS NOT NULL, 1, 0)) as isOnHold,
         s.status as subscriptionStatus,
         MAX(cr.caption) as cancelReason,
         s.canceled_reason_about as cancelReasonAbout,

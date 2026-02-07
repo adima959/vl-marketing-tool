@@ -1,5 +1,6 @@
 import type { DetailRecord, MetricClickContext } from '@/types/dashboardDetails';
 import { triggerAuthError, isAuthError } from '@/lib/api/authErrorHandler';
+import { formatLocalDate } from '@/lib/types/api';
 
 /**
  * Response from the dashboard details API
@@ -32,8 +33,8 @@ export async function fetchDashboardDetails(
       metricId: context.metricId,
       filters: {
         dateRange: {
-          start: context.filters.dateRange.start.toISOString(),
-          end: context.filters.dateRange.end.toISOString(),
+          start: formatLocalDate(context.filters.dateRange.start),
+          end: formatLocalDate(context.filters.dateRange.end),
         },
         country: context.filters.country,
         product: context.filters.product,

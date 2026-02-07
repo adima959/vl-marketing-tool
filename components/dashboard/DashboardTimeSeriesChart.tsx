@@ -12,7 +12,9 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { TimeSeriesDataPoint } from '@/types/dashboard';
+import type { MetricClickContext } from '@/types/dashboardDetails';
 import { fetchDashboardTimeSeries } from '@/lib/api/dashboardClient';
+import { CustomerSubscriptionDetailModal } from '@/components/modals/CustomerSubscriptionDetailModal';
 import styles from './DashboardTimeSeriesChart.module.css';
 
 const CHART_HEIGHT = 300;
@@ -101,10 +103,18 @@ function getLast14DaysRange(): { start: Date; end: Date } {
 }
 
 /**
+ * Parse "YYYY-MM-DD" as local date (not UTC) to avoid timezone shift
+ */
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+/**
  * Format date for X axis labels (e.g., "Jan 24")
  */
 function formatXAxisDate(dateStr: string): string {
-  const date = new Date(dateStr);
+  const date = parseLocalDate(dateStr);
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
@@ -112,7 +122,7 @@ function formatXAxisDate(dateStr: string): string {
  * Format date for tooltip (e.g., "Friday, Jan 24, 2026")
  */
 function formatTooltipDate(dateStr: string): string {
-  const date = new Date(dateStr);
+  const date = parseLocalDate(dateStr);
   return date.toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'short',
@@ -271,6 +281,30 @@ export function DashboardTimeSeriesChart(): React.ReactElement {
     });
   }, []);
 
+  // Detail modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalContext, setModalContext] = useState<MetricClickContext | null>(null);
+
+  const handlePointClick = useCallback((metricKey: MetricKey, payload: ChartDataPoint) => {
+    if (metricKey === 'approvalRate') return;
+    const config = METRIC_CONFIG[metricKey];
+    const date = parseLocalDate(payload.date);
+    setModalContext({
+      metricId: metricKey as MetricClickContext['metricId'],
+      metricLabel: config.label,
+      value: payload[metricKey] as number,
+      filters: {
+        dateRange: { start: date, end: date },
+      },
+    });
+    setModalOpen(true);
+  }, []);
+
+  const handleModalClose = useCallback(() => {
+    setModalOpen(false);
+    setModalContext(null);
+  }, []);
+
   // Memoize chart data with calculated approval rate
   const chartData = useMemo((): ChartDataPoint[] => {
     return data.map((point) => ({
@@ -382,7 +416,7 @@ export function DashboardTimeSeriesChart(): React.ReactElement {
                 />
               )}
 
-              {/* Render Lines on top */}
+              {/* Render Lines on top — dots are clickable to open detail modal */}
               {Object.entries(METRIC_CONFIG).map(([key, config]) => {
                 const metricKey = key as MetricKey;
                 // Skip area metrics (handled above) and non-visible metrics
@@ -396,8 +430,22 @@ export function DashboardTimeSeriesChart(): React.ReactElement {
                     stroke={config.color}
                     strokeWidth={2}
                     yAxisId={config.yAxisId}
-                    dot={{ r: 3, fill: config.color, strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: config.color, strokeWidth: 0 }}
+                    dot={{ r: 3, fill: config.color, strokeWidth: 0, cursor: 'pointer' }}
+                    activeDot={(props: { cx?: number; cy?: number; payload?: ChartDataPoint }) => {
+                      const { cx, cy, payload } = props;
+                      if (cx == null || cy == null || !payload) return null;
+                      return (
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={5}
+                          fill={config.color}
+                          strokeWidth={0}
+                          cursor="pointer"
+                          onClick={() => handlePointClick(metricKey, payload)}
+                        />
+                      );
+                    }}
                     connectNulls
                   />
                 );
@@ -406,6 +454,11 @@ export function DashboardTimeSeriesChart(): React.ReactElement {
           </ResponsiveContainer>
         )}
       </div>
+      <CustomerSubscriptionDetailModal
+        open={modalOpen}
+        onClose={handleModalClose}
+        context={modalContext}
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { normalizeError, createTimeoutError, createNetworkError } from '@/lib/types/errors';
 import { triggerAuthError, isAuthError } from '@/lib/api/authErrorHandler';
+import { formatLocalDate } from '@/lib/types/api';
 import type {
   ValidationRateType,
   TimePeriod,
@@ -28,8 +29,8 @@ export interface ValidationRateClientParams {
  */
 function serializeDateRange(dateRange: DateRange): { start: string; end: string } {
   return {
-    start: dateRange.start.toISOString(),
-    end: dateRange.end.toISOString(),
+    start: formatLocalDate(dateRange.start),
+    end: formatLocalDate(dateRange.end),
   };
 }
 
