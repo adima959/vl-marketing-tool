@@ -3,7 +3,6 @@ import { fetchDashboardData } from '@/lib/api/dashboardClient';
 import type { DateRange, DashboardRow } from '@/types/dashboard';
 import { normalizeError } from '@/lib/types/errors';
 import { findRowByKey } from '@/lib/treeUtils';
-import { loadDashboardDimensions, saveDashboardDimensions } from '@/lib/cookieUtils';
 
 interface DashboardState {
   // Filters
@@ -51,8 +50,7 @@ const getDefaultDimensions = (): string[] => {
 };
 
 const getInitialDimensions = (): string[] => {
-  const savedDimensions = loadDashboardDimensions();
-  return savedDimensions || getDefaultDimensions();
+  return getDefaultDimensions();
 };
 
 export const useDashboardStore = create<DashboardState>((set, get) => ({
@@ -135,7 +133,6 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   },
 
   reorderDimensions: (newOrder) => {
-    saveDashboardDimensions(newOrder);
     set({ dimensions: newOrder, hasUnsavedChanges: true });
   },
 
