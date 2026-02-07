@@ -26,7 +26,9 @@ export function DashboardFilterToolbar() {
           disabled={hasLoadedOnce && !hasUnsavedChanges}
           size="middle"
         >
-          {!hasLoadedOnce ? 'Load Data' : hasUnsavedChanges ? 'Update' : 'Loaded'}
+          <span className={styles.buttonText}>
+            {!hasLoadedOnce ? 'Load Data' : hasUnsavedChanges ? 'Update' : 'Loaded'}
+          </span>
         </Button>
       </div>
     </div>

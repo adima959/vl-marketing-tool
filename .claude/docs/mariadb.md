@@ -157,7 +157,8 @@ CREATE TABLE `subscription` (
 - `invoice_date` (datetime) - Invoice finalization date (when invoice was created/processed)
 - `type` (tinyint) - Invoice type: **1=trial**, **2=rebill**, **3=upsell (OTS)**, **4=refund**
 - `total` (decimal 10,2) - Total invoice amount
-- `is_marked` (tinyint) - Approval status: **1=approved**, **0=pending/rejected**
+- `is_marked` (tinyint) - Approval status: **1=approved**, **0=pending/rejected**, **NULL=unprocessed**
+- `on_hold_date` (datetime) - Date when invoice was placed on hold (NULL = not on hold)
 - `deleted` (tinyint 1) - Soft delete flag (0=active, 1=deleted)
 - `source_id` (int, FK → source.id) - Traffic source (only set for trials/OTS, NULL for rebills)
 - `tracking_id`, `tracking_id_2`, `tracking_id_3`, `tracking_id_4`, `tracking_id_5` (varchar 300) - Tracking identifiers
@@ -172,10 +173,13 @@ CREATE TABLE `subscription` (
 **Date Fields (IMPORTANT):**
 - `order_date`: When the order was placed/created
 - `invoice_date`: When the invoice was finalized (CRM uses this for Buy Rate date filtering)
+- `on_hold_date`: When the invoice was placed on hold (NULL = not on hold)
 
-**Approval States:**
+**Approval & Hold States:**
 - `is_marked = 1` → Approved/validated
 - `is_marked = 0` → Pending or rejected
+- `is_marked IS NULL` → Unprocessed (default)
+- `on_hold_date IS NOT NULL` → Invoice is on hold (check independently of `is_marked`)
 
 **Important Indexes:**
 - PRIMARY KEY (`id`)

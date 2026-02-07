@@ -239,15 +239,3 @@
   color: var(--color-error, #ef4444);
 }
 
-/* Responsive adjustments */
-@media (max-width: 640px) {
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .legend {
-    width: 100%;
-    justify-content: flex-start;
-  }
-}

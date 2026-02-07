@@ -73,6 +73,7 @@ export function CustomerSubscriptionDetailModal({ open, onClose, context }: Cust
       });
 
       const headers = [
+        'Status',
         'Customer Name',
         'Source',
         'Tracking ID 1',
@@ -88,7 +89,14 @@ export function CustomerSubscriptionDetailModal({ open, onClose, context }: Cust
       const csvRows = [
         headers.join(','),
         ...allData.records.map((record) => {
+          let status = '';
+          if (record.subscriptionStatus === 4) status = 'Soft Cancel';
+          else if (record.subscriptionStatus === 5) status = 'Cancel Forever';
+          else if (record.isOnHold) status = 'On Hold';
+          else if (record.isApproved) status = 'Approved';
+
           const row = [
+            `"${status}"`,
             `"${(record.customerName || '').replace(/"/g, '""')}"`,
             `"${(record.source || '').replace(/"/g, '""')}"`,
             `"${(record.trackingId1 || '').replace(/"/g, '""')}"`,
@@ -137,6 +145,47 @@ export function CustomerSubscriptionDetailModal({ open, onClose, context }: Cust
   const columns: ColumnsType<DetailRecord> = useMemo(() => {
     const baseColumns: ColumnsType<DetailRecord> = [
       {
+        title: 'Status',
+        key: 'status',
+        width: 56,
+        align: 'center',
+        fixed: 'left',
+        render: (_: unknown, record: DetailRecord) => {
+          if (record.subscriptionStatus === 4 || record.subscriptionStatus === 5) {
+            return (
+              <Tooltip
+                title={
+                  <div>
+                    <div style={{ fontWeight: 600 }}>
+                      {record.subscriptionStatus === 4 ? 'Soft Cancel' : 'Cancel Forever'}
+                    </div>
+                    {record.cancelReason && <div style={{ marginTop: 4 }}>{record.cancelReason}</div>}
+                    {record.cancelReasonAbout && <div style={{ marginTop: 2, opacity: 0.85 }}>{record.cancelReasonAbout}</div>}
+                  </div>
+                }
+              >
+                <span className={styles.badgeCancelled}>✕</span>
+              </Tooltip>
+            );
+          }
+          if (record.isOnHold) {
+            return (
+              <Tooltip title="On Hold">
+                <span className={styles.badgeOnHold}>●</span>
+              </Tooltip>
+            );
+          }
+          if (record.isApproved) {
+            return (
+              <Tooltip title="Approved">
+                <span className={styles.badgeApproved}>✓</span>
+              </Tooltip>
+            );
+          }
+          return null;
+        },
+      },
+      {
         title: 'Customer',
         dataIndex: 'customerName',
         width: 190,
@@ -157,24 +206,6 @@ export function CustomerSubscriptionDetailModal({ open, onClose, context }: Cust
             {record.customerDateRegistered &&
              new Date(record.customerDateRegistered).toDateString() === new Date(record.date).toDateString() && (
               <span className={styles.badgeNew}>NEW</span>
-            )}
-            {!!record.isApproved && (
-              <Tooltip title="Approved">
-                <span className={styles.badgeApproved}>✓</span>
-              </Tooltip>
-            )}
-            {(record.subscriptionStatus === 4 || record.subscriptionStatus === 5) && (
-              <Tooltip
-                title={
-                  <div>
-                    <div>{record.subscriptionStatus === 4 ? 'Soft Cancel' : 'Cancel Forever'}</div>
-                    {record.cancelReason && <div>{record.cancelReason}</div>}
-                    {record.cancelReasonAbout && <div>{record.cancelReasonAbout}</div>}
-                  </div>
-                }
-              >
-                <span className={styles.badgeCancelled}>✕</span>
-              </Tooltip>
             )}
           </div>
         ),
@@ -335,7 +366,7 @@ export function CustomerSubscriptionDetailModal({ open, onClose, context }: Cust
             ),
           }}
           rowKey="id"
-          scroll={{ x: isBuyOrPayRate ? 1300 : 1120 }}
+          scroll={{ x: isBuyOrPayRate ? 1356 : 1176 }}
           size="small"
         />
       </div>

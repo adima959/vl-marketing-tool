@@ -9,7 +9,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const i=JSON.parse(d);const cmd=i.tool_input?.command||'';if(/git\\s+push/.test(cmd)){console.error('[Hook] Review before pushing. Run: git diff --stat origin/main..HEAD');process.exit(2)}})\"",
+            "command": "node -e \"const{execSync}=require('child_process');let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const i=JSON.parse(d);const cmd=i.tool_input?.command||'';if(/git\\s+push/.test(cmd)){try{const stat=execSync('git diff --stat origin/main..HEAD',{encoding:'utf8'});console.error('[Hook] Pushing these changes:\\n'+stat)}catch(e){console.error('[Hook] Could not diff against remote')}}})\"",
             "timeout": 5
           }
         ]

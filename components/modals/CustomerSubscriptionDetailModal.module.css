@@ -196,6 +196,15 @@
   line-height: 1;
 }
 
+.badgeOnHold {
+  color: var(--color-warning, #faad14);
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  cursor: default;
+  line-height: 1;
+}
+
 .monoCell {
   font-family: var(--font-family-mono);
   font-size: 12px;

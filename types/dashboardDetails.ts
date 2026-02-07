@@ -43,6 +43,7 @@ export interface DetailRecord {
   productName?: string;
   country?: string;
   isApproved?: number;          // Whether order is approved (1 = approved, 0 = not approved)
+  isOnHold?: number;            // Whether invoice is on hold (1 = on hold, 0 = not on hold)
   subscriptionStatus?: number;  // Subscription status (1=active, 4=cancel_soft, 5=cancel_forever)
   cancelReason?: string | null; // Cancel reason caption from cancel_reason table
   cancelReasonAbout?: string | null; // Additional cancellation details

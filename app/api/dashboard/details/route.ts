@@ -87,22 +87,24 @@ async function handleDashboardDetails(
       pagination
     );
 
-    // Debug logging
-    console.log('=== DASHBOARD DETAILS DEBUG ===');
-    console.log('MetricId:', body.metricId);
-    console.log('RateType:', body.filters.rateType || 'none');
-    console.log('Date Range:', dateRange);
-    console.log('Query:', query);
-    console.log('Params:', params);
-    console.log('===============================');
-
     // Execute queries in parallel
-    const [records, countResult] = await Promise.all([
-      executeMariaDBQuery<DetailRecord>(query, params),
+    const [rawRecords, countResult] = await Promise.all([
+      executeMariaDBQuery<Record<string, unknown>>(query, params),
       executeMariaDBQuery<{ total: number }>(countQuery, countParams),
     ]);
 
-    const total = countResult[0]?.total || 0;
+    const total = Number(countResult[0]?.total) || 0;
+
+    // Normalize numeric fields — mysql2 binary protocol can return
+    // computed columns (MAX, IF, etc.) as unexpected types (Buffer, string, BigInt)
+    const records: DetailRecord[] = rawRecords.map((row) => ({
+      ...row,
+      isApproved: Number(row.isApproved) || 0,
+      isOnHold: Number(row.isOnHold) || 0,
+      subscriptionStatus: Number(row.subscriptionStatus) || 0,
+      amount: Number(row.amount) || 0,
+      customerId: Number(row.customerId) || 0,
+    })) as DetailRecord[];
 
     const response: DetailQueryResponse = {
       success: true,

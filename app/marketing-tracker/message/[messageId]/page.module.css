@@ -83,12 +83,6 @@
   margin-bottom: var(--spacing-4);
 }
 
-@media (max-width: 900px) {
-  .headerGrid {
-    grid-template-columns: 1fr;
-  }
-}
-
 .hypothesisSection,
 .strategySection {
   padding: var(--spacing-4);
@@ -121,12 +115,6 @@
 
 .strategySection {
   grid-column: span 2;
-}
-
-@media (max-width: 900px) {
-  .strategySection {
-    grid-column: span 1;
-  }
 }
 
 .strategyText {
@@ -185,12 +173,6 @@
   grid-template-columns: 200px 1fr;
   gap: var(--spacing-4);
   align-items: start;
-}
-
-@media (max-width: 900px) {
-  .assetsGrid {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* Geo Sidebar */

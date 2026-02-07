@@ -129,21 +129,3 @@
   outline-offset: 2px;
 }
 
-/* Responsive */
-@media (max-width: 640px) {
-  .emptyContainer {
-    padding: var(--spacing-6);
-  }
-
-  .title {
-    font-size: 18px;
-  }
-
-  .message {
-    font-size: var(--font-size-sm);
-  }
-
-  .suggestions {
-    padding: var(--spacing-3) var(--spacing-4);
-  }
-}
