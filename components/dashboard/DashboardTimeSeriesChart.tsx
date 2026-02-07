@@ -32,7 +32,7 @@ interface ChartDataPoint extends TimeSeriesDataPoint {
 const METRIC_CONFIG = {
   trials: {
     key: 'trials',
-    label: 'Trials',
+    label: 'Trials (w/o upsells)',
     color: '#1a1a1a',
     defaultVisible: true,
     yAxisId: 'left',
