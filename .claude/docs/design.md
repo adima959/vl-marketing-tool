@@ -743,16 +743,20 @@ export function MyComponent() {
 
 ### Modal Pattern
 
-**Component**: Ant Design Modal
+**Component**: Ant Design Modal + shared base styles
 **Sizes**: Small (400px), Medium (600px), Large (800px)
+**Required**: Always apply `modalStyles.modal` for consistent styling (see `docs/css.md` > Shared Component Styles).
 
 ```typescript
+import modalStyles from '@/styles/components/modal.module.css';
+
 <Modal
   title="Modal Title"
   open={isOpen}
   onOk={handleOk}
   onCancel={handleCancel}
   width={600}
+  className={modalStyles.modal}
 >
   <p>Modal content</p>
 </Modal>

@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import type { Dayjs } from 'dayjs';
 import { useDashboardStore } from '@/stores/dashboardStore';
-import styles from './DashboardDateRangePicker.module.css';
+import styles from '@/components/filters/DateRangePicker.module.css';
 
 // Extend dayjs with plugins
 dayjs.extend(utc);
@@ -53,6 +53,7 @@ export function DashboardDateRangePicker() {
     <div className={styles.datePickerWrapper}>
       <RangePicker
         className={styles.rangePicker}
+        classNames={{ popup: { root: styles.datePickerPopup } }}
         size="middle"
         format="DD/MM/YYYY"
         value={[dayjs(dateRange.start), dayjs(dateRange.end)]}

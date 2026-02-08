@@ -8,9 +8,10 @@ interface PageHeaderProps {
   icon?: React.ReactNode
   actions?: React.ReactNode
   warning?: React.ReactNode
+  titleExtra?: React.ReactNode
 }
 
-export function PageHeader({ title, icon, actions, warning }: PageHeaderProps) {
+export function PageHeader({ title, icon, actions, warning, titleExtra }: PageHeaderProps) {
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-white px-4">
       <SidebarTrigger className="-ml-1" />
@@ -18,6 +19,7 @@ export function PageHeader({ title, icon, actions, warning }: PageHeaderProps) {
       <div className="flex items-center gap-3">
         {icon && <div className="flex h-8 w-8 items-center justify-center">{icon}</div>}
         <h1 className="text-xl font-semibold">{title}</h1>
+        {titleExtra}
       </div>
       {warning && (
         <div className="flex-1 flex items-center justify-center">

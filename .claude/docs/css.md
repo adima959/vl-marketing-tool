@@ -927,6 +927,35 @@ This is safe because it syncs in the same direction as Ant Design's built-in syn
 
 ---
 
+## Shared Component Styles
+
+Reusable CSS modules in `styles/components/` provide base styling for Ant Design components. Component-specific modules can compose with these for consistent look while adding unique overrides.
+
+### Modal Base (`styles/components/modal.module.css`)
+
+**What it provides**: Consistent shell styling for all Ant Design Modals — refined close button, tighter header, compact footer, border radius, shadow, and form label styling.
+
+**Standard usage** (most modals):
+```typescript
+import modalStyles from '@/styles/components/modal.module.css';
+
+<Modal className={modalStyles.modal} ...>
+```
+
+**Composition usage** (modals with additional overrides):
+```typescript
+import modalStyles from '@/styles/components/modal.module.css';
+import styles from './MyCustomModal.module.css';
+
+<Modal className={`${modalStyles.modal} ${styles.modal}`} ...>
+```
+
+The component-specific `.modal` class can override any shared rule (e.g., hide header, change body padding, add flex layout).
+
+**Applied to**: All modals in the project (21 total). Every `<Modal>` must include `className={modalStyles.modal}`. New modals should always import and apply this class.
+
+---
+
 ## Performance Tips
 
 1. **Use CSS variables**: Faster than JS-based theming

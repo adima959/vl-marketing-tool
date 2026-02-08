@@ -18,7 +18,11 @@ export function formatNumber(value: number): string {
 }
 
 export function formatPercentage(value: number): string {
-  return `${(value * 100).toFixed(1)}%`;
+  const pct = value * 100;
+  if (pct > 0 && pct < 1) {
+    return `${pct.toFixed(1)}%`;
+  }
+  return `${pct.toFixed(0)}%`;
 }
 
 export function formatCurrency(value: number): string {

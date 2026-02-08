@@ -9,7 +9,7 @@ import { useDragScroll } from '@/hooks/useDragScroll';
 import { ErrorMessage } from '@/components/ErrorMessage';
 import { EmptyState } from '@/components/EmptyState';
 import { TableSkeleton } from '@/components/loading/TableSkeleton';
-import { CustomerSubscriptionDetailModal } from '@/components/modals/CustomerSubscriptionDetailModal';
+import { CrmDetailModal } from '@/components/modals/CrmDetailModal';
 import { TableInfoBanner } from '@/components/ui/TableInfoBanner';
 import type { ValidationRateRow, ValidationRateStore } from '@/types';
 import type { MetricClickContext } from '@/types/dashboardDetails';
@@ -321,7 +321,7 @@ export function ValidationRateDataTable({
     <>
       {hasLoadedOnce && reportData.length > 0 && (
         <TableInfoBanner
-          message={`Cells with less than ${MIN_SUBSCRIPTIONS_THRESHOLD} subscriptions are filtered out.`}
+          messages={[`Cells with less than ${MIN_SUBSCRIPTIONS_THRESHOLD} subscriptions are filtered out.`]}
         />
       )}
 
@@ -345,9 +345,10 @@ export function ValidationRateDataTable({
         />
       </div>
 
-      <CustomerSubscriptionDetailModal
+      <CrmDetailModal
         open={modalOpen}
         onClose={handleModalClose}
+        variant="dashboard"
         context={modalContext}
       />
     </>

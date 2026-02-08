@@ -3,6 +3,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { METRIC_COLUMNS, MARKETING_METRIC_IDS, CRM_METRIC_IDS } from '@/config/columns';
 import { useColumnStore } from '@/stores/columnStore';
 import type { MetricColumn } from '@/types';
+import modalStyles from '@/styles/components/modal.module.css';
 import styles from './ColumnSettingsModal.module.css';
 
 interface ColumnSettingsModalProps {
@@ -81,7 +82,7 @@ export function ColumnSettingsModal({ open, onClose }: ColumnSettingsModalProps)
       onCancel={handleCancel}
       width={700}
       centered
-      className={styles.modal}
+      className={`${modalStyles.modal} ${styles.modal}`}
       styles={{
         header: { paddingBottom: 16, borderBottom: '1px solid #e8eaed' },
         body: { paddingTop: 20, paddingBottom: 8, maxHeight: 'calc(85vh - 180px)', overflowY: 'auto' },

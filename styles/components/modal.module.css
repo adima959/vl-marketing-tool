@@ -1,0 +1,72 @@
+/**
+ * Shared Modal Styles
+ *
+ * Base styling for Ant Design Modals across the app.
+ * Apply `.modal` class to <Modal className={modalStyles.modal}> for consistent look.
+ *
+ * Features:
+ * - Refined close button (smaller, subtle)
+ * - Tighter header with semibold title
+ * - Compact footer with right-aligned buttons
+ * - Consistent border radius and shadow
+ *
+ * Usage:
+ *   import modalStyles from '@/styles/components/modal.module.css';
+ *   <Modal className={modalStyles.modal} ...>
+ */
+
+/* === Modal shell === */
+.modal :global(.ant-modal-content) {
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+/* === Close button === */
+.modal :global(.ant-modal-close) {
+  top: 10px;
+  right: 14px;
+  width: 28px;
+  height: 28px;
+  color: var(--color-gray-400);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.modal :global(.ant-modal-close:hover) {
+  color: var(--color-gray-700);
+  background: var(--color-background-tertiary);
+}
+
+/* === Header === */
+.modal :global(.ant-modal-header) {
+  padding: 14px 20px;
+  margin: 0;
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.modal :global(.ant-modal-title) {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-gray-900);
+}
+
+/* === Body === */
+.modal :global(.ant-modal-body) {
+  padding: 16px 20px !important;
+}
+
+/* === Footer === */
+.modal :global(.ant-modal-footer) {
+  padding: 12px 20px;
+  margin: 0;
+  border-top: 1px solid var(--color-gray-100);
+}
+
+/* === Form items inside modals === */
+.modal :global(.ant-form-item-label > label) {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-gray-600);
+}

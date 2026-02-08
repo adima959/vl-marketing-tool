@@ -69,7 +69,10 @@ export function EditableTags({
     }
   };
 
-  const handleCancelAdd = () => {
+  const handleBlurAdd = () => {
+    if (newValue.trim()) {
+      onChange([...tags, newValue.trim()]);
+    }
     setNewValue('');
     setIsAddingNew(false);
   };
@@ -77,7 +80,8 @@ export function EditableTags({
   const handleKeyDown = (e: React.KeyboardEvent, isNew: boolean = false) => {
     if (e.key === 'Escape') {
       if (isNew) {
-        handleCancelAdd();
+        setNewValue('');
+        setIsAddingNew(false);
       } else {
         setEditingIndex(null);
         setEditValue('');
@@ -103,8 +107,7 @@ export function EditableTags({
               onBlur={handleSave}
               onKeyDown={(e) => handleKeyDown(e)}
               className={styles.tagInput}
-              size="small"
-            />
+              />
           </div>
         ) : (
           <span key={index} className={styles.tagEditable} onClick={() => handleEdit(index)}>
@@ -128,11 +131,10 @@ export function EditableTags({
             ref={newInputRef}
             value={newValue}
             onChange={(e) => setNewValue(e.target.value)}
-            onBlur={handleCancelAdd}
+            onBlur={handleBlurAdd}
             onKeyDown={(e) => handleKeyDown(e, true)}
             placeholder={placeholder}
             className={styles.tagInput}
-            size="small"
           />
         </div>
       ) : (

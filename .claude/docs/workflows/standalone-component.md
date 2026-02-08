@@ -232,33 +232,33 @@ npm run dev
 
 **Example**: Modal with form
 
+All modals must use the shared base styles from `styles/components/modal.module.css`. See `docs/css.md` > Shared Component Styles for full documentation.
+
 ```typescript
 'use client';
-import { Modal, Form, Input, Button } from 'antd';
+import { Modal, Form, Input } from 'antd';
 import { useState } from 'react';
-import styles from './MyModal.module.css';
+import modalStyles from '@/styles/components/modal.module.css';
 
 interface MyModalProps {
-  visible: boolean;
+  open: boolean;
   onClose: () => void;
   onSubmit: (values: any) => void;
 }
 
-export function MyModal({ visible, onClose, onSubmit }: MyModalProps) {
+export function MyModal({ open, onClose, onSubmit }: MyModalProps) {
   const [form] = Form.useForm();
 
   return (
     <Modal
-      open={visible}
+      title="My Modal"
+      open={open}
       onCancel={onClose}
-      footer={null}
-      className={styles.modal}
+      onOk={() => form.submit()}
+      className={modalStyles.modal}
+      destroyOnHidden
     >
-      <Form
-        form={form}
-        onFinish={onSubmit}
-        layout="vertical"
-      >
+      <Form form={form} onFinish={onSubmit} layout="vertical">
         <Form.Item
           name="name"
           label="Name"
@@ -266,29 +266,25 @@ export function MyModal({ visible, onClose, onSubmit }: MyModalProps) {
         >
           <Input />
         </Form.Item>
-
-        <Form.Item>
-          <Button type="primary" htmlType="submit">
-            Submit
-          </Button>
-        </Form.Item>
       </Form>
     </Modal>
   );
 }
 ```
 
-**Customize Ant Design in CSS Module**:
+**Adding custom overrides on top of the shared base**:
+
+```typescript
+import modalStyles from '@/styles/components/modal.module.css';
+import styles from './MyModal.module.css';
+
+<Modal className={`${modalStyles.modal} ${styles.modal}`} ...>
+```
 
 ```css
-/* MyModal.module.css */
-.modal :global(.ant-modal-content) {
-  border-radius: var(--radius-md) !important;
-  padding: var(--spacing-lg) !important;
-}
-
-.modal :global(.ant-form-item-label) {
-  font-weight: 500;
+/* MyModal.module.css — only overrides, shared base handles the rest */
+.modal :global(.ant-modal-body) {
+  padding: 0 !important; /* e.g., for custom scroll layout */
 }
 ```
 

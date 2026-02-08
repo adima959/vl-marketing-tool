@@ -101,7 +101,7 @@ export function EditableSelect({
         <Select
           value={currentValue}
           onChange={handleChange}
-          options={options}
+          options={options.map(o => ({ ...o, title: '' }))}
           placeholder={placeholder}
           className={styles.selectInput}
           autoFocus

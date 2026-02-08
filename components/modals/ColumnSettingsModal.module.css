@@ -32,6 +32,12 @@
   border-left: 3px solid #3b82f6;
 }
 
+/* Interactions Group - Amber Accent */
+.interactionsGroup {
+  background: linear-gradient(to bottom, #fffcf5 0%, #ffffff 100%);
+  border-left: 3px solid #f59e0b;
+}
+
 /* CRM Group - Green Accent */
 .crmGroup {
   background: linear-gradient(to bottom, #f9fdf9 0%, #ffffff 100%);
@@ -52,6 +58,10 @@
 
 .marketingGroup .groupTitle {
   color: #1e40af;
+}
+
+.interactionsGroup .groupTitle {
+  color: #b45309;
 }
 
 .crmGroup .groupTitle {
@@ -157,6 +167,10 @@
   animation-delay: 0.05s;
 }
 
-.crmGroup {
+.interactionsGroup {
   animation-delay: 0.1s;
+}
+
+.crmGroup {
+  animation-delay: 0.15s;
 }
