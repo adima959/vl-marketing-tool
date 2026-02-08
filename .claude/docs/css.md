@@ -956,6 +956,31 @@ The component-specific `.modal` class can override any shared rule (e.g., hide h
 
 ---
 
+## Known Gotchas
+
+### Ant Design v6 Migration
+
+Project uses Ant Design **v6.2.0** — NOT v5.
+
+- `.ant-select-selector` class **NO LONGER EXISTS** — border is now on `.ant-select` directly
+- Target `.ant-select` for border overrides, not `.ant-select-selector`
+- CSS-in-JS overrides: use global CSS with `!important` or `ConfigProvider` theme tokens
+- Old globals.css rules targeting `.ant-select-selector` are dead code
+
+### EditableSelect Component
+
+- Display mode and edit mode must have matching height to avoid pixel jumps
+- Use explicit `height: 30px` on both states + `border: 1px solid transparent` on display mode
+- Use `popupMatchSelectWidth={false}` so dropdown popup sizes to content, not trigger width
+- Ant Design Select needs `height`, `min-height` overrides on the root `.ant-select` element to respect custom sizing
+
+### Table Layout for Inline-Editable Cells
+
+- Use `tableLayout="fixed"` on Ant Design Tables with inline-editable cells to prevent column width jumps
+- Fixed layout respects declared column `width` values; columns without width take remaining space
+
+---
+
 ## Performance Tips
 
 1. **Use CSS variables**: Faster than JS-based theming

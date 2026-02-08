@@ -118,6 +118,17 @@ WHERE n_dead_tup > 1000
 ORDER BY n_dead_tup DESC;
 ```
 
+## App Schema Notes
+
+### Entity History (`app_entity_history`)
+
+- `entity_id` and `changed_by` are UUID type, `old_value`/`new_value` are JSONB
+- Entity tables (`app_products`, `app_angles`, etc.) use UUID `id` columns
+- JOINs between `entity_id` and entity `id`: both UUID, no cast needed
+- JOINs between `changed_by` (UUID) and `app_users.id` (UUID): no cast needed
+- To extract UUID from JSONB: `TRIM(BOTH '"' FROM h.old_value::text)` then compare with `id::text`
+- PostgreSQL won't implicitly cast between UUID and text — always match types explicitly
+
 ## Neon-Specific
 
 - Connection pooling handled by Neon proxy

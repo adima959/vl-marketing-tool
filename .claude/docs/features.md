@@ -148,6 +148,17 @@ Feature-specific implementations and configurations.
 | Product Detail | `app/marketing-tracker/product/[productId]/page.tsx` | Product-specific view |
 | Sub-Angle Detail | `app/marketing-tracker/sub-angle/[subAngleId]/page.tsx` | Sub-angle view |
 
+### Auth System
+
+- HTTP-only cookies with `crm_auth_token`
+- `getUserFromRequest` from `@/lib/rbac` returns `AppUser` with `id` (UUID), `name`, `email`, `role`
+
+### History Service
+
+- `SKIP_FIELDS` set prevents derived/computed fields from generating duplicate history entries
+- `DERIVED_FIELD_NAMES` array used in SQL `WHERE NOT IN` clause to filter old data from queries
+- `getChangedBy` helper in `lib/marketing-tracker/getChangedBy.ts` extracts user ID from auth cookie
+
 ### API Routes
 
 **Pattern**: `/api/marketing-tracker/[resource]/[id]`

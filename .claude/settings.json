@@ -9,7 +9,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node -e \"const{execSync}=require('child_process');let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const i=JSON.parse(d);const cmd=i.tool_input?.command||'';if(/git\\s+push/.test(cmd)){try{const stat=execSync('git diff --stat origin/main..HEAD',{encoding:'utf8'});console.error('[Hook] Pushing these changes:\\n'+stat)}catch(e){console.error('[Hook] Could not diff against remote')}}})\"",
+            "command": "node .claude/hooks/validate-commit.js",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/block-push.js",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/block-dangerous-git.js",
             "timeout": 5
           }
         ]
@@ -33,6 +53,36 @@
             "type": "command",
             "command": "node -e \"const{execSync}=require('child_process');const fs=require('fs');const path=require('path');let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const i=JSON.parse(d);const p=i.tool_input?.file_path||'';if(!/\\.(ts|tsx)$/.test(p))process.exit(0);if(!fs.existsSync(p))process.exit(0);let dir=path.dirname(p);while(dir!==path.dirname(dir)&&!fs.existsSync(path.join(dir,'tsconfig.json'))){dir=path.dirname(dir)}if(!fs.existsSync(path.join(dir,'tsconfig.json')))process.exit(0);try{execSync('npx tsc --noEmit --pretty false 2>&1',{cwd:dir,encoding:'utf8',stdio:['pipe','pipe','pipe']})}catch(e){const lines=(e.stdout||'').split('\\n').filter(l=>l.includes(path.basename(p))).slice(0,10);if(lines.length){console.error('[Hook] TypeScript errors in '+path.basename(p)+':');lines.forEach(l=>console.error('  '+l));process.exit(2)}}})\"",
             "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-imports.js",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-sql-injection.js",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-secrets.js",
+            "timeout": 5
           }
         ]
       }
