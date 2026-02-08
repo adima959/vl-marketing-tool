@@ -70,7 +70,8 @@ async function alterProducts(): Promise<void> {
   await executeQuery(`ALTER TABLE app_products ADD COLUMN IF NOT EXISTS cpa_target_no NUMERIC;`);
   await executeQuery(`ALTER TABLE app_products ADD COLUMN IF NOT EXISTS cpa_target_se NUMERIC;`);
   await executeQuery(`ALTER TABLE app_products ADD COLUMN IF NOT EXISTS cpa_target_dk NUMERIC;`);
-  // CPA target columns added
+  await executeQuery(`ALTER TABLE app_products ADD COLUMN IF NOT EXISTS color VARCHAR(7);`);
+  // CPA target + color columns added
 }
 
 

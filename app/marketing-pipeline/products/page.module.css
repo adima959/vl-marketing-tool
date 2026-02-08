@@ -1,0 +1,48 @@
+/* Products settings page */
+.container {
+  padding: var(--spacing-5);
+  background: var(--color-background-secondary);
+  min-height: calc(100vh - 64px);
+}
+
+.tableCard {
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.productsTable :global(.ant-table-thead > tr > th) {
+  background: var(--color-background-tertiary) !important;
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: var(--spacing-3) var(--spacing-4) !important;
+  border-bottom: 1px solid var(--color-gray-200) !important;
+}
+
+.productsTable :global(.ant-table-tbody > tr > td) {
+  padding: var(--spacing-3) var(--spacing-4) !important;
+  border-bottom: 1px solid var(--color-gray-100) !important;
+  vertical-align: middle;
+}
+
+.productsTable :global(.ant-table-tbody > tr:hover > td) {
+  background: var(--color-background-hover) !important;
+}
+
+.productName {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-heading);
+}
+
+.cpaInput {
+  width: 80px;
+}
+
+.cpaInput :global(.ant-input-number) {
+  width: 80px;
+}

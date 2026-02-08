@@ -91,8 +91,10 @@ export async function PUT(
     // Update the product in the database
     const updatedProductBase = await updateProduct(productId, {
       name: body.name,
+      sku: body.sku,
       description: body.description,
       notes: body.notes,
+      color: body.color,
       status: body.status,
       ownerId: body.ownerId,
     });
@@ -151,10 +153,12 @@ export async function PATCH(
     }
 
     // Build update object with only provided fields
-    const updateData: Partial<{ name: string; description: string; notes: string; status: ProductStatus; ownerId: string }> = {};
+    const updateData: Partial<{ name: string; sku: string; description: string; notes: string; color: string; status: ProductStatus; ownerId: string }> = {};
     if (body.name !== undefined) updateData.name = body.name;
+    if (body.sku !== undefined) updateData.sku = body.sku;
     if (body.description !== undefined) updateData.description = body.description;
     if (body.notes !== undefined) updateData.notes = body.notes;
+    if (body.color !== undefined) updateData.color = body.color;
     if (body.status !== undefined) updateData.status = body.status;
     if (body.ownerId !== undefined) updateData.ownerId = body.ownerId;
 

@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Modal, Form, Input, Select, message } from 'antd';
+import { App, Modal, Form, Input, Select } from 'antd';
 import type { Message, AngleStatus } from '@/types';
+import { FormRichEditor } from '@/components/ui/FormRichEditor';
+import modalStyles from '@/styles/components/modal.module.css';
 
 const { TextArea } = Input;
 
@@ -35,6 +37,7 @@ const statusOptions = [
 
 export function MessageModal({ open, onClose, onSuccess, angleId, message: msg }: MessageModalProps) {
   const [form] = Form.useForm<MessageFormValues>();
+  const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const isEdit = !!msg;
 
@@ -113,7 +116,8 @@ export function MessageModal({ open, onClose, onSuccess, angleId, message: msg }
       okText={isEdit ? 'Save Changes' : 'Create Message'}
       confirmLoading={loading}
       destroyOnHidden
-      width={600}
+      width={640}
+      className={modalStyles.modal}
     >
       <Form
         form={form}
@@ -121,78 +125,58 @@ export function MessageModal({ open, onClose, onSuccess, angleId, message: msg }
         onFinish={handleSubmit}
         style={{ marginTop: 16 }}
       >
-        <Form.Item
-          name="name"
-          label="Message Name"
-          rules={[{ required: true, message: 'Please enter a message name' }]}
-        >
-          <Input placeholder="e.g., Can't play with grandkids" />
-        </Form.Item>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+          <Form.Item
+            name="name"
+            label="Message Name"
+            rules={[{ required: true, message: 'Please enter a message name' }]}
+          >
+            <Input placeholder="e.g., Can't play with grandkids" />
+          </Form.Item>
 
-        <Form.Item
-          name="specificPainPoint"
-          label="Specific Pain Point"
-        >
-          <TextArea
-            placeholder="What specific problem does the customer experience?"
-            rows={2}
-          />
-        </Form.Item>
+          <Form.Item
+            name="status"
+            label="Status"
+            rules={[{ required: true }]}
+          >
+            <Select options={statusOptions} />
+          </Form.Item>
 
-        <Form.Item
-          name="corePromise"
-          label="Core Promise"
-        >
-          <TextArea
-            placeholder="What do we promise to deliver?"
-            rows={2}
-          />
-        </Form.Item>
+          <Form.Item name="specificPainPoint" label="Specific Pain Point">
+            <Input placeholder="What specific problem does the customer experience?" />
+          </Form.Item>
 
-        <Form.Item
-          name="keyIdea"
-          label="Key Idea"
-        >
-          <TextArea
-            placeholder="The central insight or hook"
-            rows={2}
-          />
-        </Form.Item>
+          <Form.Item name="corePromise" label="Core Promise">
+            <Input placeholder="What do we promise to deliver?" />
+          </Form.Item>
 
-        <Form.Item
-          name="primaryHookDirection"
-          label="Primary Hook Direction"
-        >
-          <Input placeholder="Creative direction for hooks" />
-        </Form.Item>
+          <Form.Item name="keyIdea" label="Key Idea">
+            <Input placeholder="The central insight or hook" />
+          </Form.Item>
 
-        <Form.Item
-          name="headlines"
-          label="Headlines (one per line)"
-        >
-          <TextArea
-            placeholder="Keep up with your grandchildren again&#10;Don't let stiff joints steal these moments&#10;They grow up fast. Don't miss it."
-            rows={4}
-          />
-        </Form.Item>
+          <Form.Item name="primaryHookDirection" label="Primary Hook Direction">
+            <Input placeholder="Creative direction for hooks" />
+          </Form.Item>
 
-        <Form.Item
-          name="description"
-          label="Additional Notes"
-        >
-          <TextArea
-            placeholder="Any additional context or notes..."
-            rows={2}
-          />
-        </Form.Item>
+          <Form.Item
+            name="headlines"
+            label="Headlines (one per line)"
+            style={{ gridColumn: '1 / -1' }}
+          >
+            <TextArea
+              placeholder={"Keep up with your grandchildren again\nDon't let stiff joints steal these moments\nThey grow up fast. Don't miss it."}
+              rows={3}
+            />
+          </Form.Item>
 
-        <Form.Item
-          name="status"
-          label="Status"
-          rules={[{ required: true }]}
-        >
-          <Select options={statusOptions} />
-        </Form.Item>
+          <Form.Item
+            name="description"
+            label="Additional Notes"
+            style={{ gridColumn: '1 / -1' }}
+          >
+            <FormRichEditor placeholder="Any additional context or notes..." />
+          </Form.Item>
+        </div>
       </Form>
     </Modal>
   );

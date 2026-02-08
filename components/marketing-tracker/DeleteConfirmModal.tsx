@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Modal, Radio, Select, message as antMessage, Typography } from 'antd';
+import { App, Modal, Radio, Select, Typography } from 'antd';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
+import modalStyles from '@/styles/components/modal.module.css';
 
 const { Text } = Typography;
 
@@ -37,6 +38,7 @@ export function DeleteConfirmModal({
   childLabel,
   moveTargets,
 }: DeleteConfirmModalProps) {
+  const { message } = App.useApp();
   const [mode, setMode] = useState<'cascade' | 'move'>('cascade');
   const [targetId, setTargetId] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
@@ -46,7 +48,7 @@ export function DeleteConfirmModal({
 
   const handleDelete = async () => {
     if (mode === 'move' && !targetId) {
-      antMessage.error(`Please select a target ${entityType} to move ${childLabel} to`);
+      message.error(`Please select a target ${entityType} to move ${childLabel} to`);
       return;
     }
 
@@ -68,7 +70,7 @@ export function DeleteConfirmModal({
       const data = await response.json();
       if (!data.success) throw new Error(data.error || `Failed to delete ${entityType}`);
 
-      antMessage.success(
+      message.success(
         mode === 'move' && hasChildren
           ? `${childLabel.charAt(0).toUpperCase() + childLabel.slice(1)} moved and ${entityType} deleted`
           : `${entityType.charAt(0).toUpperCase() + entityType.slice(1)} deleted`
@@ -76,7 +78,7 @@ export function DeleteConfirmModal({
       onSuccess();
       handleClose();
     } catch (error) {
-      antMessage.error(error instanceof Error ? error.message : `Failed to delete ${entityType}`);
+      message.error(error instanceof Error ? error.message : `Failed to delete ${entityType}`);
     } finally {
       setLoading(false);
     }
@@ -105,6 +107,7 @@ export function DeleteConfirmModal({
       confirmLoading={loading}
       destroyOnHidden
       width={480}
+      className={modalStyles.modal}
     >
       <div style={{ marginTop: 16 }}>
         {hasChildren ? (

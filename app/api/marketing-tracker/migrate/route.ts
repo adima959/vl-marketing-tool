@@ -181,6 +181,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
     console.log('✅ Indexes created');
 
+    // Step 4b: Add sku, color columns if they don't exist
+    await executeQuery(`
+      ALTER TABLE app_products ADD COLUMN IF NOT EXISTS sku VARCHAR(100);
+    `);
+    await executeQuery(`
+      ALTER TABLE app_products ADD COLUMN IF NOT EXISTS color VARCHAR(7);
+    `);
+    console.log('✅ sku, color columns ensured on app_products');
+
     // Step 5: Check if seed data exists
     const productCount = await executeQuery<{ count: string }>(`
       SELECT COUNT(*) as count FROM app_products WHERE deleted_at IS NULL;

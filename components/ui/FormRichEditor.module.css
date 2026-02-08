@@ -1,0 +1,134 @@
+/* FormRichEditor — Tiptap editor for use inside Ant Design forms */
+.wrapper {
+  border: 1px solid var(--color-gray-300);
+  border-radius: 6px;
+  overflow: hidden;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.wrapper:focus-within {
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 2px rgba(0, 185, 107, 0.1);
+}
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px;
+  background: var(--color-background-tertiary);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.toolbarButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-gray-500);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.toolbarButton:hover {
+  background: var(--color-gray-200);
+  color: var(--color-text-heading);
+}
+
+.toolbarButtonActive {
+  background: var(--color-primary-100);
+  color: var(--color-primary-600);
+}
+
+.toolbarButtonActive:hover {
+  background: var(--color-primary-200);
+  color: var(--color-primary-700);
+}
+
+.toolbarDivider {
+  width: 1px;
+  height: 18px;
+  background: var(--color-gray-300);
+  margin: 0 4px;
+}
+
+/* Editor area */
+.editor {
+  padding: 8px 12px;
+  min-height: 80px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Tiptap content */
+.editor :global(.tiptap) {
+  outline: none;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  line-height: 1.6;
+}
+
+.editor :global(.tiptap p) {
+  margin: 0 0 var(--spacing-2) 0;
+}
+
+.editor :global(.tiptap p:last-child) {
+  margin-bottom: 0;
+}
+
+.editor :global(.tiptap ul),
+.editor :global(.tiptap ol) {
+  margin: var(--spacing-2) 0;
+  padding-left: 20px;
+}
+
+.editor :global(.tiptap ul) {
+  list-style-type: disc;
+}
+
+.editor :global(.tiptap ol) {
+  list-style-type: decimal;
+}
+
+.editor :global(.tiptap li) {
+  margin-bottom: var(--spacing-1);
+  display: list-item;
+}
+
+.editor :global(.tiptap li p) {
+  margin: 0;
+  display: inline;
+}
+
+.editor :global(.tiptap strong) {
+  font-weight: var(--font-weight-semibold);
+}
+
+.editor :global(.tiptap em) {
+  font-style: italic;
+}
+
+.editor :global(.tiptap u) {
+  text-decoration: underline;
+}
+
+.editor :global(.tiptap s) {
+  text-decoration: line-through;
+  color: var(--color-gray-500);
+}
+
+/* Placeholder */
+.editor :global(.tiptap p.is-editor-empty:first-child::before) {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--color-gray-400);
+  pointer-events: none;
+  height: 0;
+  font-style: italic;
+}

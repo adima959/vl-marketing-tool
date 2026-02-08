@@ -1,0 +1,23 @@
+/* Pipeline page */
+.container {
+  padding: var(--spacing-4) var(--spacing-5);
+  background: #f0f2f5;
+  min-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.manageLink {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-gray-500);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
+.manageLink:hover {
+  color: var(--color-gray-800);
+}

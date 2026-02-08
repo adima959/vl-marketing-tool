@@ -7,6 +7,12 @@ export type Geography = 'NO' | 'SE' | 'DK';
 export type AssetType = 'landing_page' | 'text_ad' | 'brief' | 'research';
 export type CreativeFormat = 'ugc_video' | 'static_image' | 'video';
 
+// Pipeline types
+export type PipelineStage = 'backlog' | 'production' | 'testing' | 'verdict' | 'winner' | 'retired';
+export type VerdictType = 'kill' | 'iterate' | 'scale' | 'expand';
+export type Channel = 'meta' | 'google' | 'taboola' | 'other';
+export type CampaignStatus = 'active' | 'paused' | 'stopped';
+
 // Status display configuration
 export const STATUS_CONFIG: Record<AngleStatus, { label: string; color: string; bgColor: string }> = {
   idea: { label: 'Idea', color: '#6b7280', bgColor: '#f3f4f6' },
@@ -40,6 +46,33 @@ export const CREATIVE_FORMAT_CONFIG: Record<CreativeFormat, { label: string; ico
   video: { label: 'Video', icon: 'Film' },
 };
 
+// Pipeline stage display configuration
+export const PIPELINE_STAGE_CONFIG: Record<PipelineStage, { label: string; color: string; bgColor: string; description: string }> = {
+  backlog: { label: 'Backlog', color: '#6b7280', bgColor: '#f3f4f6', description: 'Raw message ideas waiting to be developed' },
+  production: { label: 'Production', color: '#d97706', bgColor: '#fef3c7', description: 'Assets and creatives are being produced' },
+  testing: { label: 'Testing', color: '#2563eb', bgColor: '#dbeafe', description: 'Live campaigns running, gathering spend and conversion data' },
+  verdict: { label: 'Verdict', color: '#ea580c', bgColor: '#fff7ed', description: 'Spend threshold reached — decide to scale, iterate, or kill' },
+  winner: { label: 'Winner', color: '#059669', bgColor: '#d1fae5', description: 'Proven message scaled across geos and channels' },
+  retired: { label: 'Retired', color: '#9ca3af', bgColor: '#e5e7eb', description: 'Killed or replaced by a newer iteration' },
+};
+
+export const PIPELINE_STAGES_ORDER: PipelineStage[] = [
+  'backlog', 'production', 'testing', 'verdict', 'winner', 'retired',
+];
+
+export const CHANNEL_CONFIG: Record<Channel, { label: string; shortLabel: string }> = {
+  meta: { label: 'Meta', shortLabel: 'M' },
+  google: { label: 'Google', shortLabel: 'G' },
+  taboola: { label: 'Taboola', shortLabel: 'T' },
+  other: { label: 'Other', shortLabel: 'O' },
+};
+
+export const CAMPAIGN_STATUS_CONFIG: Record<CampaignStatus, { label: string; color: string; bgColor: string }> = {
+  active: { label: 'Active', color: '#059669', bgColor: '#d1fae5' },
+  paused: { label: 'Paused', color: '#d97706', bgColor: '#fef3c7' },
+  stopped: { label: 'Stopped', color: '#dc2626', bgColor: '#fee2e2' },
+};
+
 // Base entity with common fields
 interface BaseEntity {
   id: string;
@@ -57,13 +90,18 @@ export interface TrackerUser extends BaseEntity {
 // Product
 export interface Product extends BaseEntity {
   name: string;
+  sku?: string;
   description?: string;
   notes?: string;
+  color?: string;
   status: ProductStatus;
   ownerId: string;
   owner?: TrackerUser;
   angleCount?: number;
   activeAngleCount?: number;
+  cpaTargetNo?: number;
+  cpaTargetSe?: number;
+  cpaTargetDk?: number;
 }
 
 // Angle (simplified from MainAngle - acts as a problem area folder)
@@ -95,6 +133,14 @@ export interface Message extends BaseEntity {
   creativeCount?: number;
   assetsByGeo?: Record<Geography, Asset[]>;
   creativesByGeo?: Record<Geography, Creative[]>;
+  // Pipeline fields
+  pipelineStage?: PipelineStage;
+  verdictType?: VerdictType;
+  verdictNotes?: string;
+  parentMessageId?: string;
+  spendThreshold?: number;
+  version?: number;
+  notes?: string;
 }
 
 // Creative (NEW - separated from Assets)
@@ -121,7 +167,7 @@ export interface Asset extends BaseEntity {
 
 // Activity Log
 export type ActivityAction = 'created' | 'updated' | 'deleted';
-export type EntityType = 'product' | 'angle' | 'message' | 'asset' | 'creative';
+export type EntityType = 'product' | 'angle' | 'message' | 'asset' | 'creative' | 'campaign' | 'pipeline_message' | 'pipeline_angle';
 
 export interface ActivityLog extends BaseEntity {
   userId: string;
@@ -136,8 +182,10 @@ export interface ActivityLog extends BaseEntity {
 // API Request/Response types
 export interface CreateProductRequest {
   name: string;
+  sku?: string;
   description?: string;
   notes?: string;
+  color?: string;
   status?: ProductStatus;
   ownerId: string;
 }
@@ -190,6 +238,70 @@ export interface ProductWithStats extends Product {
 export interface DashboardData {
   products: ProductWithStats[];
   users: TrackerUser[];
+}
+
+// Campaign (message × channel × GEO instance)
+export interface Campaign {
+  id: string;
+  messageId: string;
+  channel: Channel;
+  geo: Geography;
+  externalId?: string;
+  externalUrl?: string;
+  status: CampaignStatus;
+  spend: number;
+  conversions: number;
+  cpa?: number;
+  lastDataUpdate?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Pipeline board card (aggregated view of a message)
+export interface PipelineCard {
+  id: string;
+  name: string;
+  pipelineStage: PipelineStage;
+  productId: string;
+  productName: string;
+  productColor?: string;
+  angleId: string;
+  angleName: string;
+  ownerId: string;
+  ownerName: string;
+  totalSpend: number;
+  blendedCpa?: number;
+  activeCampaignCount: number;
+  campaigns: Campaign[];
+  verdictType?: VerdictType;
+  parentMessageId?: string;
+  version: number;
+  spendThreshold: number;
+  updatedAt: string;
+}
+
+export interface CreateCampaignRequest {
+  messageId: string;
+  channel: Channel;
+  geo: Geography;
+  externalId?: string;
+  externalUrl?: string;
+}
+
+// Pipeline summary stats
+export interface PipelineSummary {
+  totalSpend: number;
+  verdictsPending: number;
+  winnerCount: number;
+  totalMessages: number;
+}
+
+// Full message detail for the panel (message + related data)
+export interface MessageDetail extends Message {
+  product?: Product;
+  angle?: Angle;
+  owner?: TrackerUser;
+  campaigns: Campaign[];
 }
 
 // Legacy type aliases for backward compatibility during migration

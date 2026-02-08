@@ -63,6 +63,7 @@ export async function PATCH(
     const updated = await updatePipelineMessage(messageId, {
       name: body.name,
       description: body.description,
+      angleId: body.angleId,
       specificPainPoint: body.specificPainPoint,
       corePromise: body.corePromise,
       keyIdea: body.keyIdea,

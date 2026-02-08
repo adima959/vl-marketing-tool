@@ -55,8 +55,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Create the product in the database
     const newProduct = await createProduct({
       name: body.name,
+      sku: body.sku,
       description: body.description,
       notes: body.notes,
+      color: body.color,
       status: body.status,
       ownerId: body.ownerId,
     });

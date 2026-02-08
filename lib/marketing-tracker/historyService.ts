@@ -54,6 +54,8 @@ const SKIP_FIELDS = new Set([
   'messageCount',
   'assetCount', 'creativeCount',
   'assetsByGeo', 'creativesByGeo',
+  // Pipeline message nested objects (derived from JOINs/subqueries)
+  'angle', 'product', 'campaigns', 'assets', 'creatives', 'versions',
 ]);
 
 // Derived field names to filter out of history queries (cleans up old data)
@@ -63,6 +65,7 @@ const DERIVED_FIELD_NAMES = [
   'messageCount',
   'assetCount', 'creativeCount',
   'assetsByGeo', 'creativesByGeo',
+  'angle', 'product', 'campaigns', 'assets', 'creatives', 'versions',
 ];
 
 // ============================================================================

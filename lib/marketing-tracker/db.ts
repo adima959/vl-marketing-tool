@@ -75,8 +75,10 @@ export async function getProducts(statusFilter?: ProductStatus | null): Promise<
     SELECT
       p.id,
       p.name,
+      p.sku,
       p.description,
       p.notes,
+      p.color,
       p.status,
       p.owner_id,
       p.created_at,
@@ -119,8 +121,10 @@ export async function getProductById(id: string): Promise<Product | null> {
     SELECT
       p.id,
       p.name,
+      p.sku,
       p.description,
       p.notes,
+      p.color,
       p.status,
       p.owner_id,
       p.created_at,
@@ -162,8 +166,10 @@ export async function getProductByIdSimple(id: string): Promise<Product | null> 
     SELECT
       p.id,
       p.name,
+      p.sku,
       p.description,
       p.notes,
+      p.color,
       p.status,
       p.owner_id,
       p.created_at,
@@ -198,15 +204,17 @@ export async function getProductByIdSimple(id: string): Promise<Product | null> 
  */
 export async function createProduct(data: CreateProductData): Promise<Product> {
   const query = `
-    INSERT INTO app_products (name, description, notes, status, owner_id)
-    VALUES ($1, $2, $3, $4, $5)
-    RETURNING id, name, description, notes, status, owner_id, created_at, updated_at
+    INSERT INTO app_products (name, sku, description, notes, color, status, owner_id)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    RETURNING id, name, sku, description, notes, color, status, owner_id, created_at, updated_at
   `;
 
   const rows = await executeQuery<Record<string, unknown>>(query, [
     data.name,
+    data.sku || null,
     data.description || null,
     data.notes || null,
+    data.color || null,
     data.status || 'active',
     data.ownerId,
   ]);
@@ -230,6 +238,10 @@ export async function updateProduct(id: string, data: UpdateProductData): Promis
     setClauses.push(`name = $${paramIndex++}`);
     values.push(data.name);
   }
+  if (data.sku !== undefined) {
+    setClauses.push(`sku = $${paramIndex++}`);
+    values.push(data.sku);
+  }
   if (data.description !== undefined) {
     setClauses.push(`description = $${paramIndex++}`);
     values.push(data.description);
@@ -237,6 +249,10 @@ export async function updateProduct(id: string, data: UpdateProductData): Promis
   if (data.notes !== undefined) {
     setClauses.push(`notes = $${paramIndex++}`);
     values.push(data.notes);
+  }
+  if (data.color !== undefined) {
+    setClauses.push(`color = $${paramIndex++}`);
+    values.push(data.color);
   }
   if (data.status !== undefined) {
     setClauses.push(`status = $${paramIndex++}`);
@@ -261,7 +277,7 @@ export async function updateProduct(id: string, data: UpdateProductData): Promis
     UPDATE app_products
     SET ${setClauses.join(', ')}
     WHERE id = $${paramIndex} AND deleted_at IS NULL
-    RETURNING id, name, description, notes, status, owner_id, created_at, updated_at
+    RETURNING id, name, sku, description, notes, color, status, owner_id, created_at, updated_at
   `;
 
   const rows = await executeQuery<Record<string, unknown>>(query, values);

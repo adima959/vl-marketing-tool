@@ -10,6 +10,7 @@ import {
   LogOut,
   ClipboardCheck,
   Settings,
+  Kanban,
 } from "lucide-react"
 import { usePathname } from "next/navigation"
 
@@ -86,6 +87,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "Marketing Tracker",
       url: "/marketing-tracker",
       icon: Target,
+    },
+    {
+      title: "Pipeline",
+      url: "/marketing-pipeline",
+      icon: Kanban,
     },
   ];
 

@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Modal, Form, Input, Select, message } from 'antd';
+import { App, Modal, Form, Input, Select } from 'antd';
 import type { Angle, AngleStatus } from '@/types';
-
-const { TextArea } = Input;
+import { FormRichEditor } from '@/components/ui/FormRichEditor';
+import modalStyles from '@/styles/components/modal.module.css';
 
 interface AngleModalProps {
   open: boolean;
@@ -30,6 +30,7 @@ const statusOptions = [
 
 export function AngleModal({ open, onClose, onSuccess, productId, angle }: AngleModalProps) {
   const [form] = Form.useForm<AngleFormValues>();
+  const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const isEdit = !!angle;
 
@@ -88,6 +89,8 @@ export function AngleModal({ open, onClose, onSuccess, productId, angle }: Angle
       okText={isEdit ? 'Save Changes' : 'Create Angle'}
       confirmLoading={loading}
       destroyOnHidden
+      width={520}
+      className={modalStyles.modal}
     >
       <Form
         form={form}
@@ -95,31 +98,27 @@ export function AngleModal({ open, onClose, onSuccess, productId, angle }: Angle
         onFinish={handleSubmit}
         style={{ marginTop: 16 }}
       >
-        <Form.Item
-          name="name"
-          label="Angle Name"
-          rules={[{ required: true, message: 'Please enter an angle name' }]}
-        >
-          <Input placeholder="e.g., Joint Pain & Daily Life" />
-        </Form.Item>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+          <Form.Item
+            name="name"
+            label="Angle Name"
+            rules={[{ required: true, message: 'Please enter an angle name' }]}
+          >
+            <Input placeholder="e.g., Joint Pain & Daily Life" />
+          </Form.Item>
 
-        <Form.Item
-          name="description"
-          label="Description"
-        >
-          <TextArea
-            placeholder="Brief description of the problem area..."
-            rows={3}
-          />
-        </Form.Item>
+          <Form.Item
+            name="status"
+            label="Status"
+            rules={[{ required: true }]}
+          >
+            <Select options={statusOptions} />
+          </Form.Item>
 
-        <Form.Item
-          name="status"
-          label="Status"
-          rules={[{ required: true }]}
-        >
-          <Select options={statusOptions} />
-        </Form.Item>
+          <Form.Item name="description" label="Description" style={{ gridColumn: '1 / -1' }}>
+            <FormRichEditor placeholder="Brief description of the problem area..." />
+          </Form.Item>
+        </div>
       </Form>
     </Modal>
   );

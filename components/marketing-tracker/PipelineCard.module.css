@@ -1,0 +1,234 @@
+/* Pipeline Card */
+.card {
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-gray-200);
+  border-left: 3px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.card:hover {
+  border-color: var(--color-gray-300);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.card:hover .hoverContent {
+  display: block;
+}
+
+.card:hover .stageAction {
+  opacity: 1;
+}
+
+/* Stage-specific left border + card tint */
+.cardBacklog { border-left-color: #9ca3af; }
+.cardBriefed { border-left-color: #6366f1; }
+.cardProduction { border-left-color: #d97706; }
+.cardTesting { border-left-color: #2563eb; }
+.cardVerdict {
+  border-left-color: #ea580c;
+  background: #fffbf5;
+}
+.cardWinner {
+  border-left-color: #059669;
+  background: #f8fdfb;
+}
+.cardRetired {
+  border-left-color: #d1d5db;
+  opacity: 0.6;
+}
+.cardRetired:hover {
+  opacity: 0.85;
+}
+
+/* Concept name */
+.conceptName {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-gray-900);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+/* Tag pills */
+.tags {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.productTag {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-primary-800);
+  background: var(--color-primary-100);
+  padding: 2px 7px;
+  border-radius: 3px;
+  line-height: 16px;
+  letter-spacing: 0.1px;
+  align-self: flex-start;
+}
+
+.angleTag {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-gray-500);
+  background: none;
+  padding: 0 2px;
+  line-height: 16px;
+}
+
+/* Metrics line */
+.metrics {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.spend {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-gray-800);
+  font-variant-numeric: tabular-nums;
+}
+
+.separator {
+  font-size: 11px;
+  color: var(--color-gray-400);
+}
+
+.cpa {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cpaGreen { color: #047857; }
+.cpaYellow { color: #b45309; }
+.cpaRed { color: #b91c1c; }
+.cpaNone { color: var(--color-gray-500); }
+
+/* CPA health dot */
+.cpaDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.cpaDot.green { background: #059669; }
+.cpaDot.yellow { background: #d97706; }
+.cpaDot.red { background: #dc2626; }
+
+/* Bottom row */
+.bottomRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.campaignCount {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-gray-600);
+}
+
+.versionBadge {
+  font-size: 10px;
+  font-weight: 700;
+  color: #4338ca;
+  background: #eef2ff;
+  padding: 1px 6px;
+  border-radius: 3px;
+  line-height: 17px;
+}
+
+/* Verdict banner */
+.verdictBanner {
+  background: #ea580c;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  margin-top: 8px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* Hover content */
+.hoverContent {
+  display: none;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-gray-100);
+}
+
+/* Channel x GEO matrix */
+.matrix {
+  display: grid;
+  grid-template-columns: 24px repeat(auto-fill, 24px);
+  gap: 3px;
+  font-size: 10px;
+  margin-bottom: 8px;
+}
+
+.matrixHeader {
+  font-weight: 600;
+  color: var(--color-gray-600);
+  text-align: center;
+  font-size: 10px;
+}
+
+.matrixLabel {
+  font-weight: 600;
+  color: var(--color-gray-600);
+  text-align: center;
+  line-height: 20px;
+  font-size: 10px;
+}
+
+.matrixCell {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-gray-50);
+  border-radius: 3px;
+}
+
+.matrixDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.matrixDot.green { background: #059669; }
+.matrixDot.yellow { background: #d97706; }
+.matrixDot.red { background: #dc2626; }
+
+.matrixEmpty {
+  font-size: 9px;
+  color: var(--color-gray-300);
+  text-align: center;
+}
+
+/* Stage change action */
+.stageAction {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  margin-top: 4px;
+}

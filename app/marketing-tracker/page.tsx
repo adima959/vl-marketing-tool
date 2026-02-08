@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Spin, Empty, Button, Table, Avatar, Radio } from 'antd';
+import { Spin, Empty, Button, Table, Avatar, Radio, Alert } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { Target, Package, Trash2 } from 'lucide-react';
 import Link from 'next/link';
@@ -176,6 +176,13 @@ export default function MarketingTrackerDashboard() {
 
   return (
     <>
+      <Alert
+        message={<span style={{ color: '#d32f2f' }}>This page is still under development — feel free to explore, but nothing here is final.</span>}
+        type="warning"
+        banner
+        showIcon={false}
+        style={{ textAlign: 'center' }}
+      />
       <PageHeader
         title="Marketing Tracker"
         icon={<Target className="h-5 w-5" />}

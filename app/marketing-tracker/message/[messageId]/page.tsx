@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import { Spin, Empty, Button, Modal, Tabs, message as antMessage } from 'antd';
+import { App, Spin, Empty, Button, Modal, Tabs } from 'antd';
 import { PlusOutlined, EditOutlined, ExportOutlined, LinkOutlined, CheckOutlined, DeleteOutlined } from '@ant-design/icons';
 import { Target, ChevronRight, Globe, FileText, ExternalLink, Lightbulb, MessageSquare, Video } from 'lucide-react';
 import Link from 'next/link';
@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge, AssetTypeIcon, AssetModal, CreativeModal } from '@/components/marketing-tracker';
 import { EditableField } from '@/components/ui/EditableField';
 import { EditableTags } from '@/components/ui/EditableTags';
+import modalStyles from '@/styles/components/modal.module.css';
 import { useMarketingTrackerStore } from '@/stores/marketingTrackerStore';
 import {
   GEO_CONFIG,
@@ -35,6 +36,7 @@ export default function MessagePage() {
     updateMessageStatus,
     updateMessageField,
   } = useMarketingTrackerStore();
+  const { message: antMessage, modal } = App.useApp();
 
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [selectedCreative, setSelectedCreative] = useState<Creative | null>(null);
@@ -310,6 +312,7 @@ export default function MessagePage() {
                 onChange={(v) => handleFieldChange('specificPainPoint', v)}
                 placeholder="Add a pain point..."
                 quoted
+                multiline
               />
             </div>
 
@@ -323,6 +326,7 @@ export default function MessagePage() {
                 onChange={(v) => handleFieldChange('corePromise', v)}
                 placeholder="Add a core promise..."
                 quoted
+                multiline
               />
             </div>
 
@@ -335,6 +339,7 @@ export default function MessagePage() {
                 value={keyIdea}
                 onChange={(v) => handleFieldChange('keyIdea', v)}
                 placeholder="Add a key idea..."
+                multiline
               />
             </div>
 
@@ -347,6 +352,7 @@ export default function MessagePage() {
                 value={hookDirection}
                 onChange={(v) => handleFieldChange('primaryHookDirection', v)}
                 placeholder="Add a hook direction..."
+                multiline
               />
             </div>
           </div>
@@ -544,6 +550,7 @@ export default function MessagePage() {
         title={selectedAsset?.name}
         open={assetDetailOpen}
         onCancel={closeAssetDetail}
+        className={modalStyles.modal}
         footer={[
           selectedAsset?.url && (
             <Button key="open" type="primary" icon={<ExportOutlined />} href={selectedAsset.url} target="_blank">
@@ -557,7 +564,7 @@ export default function MessagePage() {
             key="delete"
             danger
             icon={<DeleteOutlined />}
-            onClick={() => selectedAsset && Modal.confirm({
+            onClick={() => selectedAsset && modal.confirm({
               title: 'Delete Asset',
               content: `Are you sure you want to delete "${selectedAsset.name}"?`,
               okText: 'Delete',
@@ -625,6 +632,7 @@ export default function MessagePage() {
         title={selectedCreative?.name}
         open={creativeDetailOpen}
         onCancel={closeCreativeDetail}
+        className={modalStyles.modal}
         footer={[
           selectedCreative?.url && (
             <Button key="open" type="primary" icon={<ExportOutlined />} href={selectedCreative.url} target="_blank">
@@ -638,7 +646,7 @@ export default function MessagePage() {
             key="delete"
             danger
             icon={<DeleteOutlined />}
-            onClick={() => selectedCreative && Modal.confirm({
+            onClick={() => selectedCreative && modal.confirm({
               title: 'Delete Creative',
               content: `Are you sure you want to delete "${selectedCreative.name}"?`,
               okText: 'Delete',

@@ -61,6 +61,7 @@ export interface PipelineBoardResult {
 export type UpdatePipelineMessageData = Partial<{
   name: string;
   description: string;
+  angleId: string;
   specificPainPoint: string;
   corePromise: string;
   keyIdea: string;
@@ -106,6 +107,7 @@ export async function getPipelineBoard(filters: PipelineBoardFilters): Promise<P
       a.name AS angle_name,
       a.product_id,
       p.name AS product_name,
+      p.color AS product_color,
       p.owner_id,
       u.name AS owner_name
     FROM app_pipeline_messages m
@@ -159,6 +161,7 @@ export async function getPipelineBoard(filters: PipelineBoardFilters): Promise<P
       pipelineStage: row.pipeline_stage as PipelineStage,
       productId: row.product_id as string,
       productName: row.product_name as string,
+      productColor: (row.product_color as string) || undefined,
       angleId: row.angle_id as string,
       angleName: row.angle_name as string,
       ownerId: row.owner_id as string,
@@ -330,6 +333,7 @@ export async function updatePipelineMessage(id: string, data: UpdatePipelineMess
   const fieldMap: Record<string, string> = {
     name: 'name',
     description: 'description',
+    angleId: 'angle_id',
     specificPainPoint: 'specific_pain_point',
     corePromise: 'core_promise',
     keyIdea: 'key_idea',
@@ -618,7 +622,7 @@ export async function updateProductCpaTargets(
 
   if (setClauses.length === 0) {
     const existing = await executeQuery<Record<string, unknown>>(`
-      SELECT id, name, description, owner_id, cpa_target_no, cpa_target_se, cpa_target_dk,
+      SELECT id, name, description, color, owner_id, cpa_target_no, cpa_target_se, cpa_target_dk,
              created_at, updated_at
       FROM app_products WHERE id = $1 AND deleted_at IS NULL
     `, [id]);
@@ -633,7 +637,7 @@ export async function updateProductCpaTargets(
     UPDATE app_products
     SET ${setClauses.join(', ')}
     WHERE id = $${paramIndex} AND deleted_at IS NULL
-    RETURNING id, name, description, owner_id, cpa_target_no, cpa_target_se, cpa_target_dk,
+    RETURNING id, name, description, color, owner_id, cpa_target_no, cpa_target_se, cpa_target_dk,
               created_at, updated_at
   `, values);
 
@@ -648,6 +652,23 @@ export async function updateProductCpaTargets(
 
 export async function getPipelineAngles(productId?: string): Promise<Angle[]> {
   return fetchPipelineAngles(productId);
+}
+
+export async function deletePipelineAngle(id: string): Promise<void> {
+  await executeQuery(`
+    UPDATE app_pipeline_angles
+    SET deleted_at = NOW(), updated_at = NOW()
+    WHERE id = $1 AND deleted_at IS NULL
+  `, [id]);
+}
+
+export async function getAngleMessageCount(angleId: string): Promise<number> {
+  const rows = await executeQuery<{ count: string }>(`
+    SELECT COUNT(*)::text AS count
+    FROM app_pipeline_messages
+    WHERE angle_id = $1 AND deleted_at IS NULL
+  `, [angleId]);
+  return parseInt(rows[0].count, 10);
 }
 
 export async function createPipelineAngle(data: { productId: string; name: string; description?: string }): Promise<Angle> {
@@ -738,7 +759,7 @@ async function fetchUsers(): Promise<TrackerUser[]> {
 
 async function fetchProductsWithCpa(productId?: string): Promise<Product[]> {
   const rows = await executeQuery<Record<string, unknown>>(`
-    SELECT id, name, description, owner_id, cpa_target_no, cpa_target_se, cpa_target_dk,
+    SELECT id, name, description, color, owner_id, cpa_target_no, cpa_target_se, cpa_target_dk,
            created_at, updated_at
     FROM app_products
     WHERE deleted_at IS NULL
@@ -750,11 +771,12 @@ async function fetchProductsWithCpa(productId?: string): Promise<Product[]> {
 
 async function fetchPipelineAngles(productId?: string): Promise<Angle[]> {
   const rows = await executeQuery<Record<string, unknown>>(`
-    SELECT id, product_id, name, description, status, created_at, updated_at
-    FROM app_pipeline_angles
-    WHERE deleted_at IS NULL
-      AND ($1::uuid IS NULL OR product_id = $1)
-    ORDER BY name
+    SELECT a.id, a.product_id, a.name, a.description, a.status, a.created_at, a.updated_at,
+           (SELECT COUNT(*) FROM app_pipeline_messages m WHERE m.angle_id = a.id AND m.deleted_at IS NULL)::int AS message_count
+    FROM app_pipeline_angles a
+    WHERE a.deleted_at IS NULL
+      AND ($1::uuid IS NULL OR a.product_id = $1)
+    ORDER BY a.name
   `, [productId || null]);
   return rowsToCamelCase<Angle>(rows);
 }
