@@ -8,11 +8,15 @@ import styles from './PipelineBoard.module.css';
 
 function getColumnHeaderClass(stage: PipelineStage): string {
   switch (stage) {
-    case 'verdict': return `${styles.columnHeader} ${styles.columnHeaderVerdict}`;
-    case 'winner': return `${styles.columnHeader} ${styles.columnHeaderWinner}`;
+    case 'scaling': return `${styles.columnHeader} ${styles.columnHeaderScaling}`;
     case 'retired': return `${styles.columnHeader} ${styles.columnHeaderRetired}`;
     default: return `${styles.columnHeader} ${styles.columnHeaderDefault}`;
   }
+}
+
+function getColumnClass(stage: PipelineStage): string {
+  const stageClass = styles[`column${stage.charAt(0).toUpperCase()}${stage.slice(1)}`] as string | undefined;
+  return stageClass ? `${styles.column} ${stageClass}` : styles.column;
 }
 
 export function PipelineBoard() {
@@ -34,7 +38,7 @@ export function PipelineBoard() {
           const cards = stages[stage] || [];
 
           return (
-            <div key={stage} className={styles.column}>
+            <div key={stage} className={getColumnClass(stage)}>
               <div className={getColumnHeaderClass(stage)}>
                 <span
                   className={styles.columnAccent}

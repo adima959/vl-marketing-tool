@@ -14,8 +14,10 @@ import type {
   Asset,
   Creative,
   MessageDetail,
+  MessageGeo,
   Channel,
   Geography,
+  GeoStage,
   VerdictType,
   CreateCampaignRequest,
 } from '@/types';
@@ -147,7 +149,23 @@ export async function getPipelineBoard(filters: PipelineBoardFilters): Promise<P
     campaignsByMessage[c.messageId].push(c);
   }
 
-  // 3. Build PipelineCard objects
+  // 3. Fetch message geos for these messages
+  const geoRows = await executeQuery<Record<string, unknown>>(`
+    SELECT id, message_id, geo, stage, is_primary, launched_at,
+           spend_threshold, notes, created_at, updated_at
+    FROM app_pipeline_message_geos
+    WHERE message_id = ANY($1) AND deleted_at IS NULL
+    ORDER BY is_primary DESC, geo
+  `, [messageIds]);
+
+  const messageGeos = rowsToCamelCase<MessageGeo>(geoRows);
+  const geosByMessage: Record<string, MessageGeo[]> = {};
+  for (const g of messageGeos) {
+    if (!geosByMessage[g.messageId]) geosByMessage[g.messageId] = [];
+    geosByMessage[g.messageId].push(g);
+  }
+
+  // 4. Build PipelineCard objects
   let cards: PipelineCard[] = messageRows.map(row => {
     const msgCampaigns = campaignsByMessage[row.id as string] || [];
     const activeCampaigns = msgCampaigns.filter(c => c.status === 'active');
@@ -170,6 +188,7 @@ export async function getPipelineBoard(filters: PipelineBoardFilters): Promise<P
       blendedCpa,
       activeCampaignCount: activeCampaigns.length,
       campaigns: msgCampaigns,
+      geos: geosByMessage[row.id as string] || [],
       verdictType: row.verdict_type as VerdictType | undefined,
       parentMessageId: row.parent_message_id as string | undefined,
       version: (row.version as number) || 1,
@@ -178,7 +197,7 @@ export async function getPipelineBoard(filters: PipelineBoardFilters): Promise<P
     };
   });
 
-  // 4. Apply channel/geo filters in JS (these depend on campaign data)
+  // 5. Apply channel/geo filters in JS (these depend on campaign data)
   if (filters.channels && filters.channels.length > 0) {
     cards = cards.filter(card => {
       if (card.campaigns.length === 0) return true;
@@ -192,7 +211,7 @@ export async function getPipelineBoard(filters: PipelineBoardFilters): Promise<P
     });
   }
 
-  // 5. Fetch filter dropdown data in parallel
+  // 6. Fetch filter dropdown data in parallel
   const [users, products, angles] = await Promise.all([
     fetchUsers(), fetchProductsWithCpa(), fetchPipelineAngles(),
   ]);
@@ -290,8 +309,8 @@ export async function getPipelineMessageDetail(id: string): Promise<MessageDetai
     };
   }
 
-  // Fetch campaigns, assets, creatives in parallel
-  const [campaignRows, assetRows, creativeRows] = await Promise.all([
+  // Fetch campaigns, assets, creatives, geos in parallel
+  const [campaignRows, assetRows, creativeRows, geoRows] = await Promise.all([
     executeQuery<Record<string, unknown>>(`
       SELECT id, message_id, channel, geo, status, spend, conversions, cpa,
              external_id, external_url, last_data_update, created_at, updated_at
@@ -311,11 +330,19 @@ export async function getPipelineMessageDetail(id: string): Promise<MessageDetai
       WHERE message_id = $1 AND deleted_at IS NULL
       ORDER BY geo, format
     `, [id]),
+    executeQuery<Record<string, unknown>>(`
+      SELECT id, message_id, geo, stage, is_primary, launched_at,
+             spend_threshold, notes, created_at, updated_at
+      FROM app_pipeline_message_geos
+      WHERE message_id = $1 AND deleted_at IS NULL
+      ORDER BY is_primary DESC, geo
+    `, [id]),
   ]);
 
   message.campaigns = rowsToCamelCase<Campaign>(campaignRows);
   message.assets = rowsToCamelCase<Asset>(assetRows);
   message.creatives = rowsToCamelCase<Creative>(creativeRows);
+  message.geos = rowsToCamelCase<MessageGeo>(geoRows);
 
   return message;
 }
@@ -405,14 +432,20 @@ export async function movePipelineMessage(
       WHERE id = $1 AND deleted_at IS NULL
     `, [id, verdictNotes || null]);
 
-    // 3. Stop active campaigns
+    // 3. Stop active campaigns + pause all geos
     await executeQuery(`
       UPDATE app_pipeline_campaigns
       SET status = 'stopped', updated_at = NOW()
       WHERE message_id = $1 AND status = 'active' AND deleted_at IS NULL
     `, [id]);
 
-    // 4. Clone as v2 in backlog
+    await executeQuery(`
+      UPDATE app_pipeline_message_geos
+      SET stage = 'paused', updated_at = NOW()
+      WHERE message_id = $1 AND deleted_at IS NULL
+    `, [id]);
+
+    // 4. Clone as v2 in backlog (no geos copied — new message starts fresh)
     const newVersion = ((orig.version as number) || 1) + 1;
     const newName = `${orig.name} v${newVersion}`;
     const cloneRows = await executeQuery<{ id: string }>(`
@@ -432,7 +465,7 @@ export async function movePipelineMessage(
     return { success: true, newMessageId: cloneRows[0].id };
 
   } else if (verdictType === 'kill') {
-    // Retire + stop campaigns
+    // Retire + stop campaigns + pause all geos
     await executeQuery(`
       UPDATE app_pipeline_messages
       SET pipeline_stage = 'retired', status = 'retired',
@@ -446,10 +479,16 @@ export async function movePipelineMessage(
       WHERE message_id = $1 AND status = 'active' AND deleted_at IS NULL
     `, [id]);
 
+    await executeQuery(`
+      UPDATE app_pipeline_message_geos
+      SET stage = 'paused', updated_at = NOW()
+      WHERE message_id = $1 AND deleted_at IS NULL
+    `, [id]);
+
     return { success: true };
 
   } else {
-    // Simple move (scale/expand → winner, or any other stage move)
+    // Simple stage move (e.g. production → testing, testing → scaling)
     const updateFields: string[] = ['pipeline_stage = $2', 'updated_at = NOW()'];
     const updateValues: unknown[] = [id, targetStage];
     let paramIdx = 3;
@@ -705,6 +744,83 @@ export async function createPipelineMessage(data: {
 export async function deletePipelineMessage(id: string): Promise<void> {
   await executeQuery(`
     UPDATE app_pipeline_messages
+    SET deleted_at = NOW(), updated_at = NOW()
+    WHERE id = $1 AND deleted_at IS NULL
+  `, [id]);
+}
+
+
+// ════════════════════════════════════════════════════════════════════
+// Message Geo CRUD
+// ════════════════════════════════════════════════════════════════════
+
+export async function addMessageGeo(data: {
+  messageId: string;
+  geo: Geography;
+  isPrimary?: boolean;
+  spendThreshold?: number;
+}): Promise<MessageGeo> {
+  const rows = await executeQuery<Record<string, unknown>>(`
+    INSERT INTO app_pipeline_message_geos (message_id, geo, is_primary, spend_threshold)
+    VALUES ($1, $2, $3, $4)
+    RETURNING id, message_id, geo, stage, is_primary, launched_at,
+              spend_threshold, notes, created_at, updated_at
+  `, [data.messageId, data.geo, data.isPrimary ?? false, data.spendThreshold ?? 300]);
+
+  return toCamelCase<MessageGeo>(rows[0]);
+}
+
+export async function updateMessageGeo(
+  id: string,
+  data: Partial<{ stage: GeoStage; spendThreshold: number; notes: string; launchedAt: string }>,
+): Promise<MessageGeo> {
+  const setClauses: string[] = [];
+  const values: unknown[] = [];
+  let paramIndex = 1;
+
+  const fieldMap: Record<string, string> = {
+    stage: 'stage',
+    spendThreshold: 'spend_threshold',
+    notes: 'notes',
+    launchedAt: 'launched_at',
+  };
+
+  for (const [jsKey, dbCol] of Object.entries(fieldMap)) {
+    const val = data[jsKey as keyof typeof data];
+    if (val !== undefined) {
+      setClauses.push(`${dbCol} = $${paramIndex++}`);
+      values.push(val);
+    }
+  }
+
+  if (setClauses.length === 0) {
+    const existing = await executeQuery<Record<string, unknown>>(`
+      SELECT id, message_id, geo, stage, is_primary, launched_at,
+             spend_threshold, notes, created_at, updated_at
+      FROM app_pipeline_message_geos WHERE id = $1 AND deleted_at IS NULL
+    `, [id]);
+    if (existing.length === 0) throw new Error(`MessageGeo not found: ${id}`);
+    return toCamelCase<MessageGeo>(existing[0]);
+  }
+
+  setClauses.push(`updated_at = NOW()`);
+  values.push(id);
+
+  const rows = await executeQuery<Record<string, unknown>>(`
+    UPDATE app_pipeline_message_geos
+    SET ${setClauses.join(', ')}
+    WHERE id = $${paramIndex} AND deleted_at IS NULL
+    RETURNING id, message_id, geo, stage, is_primary, launched_at,
+              spend_threshold, notes, created_at, updated_at
+  `, values);
+
+  if (rows.length === 0) throw new Error(`MessageGeo not found: ${id}`);
+  return toCamelCase<MessageGeo>(rows[0]);
+}
+
+export async function deleteMessageGeo(id: string): Promise<void> {
+  await executeQuery(`
+    UPDATE app_pipeline_message_geos
     SET deleted_at = NOW(), updated_at = NOW()
     WHERE id = $1 AND deleted_at IS NULL
   `, [id]);

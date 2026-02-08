@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { Modal, Input, Button, App, Tooltip } from 'antd';
+import { Input, Button, App } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { Trash2 } from 'lucide-react';
+import { Trash2, X } from 'lucide-react';
 import { usePipelineStore } from '@/stores/pipelineStore';
-import modalStyles from '@/styles/components/modal.module.css';
+import { SidebarModal } from '@/components/ui/SidebarModal';
 import styles from './AngleManagerModal.module.css';
 
 interface AngleManagerModalProps {
@@ -19,6 +19,7 @@ export function AngleManagerModal({ open, onClose }: AngleManagerModalProps) {
   const [newAngleName, setNewAngleName] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('');
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
   const anglesByProduct = useMemo(() => {
     const map: Record<string, typeof angles> = {};
@@ -29,8 +30,17 @@ export function AngleManagerModal({ open, onClose }: AngleManagerModalProps) {
   }, [products, angles]);
 
   const currentTab = activeTab || products[0]?.id || '';
-  const totalAngles = angles.length;
+  const currentProduct = products.find(p => p.id === currentTab);
   const currentAngles = anglesByProduct[currentTab] || [];
+
+  const sidebarItems = useMemo(() =>
+    products.map(p => ({
+      key: p.id,
+      label: p.name,
+      count: (anglesByProduct[p.id] || []).length,
+    })),
+    [products, anglesByProduct],
+  );
 
   const handleAdd = useCallback(async () => {
     const name = newAngleName.trim();
@@ -54,6 +64,7 @@ export function AngleManagerModal({ open, onClose }: AngleManagerModalProps) {
   const handleDelete = useCallback(async (angleId: string) => {
     const result = await deleteAngle(angleId);
     if (result.success) {
+      setConfirmingDeleteId(null);
       message.success('Angle removed');
     } else {
       message.error(result.error || 'Failed to remove angle');
@@ -63,74 +74,27 @@ export function AngleManagerModal({ open, onClose }: AngleManagerModalProps) {
   const switchTab = useCallback((productId: string) => {
     setActiveTab(productId);
     setNewAngleName('');
+    setConfirmingDeleteId(null);
   }, []);
 
   return (
-    <Modal
-      title="Manage Angles"
+    <SidebarModal
       open={open}
-      onCancel={onClose}
-      footer={null}
-      width={520}
-      destroyOnHidden
-      className={`${modalStyles.modal} ${styles.modal}`}
-    >
-      {/* Custom header */}
-      <div className={styles.header}>
-        <div className={styles.headerLeft}>
-          <span className={styles.title}>Manage Angles</span>
-          <span className={styles.subtitle}>{totalAngles} total</span>
-        </div>
-      </div>
-
-      {/* Custom tab bar */}
-      <div className={styles.tabBar}>
-        {products.map(product => {
-          const count = (anglesByProduct[product.id] || []).length;
-          const isActive = product.id === currentTab;
-          return (
-            <button
-              key={product.id}
-              className={`${styles.tab} ${isActive ? styles.tabActive : ''}`}
-              onClick={() => switchTab(product.id)}
-            >
-              {product.name}
-              <span className={styles.tabCount}>{count}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Tab content */}
-      <div className={styles.tabContent}>
-        {currentAngles.length === 0 ? (
-          <div className={styles.emptyState}>No angles yet — add one below</div>
-        ) : (
-          currentAngles.map(angle => (
-            <div key={angle.id} className={styles.angleRow}>
-              <span className={styles.angleName}>{angle.name}</span>
-              {(angle.messageCount ?? 0) > 0 ? (
-                <Tooltip title={`${angle.messageCount} message(s) — remove messages first`}>
-                  <button className={styles.angleDeleteBtn} disabled>
-                    <Trash2 size={14} />
-                  </button>
-                </Tooltip>
-              ) : (
-                <button
-                  className={styles.angleDeleteBtn}
-                  onClick={() => handleDelete(angle.id)}
-                  title="Remove angle"
-                >
-                  <Trash2 size={14} />
-                </button>
-              )}
-            </div>
-          ))
-        )}
+      onClose={onClose}
+      title="Manage Angles"
+      sidebar={{
+        title: 'Products',
+        items: sidebarItems,
+        activeKey: currentTab,
+        onSelect: switchTab,
+      }}
+      contentTitle={currentProduct?.name ?? 'Angles'}
+      contentExtra={`${currentAngles.length} angle${currentAngles.length !== 1 ? 's' : ''}`}
+      footer={
         <div className={styles.addRow}>
           <Input
             className={styles.addInput}
-            placeholder="Add new angle..."
+            placeholder="New angle name..."
             value={newAngleName}
             onChange={(e) => setNewAngleName(e.target.value)}
             onPressEnter={handleAdd}
@@ -146,7 +110,62 @@ export function AngleManagerModal({ open, onClose }: AngleManagerModalProps) {
             Add
           </Button>
         </div>
-      </div>
-    </Modal>
+      }
+    >
+      {currentAngles.length === 0 ? (
+        <div className={styles.emptyState}>
+          <div className={styles.emptyTitle}>No angles yet</div>
+          <div className={styles.emptyHint}>Add your first angle below to get started</div>
+        </div>
+      ) : (
+        currentAngles.map(angle => {
+          const isConfirming = confirmingDeleteId === angle.id;
+          const hasMessages = (angle.messageCount ?? 0) > 0;
+
+          if (isConfirming) {
+            return (
+              <div key={angle.id} className={`${styles.angleRow} ${styles.angleRowConfirm}`}>
+                <span className={styles.confirmText}>
+                  Delete &ldquo;{angle.name}&rdquo;?
+                </span>
+                <div className={styles.confirmActions}>
+                  <button
+                    className={styles.confirmYes}
+                    onClick={() => handleDelete(angle.id)}
+                  >
+                    Delete
+                  </button>
+                  <button
+                    className={styles.confirmCancel}
+                    onClick={() => setConfirmingDeleteId(null)}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div key={angle.id} className={styles.angleRow}>
+              <span className={styles.angleName}>{angle.name}</span>
+              {hasMessages && (
+                <span className={styles.angleMsgCount}>
+                  {angle.messageCount} msg{(angle.messageCount ?? 0) !== 1 ? 's' : ''}
+                </span>
+              )}
+              <button
+                className={styles.angleDeleteBtn}
+                onClick={() => hasMessages ? undefined : setConfirmingDeleteId(angle.id)}
+                disabled={hasMessages}
+                title={hasMessages ? `${angle.messageCount} message(s) — remove messages first` : 'Delete angle'}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          );
+        })
+      )}
+    </SidebarModal>
   );
 }

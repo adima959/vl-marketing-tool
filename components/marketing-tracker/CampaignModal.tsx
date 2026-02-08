@@ -12,6 +12,7 @@ interface CampaignModalProps {
   onClose: () => void;
   messageId: string;
   campaign?: Campaign | null;
+  defaultGeo?: Geography;
 }
 
 interface CampaignFormValues {
@@ -31,7 +32,7 @@ const geoOptions = Object.entries(GEO_CONFIG).map(([value, config]) => ({
   label: `${config.flag} ${config.label}`,
 }));
 
-export function CampaignModal({ open, onClose, messageId, campaign }: CampaignModalProps) {
+export function CampaignModal({ open, onClose, messageId, campaign, defaultGeo }: CampaignModalProps) {
   const [form] = Form.useForm<CampaignFormValues>();
   const [loading, setLoading] = useState(false);
   const { addCampaign, updateCampaign } = usePipelineStore();
@@ -48,9 +49,10 @@ export function CampaignModal({ open, onClose, messageId, campaign }: CampaignMo
         });
       } else {
         form.resetFields();
+        if (defaultGeo) form.setFieldValue('geo', defaultGeo);
       }
     }
-  }, [open, campaign, form]);
+  }, [open, campaign, form, defaultGeo]);
 
   const handleSubmit = async (values: CampaignFormValues) => {
     setLoading(true);

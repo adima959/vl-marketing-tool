@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Target } from 'lucide-react';
+import { Target, SlidersHorizontal } from 'lucide-react';
 import { Alert, Button } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -35,8 +35,15 @@ export default function PipelinePage() {
         title="Marketing Pipeline"
         icon={<Target className="h-5 w-5" />}
         actions={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <a className={styles.manageLink} onClick={() => setAnglesOpen(true)}>Manage Angles</a>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Button
+              icon={<SlidersHorizontal className="h-3.5 w-3.5" />}
+              onClick={() => setAnglesOpen(true)}
+              className={styles.manageBtn}
+              size="small"
+            >
+              Angles
+            </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setNewConceptOpen(true)}>
               New Message
             </Button>

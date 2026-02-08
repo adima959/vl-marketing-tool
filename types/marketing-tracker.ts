@@ -8,7 +8,8 @@ export type AssetType = 'landing_page' | 'text_ad' | 'brief' | 'research';
 export type CreativeFormat = 'ugc_video' | 'static_image' | 'video';
 
 // Pipeline types
-export type PipelineStage = 'backlog' | 'production' | 'testing' | 'verdict' | 'winner' | 'retired';
+export type PipelineStage = 'backlog' | 'production' | 'testing' | 'scaling' | 'retired';
+export type GeoStage = 'setup' | 'production' | 'testing' | 'live' | 'paused';
 export type VerdictType = 'kill' | 'iterate' | 'scale' | 'expand';
 export type Channel = 'meta' | 'google' | 'taboola' | 'other';
 export type CampaignStatus = 'active' | 'paused' | 'stopped';
@@ -50,15 +51,23 @@ export const CREATIVE_FORMAT_CONFIG: Record<CreativeFormat, { label: string; ico
 export const PIPELINE_STAGE_CONFIG: Record<PipelineStage, { label: string; color: string; bgColor: string; description: string }> = {
   backlog: { label: 'Backlog', color: '#6b7280', bgColor: '#f3f4f6', description: 'Raw message ideas waiting to be developed' },
   production: { label: 'Production', color: '#d97706', bgColor: '#fef3c7', description: 'Assets and creatives are being produced' },
-  testing: { label: 'Testing', color: '#2563eb', bgColor: '#dbeafe', description: 'Live campaigns running, gathering spend and conversion data' },
-  verdict: { label: 'Verdict', color: '#ea580c', bgColor: '#fff7ed', description: 'Spend threshold reached — decide to scale, iterate, or kill' },
-  winner: { label: 'Winner', color: '#059669', bgColor: '#d1fae5', description: 'Proven message scaled across geos and channels' },
+  testing: { label: 'Testing', color: '#2563eb', bgColor: '#dbeafe', description: 'Live campaigns running, gathering data' },
+  scaling: { label: 'Scaling', color: '#059669', bgColor: '#d1fae5', description: 'Proven concept, expanding to more geos' },
   retired: { label: 'Retired', color: '#9ca3af', bgColor: '#e5e7eb', description: 'Killed or replaced by a newer iteration' },
 };
 
 export const PIPELINE_STAGES_ORDER: PipelineStage[] = [
-  'backlog', 'production', 'testing', 'verdict', 'winner', 'retired',
+  'backlog', 'production', 'testing', 'scaling', 'retired',
 ];
+
+// Geo stage display configuration
+export const GEO_STAGE_CONFIG: Record<GeoStage, { label: string; color: string; bgColor: string }> = {
+  setup: { label: 'Setup', color: '#6b7280', bgColor: '#f3f4f6' },
+  production: { label: 'Production', color: '#d97706', bgColor: '#fef3c7' },
+  testing: { label: 'Testing', color: '#2563eb', bgColor: '#dbeafe' },
+  live: { label: 'Live', color: '#059669', bgColor: '#d1fae5' },
+  paused: { label: 'Paused', color: '#dc2626', bgColor: '#fee2e2' },
+};
 
 export const CHANNEL_CONFIG: Record<Channel, { label: string; shortLabel: string }> = {
   meta: { label: 'Meta', shortLabel: 'M' },
@@ -163,6 +172,20 @@ export interface Asset extends BaseEntity {
   url?: string;
   content?: string;
   notes?: string;
+}
+
+// Message Geo (per-geo stage tracking within a message)
+export interface MessageGeo {
+  id: string;
+  messageId: string;
+  geo: Geography;
+  stage: GeoStage;
+  isPrimary: boolean;
+  launchedAt?: string;
+  spendThreshold: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Activity Log
@@ -273,6 +296,7 @@ export interface PipelineCard {
   blendedCpa?: number;
   activeCampaignCount: number;
   campaigns: Campaign[];
+  geos: MessageGeo[];
   verdictType?: VerdictType;
   parentMessageId?: string;
   version: number;
@@ -291,8 +315,7 @@ export interface CreateCampaignRequest {
 // Pipeline summary stats
 export interface PipelineSummary {
   totalSpend: number;
-  verdictsPending: number;
-  winnerCount: number;
+  scalingCount: number;
   totalMessages: number;
 }
 
@@ -302,6 +325,7 @@ export interface MessageDetail extends Message {
   angle?: Angle;
   owner?: TrackerUser;
   campaigns: Campaign[];
+  geos: MessageGeo[];
 }
 
 // Legacy type aliases for backward compatibility during migration

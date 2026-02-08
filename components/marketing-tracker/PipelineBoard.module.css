@@ -3,39 +3,40 @@
 .filtersWrapper {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   padding: 10px 16px;
-  background: #ffffff;
-  border: 1px solid var(--color-gray-200);
-  border-radius: 8px;
-  margin-bottom: var(--spacing-4);
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
 }
 
 .filterBar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .filterBarSecondary {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding-left: 2px;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-gray-100);
 }
 
 .filterSelect {
   min-width: 120px;
-  border-color: var(--color-gray-200) !important;
-  font-size: 13px !important;
+  border-color: var(--color-gray-300) !important;
+  font-size: 12px !important;
   font-weight: 500 !important;
   color: var(--color-gray-700) !important;
-  border-radius: 4px !important;
+  border-radius: var(--radius-full) !important;
 }
 
 .filterSelect:hover {
-  border-color: var(--color-gray-300) !important;
+  border-color: var(--color-gray-400) !important;
 }
 
 /* Active select (has non-default value) */
@@ -57,16 +58,16 @@
 /* Chip group */
 .chipGroup {
   display: flex;
-  gap: 4px;
+  gap: 5px;
   align-items: center;
 }
 
 .chipGroupLabel {
   font-size: 11px;
   font-weight: 600;
-  color: var(--color-gray-400);
+  color: var(--color-gray-500);
   text-transform: uppercase;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.04em;
   margin-right: 2px;
   white-space: nowrap;
 }
@@ -77,10 +78,10 @@
   color: var(--color-gray-600);
   background: var(--color-background-primary);
   border: 1px solid var(--color-gray-200);
-  border-radius: 4px;
-  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  padding: 4px 12px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--transition-fast);
   user-select: none;
   line-height: 1.4;
   white-space: nowrap;
@@ -89,12 +90,14 @@
 .chip:hover {
   background: var(--color-gray-50);
   border-color: var(--color-gray-300);
+  color: var(--color-gray-800);
 }
 
 .chipActive {
   color: var(--color-primary-800);
   background: var(--color-primary-50);
   border-color: var(--color-primary-500);
+  font-weight: 600;
 }
 
 .chipActive:hover {
@@ -102,42 +105,30 @@
 }
 
 /* Category-specific chip accents */
-.chipOwner {
-  border-left: 2px solid #6366f1;
-}
-
 .chipOwner.chipActive {
-  color: #4338ca;
+  color: #3730a3;
   background: #eef2ff;
-  border-color: #6366f1;
+  border-color: #818cf8;
 }
 
 .chipOwner.chipActive:hover {
   background: #e0e7ff;
 }
 
-.chipChannel {
-  border-left: 2px solid #f59e0b;
-}
-
 .chipChannel.chipActive {
   color: #92400e;
   background: #fffbeb;
-  border-color: #f59e0b;
+  border-color: #fbbf24;
 }
 
 .chipChannel.chipActive:hover {
   background: #fef3c7;
 }
 
-.chipGeo {
-  border-left: 2px solid #14b8a6;
-}
-
 .chipGeo.chipActive {
   color: #115e59;
   background: #f0fdfa;
-  border-color: #14b8a6;
+  border-color: #2dd4bf;
 }
 
 .chipGeo.chipActive:hover {
@@ -153,9 +144,9 @@
 
 .board {
   display: grid;
-  grid-template-columns: repeat(7, minmax(220px, 1fr));
-  gap: var(--spacing-3);
-  min-width: 1600px;
+  grid-template-columns: repeat(5, minmax(250px, 1fr));
+  gap: var(--spacing-4);
+  min-width: 1300px;
 }
 
 /* ── Column ──────────────────────────────────────────────── */
@@ -165,19 +156,41 @@
   flex-direction: column;
   min-height: 200px;
   max-height: calc(100vh - 280px);
-  background: #ffffff;
+  background: var(--color-background-secondary);
   border: 1px solid var(--color-gray-200);
   border-radius: var(--radius-lg);
   padding: 0 var(--spacing-2) var(--spacing-2);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: box-shadow var(--transition-fast);
 }
 
+/* Stage-specific column tints */
+.columnBacklog {}
+
+.columnProduction {
+  border-top: 3px solid #d97706;
+}
+
+.columnTesting {
+  border-top: 3px solid #2563eb;
+}
+
+.columnScaling {
+  border-top: 3px solid #059669;
+  background: #f6fdf8;
+}
+
+.columnRetired {
+  border-top: 3px solid var(--color-gray-300);
+  opacity: 0.75;
+}
+
+/* Column header */
 .columnHeader {
   display: flex;
   align-items: center;
   gap: var(--spacing-2);
-  padding: 10px var(--spacing-2);
-  margin-bottom: var(--spacing-1);
+  padding: 14px var(--spacing-2) 10px;
+  margin-bottom: 2px;
   border-radius: var(--radius-md);
   position: sticky;
   top: 0;
@@ -185,19 +198,16 @@
 }
 
 .columnHeaderDefault {
-  /* inherits column background */
+  background: var(--color-background-secondary);
 }
 
-.columnHeaderVerdict {
-  background: rgba(234, 88, 12, 0.1);
-}
-
-.columnHeaderWinner {
-  background: rgba(5, 150, 105, 0.1);
+.columnHeaderScaling {
+  background: #f0fbf4;
 }
 
 .columnHeaderRetired {
-  opacity: 0.7;
+  opacity: 0.8;
+  background: var(--color-background-secondary);
 }
 
 .columnAccent {
@@ -208,32 +218,34 @@
 }
 
 .columnName {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.06em;
   color: var(--color-gray-700);
 }
 
 .columnCount {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-gray-600);
   background: var(--color-gray-200);
   padding: 0 7px;
   border-radius: 10px;
   line-height: 20px;
   margin-left: auto;
+  min-width: 20px;
+  text-align: center;
 }
 
 /* Card list */
 .cardList {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-2);
+  gap: 8px;
   overflow-y: auto;
   flex: 1;
-  padding: 0 2px 2px 0;
+  padding: 2px 2px 2px 0;
 }
 
 .cardList::-webkit-scrollbar {
@@ -258,10 +270,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--spacing-6);
-  color: var(--color-gray-400);
+  padding: var(--spacing-8) var(--spacing-4);
+  color: var(--color-gray-300);
   font-size: var(--font-size-xs);
+  font-weight: 500;
   border: 1px dashed var(--color-gray-200);
   border-radius: var(--radius-md);
-  background: var(--color-background-primary);
+  letter-spacing: 0.2px;
 }

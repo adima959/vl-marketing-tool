@@ -1,7 +1,7 @@
 'use client';
 
 import type { PipelineCard as PipelineCardType, PipelineStage, Channel, Geography } from '@/types';
-import { CHANNEL_CONFIG, GEO_CONFIG } from '@/types';
+import { CHANNEL_CONFIG, GEO_CONFIG, GEO_STAGE_CONFIG } from '@/types';
 import { getCpaTarget, getCpaHealth, type CpaHealth } from '@/lib/marketing-pipeline/cpaUtils';
 import { usePipelineStore } from '@/stores/pipelineStore';
 import { PipelineStageBadge } from './PipelineStageBadge';
@@ -9,11 +9,6 @@ import styles from './PipelineCard.module.css';
 
 interface PipelineCardProps {
   card: PipelineCardType;
-}
-
-function formatSpend(amount: number): string {
-  if (amount >= 1000) return `$${(amount / 1000).toFixed(1)}k`;
-  return `$${amount}`;
 }
 
 /** Convert hex color to rgba with given alpha */
@@ -28,22 +23,9 @@ const STAGE_CLASS_MAP: Record<PipelineStage, string> = {
   backlog: styles.cardBacklog,
   production: styles.cardProduction,
   testing: styles.cardTesting,
-  verdict: styles.cardVerdict,
-  winner: styles.cardWinner,
+  scaling: styles.cardScaling,
   retired: styles.cardRetired,
 };
-
-const CPA_COLOR_MAP: Record<CpaHealth, string> = {
-  green: styles.cpaGreen,
-  yellow: styles.cpaYellow,
-  red: styles.cpaRed,
-  none: styles.cpaNone,
-};
-
-function CpaDot({ health }: { health: CpaHealth }) {
-  if (health === 'none') return null;
-  return <span className={`${styles.cpaDot} ${styles[health]}`} />;
-}
 
 function buildMatrix(card: PipelineCardType) {
   const channels: Channel[] = [];
@@ -66,18 +48,7 @@ function buildMatrix(card: PipelineCardType) {
 }
 
 export function PipelineCard({ card }: PipelineCardProps) {
-  const { selectMessage, moveMessage, products } = usePipelineStore();
-  const product = products.find(p => p.id === card.productId);
-
-  let overallHealth: CpaHealth = 'none';
-  if (card.blendedCpa != null && product) {
-    const activeGeos = [...new Set(card.campaigns.filter(c => c.status === 'active').map(c => c.geo))];
-    const targets = activeGeos.map(g => getCpaTarget(product, g)).filter((t): t is number => t != null);
-    if (targets.length > 0) {
-      const avgTarget = targets.reduce((a, b) => a + b, 0) / targets.length;
-      overallHealth = getCpaHealth(card.blendedCpa, avgTarget);
-    }
-  }
+  const { selectMessage, moveMessage } = usePipelineStore();
 
   const handleCardClick = () => selectMessage(card.id);
   const handleStageChange = (newStage: PipelineStage) => moveMessage(card.id, newStage);
@@ -105,18 +76,22 @@ export function PipelineCard({ card }: PipelineCardProps) {
         {card.angleName && <span className={styles.angleTag}>{card.angleName}</span>}
       </div>
 
-      {card.totalSpend > 0 && (
-        <div className={styles.metrics}>
-          <span className={styles.spend}>{formatSpend(card.totalSpend)}</span>
-          {card.blendedCpa != null && (
-            <>
-              <span className={styles.separator}>&middot;</span>
-              <span className={`${styles.cpa} ${CPA_COLOR_MAP[overallHealth]}`}>
-                CPA: ${Math.round(card.blendedCpa)}
+      {/* Geo flags with stage indicators */}
+      {card.geos.length > 0 && (
+        <div className={styles.geoFlags}>
+          {card.geos.map(g => {
+            const geoConfig = GEO_CONFIG[g.geo];
+            const stageConfig = GEO_STAGE_CONFIG[g.stage];
+            return (
+              <span key={g.id} className={styles.geoFlag} title={`${geoConfig.label}: ${stageConfig.label}`}>
+                <span className={styles.geoFlagEmoji}>{geoConfig.flag}</span>
+                <span
+                  className={styles.geoStageIndicator}
+                  style={{ backgroundColor: stageConfig.color }}
+                />
               </span>
-              <CpaDot health={overallHealth} />
-            </>
-          )}
+            );
+          })}
         </div>
       )}
 
@@ -132,43 +107,46 @@ export function PipelineCard({ card }: PipelineCardProps) {
         )}
       </div>
 
-      {card.pipelineStage === 'verdict' && (
-        <div className={styles.verdictBanner}>Decide</div>
-      )}
-
       {hasMatrix && (
         <div className={styles.hoverContent}>
-          <div
-            className={styles.matrix}
-            style={{ gridTemplateColumns: `24px ${geos.map(() => '24px').join(' ')}` }}
-          >
-            <span />
-            {geos.map(geo => (
-              <span key={geo} className={styles.matrixHeader}>
-                {GEO_CONFIG[geo].flag}
-              </span>
-            ))}
-            {channels.map(channel => (
-              <span key={`row-${channel}`} style={{ display: 'contents' }}>
-                <span className={styles.matrixLabel}>
-                  {CHANNEL_CONFIG[channel].shortLabel}
+          <div className={styles.matrixWrapper}>
+            <div className={styles.matrixTitle}>Coverage</div>
+            <div
+              className={styles.matrix}
+              style={{ gridTemplateColumns: `28px ${geos.map(() => '28px').join(' ')}` }}
+            >
+              <span />
+              {geos.map(geo => (
+                <span key={geo} className={styles.matrixHeader}>
+                  {GEO_CONFIG[geo].flag}
                 </span>
-                {geos.map(geo => {
-                  const health = matrix[`${channel}-${geo}`];
-                  return (
-                    <span key={`${channel}-${geo}`} className={styles.matrixCell}>
-                      {health && health !== 'none'
-                        ? <span className={`${styles.matrixDot} ${styles[health]}`} />
-                        : <span className={styles.matrixEmpty}>–</span>
-                      }
-                    </span>
-                  );
-                })}
-              </span>
-            ))}
+              ))}
+              {channels.map(channel => (
+                <span key={`row-${channel}`} style={{ display: 'contents' }}>
+                  <span className={styles.matrixLabel}>
+                    {CHANNEL_CONFIG[channel].shortLabel}
+                  </span>
+                  {geos.map(geo => {
+                    const health = matrix[`${channel}-${geo}`];
+                    const cellClass = health && health !== 'none'
+                      ? `${styles.matrixCell} ${styles[`matrixCell${health.charAt(0).toUpperCase()}${health.slice(1)}`]}`
+                      : styles.matrixCell;
+                    return (
+                      <span key={`${channel}-${geo}`} className={cellClass}>
+                        {health && health !== 'none'
+                          ? <span className={`${styles.matrixDot} ${styles[health]}`} />
+                          : <span className={styles.matrixEmpty}>–</span>
+                        }
+                      </span>
+                    );
+                  })}
+                </span>
+              ))}
+            </div>
           </div>
 
           <div className={styles.stageAction} onClick={e => e.stopPropagation()}>
+            <span className={styles.stageActionLabel}>Move to</span>
             <PipelineStageBadge
               stage={card.pipelineStage}
               editable

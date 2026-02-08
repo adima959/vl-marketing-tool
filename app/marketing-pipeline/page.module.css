@@ -1,23 +1,28 @@
 /* Pipeline page */
 .container {
-  padding: var(--spacing-4) var(--spacing-5);
-  background: #f0f2f5;
+  padding: var(--spacing-5) var(--spacing-5);
+  background: var(--color-gray-100);
   min-height: calc(100vh - 64px);
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-3);
+  gap: var(--spacing-4);
 }
 
-.manageLink {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-gray-500);
-  cursor: pointer;
-  text-decoration: underline;
-  text-decoration-style: dotted;
-  text-underline-offset: 2px;
+.manageBtn {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--color-gray-600) !important;
+  border: 1px solid var(--color-gray-200) !important;
+  border-radius: var(--radius-md) !important;
+  height: 32px !important;
+  padding: 0 12px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
 }
 
-.manageLink:hover {
-  color: var(--color-gray-800);
+.manageBtn:hover {
+  color: var(--color-gray-800) !important;
+  background: var(--color-gray-50) !important;
+  border-color: var(--color-gray-300) !important;
 }

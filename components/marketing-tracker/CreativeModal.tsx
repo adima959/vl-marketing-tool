@@ -15,6 +15,7 @@ interface CreativeModalProps {
   // Legacy props for marketing-tracker pages (direct API calls)
   onSuccess?: () => void;
   creative?: Creative | null;
+  defaultGeo?: Geography;
 }
 
 interface CreativeFormValues {
@@ -36,7 +37,7 @@ const formatOptions = Object.entries(CREATIVE_FORMAT_CONFIG).map(([value, config
   label: config.label,
 }));
 
-export function CreativeModal({ open, onClose, messageId, onSuccess, creative }: CreativeModalProps) {
+export function CreativeModal({ open, onClose, messageId, onSuccess, creative, defaultGeo }: CreativeModalProps) {
   const [form] = Form.useForm<CreativeFormValues>();
   const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
@@ -53,9 +54,10 @@ export function CreativeModal({ open, onClose, messageId, onSuccess, creative }:
         });
       } else {
         form.resetFields();
+        if (defaultGeo) form.setFieldValue('geo', defaultGeo);
       }
     }
-  }, [open, creative, form]);
+  }, [open, creative, form, defaultGeo]);
 
   const handleSubmit = async (values: CreativeFormValues) => {
     setLoading(true);

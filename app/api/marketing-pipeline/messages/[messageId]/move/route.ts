@@ -10,7 +10,7 @@ import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 import type { PipelineStage, VerdictType } from '@/types';
 
 const VALID_STAGES: PipelineStage[] = [
-  'backlog', 'production', 'testing', 'verdict', 'winner', 'retired',
+  'backlog', 'production', 'testing', 'scaling', 'retired',
 ];
 
 interface RouteParams {

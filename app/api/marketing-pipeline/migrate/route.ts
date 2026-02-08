@@ -16,8 +16,8 @@ const M01 = 'b0000000-0000-4000-a000-000000000001'; // backlog
 const M05 = 'b0000000-0000-4000-a000-000000000005'; // backlog (with hypothesis)
 const M08 = 'b0000000-0000-4000-a000-000000000008'; // production
 const M10 = 'b0000000-0000-4000-a000-000000000010'; // testing
-const M15 = 'b0000000-0000-4000-a000-000000000015'; // verdict
-const M17 = 'b0000000-0000-4000-a000-000000000017'; // winner
+const M15 = 'b0000000-0000-4000-a000-000000000015'; // testing (pending verdict)
+const M17 = 'b0000000-0000-4000-a000-000000000017'; // scaling
 const M19 = 'b0000000-0000-4000-a000-000000000019'; // retired
 
 const C01 = 'c0000000-0000-4000-a000-000000000001';
@@ -32,6 +32,13 @@ const AS03 = 'd0000000-0000-4000-a000-000000000003';
 const CR01 = 'e0000000-0000-4000-a000-000000000001';
 const CR02 = 'e0000000-0000-4000-a000-000000000002';
 const CR03 = 'e0000000-0000-4000-a000-000000000003';
+
+const G01 = 'f0000000-0000-4000-a000-000000000001';
+const G02 = 'f0000000-0000-4000-a000-000000000002';
+const G03 = 'f0000000-0000-4000-a000-000000000003';
+const G04 = 'f0000000-0000-4000-a000-000000000004';
+const G05 = 'f0000000-0000-4000-a000-000000000005';
+const G06 = 'f0000000-0000-4000-a000-000000000006';
 
 
 // ── DDL: Enums ──────────────────────────────────────────────────────
@@ -59,6 +66,9 @@ async function createEnums(): Promise<void> {
   await executeQuery(`ALTER TYPE app_entity_type ADD VALUE IF NOT EXISTS 'pipeline_message';`);
   await executeQuery(`ALTER TYPE app_entity_type ADD VALUE IF NOT EXISTS 'pipeline_angle';`);
   await executeQuery(`ALTER TYPE app_entity_type ADD VALUE IF NOT EXISTS 'campaign';`);
+
+  // Add scaling stage (cannot remove old enum values in PG, but we stop using them)
+  await executeQuery(`ALTER TYPE app_pipeline_stage ADD VALUE IF NOT EXISTS 'scaling';`);
 
   // Enums created
 }
@@ -168,6 +178,23 @@ async function createTables(): Promise<void> {
     );
   `);
 
+  await executeQuery(`
+    CREATE TABLE IF NOT EXISTS app_pipeline_message_geos (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      message_id UUID NOT NULL REFERENCES app_pipeline_messages(id) ON DELETE CASCADE,
+      geo app_geography NOT NULL,
+      stage VARCHAR(20) NOT NULL DEFAULT 'setup',
+      is_primary BOOLEAN NOT NULL DEFAULT false,
+      launched_at TIMESTAMPTZ,
+      spend_threshold NUMERIC DEFAULT 300,
+      notes TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      deleted_at TIMESTAMPTZ,
+      UNIQUE(message_id, geo)
+    );
+  `);
+
   // Pipeline tables created
 }
 
@@ -184,6 +211,7 @@ async function createIndexes(): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_pl_campaigns_status ON app_pipeline_campaigns(status) WHERE deleted_at IS NULL;`,
     `CREATE INDEX IF NOT EXISTS idx_pl_assets_message ON app_pipeline_assets(message_id) WHERE deleted_at IS NULL;`,
     `CREATE INDEX IF NOT EXISTS idx_pl_creatives_message ON app_pipeline_creatives(message_id) WHERE deleted_at IS NULL;`,
+    `CREATE INDEX IF NOT EXISTS idx_pl_msg_geos_message ON app_pipeline_message_geos(message_id) WHERE deleted_at IS NULL;`,
   ];
 
   for (const stmt of stmts) {
@@ -245,6 +273,17 @@ interface SeedCreative {
   geo: string;
   format: string;
   name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface SeedMessageGeo {
+  id: string;
+  messageId: string;
+  geo: string;
+  stage: string;
+  isPrimary: boolean;
+  spendThreshold: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -349,16 +388,16 @@ async function seedData(): Promise<void> {
       headlines: ['Remember when getting up was easy?', 'Your car shouldn\'t feel like a trap'],
       notes: 'Testing car-specific pain point. If Meta NO holds below $25, expand to DK next week.',
       createdAt: '2024-04-20', updatedAt: '2024-06-05' },
-    // VERDICT
-    { id: M15, angleId: A1, name: 'Playing with grandkids hurts', status: 'live', pipelineStage: 'verdict', version: 1, spendThreshold: 300,
+    // TESTING (pending verdict — spend threshold crossed)
+    { id: M15, angleId: A1, name: 'Playing with grandkids hurts', status: 'live', pipelineStage: 'testing', version: 1, spendThreshold: 300,
       specificPainPoint: 'Getting on the floor to play with grandkids is painful and embarrassing',
       corePromise: 'Be the grandparent who gets on the floor — and gets back up',
       keyIdea: 'Grandkids don\'t understand joint pain. They just want you down there with them.',
       primaryHookDirection: 'The grandparent guilt of saying "I can\'t get down there"',
       headlines: ['They\'ll remember who played with them', 'Don\'t be the grandparent on the bench'],
       createdAt: '2024-04-10', updatedAt: '2024-06-05' },
-    // WINNER
-    { id: M17, angleId: A1, name: 'Can\'t sleep from joint pain', status: 'live', pipelineStage: 'winner', version: 1, spendThreshold: 300,
+    // SCALING
+    { id: M17, angleId: A1, name: 'Can\'t sleep from joint pain', status: 'live', pipelineStage: 'scaling', version: 1, spendThreshold: 300,
       specificPainPoint: 'Joint pain keeps me awake — can\'t find a comfortable sleeping position',
       corePromise: 'Sleep through the night without joint pain waking you',
       keyIdea: 'Night-time joint pain is the worst because there\'s nothing to distract you',
@@ -450,6 +489,30 @@ async function seedData(): Promise<void> {
       ON CONFLICT (id) DO NOTHING;
     `, [c.id, c.messageId, c.geo, c.format, c.name, c.createdAt, c.updatedAt]);
   }
+  seedStep = 'seedMessageGeos';
+
+  // ── Seed message geos (per-geo stage tracking) ────────────────
+  const messageGeos: SeedMessageGeo[] = [
+    // M08 (production) — NO in production
+    { id: G01, messageId: M08, geo: 'NO', stage: 'production', isPrimary: true, spendThreshold: 300, createdAt: '2024-05-10', updatedAt: '2024-05-25' },
+    // M10 (testing) — NO in testing
+    { id: G02, messageId: M10, geo: 'NO', stage: 'testing', isPrimary: true, spendThreshold: 300, createdAt: '2024-04-20', updatedAt: '2024-06-05' },
+    // M15 (testing, pending verdict) — NO in testing
+    { id: G03, messageId: M15, geo: 'NO', stage: 'testing', isPrimary: true, spendThreshold: 300, createdAt: '2024-04-10', updatedAt: '2024-06-05' },
+    // M17 (scaling) — NO live (original, proven), SE in production (expanding)
+    { id: G04, messageId: M17, geo: 'NO', stage: 'live', isPrimary: true, spendThreshold: 300, createdAt: '2024-03-01', updatedAt: '2024-06-05' },
+    { id: G05, messageId: M17, geo: 'SE', stage: 'production', isPrimary: false, spendThreshold: 300, createdAt: '2024-06-01', updatedAt: '2024-06-05' },
+    // M19 (retired) — NO paused
+    { id: G06, messageId: M19, geo: 'NO', stage: 'paused', isPrimary: true, spendThreshold: 300, createdAt: '2024-02-15', updatedAt: '2024-05-01' },
+  ];
+
+  for (const g of messageGeos) {
+    await executeQuery(`
+      INSERT INTO app_pipeline_message_geos (id, message_id, geo, stage, is_primary, spend_threshold, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (id) DO NOTHING;
+    `, [g.id, g.messageId, g.geo, g.stage, g.isPrimary, g.spendThreshold, g.createdAt, g.updatedAt]);
+  }
   } catch (e) {
     throw new Error(`seedData failed at step "${seedStep}": ${e instanceof Error ? e.message : e}`);
   }
@@ -470,15 +533,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (reset) {
       // Clear pipeline data in FK-safe order, then re-seed
+      await executeQuery(`DELETE FROM app_pipeline_message_geos;`);
       await executeQuery(`DELETE FROM app_pipeline_creatives;`);
       await executeQuery(`DELETE FROM app_pipeline_assets;`);
       await executeQuery(`DELETE FROM app_pipeline_campaigns;`);
+      await executeQuery(`UPDATE app_pipeline_messages SET parent_message_id = NULL;`);
+      // Clear external references to pipeline messages
+      try { await executeQuery(`DELETE FROM app_campaign_classifications;`); } catch { /* table may not exist */ }
       await executeQuery(`DELETE FROM app_pipeline_messages;`);
       await executeQuery(`DELETE FROM app_pipeline_angles;`);
-      // Remove extra seed products (keep only Flex Repair)
-      await executeQuery(`DELETE FROM app_products WHERE name IN ('Joint Plus', 'Sleep Well');`);
-      // Migrate any 'briefed' rows to 'backlog' (stage removed)
+      // Remove extra seed products (keep only Flex Repair) — ignore if referenced elsewhere
+      try {
+        await executeQuery(`DELETE FROM app_products WHERE name IN ('Joint Plus', 'Sleep Well');`);
+      } catch { /* products may be referenced by marketing-tracker tables */ }
+    } else {
+      // Migrate existing data: old stages → new stages
       await executeQuery(`UPDATE app_pipeline_messages SET pipeline_stage = 'backlog' WHERE pipeline_stage = 'briefed';`);
+      await executeQuery(`UPDATE app_pipeline_messages SET pipeline_stage = 'testing' WHERE pipeline_stage = 'verdict';`);
+      await executeQuery(`UPDATE app_pipeline_messages SET pipeline_stage = 'scaling' WHERE pipeline_stage = 'winner';`);
     }
 
     await seedData();
@@ -490,13 +562,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       campaigns: string;
       assets: string;
       creatives: string;
+      message_geos: string;
     }>(`
       SELECT
         (SELECT COUNT(*) FROM app_pipeline_angles WHERE deleted_at IS NULL)::text as angles,
         (SELECT COUNT(*) FROM app_pipeline_messages WHERE deleted_at IS NULL)::text as messages,
         (SELECT COUNT(*) FROM app_pipeline_campaigns WHERE deleted_at IS NULL)::text as campaigns,
         (SELECT COUNT(*) FROM app_pipeline_assets WHERE deleted_at IS NULL)::text as assets,
-        (SELECT COUNT(*) FROM app_pipeline_creatives WHERE deleted_at IS NULL)::text as creatives;
+        (SELECT COUNT(*) FROM app_pipeline_creatives WHERE deleted_at IS NULL)::text as creatives,
+        (SELECT COUNT(*) FROM app_pipeline_message_geos WHERE deleted_at IS NULL)::text as message_geos;
     `);
 
     // Migration complete

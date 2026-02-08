@@ -15,6 +15,7 @@ interface AssetModalProps {
   // Legacy props for marketing-tracker pages (direct API calls)
   onSuccess?: () => void;
   asset?: Asset | null;
+  defaultGeo?: Geography;
 }
 
 interface AssetFormValues {
@@ -36,7 +37,7 @@ const typeOptions = Object.entries(ASSET_TYPE_CONFIG).map(([value, config]) => (
   label: config.label,
 }));
 
-export function AssetModal({ open, onClose, messageId, onSuccess, asset }: AssetModalProps) {
+export function AssetModal({ open, onClose, messageId, onSuccess, asset, defaultGeo }: AssetModalProps) {
   const [form] = Form.useForm<AssetFormValues>();
   const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
@@ -53,9 +54,10 @@ export function AssetModal({ open, onClose, messageId, onSuccess, asset }: Asset
         });
       } else {
         form.resetFields();
+        if (defaultGeo) form.setFieldValue('geo', defaultGeo);
       }
     }
-  }, [open, asset, form]);
+  }, [open, asset, form, defaultGeo]);
 
   const handleSubmit = async (values: AssetFormValues) => {
     setLoading(true);

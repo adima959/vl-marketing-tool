@@ -27,7 +27,7 @@ export function getCpaHealth(cpa: number | undefined, target: number | undefined
 // ── Group Cards by Stage ───────────────────────────────────────────────
 
 export function groupByStage(cards: PipelineCard[]): Record<PipelineStage, PipelineCard[]> {
-  const stages: PipelineStage[] = ['backlog', 'production', 'testing', 'verdict', 'winner', 'retired'];
+  const stages: PipelineStage[] = ['backlog', 'production', 'testing', 'scaling', 'retired'];
   const grouped = {} as Record<PipelineStage, PipelineCard[]>;
   for (const stage of stages) {
     grouped[stage] = cards.filter(c => c.pipelineStage === stage);
@@ -40,8 +40,7 @@ export function groupByStage(cards: PipelineCard[]): Record<PipelineStage, Pipel
 export function computeSummary(cards: PipelineCard[]): PipelineSummary {
   return {
     totalSpend: cards.reduce((sum, c) => sum + c.totalSpend, 0),
-    verdictsPending: cards.filter(c => c.pipelineStage === 'verdict').length,
-    winnerCount: cards.filter(c => c.pipelineStage === 'winner').length,
+    scalingCount: cards.filter(c => c.pipelineStage === 'scaling').length,
     totalMessages: cards.length,
   };
 }

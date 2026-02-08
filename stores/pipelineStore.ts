@@ -9,6 +9,7 @@ import type {
   Campaign,
   Channel,
   Geography,
+  GeoStage,
   VerdictType,
   MessageDetail,
 } from '@/types';
@@ -71,6 +72,9 @@ interface PipelineState {
   deleteAsset: (assetId: string) => void;
   addCreative: (messageId: string, data: { geo: Geography; name: string; format: string; cta?: string; url?: string; notes?: string }) => void;
   deleteCreative: (creativeId: string) => void;
+  addGeo: (messageId: string, data: { geo: Geography; isPrimary?: boolean; spendThreshold?: number }) => void;
+  updateGeoStage: (geoId: string, data: { stage?: GeoStage; spendThreshold?: number; notes?: string }) => void;
+  removeGeo: (geoId: string) => void;
   setOwnerFilter: (value: string) => void;
   setProductFilter: (value: string) => void;
   setAngleFilter: (value: string) => void;
@@ -80,7 +84,7 @@ interface PipelineState {
 }
 
 const emptyStages: Record<PipelineStage, PipelineCard[]> = {
-  backlog: [], production: [], testing: [], verdict: [], winner: [], retired: [],
+  backlog: [], production: [], testing: [], scaling: [], retired: [],
 };
 
 function buildBoardUrl(state: Pick<PipelineState, 'ownerFilter' | 'productFilter' | 'angleFilter' | 'channelFilters' | 'geoFilters'>): string {
@@ -96,7 +100,7 @@ function buildBoardUrl(state: Pick<PipelineState, 'ownerFilter' | 'productFilter
 
 export const usePipelineStore = create<PipelineState>((set, get) => ({
   stages: emptyStages,
-  summary: { totalSpend: 0, verdictsPending: 0, winnerCount: 0, totalMessages: 0 },
+  summary: { totalSpend: 0, scalingCount: 0, totalMessages: 0 },
 
   users: [],
   products: [],
@@ -412,6 +416,46 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       const { selectedMessageId } = get();
       if (selectedMessageId) get().selectMessage(selectedMessageId);
     } catch (err) { console.error('Failed to delete creative:', err); }
+  },
+
+  addGeo: async (messageId, data) => {
+    try {
+      const res = await fetch('/api/marketing-pipeline/geos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId, ...data }),
+      });
+      const json = await res.json();
+      if (!json.success) { console.error('Add geo failed:', json.error); return; }
+      if (get().selectedMessageId === messageId) get().selectMessage(messageId);
+      get().loadPipeline();
+    } catch (err) { console.error('Failed to add geo:', err); }
+  },
+
+  updateGeoStage: async (geoId, data) => {
+    try {
+      const res = await fetch(`/api/marketing-pipeline/geos/${geoId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json();
+      if (!json.success) { console.error('Update geo failed:', json.error); return; }
+      const { selectedMessageId } = get();
+      if (selectedMessageId) get().selectMessage(selectedMessageId);
+      get().loadPipeline();
+    } catch (err) { console.error('Failed to update geo:', err); }
+  },
+
+  removeGeo: async (geoId) => {
+    try {
+      const res = await fetch(`/api/marketing-pipeline/geos/${geoId}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (!json.success) { console.error('Remove geo failed:', json.error); return; }
+      const { selectedMessageId } = get();
+      if (selectedMessageId) get().selectMessage(selectedMessageId);
+      get().loadPipeline();
+    } catch (err) { console.error('Failed to remove geo:', err); }
   },
 
   setOwnerFilter: (value) => { set({ ownerFilter: value, productFilter: 'all', angleFilter: 'all' }); get().loadPipeline(); },
