@@ -2,7 +2,7 @@
 
 import { useState, Suspense, useEffect, useRef, useMemo, useCallback, lazy } from 'react';
 import { Button } from 'antd';
-import { SettingOutlined } from '@ant-design/icons';
+import { SettingOutlined, TagsOutlined } from '@ant-design/icons';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FilterToolbar } from '@/components/filters/FilterToolbar';
 import { FilterPanel } from '@/components/filters/FilterPanel';
@@ -28,8 +28,13 @@ const CrmDetailModal = lazy(() =>
   import('@/components/modals/CrmDetailModal').then((mod) => ({ default: mod.CrmDetailModal }))
 );
 
+const CampaignClassificationModal = lazy(() =>
+  import('@/components/marketing-report/CampaignClassificationModal').then((mod) => ({ default: mod.CampaignClassificationModal }))
+);
+
 function MarketingReportContent() {
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
+  const [classificationOpen, setClassificationOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailModalContext, setDetailModalContext] = useState<MarketingMetricClickContext | null>(null);
   const { setOpen } = useSidebar();
@@ -120,6 +125,14 @@ function MarketingReportContent() {
       )}
       <Button
         type="text"
+        icon={<TagsOutlined />}
+        onClick={() => setClassificationOpen(true)}
+        size="small"
+      >
+        Classify
+      </Button>
+      <Button
+        type="text"
         icon={<SettingOutlined />}
         onClick={() => setColumnSettingsOpen(true)}
         size="small"
@@ -162,6 +175,14 @@ function MarketingReportContent() {
           <ColumnSettingsModal
             open={columnSettingsOpen}
             onClose={() => setColumnSettingsOpen(false)}
+          />
+        </Suspense>
+      )}
+      {classificationOpen && (
+        <Suspense fallback={null}>
+          <CampaignClassificationModal
+            open={classificationOpen}
+            onClose={() => setClassificationOpen(false)}
           />
         </Suspense>
       )}
