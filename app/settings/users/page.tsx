@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, lazy, Suspense } from 'react';
-import { Table, Button, Tag, message, Spin } from 'antd';
+import { App, Table, Button, Tag, Spin, Switch } from 'antd';
 import { EditOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AppUser } from '@/types/user';
@@ -13,6 +13,7 @@ const EditRoleDialog = lazy(() =>
 
 export default function UsersPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { message } = App.useApp();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
@@ -63,6 +64,22 @@ export default function UsersPage() {
     fetchUsers();
   };
 
+  const handleToggleProductOwner = async (record: AppUser, checked: boolean) => {
+    try {
+      const response = await fetch(`/api/users/${record.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_product_owner: checked }),
+        credentials: 'same-origin',
+      });
+      if (!response.ok) throw new Error('Failed to update');
+      // Update local state immediately
+      setUsers(prev => prev.map(u => u.id === record.id ? { ...u, is_product_owner: checked } : u));
+    } catch {
+      message.error('Failed to update product owner status');
+    }
+  };
+
   const columns: ColumnsType<AppUser> = [
     {
       title: 'Name',
@@ -105,6 +122,20 @@ export default function UsersPage() {
         >
           {role}
         </Tag>
+      ),
+    },
+    {
+      title: 'Product Owner',
+      dataIndex: 'is_product_owner',
+      key: 'is_product_owner',
+      width: 120,
+      align: 'center' as const,
+      render: (value: boolean, record: AppUser) => (
+        <Switch
+          size="small"
+          checked={!!value}
+          onChange={(checked) => handleToggleProductOwner(record, checked)}
+        />
       ),
     },
     {

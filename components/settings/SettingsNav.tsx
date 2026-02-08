@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Users } from 'lucide-react';
+import { Users, Package, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface TabItem {
@@ -16,6 +16,16 @@ const tabs: TabItem[] = [
     title: 'Users',
     href: '/settings/users',
     icon: Users,
+  },
+  {
+    title: 'Products',
+    href: '/settings/products',
+    icon: Package,
+  },
+  {
+    title: 'Permissions',
+    href: '/settings/permissions',
+    icon: Shield,
   },
 ];
 

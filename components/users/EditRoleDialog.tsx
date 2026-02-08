@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Modal, Form, Select, message } from 'antd';
-import type { AppUser, UserRole } from '@/types/user';
+import { App, Modal, Form, Select, Switch } from 'antd';
+import type { AppUser } from '@/types/user';
+import type { Role } from '@/types/roles';
+import modalStyles from '@/styles/components/modal.module.css';
 
 interface EditRoleDialogProps {
   user: AppUser | null;
@@ -13,9 +15,31 @@ interface EditRoleDialogProps {
 
 export function EditRoleDialog({ user, open, onClose, onSuccess }: EditRoleDialogProps) {
   const [form] = Form.useForm();
+  const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
 
-  const handleSubmit = async (values: { role: UserRole }) => {
+  // Fetch roles when dialog opens
+  useEffect(() => {
+    if (open) {
+      setRolesLoading(true);
+      fetch('/api/roles', { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(data => setRoles(data.data || []))
+        .catch(() => message.error('Failed to load roles'))
+        .finally(() => setRolesLoading(false));
+    }
+  }, [open]);
+
+  // Set initial value when user/roles load
+  useEffect(() => {
+    if (user && open && roles.length > 0) {
+      form.setFieldsValue({ role_id: user.role_id || '', is_product_owner: !!user.is_product_owner });
+    }
+  }, [user, open, roles, form]);
+
+  const handleSubmit = async (values: { role_id: string; is_product_owner: boolean }) => {
     if (!user) return;
 
     setLoading(true);
@@ -23,10 +47,8 @@ export function EditRoleDialog({ user, open, onClose, onSuccess }: EditRoleDialo
     try {
       const response = await fetch(`/api/users/${user.id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ role: values.role }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role_id: values.role_id, is_product_owner: values.is_product_owner }),
         credentials: 'same-origin',
       });
 
@@ -52,12 +74,6 @@ export function EditRoleDialog({ user, open, onClose, onSuccess }: EditRoleDialo
     onClose();
   };
 
-  useEffect(() => {
-    if (user && open) {
-      form.setFieldsValue({ role: user.role });
-    }
-  }, [user, open, form]);
-
   return (
     <Modal
       title={null}
@@ -69,6 +85,7 @@ export function EditRoleDialog({ user, open, onClose, onSuccess }: EditRoleDialo
       cancelText="Cancel"
       destroyOnHidden
       width={400}
+      className={modalStyles.modal}
       styles={{
         header: { display: 'none' },
         body: { padding: '20px 24px 16px' },
@@ -115,20 +132,35 @@ export function EditRoleDialog({ user, open, onClose, onSuccess }: EditRoleDialo
         form={form}
         layout="vertical"
         onFinish={handleSubmit}
-        initialValues={{ role: user?.role }}
         style={{ marginBottom: 0 }}
       >
         <Form.Item
           label={<span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-gray-700)' }}>Role</span>}
-          name="role"
+          name="role_id"
           rules={[{ required: true, message: 'Please select a role' }]}
-          style={{ marginBottom: 0 }}
+          style={{ marginBottom: 16 }}
         >
-          <Select>
-            <Select.Option value="user">User</Select.Option>
-            <Select.Option value="admin">Admin</Select.Option>
-          </Select>
+          <Select
+            loading={rolesLoading}
+            placeholder="Select a role"
+            options={roles.map(r => ({
+              label: r.name,
+              value: r.id,
+            }))}
+          />
         </Form.Item>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-gray-700)' }}>Product Owner</div>
+            <div style={{ fontSize: 12, color: 'var(--color-gray-400)', marginTop: 2 }}>
+              Appears as an owner in the marketing pipeline
+            </div>
+          </div>
+          <Form.Item name="is_product_owner" valuePropName="checked" style={{ marginBottom: 0 }}>
+            <Switch size="small" />
+          </Form.Item>
+        </div>
       </Form>
     </Modal>
   );

@@ -1,0 +1,49 @@
+/**
+ * Permissions grid table styling
+ * Only override what's needed — let Ant Design handle checked/disabled states
+ */
+
+/* Feature row padding */
+.permissionGrid :global(.ant-table-tbody > tr > td) {
+  padding: 8px 12px !important;
+}
+
+/* Column headers */
+.permissionGrid :global(.ant-table-thead > tr > th) {
+  padding: 10px 12px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  color: var(--color-gray-500) !important;
+}
+
+/* Stronger unchecked checkbox border — only target non-checked state */
+.permissionGrid :global(.ant-checkbox:not(.ant-checkbox-checked):not(.ant-checkbox-disabled) .ant-checkbox-inner) {
+  border-color: var(--color-gray-400) !important;
+}
+
+/* Hover on unchecked — accent color hint */
+.permissionGrid :global(.ant-checkbox:not(.ant-checkbox-checked):not(.ant-checkbox-disabled):hover .ant-checkbox-inner) {
+  border-color: var(--color-accent) !important;
+}
+
+/* Group header rows — prominent section dividers */
+.permissionGrid :global(.ant-table-row.groupRow > td) {
+  background-color: var(--color-gray-100, #f0f1f3) !important;
+  padding: 11px 12px !important;
+  border-top: 16px solid white !important;
+  border-bottom: 2px solid var(--color-gray-200, #dcdfe4) !important;
+}
+
+/* First group header — less top spacing */
+.permissionGrid :global(.ant-table-row.groupRow:first-child > td) {
+  border-top: none !important;
+}
+
+/* Dash for non-applicable actions */
+.dash {
+  color: var(--color-gray-300);
+  font-size: 14px;
+  user-select: none;
+}
