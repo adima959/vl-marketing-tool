@@ -26,6 +26,8 @@ export interface SavedView {
   sortDir: 'ascend' | 'descend' | null;
   period: 'weekly' | 'biweekly' | 'monthly' | null;
   visibleColumns: string[] | null;
+  isFavorite: boolean;
+  favoriteOrder: number | null;
   createdAt: string;
 }
 

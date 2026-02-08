@@ -27,10 +27,6 @@
 
 .filterSelect {
   min-width: 120px;
-}
-
-/* Compact Ant Select triggers */
-.filterSelect :global(.ant-select-selector) {
   border-color: var(--color-gray-200) !important;
   font-size: 13px !important;
   font-weight: 500 !important;
@@ -38,12 +34,12 @@
   border-radius: 4px !important;
 }
 
-.filterSelect :global(.ant-select-selector:hover) {
+.filterSelect:hover {
   border-color: var(--color-gray-300) !important;
 }
 
 /* Active select (has non-default value) */
-.filterSelectActive :global(.ant-select-selector) {
+.filterSelectActive {
   border-color: var(--color-primary-500) !important;
   background: var(--color-primary-50) !important;
   color: var(--color-primary-800) !important;

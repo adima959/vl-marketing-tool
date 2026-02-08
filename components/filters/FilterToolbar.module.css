@@ -1,7 +1,6 @@
 .toolbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: stretch;
   gap: 12px;
   padding: 10px 16px;
   background: #ffffff;
@@ -11,20 +10,49 @@
   margin-bottom: 16px;
 }
 
-/* Single row layout */
+/* Main row: left column + right controls */
 .mainRow {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
   width: 100%;
 }
 
-/* Left section: Dimensions */
+/* Left section: Dimensions (single-row toolbar, e.g. marketing report) */
 .leftSection {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Left column: Dimensions + Filters stacked (on-page toolbar) */
+.leftColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Filters row — mirrors dimensionsWrapper layout */
+.filtersWrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-gray-150, var(--color-gray-200));
+}
+
+/* Center label text against 32px-tall Ant inputs */
+.filtersWrapper .dimensionsLabel {
+  line-height: 32px;
+}
+
+.filtersContent {
   flex: 1;
   min-width: 0;
 }

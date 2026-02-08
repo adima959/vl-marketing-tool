@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Dropdown, Button, Popconfirm } from 'antd';
-import { Star, Trash2, Plus } from 'lucide-react';
-import { fetchSavedViews, deleteSavedView } from '@/lib/api/savedViewsClient';
+import { Dropdown, Button } from 'antd';
+import { Star, Pencil, Plus } from 'lucide-react';
+import { fetchSavedViews, toggleFavorite } from '@/lib/api/savedViewsClient';
 import { resolveViewParams } from '@/lib/savedViews';
 import { SaveViewModal } from '@/components/saved-views/SaveViewModal';
+import { EditViewModal } from '@/components/saved-views/EditViewModal';
 import type { SavedView, ResolvedViewParams } from '@/types/savedViews';
 import dropdownStyles from './SavedViewsDropdown.module.css';
 
@@ -26,10 +27,25 @@ interface SavedViewsDropdownProps {
   getCurrentState: () => CurrentState;
 }
 
+const iconButton: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 22,
+  height: 22,
+  borderRadius: 4,
+  border: 'none',
+  background: 'transparent',
+  cursor: 'pointer',
+  color: 'var(--color-gray-400)',
+  flexShrink: 0,
+};
+
 export function SavedViewsDropdown({ pagePath, onApplyView, getCurrentState }: SavedViewsDropdownProps) {
   const [views, setViews] = useState<SavedView[]>([]);
   const [loading, setLoading] = useState(false);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [editView, setEditView] = useState<SavedView | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const loadViews = useCallback(async () => {
@@ -55,13 +71,21 @@ export function SavedViewsDropdown({ pagePath, onApplyView, getCurrentState }: S
     setDropdownOpen(false);
   };
 
-  const handleDelete = async (viewId: string) => {
+  const handleToggleFavorite = async (viewId: string, currentlyFavorite: boolean) => {
     try {
-      await deleteSavedView(viewId);
-      setViews((prev) => prev.filter((v) => v.id !== viewId));
+      await toggleFavorite(viewId, !currentlyFavorite);
+      setViews((prev) =>
+        prev.map((v) => v.id === viewId ? { ...v, isFavorite: !currentlyFavorite } : v)
+      );
+      window.dispatchEvent(new Event('favorites-changed'));
     } catch (err) {
-      console.warn('Failed to delete saved view:', err);
+      console.warn('Failed to toggle favorite:', err);
     }
+  };
+
+  const handleEdit = (view: SavedView) => {
+    setDropdownOpen(false);
+    setEditView(view);
   };
 
   const handleSaveNew = () => {
@@ -69,46 +93,58 @@ export function SavedViewsDropdown({ pagePath, onApplyView, getCurrentState }: S
     setSaveModalOpen(true);
   };
 
+  const handleRenamed = (updated: SavedView) => {
+    setViews((prev) => prev.map((v) => v.id === updated.id ? { ...v, name: updated.name, isFavorite: updated.isFavorite } : v));
+  };
+
+  const handleDeleted = (viewId: string) => {
+    setViews((prev) => prev.filter((v) => v.id !== viewId));
+    window.dispatchEvent(new Event('favorites-changed'));
+  };
 
   const menuItems = [
     ...views.map((view) => ({
       key: view.id,
       label: (
         <div
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minWidth: 200 }}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 200 }}
         >
           <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 500, color: 'var(--color-gray-800)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {view.name}
           </div>
-          <Popconfirm
-            title="Delete this view?"
-            onConfirm={() => handleDelete(view.id)}
-            okText="Delete"
-            cancelText="Cancel"
-            okButtonProps={{ danger: true }}
-            placement="right"
-          >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginRight: -4 }}>
             <button
-              onClick={(e) => e.stopPropagation()}
+              title={view.isFavorite ? 'Remove from sidebar' : 'Add to sidebar'}
+              onClick={(e) => { e.stopPropagation(); handleToggleFavorite(view.id, view.isFavorite); }}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 24,
-                height: 24,
-                borderRadius: 4,
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                color: 'var(--color-gray-400)',
-                flexShrink: 0,
+                ...iconButton,
+                color: view.isFavorite ? 'var(--color-primary-500)' : 'var(--color-gray-400)',
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-error)'; e.currentTarget.style.background = '#fef2f2'; }}
+              onMouseEnter={(e) => {
+                if (!view.isFavorite) {
+                  e.currentTarget.style.color = 'var(--color-primary-500)';
+                  e.currentTarget.style.background = '#f0fdf4';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!view.isFavorite) {
+                  e.currentTarget.style.color = 'var(--color-gray-400)';
+                  e.currentTarget.style.background = 'transparent';
+                }
+              }}
+            >
+              <Star size={13} fill={view.isFavorite ? 'currentColor' : 'none'} />
+            </button>
+            <button
+              title="Edit view"
+              onClick={(e) => { e.stopPropagation(); handleEdit(view); }}
+              style={iconButton}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-gray-700)'; e.currentTarget.style.background = 'var(--color-background-tertiary)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-gray-400)'; e.currentTarget.style.background = 'transparent'; }}
             >
-              <Trash2 size={14} />
+              <Pencil size={13} />
             </button>
-          </Popconfirm>
+          </div>
         </div>
       ),
       onClick: () => handleApply(view),
@@ -150,6 +186,14 @@ export function SavedViewsDropdown({ pagePath, onApplyView, getCurrentState }: S
         pagePath={pagePath}
         currentState={getCurrentState()}
         onSaved={loadViews}
+      />
+
+      <EditViewModal
+        open={editView !== null}
+        onClose={() => setEditView(null)}
+        view={editView}
+        onRenamed={handleRenamed}
+        onDeleted={handleDeleted}
       />
     </>
   );

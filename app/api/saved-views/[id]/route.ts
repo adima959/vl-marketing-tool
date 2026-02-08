@@ -124,5 +124,82 @@ async function handleDelete(
   }
 }
 
+/**
+ * GET /api/saved-views/[id]
+ * Fetch a single saved view by ID (ownership verified)
+ */
+async function handleGet(
+  request: NextRequest,
+  user: AppUser,
+  context: RouteContext
+): Promise<NextResponse> {
+  try {
+    const { id } = await context.params;
+
+    const rows = await executeQuery<{
+      id: string;
+      name: string;
+      page_path: string;
+      date_mode: string;
+      date_preset: string | null;
+      date_start: string | null;
+      date_end: string | null;
+      dimensions: string[] | null;
+      filters: { field: string; operator: string; value: string }[] | null;
+      sort_by: string | null;
+      sort_dir: string | null;
+      period: string | null;
+      visible_columns: string[] | null;
+      is_favorite: boolean;
+      favorite_order: number | null;
+      created_at: string;
+    }>(
+      `SELECT id, name, page_path, date_mode, date_preset, date_start, date_end,
+              dimensions, filters, sort_by, sort_dir, period, visible_columns,
+              is_favorite, favorite_order, created_at
+       FROM app_saved_views
+       WHERE id = $1 AND user_id = $2`,
+      [id, user.id]
+    );
+
+    if (rows.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Saved view not found' },
+        { status: 404 }
+      );
+    }
+
+    const row = rows[0];
+    return NextResponse.json({
+      success: true,
+      data: {
+        id: row.id,
+        name: row.name,
+        pagePath: row.page_path,
+        dateMode: row.date_mode,
+        datePreset: row.date_preset,
+        dateStart: row.date_start,
+        dateEnd: row.date_end,
+        dimensions: row.dimensions,
+        filters: row.filters,
+        sortBy: row.sort_by,
+        sortDir: row.sort_dir,
+        period: row.period,
+        visibleColumns: row.visible_columns,
+        isFavorite: row.is_favorite,
+        favoriteOrder: row.favorite_order,
+        createdAt: row.created_at,
+      },
+    });
+  } catch (error) {
+    const masked = maskErrorForClient(error, 'saved-views:GET');
+    return NextResponse.json(
+      { success: false, error: masked.message },
+      { status: masked.statusCode }
+    );
+  }
+}
+
+export const GET = withAuth(handleGet);
 export const PATCH = withAuth(handlePatch);
 export const DELETE = withAuth(handleDelete);

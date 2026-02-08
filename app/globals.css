@@ -242,7 +242,7 @@ textarea:focus-visible {
 
 /* Input and Select consistency */
 .ant-input,
-.ant-select-selector,
+.ant-select,
 .ant-picker {
   border-radius: var(--radius-md) !important;
   border-color: var(--color-gray-200);
@@ -250,16 +250,33 @@ textarea:focus-visible {
 }
 
 .ant-input:hover,
-.ant-select-selector:hover,
+.ant-select:hover,
 .ant-picker:hover {
   border-color: var(--color-primary-500);
 }
 
 .ant-input:focus,
-.ant-select-focused .ant-select-selector,
+.ant-select-focused,
 .ant-picker-focused {
   border-color: var(--color-primary-500);
   box-shadow: 0 0 0 2px rgba(0, 185, 107, 0.1);
+}
+
+/* Filter panel — darker borders for visibility */
+[data-filter-panel] .ant-select {
+  border-color: var(--color-gray-400) !important;
+}
+
+[data-filter-panel] .ant-select:hover {
+  border-color: var(--color-primary-500) !important;
+}
+
+[data-filter-panel] .ant-input {
+  border-color: var(--color-gray-400) !important;
+}
+
+[data-filter-panel] .ant-input:hover {
+  border-color: var(--color-primary-500) !important;
 }
 
 /* Checkbox styling */

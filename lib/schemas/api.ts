@@ -135,6 +135,17 @@ export const savedViewRenameSchema = z.object({
   name: z.string().min(1).max(100),
 });
 
+export const savedViewToggleFavoriteSchema = z.object({
+  isFavorite: z.boolean(),
+});
+
+export const savedViewReorderSchema = z.object({
+  items: z.array(z.object({
+    id: z.string().uuid(),
+    favoriteOrder: z.number().int().min(0),
+  })).min(1).max(50),
+});
+
 /**
  * Type inference helpers
  * These provide TypeScript types from the schemas
@@ -146,6 +157,8 @@ export type ValidationRateQueryRequest = z.infer<typeof validationRateQueryReque
 export type DashboardDetailsRequest = z.infer<typeof dashboardDetailsRequestSchema>;
 export type SavedViewCreateRequest = z.infer<typeof savedViewCreateSchema>;
 export type SavedViewRenameRequest = z.infer<typeof savedViewRenameSchema>;
+export type SavedViewToggleFavoriteRequest = z.infer<typeof savedViewToggleFavoriteSchema>;
+export type SavedViewReorderRequest = z.infer<typeof savedViewReorderSchema>;
 
 /**
  * Validation helper function

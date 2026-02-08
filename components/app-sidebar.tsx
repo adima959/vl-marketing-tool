@@ -14,8 +14,8 @@ import {
 } from "lucide-react"
 import { usePathname } from "next/navigation"
 
-import { NavMain } from "@/components/nav-main"
 import { NavMainCollapsible, type NavItem } from "@/components/nav-main-collapsible"
+import { NavFavorites } from "@/components/nav-favorites"
 import { useAuth } from "@/contexts/AuthContext"
 import { UserRole } from "@/types/user"
 import {
@@ -39,8 +39,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     await logout();
   };
 
-  // Menu items (main navigation)
-  const menuItems = [
+  // Menu items (main navigation + validation reports)
+  const menuItems: NavItem[] = [
     {
       title: "Dashboard",
       url: "/",
@@ -56,10 +56,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       url: "/on-page-analysis",
       icon: FileSearch,
     },
-  ];
-
-  // Validation Reports section (collapsible with sub-items)
-  const validationReportsItems: NavItem[] = [
     {
       title: "Validation Reports",
       url: "/validation-reports",
@@ -82,7 +78,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   ];
 
   // Tools items (separate section)
-  const toolItems = [
+  const toolItems: NavItem[] = [
     {
       title: "Marketing Tracker",
       url: "/marketing-tracker",
@@ -118,9 +114,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain label="Menu" items={menuItems} />
-        <NavMainCollapsible label="Reports" items={validationReportsItems} />
-        <NavMain label="Tools" items={toolItems} />
+        <NavMainCollapsible label="Menu" items={menuItems} />
+        <NavMainCollapsible label="Tools" items={toolItems} />
+        <NavFavorites />
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>

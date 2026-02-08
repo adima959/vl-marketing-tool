@@ -11,6 +11,8 @@ interface FilterPanelProps {
   filters: TableFilter[];
   onFiltersChange: (filters: TableFilter[]) => void;
   dimensionGroups: DimensionGroupConfig[];
+  /** When true, renders without its own box container (for embedding in toolbar) */
+  embedded?: boolean;
 }
 
 const OPERATOR_OPTIONS: { value: FilterOperator; label: string }[] = [
@@ -35,7 +37,7 @@ function buildFieldOptions(groups: DimensionGroupConfig[]) {
   }));
 }
 
-export function FilterPanel({ filters, onFiltersChange, dimensionGroups }: FilterPanelProps) {
+export function FilterPanel({ filters, onFiltersChange, dimensionGroups, embedded }: FilterPanelProps) {
   const fieldOptions = buildFieldOptions(dimensionGroups);
 
   const addFilter = useCallback(() => {
@@ -67,7 +69,7 @@ export function FilterPanel({ filters, onFiltersChange, dimensionGroups }: Filte
   }, [onFiltersChange]);
 
   return (
-    <div className={styles.panel}>
+    <div className={embedded ? styles.panelEmbedded : styles.panel} data-filter-panel>
       {filters.map((filter, index) => (
         <div key={filter.id} className={styles.filterRow}>
           <button

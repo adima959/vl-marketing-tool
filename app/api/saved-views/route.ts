@@ -13,10 +13,40 @@ async function handleGet(request: NextRequest, user: AppUser): Promise<NextRespo
   try {
     const { searchParams } = new URL(request.url);
     const pagePath = searchParams.get('pagePath');
+    const favorites = searchParams.get('favorites');
+
+    // Favorites mode: return all favorited views across all pages
+    if (favorites === 'true') {
+      const rows = await executeQuery<{
+        id: string;
+        name: string;
+        page_path: string;
+        is_favorite: boolean;
+        favorite_order: number | null;
+        created_at: string;
+      }>(
+        `SELECT id, name, page_path, is_favorite, favorite_order, created_at
+         FROM app_saved_views
+         WHERE user_id = $1 AND is_favorite = true
+         ORDER BY favorite_order ASC NULLS LAST, created_at DESC`,
+        [user.id]
+      );
+
+      const views = rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        pagePath: row.page_path,
+        isFavorite: row.is_favorite,
+        favoriteOrder: row.favorite_order,
+        createdAt: row.created_at,
+      }));
+
+      return NextResponse.json({ success: true, data: views });
+    }
 
     if (!pagePath) {
       return NextResponse.json(
-        { success: false, error: 'Missing required parameter: pagePath' },
+        { success: false, error: 'Missing required parameter: pagePath or favorites' },
         { status: 400 }
       );
     }
@@ -35,10 +65,13 @@ async function handleGet(request: NextRequest, user: AppUser): Promise<NextRespo
       sort_dir: string | null;
       period: string | null;
       visible_columns: string[] | null;
+      is_favorite: boolean;
+      favorite_order: number | null;
       created_at: string;
     }>(
       `SELECT id, name, page_path, date_mode, date_preset,
-              date_start, date_end, dimensions, filters, sort_by, sort_dir, period, visible_columns, created_at
+              date_start, date_end, dimensions, filters, sort_by, sort_dir, period,
+              visible_columns, is_favorite, favorite_order, created_at
        FROM app_saved_views
        WHERE user_id = $1 AND page_path = $2
        ORDER BY created_at DESC`,
@@ -59,6 +92,8 @@ async function handleGet(request: NextRequest, user: AppUser): Promise<NextRespo
       sortDir: row.sort_dir,
       period: row.period,
       visibleColumns: row.visible_columns,
+      isFavorite: row.is_favorite,
+      favoriteOrder: row.favorite_order,
       createdAt: row.created_at,
     }));
 

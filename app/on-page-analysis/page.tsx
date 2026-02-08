@@ -8,14 +8,14 @@ import { OnPageFilterToolbar } from '@/components/on-page-analysis/OnPageFilterT
 import { OnPageDataTable } from '@/components/on-page-analysis/OnPageDataTable';
 import { OnPageColumnSettingsModal } from '@/components/on-page-analysis/OnPageColumnSettingsModal';
 import { UrlClassificationModal } from '@/components/on-page-analysis/UrlClassificationModal';
-import { FilterPanel } from '@/components/filters/FilterPanel';
 import { SavedViewsDropdown } from '@/components/saved-views/SavedViewsDropdown';
 import { useOnPageUrlSync } from '@/hooks/useOnPageUrlSync';
+import { useApplyViewFromUrl } from '@/hooks/useApplyViewFromUrl';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useOnPageStore } from '@/stores/onPageStore';
 import { useOnPageColumnStore } from '@/stores/onPageColumnStore';
 import { ON_PAGE_METRIC_COLUMNS } from '@/config/onPageColumns';
-import { ON_PAGE_DIMENSION_GROUPS } from '@/config/onPageDimensions';
+
 import { TableInfoBanner } from '@/components/ui/TableInfoBanner';
 import { Eye } from 'lucide-react';
 import pageStyles from '@/components/dashboard/dashboard.module.css';
@@ -77,6 +77,8 @@ function OnPageAnalysisContent() {
       store.loadData();
     }
   }, []);
+
+  useApplyViewFromUrl(handleApplyView);
 
   const getCurrentState = useCallback(() => {
     const { dateRange, dimensions, filters: storeFilters, sortColumn, sortDirection } = useOnPageStore.getState();
@@ -156,12 +158,7 @@ function OnPageAnalysisContent() {
           }
         />
         <div className={pageStyles.content}>
-          <OnPageFilterToolbar />
-          <FilterPanel
-            filters={filters}
-            onFiltersChange={setFilters}
-            dimensionGroups={ON_PAGE_DIMENSION_GROUPS}
-          />
+          <OnPageFilterToolbar filters={filters} onFiltersChange={setFilters} />
           <TableInfoBanner messages={[
             ...(includesToday ? ["Today's data may be incomplete"] : []),
             'Rows with 1 or fewer page views are hidden',

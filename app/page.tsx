@@ -3,6 +3,7 @@
 import { Suspense, lazy, useEffect, useCallback } from 'react';
 import { Spin } from 'antd';
 import { useDashboardUrlSync } from '@/hooks/useDashboardUrlSync';
+import { useApplyViewFromUrl } from '@/hooks/useApplyViewFromUrl';
 import { DashboardFilterToolbar } from '@/components/dashboard/DashboardFilterToolbar';
 import { DashboardTimeSeriesChart } from '@/components/dashboard/DashboardTimeSeriesChart';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -35,6 +36,8 @@ function DashboardContent() {
       store.loadData();
     }
   }, []);
+
+  useApplyViewFromUrl(handleApplyView);
 
   const getCurrentState = useCallback(() => {
     const { dateRange, sortColumn, sortDirection } = useDashboardStore.getState();

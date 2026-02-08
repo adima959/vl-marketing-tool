@@ -9,6 +9,39 @@
   margin-bottom: 16px;
 }
 
+/* Embedded variant — no box, just content */
+.panelEmbedded {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Hide logic label in embedded mode — FILTERS: label provides context */
+.panelEmbedded .logicLabel {
+  display: none;
+}
+
+/* Compact remove button in embedded mode */
+.panelEmbedded .removeButton {
+  width: 20px;
+  height: 20px;
+}
+
+/* Match FILTERS: label height in embedded mode */
+.panelEmbedded .addButton {
+  font-size: 11px;
+  padding: 0;
+  padding-left: 4px; /* align + icon with X icon center in removeButton */
+  line-height: 32px; /* match Ant input height for vertical alignment with label */
+}
+
+.panelEmbedded .clearButton {
+  font-size: 11px;
+  padding: 0;
+  padding-left: 4px;
+  line-height: 32px;
+}
+
 /* Individual filter row */
 .filterRow {
   display: flex;

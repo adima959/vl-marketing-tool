@@ -9,6 +9,7 @@ import { FilterPanel } from '@/components/filters/FilterPanel';
 import { DataTable } from '@/components/table/DataTable';
 import { SavedViewsDropdown } from '@/components/saved-views/SavedViewsDropdown';
 import { useUrlSync } from '@/hooks/useUrlSync';
+import { useApplyViewFromUrl } from '@/hooks/useApplyViewFromUrl';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useReportStore } from '@/stores/reportStore';
 import { DIMENSION_GROUPS } from '@/config/dimensions';
@@ -92,6 +93,8 @@ function MarketingReportContent() {
       store.loadData();
     }
   }, []);
+
+  useApplyViewFromUrl(handleApplyView);
 
   const getCurrentState = useCallback(() => {
     const { dateRange, dimensions, filters: storeFilters, sortColumn, sortDirection } = useReportStore.getState();

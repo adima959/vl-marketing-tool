@@ -7,6 +7,7 @@ import { ValidationRateFilterToolbar } from '@/components/validation-rate/Valida
 import { ValidationRateDataTable } from '@/components/validation-rate/ValidationRateDataTable';
 import { SavedViewsDropdown } from '@/components/saved-views/SavedViewsDropdown';
 import { useValidationRateUrlSync } from '@/hooks/useValidationRateUrlSync';
+import { useApplyViewFromUrl } from '@/hooks/useApplyViewFromUrl';
 import { useApprovalRateStore } from '@/stores/approvalRateStore';
 import { TrendingUp } from 'lucide-react';
 import pageStyles from '@/components/dashboard/dashboard.module.css';
@@ -32,6 +33,8 @@ function ApprovalRateContent() {
       store.loadData();
     }
   }, []);
+
+  useApplyViewFromUrl(handleApplyView);
 
   const getCurrentState = useCallback(() => {
     const { dateRange, dimensions, sortColumn, sortDirection, timePeriod } = useApprovalRateStore.getState();

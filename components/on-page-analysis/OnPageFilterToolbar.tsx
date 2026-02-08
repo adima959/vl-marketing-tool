@@ -5,22 +5,42 @@ import { ReloadOutlined } from '@ant-design/icons';
 import { OnPageDateRangePicker } from './OnPageDateRangePicker';
 import { OnPageDimensionPicker } from './OnPageDimensionPicker';
 import { OnPageDimensionPills } from './OnPageDimensionPills';
+import { FilterPanel } from '@/components/filters/FilterPanel';
 import { useOnPageStore } from '@/stores/onPageStore';
+import { ON_PAGE_DIMENSION_GROUPS } from '@/config/onPageDimensions';
+import type { TableFilter } from '@/types/filters';
 import styles from '@/components/filters/FilterToolbar.module.css';
 
-export function OnPageFilterToolbar() {
+interface OnPageFilterToolbarProps {
+  filters: TableFilter[];
+  onFiltersChange: (filters: TableFilter[]) => void;
+}
+
+export function OnPageFilterToolbar({ filters, onFiltersChange }: OnPageFilterToolbarProps) {
   const { loadData, isLoading, hasUnsavedChanges, hasLoadedOnce } = useOnPageStore();
 
   return (
     <div className={styles.toolbar}>
       <div className={styles.mainRow}>
-        {/* Left: Dimensions */}
-        <div className={styles.leftSection}>
+        {/* Left: Dimensions + Filters stacked */}
+        <div className={styles.leftColumn}>
           <div className={styles.dimensionsWrapper}>
             <span className={styles.dimensionsLabel}>DIMENSIONS:</span>
             <div className={styles.dimensionsContent}>
               <OnPageDimensionPills />
               <OnPageDimensionPicker />
+            </div>
+          </div>
+
+          <div className={styles.filtersWrapper}>
+            <span className={styles.dimensionsLabel}>FILTERS:</span>
+            <div className={styles.filtersContent}>
+              <FilterPanel
+                filters={filters}
+                onFiltersChange={onFiltersChange}
+                dimensionGroups={ON_PAGE_DIMENSION_GROUPS}
+                embedded
+              />
             </div>
           </div>
         </div>

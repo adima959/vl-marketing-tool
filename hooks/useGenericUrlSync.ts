@@ -145,6 +145,12 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
   useEffect(() => {
     if (!isMounted || isInitialized.current) return;
 
+    // If viewId is present, skip URL init — useApplyViewFromUrl will handle it
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('viewId')) {
+      isInitialized.current = true;
+      return;
+    }
+
     isInitialized.current = true;
     isUpdatingFromUrl.current = true;
 

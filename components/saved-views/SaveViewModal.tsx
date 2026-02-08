@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Modal, Input, Radio, Select } from 'antd';
-import { createSavedView } from '@/lib/api/savedViewsClient';
+import { Modal, Input, Radio, Select, Switch } from 'antd';
+import { Star } from 'lucide-react';
+import { createSavedView, toggleFavorite } from '@/lib/api/savedViewsClient';
 import { detectDatePreset, DATE_PRESET_LABELS } from '@/lib/savedViews';
 import { formatLocalDate } from '@/lib/types/api';
 import { ALL_DIMENSIONS } from '@/config/dimensions';
@@ -52,6 +53,7 @@ export function SaveViewModal({ open, onClose, pagePath, currentState, onSaved }
   const [name, setName] = useState('');
   const [dateMode, setDateMode] = useState<DateMode>('relative');
   const [datePreset, setDatePreset] = useState<DatePreset | undefined>();
+  const [addToSidebar, setAddToSidebar] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,6 +81,7 @@ export function SaveViewModal({ open, onClose, pagePath, currentState, onSaved }
   useEffect(() => {
     if (open) {
       setName('');
+      setAddToSidebar(false);
       setError(null);
       setSaving(false);
       if (detectedPreset) {
@@ -96,7 +99,7 @@ export function SaveViewModal({ open, onClose, pagePath, currentState, onSaved }
     setError(null);
 
     try {
-      await createSavedView({
+      const created = await createSavedView({
         name: name.trim() || autoName,
         pagePath,
         dateMode,
@@ -113,6 +116,11 @@ export function SaveViewModal({ open, onClose, pagePath, currentState, onSaved }
         ...(currentState.period && { period: currentState.period }),
         ...(currentState.visibleColumns && { visibleColumns: currentState.visibleColumns }),
       });
+
+      if (addToSidebar) {
+        await toggleFavorite(created.id, true);
+        window.dispatchEvent(new Event('favorites-changed'));
+      }
 
       onSaved();
       onClose();
@@ -208,6 +216,14 @@ export function SaveViewModal({ open, onClose, pagePath, currentState, onSaved }
             {formatLocalDate(currentState.dateRange.start)} — {formatLocalDate(currentState.dateRange.end)}
           </div>
         )}
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Star size={14} style={{ color: 'var(--color-primary-500)' }} fill={addToSidebar ? 'var(--color-primary-500)' : 'none'} />
+            <span style={{ fontSize: 13, fontWeight: 500, color: '#374151' }}>Add to sidebar</span>
+          </div>
+          <Switch size="small" checked={addToSidebar} onChange={setAddToSidebar} />
+        </div>
 
         {error && (
           <div style={{ fontSize: 13, color: '#ef4444' }}>{error}</div>

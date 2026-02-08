@@ -44,6 +44,22 @@ export async function POST(): Promise<NextResponse> {
       ADD COLUMN IF NOT EXISTS filters JSONB DEFAULT NULL;
     `);
 
+    // Add favorites columns
+    await executeQuery(`
+      ALTER TABLE app_saved_views
+      ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN NOT NULL DEFAULT false;
+    `);
+
+    await executeQuery(`
+      ALTER TABLE app_saved_views
+      ADD COLUMN IF NOT EXISTS favorite_order INTEGER DEFAULT NULL;
+    `);
+
+    await executeQuery(`
+      CREATE INDEX IF NOT EXISTS idx_saved_views_favorites
+      ON app_saved_views(user_id) WHERE is_favorite = true;
+    `);
+
     return NextResponse.json({ success: true, message: 'Migration completed' });
   } catch (error) {
     console.error('Migration failed:', error);

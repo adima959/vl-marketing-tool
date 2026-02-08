@@ -55,3 +55,53 @@ export async function renameSavedView(id: string, name: string): Promise<SavedVi
   const json = await res.json();
   return json.data;
 }
+
+export async function fetchFavoriteViews(): Promise<SavedView[]> {
+  const res = await fetch('/api/saved-views?favorites=true');
+
+  if (!res.ok) {
+    if (isAuthError(res.status)) triggerAuthError();
+    throw new Error('Failed to fetch favorite views');
+  }
+
+  const json = await res.json();
+  return json.data;
+}
+
+export async function toggleFavorite(id: string, isFavorite: boolean): Promise<void> {
+  const res = await fetch(`/api/saved-views/${id}/favorite`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ isFavorite }),
+  });
+
+  if (!res.ok) {
+    if (isAuthError(res.status)) triggerAuthError();
+    throw new Error('Failed to update favorite status');
+  }
+}
+
+export async function reorderFavorites(items: { id: string; favoriteOrder: number }[]): Promise<void> {
+  const res = await fetch('/api/saved-views/reorder', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items }),
+  });
+
+  if (!res.ok) {
+    if (isAuthError(res.status)) triggerAuthError();
+    throw new Error('Failed to reorder favorites');
+  }
+}
+
+export async function fetchSavedViewById(id: string): Promise<SavedView> {
+  const res = await fetch(`/api/saved-views/${id}`);
+
+  if (!res.ok) {
+    if (isAuthError(res.status)) triggerAuthError();
+    throw new Error('Failed to fetch saved view');
+  }
+
+  const json = await res.json();
+  return json.data;
+}
