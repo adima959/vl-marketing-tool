@@ -59,7 +59,8 @@ export interface QueryOptions {
   };
   dimensions: string[];      // Array of dimension IDs
   depth: number;             // Current depth in hierarchy (0-based)
-  parentFilters?: Record<string, string>; // Filters from parent rows
+  parentFilters?: Record<string, string>; // Filters from parent rows (drill-down)
+  filters?: Array<{ field: string; operator: 'equals' | 'not_equals' | 'contains' | 'not_contains'; value: string }>; // Top-level dimension filters
   sortBy?: string;           // Metric to sort by
   sortDirection?: 'ASC' | 'DESC';
   limit?: number;            // Max rows to return

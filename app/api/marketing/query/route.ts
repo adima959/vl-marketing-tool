@@ -34,6 +34,7 @@ async function handleMarketingQuery(
       dimensions: queryParams.dimensions,
       depth: queryParams.depth,
       parentFilters: queryParams.parentFilters,
+      filters: queryParams.filters,
       sortBy: queryParams.sortBy,
       sortDirection: queryParams.sortDirection,
       productFilter: body.productFilter,

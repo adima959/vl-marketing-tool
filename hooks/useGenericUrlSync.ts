@@ -6,6 +6,7 @@ import {
   parseAsString,
   parseAsStringLiteral,
 } from 'nuqs';
+import type { TableFilter } from '@/types/filters';
 
 /**
  * Base row interface that report types must extend
@@ -23,6 +24,7 @@ interface BaseReportRow {
 interface ReportState<TRow extends BaseReportRow> {
   dateRange: { start: Date; end: Date };
   dimensions: string[];
+  filters: TableFilter[];
   expandedRowKeys: string[];
   sortColumn: string | null;
   sortDirection: 'ascend' | 'descend' | null;
@@ -54,6 +56,35 @@ export interface UseGenericUrlSyncConfig<TRow extends BaseReportRow> {
 }
 
 /**
+ * Serialize filters to a compact URL-safe JSON string.
+ * Each filter is encoded as "field.operator.value" joined by "|".
+ */
+function serializeFilters(filters: TableFilter[]): string | null {
+  const valid = filters.filter(f => f.field && f.value);
+  if (valid.length === 0) return null;
+  return JSON.stringify(valid.map(({ field, operator, value }) => ({ field, operator, value })));
+}
+
+/**
+ * Deserialize filters from URL JSON string back to TableFilter[].
+ */
+function deserializeFilters(raw: string | null): TableFilter[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((f: { field: string; operator: string; value: string }, i: number) => ({
+      id: `url-${i}-${Date.now()}`,
+      field: f.field || '',
+      operator: (f.operator || 'equals') as TableFilter['operator'],
+      value: f.value || '',
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Generic hook to sync Zustand store state with URL query parameters
  * This enables sharing and bookmarking of dashboard state
  *
@@ -78,6 +109,7 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
     expanded: parseAsArrayOf(parseAsString).withDefault([]),
     sortBy: parseAsString.withDefault(defaultSortColumn),
     sortDir: parseAsStringLiteral(['ascend', 'descend'] as const).withDefault('descend'),
+    filters: parseAsString.withDefault(''),
   } as const;
 
   const [urlState, setUrlState] = useQueryStates(urlParsers, {
@@ -99,6 +131,7 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
   const {
     dateRange,
     dimensions,
+    filters,
     expandedRowKeys,
     sortColumn,
     sortDirection,
@@ -126,6 +159,14 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
       // Parse and apply dimensions from URL
       if (urlState.dimensions && urlState.dimensions.length > 0) {
         useStore.setState({ dimensions: urlState.dimensions });
+      }
+
+      // Parse and apply filters from URL
+      if (urlState.filters) {
+        const parsedFilters = deserializeFilters(urlState.filters);
+        if (parsedFilters.length > 0) {
+          useStore.setState({ filters: parsedFilters });
+        }
       }
 
       // Save expanded keys for later restoration (deduplicate from URL)
@@ -267,11 +308,13 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
       expanded: expandedRowKeys.length > 0 ? Array.from(new Set(expandedRowKeys)) : null,
       sortBy: sortColumn || defaultSortColumn,
       sortDir: sortDirection || 'descend',
+      filters: serializeFilters(filters),
     });
   }, [
     isMounted,
     dateRange,
     dimensions,
+    filters,
     expandedRowKeys,
     sortColumn,
     sortDirection,

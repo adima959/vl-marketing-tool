@@ -16,6 +16,7 @@ export interface QueryParams {
   dimensions: string[];
   depth: number;
   parentFilters?: Record<string, string>;
+  filters?: Array<{ field: string; operator: 'equals' | 'not_equals' | 'contains' | 'not_contains'; value: string }>;
   sortBy?: string;
   sortDirection?: 'ASC' | 'DESC';
 }
@@ -31,6 +32,7 @@ export interface QueryRequest {
   dimensions: string[];
   depth: number;
   parentFilters?: Record<string, string>;
+  filters?: Array<{ field: string; operator: 'equals' | 'not_equals' | 'contains' | 'not_contains'; value: string }>;
   sortBy?: string;
   sortDirection?: 'ASC' | 'DESC';
 }

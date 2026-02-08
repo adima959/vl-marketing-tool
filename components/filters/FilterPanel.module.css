@@ -1,0 +1,108 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border: 1px solid var(--color-gray-200);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+/* Individual filter row */
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Remove button */
+.removeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-gray-400);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.removeButton:hover {
+  background: var(--color-gray-100);
+  color: var(--color-error);
+}
+
+/* "where" / "and" label */
+.logicLabel {
+  width: 48px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-gray-400);
+  text-transform: lowercase;
+  flex-shrink: 0;
+  text-align: right;
+  line-height: 1;
+}
+
+/* Field / operator selects */
+.fieldSelect {
+  width: 180px;
+  flex-shrink: 0;
+}
+
+.operatorSelect {
+  width: 150px;
+  flex-shrink: 0;
+}
+
+/* Value input */
+.valueInput {
+  flex: 1;
+  min-width: 140px;
+}
+
+/* Bottom action row — aligned with the field inputs */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.addButton {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-gray-500);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.addButton:hover {
+  color: var(--color-text-primary);
+}
+
+.clearButton {
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-gray-400);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.clearButton:hover {
+  color: var(--color-error);
+}

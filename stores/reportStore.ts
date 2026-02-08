@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { fetchMarketingData } from '@/lib/api/marketingClient';
 import type { DateRange, ReportRow } from '@/types';
+import type { TableFilter } from '@/types/filters';
 import { normalizeError } from '@/lib/types/errors';
 import { findRowByKey } from '@/lib/treeUtils';
 
@@ -8,10 +9,12 @@ interface ReportState {
   // Filters
   dateRange: DateRange;
   dimensions: string[];
+  filters: TableFilter[];
 
   // Loaded state
   loadedDimensions: string[];
   loadedDateRange: DateRange;
+  loadedFilters: TableFilter[];
   reportData: ReportRow[];
 
   // UI state
@@ -26,6 +29,7 @@ interface ReportState {
 
   // Actions
   setDateRange: (range: DateRange) => void;
+  setFilters: (filters: TableFilter[]) => void;
   addDimension: (id: string) => void;
   removeDimension: (id: string) => void;
   reorderDimensions: (newOrder: string[]) => void;
@@ -51,8 +55,10 @@ export const useReportStore = create<ReportState>((set, get) => ({
   // Initial state
   dateRange: getDefaultDateRange(),
   dimensions: ['network', 'campaign', 'adset'],
+  filters: [],
   loadedDimensions: ['network', 'campaign', 'adset'],
   loadedDateRange: getDefaultDateRange(),
+  loadedFilters: [],
   reportData: [],
   expandedRowKeys: [],
   sortColumn: 'clicks',
@@ -65,6 +71,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
 
   // Actions
   setDateRange: (range) => set({ dateRange: range, hasUnsavedChanges: true }),
+  setFilters: (filters) => set({ filters, hasUnsavedChanges: true }),
 
   addDimension: (id) => {
     const { dimensions, reportData, loadedDimensions } = get();
@@ -143,12 +150,14 @@ export const useReportStore = create<ReportState>((set, get) => ({
     if (state.hasLoadedOnce) {
       // Load top-level data with new sort
       set({ isLoading: true, error: null });
+      const apiFilters = state.filters.filter(f => f.value).map(({ field, operator, value }) => ({ field, operator, value }));
 
       try {
         const data = await fetchMarketingData({
           dateRange: state.dateRange,
           dimensions: state.dimensions,
           depth: 0,
+          ...(apiFilters.length > 0 && { filters: apiFilters }),
           sortBy: column || 'clicks',
           sortDirection: direction === 'ascend' ? 'ASC' : 'DESC',
         });
@@ -159,6 +168,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
           hasLoadedOnce: true,
           loadedDimensions: state.dimensions,
           loadedDateRange: state.dateRange,
+          loadedFilters: state.filters,
           reportData: data,
           expandedRowKeys: [], // Clear expanded rows on sort change
         });
@@ -176,11 +186,11 @@ export const useReportStore = create<ReportState>((set, get) => ({
   setLoadedDimensions: (dimensions) => set({ dimensions, loadedDimensions: dimensions, hasUnsavedChanges: false }),
 
   resetFilters: () => {
-    const defaultDateRange = getDefaultDateRange();
     const state = get();
     set({
       dateRange: state.loadedDateRange,
       dimensions: state.loadedDimensions,
+      filters: state.loadedFilters,
       hasUnsavedChanges: false,
     });
   },
@@ -189,6 +199,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
     const state = get();
     // Save expanded keys to restore after reload
     const savedExpandedKeys = [...state.expandedRowKeys];
+    const apiFilters = state.filters.filter(f => f.value).map(({ field, operator, value }) => ({ field, operator, value }));
 
     // Check if dimensions have changed
     const dimensionsChanged =
@@ -203,6 +214,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
         dateRange: state.dateRange,
         dimensions: state.dimensions,
         depth: 0,
+        ...(apiFilters.length > 0 && { filters: apiFilters }),
         sortBy: state.sortColumn || 'clicks',
         sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
       });
@@ -213,6 +225,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
         hasLoadedOnce: true,
         loadedDimensions: state.dimensions,
         loadedDateRange: state.dateRange,
+        loadedFilters: state.filters,
         reportData: data,
         expandedRowKeys: dimensionsChanged ? [] : savedExpandedKeys,
       });
@@ -248,6 +261,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
               dimensions: state.dimensions,
               depth: 1,
               parentFilters,
+              ...(apiFilters.length > 0 && { filters: apiFilters }),
               sortBy: state.sortColumn || 'clicks',
               sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
             })
@@ -330,6 +344,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
                 dimensions: state.dimensions,
                 depth: row.depth + 1,
                 parentFilters,
+                ...(apiFilters.length > 0 && { filters: apiFilters }),
                 sortBy: state.sortColumn || 'clicks',
                 sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
               })
@@ -401,11 +416,13 @@ export const useReportStore = create<ReportState>((set, get) => ({
         }
       });
 
+      const loadedApiFilters = state.loadedFilters.filter(f => f.value).map(({ field, operator, value }) => ({ field, operator, value }));
       const children = await fetchMarketingData({
         dateRange: state.loadedDateRange,
         dimensions: state.loadedDimensions,
         depth: parentDepth + 1,
         parentFilters,
+        ...(loadedApiFilters.length > 0 && { filters: loadedApiFilters }),
         sortBy: state.sortColumn || 'clicks',
         sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
       });

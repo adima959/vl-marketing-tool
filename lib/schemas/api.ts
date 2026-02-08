@@ -27,6 +27,17 @@ const dateRangeSchema = z.object({
 const sortDirectionSchema = z.enum(['ASC', 'DESC']);
 
 /**
+ * Table filter schema for dimension-level WHERE clause filters
+ */
+const filterOperatorSchema = z.enum(['equals', 'not_equals', 'contains', 'not_contains']);
+
+export const tableFilterSchema = z.object({
+  field: z.string().min(1),
+  operator: filterOperatorSchema,
+  value: z.string(),
+});
+
+/**
  * Common query request schema
  * Used by dashboard, marketing, and on-page analysis APIs
  */
@@ -35,6 +46,7 @@ export const queryRequestSchema = z.object({
   dimensions: z.array(z.string()).min(1, 'dimensions array must contain at least one dimension'),
   depth: z.number().int().min(0, 'depth must be a non-negative integer'),
   parentFilters: z.record(z.string(), z.string()).optional(),
+  filters: z.array(tableFilterSchema).optional(),
   sortBy: z.string().optional(),
   sortDirection: sortDirectionSchema.optional(),
 });
@@ -91,6 +103,39 @@ export const dashboardDetailsRequestSchema = z.object({
 });
 
 /**
+ * Saved view schemas
+ */
+const datePresetSchema = z.enum([
+  'today', 'yesterday', 'last7days', 'last14days', 'last30days',
+  'last90days', 'thisWeek', 'lastWeek', 'thisMonth', 'lastMonth',
+]);
+
+export const savedViewCreateSchema = z.object({
+  name: z.string().min(1).max(100),
+  pagePath: z.string().min(1),
+  dateMode: z.enum(['relative', 'absolute']),
+  datePreset: datePresetSchema.optional(),
+  dateStart: z.string().date().optional(),
+  dateEnd: z.string().date().optional(),
+  dimensions: z.array(z.string()).optional(),
+  filters: z.array(tableFilterSchema).optional(),
+  sortBy: z.string().optional(),
+  sortDir: z.enum(['ascend', 'descend']).optional(),
+  period: z.enum(['weekly', 'biweekly', 'monthly']).optional(),
+  visibleColumns: z.array(z.string()).optional(),
+}).refine(
+  (data) => {
+    if (data.dateMode === 'relative') return !!data.datePreset;
+    return !!data.dateStart && !!data.dateEnd;
+  },
+  { message: 'Relative mode requires datePreset; absolute mode requires dateStart and dateEnd' }
+);
+
+export const savedViewRenameSchema = z.object({
+  name: z.string().min(1).max(100),
+});
+
+/**
  * Type inference helpers
  * These provide TypeScript types from the schemas
  */
@@ -99,6 +144,8 @@ export type MarketingQueryRequest = z.infer<typeof marketingQueryRequestSchema>;
 export type ApprovalRateQueryRequest = z.infer<typeof approvalRateQueryRequestSchema>;
 export type ValidationRateQueryRequest = z.infer<typeof validationRateQueryRequestSchema>;
 export type DashboardDetailsRequest = z.infer<typeof dashboardDetailsRequestSchema>;
+export type SavedViewCreateRequest = z.infer<typeof savedViewCreateSchema>;
+export type SavedViewRenameRequest = z.infer<typeof savedViewRenameSchema>;
 
 /**
  * Validation helper function

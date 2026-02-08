@@ -31,6 +31,7 @@ export interface MarketingQueryParams {
   dimensions: string[];
   depth: number;
   parentFilters?: Record<string, string>;
+  filters?: Array<{ field: string; operator: 'equals' | 'not_equals' | 'contains' | 'not_contains'; value: string }>;
   sortBy?: string;
   sortDirection?: 'ASC' | 'DESC';
   productFilter?: string; // Optional: '%Balansera%'
@@ -148,6 +149,65 @@ function buildParentFilters(
 
 
 /**
+ * Builds top-level dimension filter WHERE clauses from user-defined filters
+ */
+function buildTableFilters(
+  filters: MarketingQueryParams['filters'],
+  paramOffset: number
+): { whereClause: string; params: any[] } {
+  if (!filters || filters.length === 0) {
+    return { whereClause: '', params: [] };
+  }
+
+  const params: any[] = [];
+  const conditions: string[] = [];
+
+  for (const filter of filters) {
+    if (!filter.value && filter.operator !== 'equals' && filter.operator !== 'not_equals') continue;
+
+    const sqlColumn = dimensionMap[filter.field];
+    if (!sqlColumn) continue;
+
+    const colExpr = sqlColumn;
+    const textExpr = `${colExpr}::text`;
+
+    switch (filter.operator) {
+      case 'equals':
+        if (!filter.value) {
+          conditions.push(`${colExpr} IS NULL`);
+        } else {
+          params.push(filter.value);
+          conditions.push(`${textExpr} = $${paramOffset + params.length}`);
+        }
+        break;
+      case 'not_equals':
+        if (!filter.value) {
+          conditions.push(`${colExpr} IS NOT NULL`);
+        } else {
+          params.push(filter.value);
+          conditions.push(`(${colExpr} IS NULL OR ${textExpr} != $${paramOffset + params.length})`);
+        }
+        break;
+      case 'contains':
+        params.push(`%${filter.value}%`);
+        conditions.push(`${textExpr} ILIKE $${paramOffset + params.length}`);
+        break;
+      case 'not_contains':
+        params.push(`%${filter.value}%`);
+        conditions.push(`(${colExpr} IS NULL OR ${textExpr} NOT ILIKE $${paramOffset + params.length})`);
+        break;
+    }
+  }
+
+  if (conditions.length === 0) return { whereClause: '', params: [] };
+
+  return {
+    whereClause: `AND ${conditions.join(' AND ')}`,
+    params,
+  };
+}
+
+/**
  * Get marketing data with two-database approach (PostgreSQL for ads, MariaDB for CRM)
  * Supports hierarchical loading like the original queryBuilder
  */
@@ -159,6 +219,7 @@ export async function getMarketingData(
     dimensions,
     depth,
     parentFilters,
+    filters,
     sortBy = 'cost',
     sortDirection = 'DESC',
     productFilter,
@@ -198,12 +259,19 @@ export async function getMarketingData(
     formatLocalDate(dateRange.end),   // $2 - e.g., "2026-02-05"
   ];
 
-  // Build parent filters
+  // Build parent filters (drill-down)
   const { whereClause, params: filterParams } = buildParentFilters(
     parentFilters,
     pgParams.length
   );
   pgParams.push(...filterParams);
+
+  // Build table filters (user-defined WHERE clauses)
+  const { whereClause: tableFilterClause, params: tableFilterParams } = buildTableFilters(
+    filters,
+    pgParams.length
+  );
+  pgParams.push(...tableFilterParams);
 
   // Query ads data grouped by current dimension, including ID mappings via array_agg
   // This eliminates the need for a separate ID mapping query (was a second round-trip)
@@ -225,6 +293,7 @@ export async function getMarketingData(
     FROM merged_ads_spending
     WHERE date::date BETWEEN $1::date AND $2::date
       ${whereClause}
+      ${tableFilterClause}
     GROUP BY ${sqlColumn}
     ORDER BY ${finalSortColumn} ${finalSortDirection}
     LIMIT ${safeLimit}
