@@ -2,16 +2,19 @@ import { create } from 'zustand';
 import { fetchOnPageData } from '@/lib/api/onPageClient';
 import type { DateRange } from '@/types';
 import type { OnPageReportRow } from '@/types/onPageReport';
+import type { TableFilter } from '@/types/filters';
 import { normalizeError } from '@/lib/types/errors';
 
 interface OnPageState {
   // Filters
   dateRange: DateRange;
   dimensions: string[];
+  filters: TableFilter[];
 
   // Loaded state
   loadedDimensions: string[];
   loadedDateRange: DateRange;
+  loadedFilters: TableFilter[];
   reportData: OnPageReportRow[];
 
   // UI state
@@ -25,6 +28,7 @@ interface OnPageState {
 
   // Actions
   setDateRange: (range: DateRange) => void;
+  setFilters: (filters: TableFilter[]) => void;
   addDimension: (id: string) => void;
   removeDimension: (id: string) => void;
   reorderDimensions: (newOrder: string[]) => void;
@@ -38,20 +42,21 @@ interface OnPageState {
 
 const getDefaultDateRange = (): DateRange => {
   const today = new Date();
-  const sevenDaysAgo = new Date(today);
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  sevenDaysAgo.setHours(0, 0, 0, 0);
+  const start = new Date(today);
+  start.setHours(0, 0, 0, 0);
   const end = new Date(today);
   end.setHours(23, 59, 59, 999);
-  return { start: sevenDaysAgo, end };
+  return { start, end };
 };
 
 export const useOnPageStore = create<OnPageState>((set, get) => ({
   // Initial state
   dateRange: getDefaultDateRange(),
-  dimensions: ['urlPath', 'campaign'],
-  loadedDimensions: ['urlPath', 'campaign'],
+  dimensions: ['utmSource', 'countryCode', 'urlPath', 'campaign', 'adset', 'ad'],
+  filters: [],
+  loadedDimensions: ['utmSource', 'countryCode', 'urlPath', 'campaign', 'adset', 'ad'],
   loadedDateRange: getDefaultDateRange(),
+  loadedFilters: [],
   reportData: [],
   expandedRowKeys: [],
   sortColumn: 'pageViews',
@@ -63,6 +68,7 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
 
   // Actions
   setDateRange: (range) => set({ dateRange: range, hasUnsavedChanges: true }),
+  setFilters: (filters) => set({ filters, hasUnsavedChanges: true }),
 
   addDimension: (id) => {
     const { dimensions, reportData, loadedDimensions } = get();
@@ -138,12 +144,14 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
 
     if (state.hasLoadedOnce) {
       set({ isLoading: true, error: null });
+      const apiFilters = state.filters.filter(f => f.value).map(({ field, operator, value }) => ({ field, operator, value }));
 
       try {
         const data = await fetchOnPageData({
           dateRange: state.dateRange,
           dimensions: state.dimensions,
           depth: 0,
+          ...(apiFilters.length > 0 && { filters: apiFilters }),
           sortBy: column || 'pageViews',
           sortDirection: direction === 'ascend' ? 'ASC' : 'DESC',
         });
@@ -154,6 +162,7 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
           hasLoadedOnce: true,
           loadedDimensions: state.dimensions,
           loadedDateRange: state.dateRange,
+          loadedFilters: state.filters,
           reportData: data,
           expandedRowKeys: [], // Clear expanded rows on sort change
         });
@@ -175,6 +184,7 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
     set({
       dateRange: state.loadedDateRange,
       dimensions: state.loadedDimensions,
+      filters: state.loadedFilters,
       hasUnsavedChanges: false,
     });
   },
@@ -183,6 +193,7 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
     const state = get();
     // Save expanded keys to restore after reload
     const savedExpandedKeys = [...state.expandedRowKeys];
+    const apiFilters = state.filters.filter(f => f.value).map(({ field, operator, value }) => ({ field, operator, value }));
 
     set({ isLoading: true, error: null });
 
@@ -191,6 +202,7 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
         dateRange: state.dateRange,
         dimensions: state.dimensions,
         depth: 0,
+        ...(apiFilters.length > 0 && { filters: apiFilters }),
         sortBy: state.sortColumn || 'pageViews',
         sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
       });
@@ -201,6 +213,7 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
         hasLoadedOnce: true,
         loadedDimensions: state.dimensions,
         loadedDateRange: state.dateRange,
+        loadedFilters: state.filters,
         reportData: data,
         expandedRowKeys: savedExpandedKeys, // Keep expanded state
       });
@@ -257,6 +270,7 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
                 dimensions: state.dimensions,  // Use current dimensions, not loaded
                 depth: row.depth + 1,
                 parentFilters,
+                ...(apiFilters.length > 0 && { filters: apiFilters }),
                 sortBy: state.sortColumn || 'pageViews',
                 sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
               })
@@ -325,11 +339,13 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
         }
       });
 
+      const loadedApiFilters = state.loadedFilters.filter(f => f.value).map(({ field, operator, value }) => ({ field, operator, value }));
       const children = await fetchOnPageData({
         dateRange: state.loadedDateRange,
         dimensions: state.loadedDimensions,
         depth: parentDepth + 1,
         parentFilters,
+        ...(loadedApiFilters.length > 0 && { filters: loadedApiFilters }),
         sortBy: state.sortColumn || 'pageViews',
         sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
       });

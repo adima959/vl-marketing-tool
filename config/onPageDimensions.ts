@@ -7,6 +7,8 @@ export const ON_PAGE_DIMENSION_GROUPS: DimensionGroupConfig[] = [
     dimensions: [
       { id: 'urlPath', label: 'URL', group: 'pages' },
       { id: 'pageType', label: 'Page Type', group: 'pages' },
+      { id: 'classifiedProduct', label: 'Product', group: 'pages' },
+      { id: 'classifiedCountry', label: 'Market', group: 'pages' },
     ],
   },
   {
@@ -17,22 +19,21 @@ export const ON_PAGE_DIMENSION_GROUPS: DimensionGroupConfig[] = [
       { id: 'campaign', label: 'Campaign', group: 'advertising' },
       { id: 'adset', label: 'Ad Set', group: 'advertising' },
       { id: 'ad', label: 'Ad', group: 'advertising' },
+      { id: 'webmasterId', label: 'Webmaster ID', group: 'advertising' },
+      { id: 'funnelId', label: 'FF Funnel ID', group: 'advertising' },
+      { id: 'utmTerm', label: 'UTM Term', group: 'advertising' },
     ],
   },
   {
-    id: 'device',
-    label: 'Device',
+    id: 'visitor',
+    label: 'Visitor',
     dimensions: [
-      { id: 'deviceType', label: 'Device', group: 'device' },
-      { id: 'osName', label: 'OS', group: 'device' },
-      { id: 'browserName', label: 'Browser', group: 'device' },
-    ],
-  },
-  {
-    id: 'geo',
-    label: 'Geography',
-    dimensions: [
-      { id: 'countryCode', label: 'Country', group: 'geo' },
+      { id: 'countryCode', label: 'Country', group: 'visitor' },
+      { id: 'deviceType', label: 'Device', group: 'visitor' },
+      { id: 'osName', label: 'OS', group: 'visitor' },
+      { id: 'browserName', label: 'Browser', group: 'visitor' },
+      { id: 'timezone', label: 'Timezone', group: 'visitor' },
+      { id: 'visitNumber', label: 'Visit Number', group: 'visitor' },
     ],
   },
   {
@@ -40,6 +41,7 @@ export const ON_PAGE_DIMENSION_GROUPS: DimensionGroupConfig[] = [
     label: 'Time',
     dimensions: [
       { id: 'date', label: 'Date', group: 'general' },
+      { id: 'localHour', label: 'Hour of Day', group: 'general' },
     ],
   },
 ];

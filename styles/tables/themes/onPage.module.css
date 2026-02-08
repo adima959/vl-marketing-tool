@@ -3,7 +3,8 @@
  *
  * Column groups:
  *   - Engagement (columns 2-5): Blue tint
- *   - Interactions (columns 6-11): Green tint
+ *   - Interactions (columns 6-11): Amber tint
+ *   - CRM Data (columns 12-15): Green tint (matches marketing report)
  */
 
 /* =============================================================================
@@ -16,8 +17,14 @@
   border-bottom: 2px solid #bfdbfe !important;
 }
 
-/* Interactions group - green tint (matches brand primary) */
+/* Interactions group - amber tint */
 .theme :global(.ant-table-thead > tr:first-child > th:nth-child(3)) {
+  background: #fff7ed !important;
+  border-bottom: 2px solid #fed7aa !important;
+}
+
+/* CRM Data group - green tint (matches brand primary / marketing report) */
+.theme :global(.ant-table-thead > tr:first-child > th:nth-child(4)) {
   background: var(--color-primary-50) !important;
   border-bottom: 2px solid var(--color-primary-100) !important;
 }
@@ -34,13 +41,21 @@
   background: #fafcff !important;
 }
 
-/* Interactions columns - subtle green accent */
+/* Interactions columns - subtle amber accent */
 .theme :global(.ant-table-thead > tr:last-child > th:nth-child(6)),
 .theme :global(.ant-table-thead > tr:last-child > th:nth-child(7)),
 .theme :global(.ant-table-thead > tr:last-child > th:nth-child(8)),
 .theme :global(.ant-table-thead > tr:last-child > th:nth-child(9)),
 .theme :global(.ant-table-thead > tr:last-child > th:nth-child(10)),
 .theme :global(.ant-table-thead > tr:last-child > th:nth-child(11)) {
+  background: color-mix(in srgb, #fff7ed 30%, #ffffff) !important;
+}
+
+/* CRM Data columns - subtle green accent */
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(12)),
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(13)),
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(14)),
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(15)) {
   background: color-mix(in srgb, var(--color-primary-50) 20%, #ffffff) !important;
 }
 
@@ -48,9 +63,14 @@
    BODY CELLS
    ============================================================================= */
 
-/* Group separator border */
+/* Group separator border - after Engagement */
 .theme :global(.ant-table-tbody > tr > td:nth-child(5)) {
   border-right: 1px solid rgba(191, 219, 254, 0.4) !important;
+}
+
+/* Group separator border - after Interactions */
+.theme :global(.ant-table-tbody > tr > td:nth-child(11)) {
+  border-right: 1px solid rgba(254, 215, 170, 0.4) !important;
 }
 
 /* =============================================================================
@@ -65,12 +85,20 @@
   background: rgba(219, 234, 254, 0.5) !important;
 }
 
-/* Interactions cells hover - enhanced green */
+/* Interactions cells hover - enhanced amber */
 .theme :global(.ant-table-tbody > tr:hover > td:nth-child(6)),
 .theme :global(.ant-table-tbody > tr:hover > td:nth-child(7)),
 .theme :global(.ant-table-tbody > tr:hover > td:nth-child(8)),
 .theme :global(.ant-table-tbody > tr:hover > td:nth-child(9)),
 .theme :global(.ant-table-tbody > tr:hover > td:nth-child(10)),
 .theme :global(.ant-table-tbody > tr:hover > td:nth-child(11)) {
+  background: rgba(254, 215, 170, 0.3) !important;
+}
+
+/* CRM Data cells hover - enhanced green */
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(12)),
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(13)),
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(14)),
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(15)) {
   background: color-mix(in srgb, var(--color-primary-50) 50%, #ffffff) !important;
 }

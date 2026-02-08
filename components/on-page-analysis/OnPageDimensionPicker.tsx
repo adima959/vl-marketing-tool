@@ -33,7 +33,7 @@ export function OnPageDimensionPicker() {
 
   return (
     <Dropdown
-      menu={{ items, onClick: handleMenuClick }}
+      menu={{ items, onClick: handleMenuClick, className: styles.dropdownMenu }}
       trigger={['click']}
       placement="bottomLeft"
     >

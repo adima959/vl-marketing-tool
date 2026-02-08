@@ -3,6 +3,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { ON_PAGE_METRIC_COLUMNS } from '@/config/onPageColumns';
 import { useOnPageColumnStore } from '@/stores/onPageColumnStore';
 import type { MetricColumn } from '@/types';
+import modalStyles from '@/styles/components/modal.module.css';
 import styles from '@/components/modals/ColumnSettingsModal.module.css';
 
 interface OnPageColumnSettingsModalProps {
@@ -21,7 +22,6 @@ export function OnPageColumnSettingsModal({ open, onClose }: OnPageColumnSetting
     }
   }, [open, visibleColumns]);
 
-  // Engagement: pageViews, uniqueVisitors, bounceRate, avgActiveTime
   const engagementColumns = useMemo(
     () =>
       ON_PAGE_METRIC_COLUMNS.filter((col) =>
@@ -30,11 +30,18 @@ export function OnPageColumnSettingsModal({ open, onClose }: OnPageColumnSetting
     []
   );
 
-  // Interactions: scrollPastHero, scrollRate, formViews, formStarters, ctaClicks
   const interactionColumns = useMemo(
     () =>
       ON_PAGE_METRIC_COLUMNS.filter((col) =>
-        ['scrollPastHero', 'scrollRate', 'formViews', 'formStarters', 'ctaClicks'].includes(col.id)
+        ['scrollPastHero', 'scrollRate', 'formViews', 'formViewRate', 'formStarters', 'formStartRate'].includes(col.id)
+      ),
+    []
+  );
+
+  const crmColumns = useMemo(
+    () =>
+      ON_PAGE_METRIC_COLUMNS.filter((col) =>
+        ['crmConvRate', 'crmTrials', 'crmApproved', 'crmApprovalRate'].includes(col.id)
       ),
     []
   );
@@ -85,7 +92,7 @@ export function OnPageColumnSettingsModal({ open, onClose }: OnPageColumnSetting
       onCancel={handleCancel}
       width={700}
       centered
-      className={styles.modal}
+      className={`${modalStyles.modal} ${styles.modal}`}
       styles={{
         header: { paddingBottom: 16, borderBottom: '1px solid #e8eaed' },
         body: { paddingTop: 20, paddingBottom: 8, maxHeight: 'calc(85vh - 180px)', overflowY: 'auto' },
@@ -108,7 +115,8 @@ export function OnPageColumnSettingsModal({ open, onClose }: OnPageColumnSetting
     >
       <div className={styles.content}>
         {renderColumnGroup(engagementColumns, 'Engagement', 'marketingGroup')}
-        {renderColumnGroup(interactionColumns, 'Interactions', 'crmGroup')}
+        {renderColumnGroup(interactionColumns, 'Interactions', 'interactionsGroup')}
+        {renderColumnGroup(crmColumns, 'CRM Data', 'crmGroup')}
       </div>
     </Modal>
   );

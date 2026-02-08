@@ -4,6 +4,7 @@ import { useMemo, useRef } from 'react';
 import { MetricCell } from './MetricCell';
 import { ClickableMetricCell } from '@/components/dashboard/ClickableMetricCell';
 import { MarketingClickableMetricCell } from './MarketingClickableMetricCell';
+import { OnPageClickableMetricCell } from '@/components/on-page-analysis/OnPageClickableMetricCell';
 import { useToast } from '@/hooks/useToast';
 import { useDragScroll } from '@/hooks/useDragScroll';
 import { ErrorMessage } from '@/components/ErrorMessage';
@@ -22,6 +23,8 @@ export function GenericDataTable<TRow extends BaseTableRow>({
   onMetricClick,
   onMarketingMetricClick,
   clickableMarketingMetrics = [],
+  onOnPageMetricClick,
+  clickableOnPageMetrics = [],
   hideZeroValues = false,
 }: GenericDataTableConfig<TRow>) {
   const {
@@ -195,11 +198,16 @@ export function GenericDataTable<TRow extends BaseTableRow>({
           sorter: true,
           sortOrder: sortColumn === col.id ? sortDirection : null,
           showSorterTooltip: false,
-          render: (value: number, record: TRow) => {
+          render: (value: number | null, record: TRow) => {
             // Render skeleton for loading rows
             const isSkeleton = (record as TRow & { _isSkeleton?: boolean })._isSkeleton;
             if (isSkeleton) {
               return <div className={styles.skeletonMetric} />;
+            }
+
+            // Null means no data available (e.g., CRM for non-matchable dimensions)
+            if (value === null || value === undefined) {
+              return <span style={{ color: 'var(--color-gray-300)' }}>–</span>;
             }
 
             // Check if this is a marketing clickable metric
@@ -219,8 +227,24 @@ export function GenericDataTable<TRow extends BaseTableRow>({
                 />
               );
             }
+            // Check if this is an on-page clickable metric
+            if (onOnPageMetricClick && loadedDateRange && clickableOnPageMetrics.includes(col.id)) {
+              return (
+                <OnPageClickableMetricCell
+                  value={value ?? 0}
+                  format={col.format}
+                  metricId={col.id}
+                  metricLabel={col.label}
+                  rowKey={record.key}
+                  dimensions={loadedDimensions}
+                  dateRange={loadedDateRange}
+                  onClick={onOnPageMetricClick}
+                />
+              );
+            }
             // Conditionally use ClickableMetricCell when onMetricClick is provided (for Dashboard)
-            if (onMetricClick && loadedDateRange) {
+            const clickableMetricIds = ['customers', 'subscriptions', 'trials', 'trialsApproved', 'upsells'];
+            if (onMetricClick && loadedDateRange && clickableMetricIds.includes(col.id)) {
               return (
                 <ClickableMetricCell
                   value={value ?? 0}

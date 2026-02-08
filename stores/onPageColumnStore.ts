@@ -29,7 +29,7 @@ export const useOnPageColumnStore = create<OnPageColumnState>()(
     }),
     {
       name: 'on-page-column-settings',
-      version: 4, // Increment to reset stored settings
+      version: 6, // Increment to reset stored settings
       migrate: (persistedState: any) => {
         // Auto-add new columns if they're missing, remove old ones
         const currentColumns = persistedState?.visibleColumns || [];

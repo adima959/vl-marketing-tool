@@ -50,6 +50,7 @@ export function OnPageDateRangePicker() {
     <div className={styles.datePickerWrapper}>
       <RangePicker
         className={styles.rangePicker}
+        classNames={{ popup: { root: styles.datePickerPopup } }}
         size="middle"
         format="DD/MM/YYYY"
         value={[dayjs(dateRange.start), dayjs(dateRange.end)]}

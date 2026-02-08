@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { MetricColumn } from './metrics';
 import type { MetricClickContext } from './dashboardDetails';
 import type { MarketingMetricClickContext } from './marketingDetails';
+import type { OnPageViewClickContext } from './onPageDetails';
 
 /**
  * Base row interface that all table data must extend
@@ -13,7 +14,7 @@ export interface BaseTableRow {
   depth: number;
   hasChildren?: boolean;
   children?: BaseTableRow[];
-  metrics: Record<string, number>;
+  metrics: Record<string, number | null>;
 }
 
 /**
@@ -86,6 +87,12 @@ export interface GenericDataTableConfig<TRow extends BaseTableRow> {
 
   /** IDs of metrics that should be clickable for marketing details (e.g., ['crmSubscriptions', 'approvedSales']) */
   clickableMarketingMetrics?: string[];
+
+  /** Optional callback when a metric cell is clicked in On-Page Analysis */
+  onOnPageMetricClick?: (context: OnPageViewClickContext) => void;
+
+  /** IDs of metrics that should be clickable for on-page details (e.g., ['pageViews']) */
+  clickableOnPageMetrics?: string[];
 
   /** Whether to hide cells with zero values */
   hideZeroValues?: boolean;

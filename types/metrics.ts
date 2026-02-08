@@ -6,7 +6,7 @@ export interface MetricColumn {
   shortLabel: string;
   description?: string;
   format: MetricFormat;
-  category: 'basic' | 'calculated' | 'costs_revenue' | 'conversions';
+  category: 'basic' | 'calculated' | 'costs_revenue' | 'conversions' | 'crm';
   defaultVisible: boolean;
   width: number;
   align: 'left' | 'center' | 'right';

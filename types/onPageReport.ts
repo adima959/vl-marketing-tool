@@ -15,5 +15,9 @@ export interface OnPageReportRow {
     formViewRate: number;
     formStarters: number;
     formStartRate: number;
+    crmConvRate: number | null;
+    crmTrials: number | null;
+    crmApproved: number | null;
+    crmApprovalRate: number | null;
   };
 }

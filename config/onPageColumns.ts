@@ -114,6 +114,53 @@ export const ON_PAGE_METRIC_COLUMNS: MetricColumn[] = [
     width: 110,
     align: 'right',
   },
+
+  {
+    id: 'crmConvRate',
+    label: 'Conversion Rate',
+    shortLabel: 'Conv %',
+    description: 'CRM trials / unique visitors',
+    format: 'percentage',
+    category: 'crm',
+    defaultVisible: true,
+    width: 90,
+    align: 'right',
+  },
+
+  // CRM Metrics
+  {
+    id: 'crmTrials',
+    label: 'CRM Trials',
+    shortLabel: 'Trials',
+    description: 'CRM subscriptions matched by tracking IDs',
+    format: 'number',
+    category: 'crm',
+    defaultVisible: true,
+    width: 90,
+    align: 'right',
+  },
+  {
+    id: 'crmApproved',
+    label: 'Approved Sales',
+    shortLabel: 'Approved',
+    description: 'Approved CRM subscriptions (is_marked = 1)',
+    format: 'number',
+    category: 'crm',
+    defaultVisible: true,
+    width: 90,
+    align: 'right',
+  },
+  {
+    id: 'crmApprovalRate',
+    label: 'Approval Rate',
+    shortLabel: 'Appr. %',
+    description: 'Approved sales / total trials',
+    format: 'percentage',
+    category: 'crm',
+    defaultVisible: true,
+    width: 90,
+    align: 'right',
+  },
 ];
 
 export const ON_PAGE_DEFAULT_VISIBLE_COLUMNS = ON_PAGE_METRIC_COLUMNS

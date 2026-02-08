@@ -1,0 +1,246 @@
+/* === Modal shell === */
+.modal :global(.ant-modal-content) {
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0 !important;
+}
+
+.modal :global(.ant-modal-header) {
+  display: none !important;
+}
+
+.modal :global(.ant-modal-close) {
+  top: 12px;
+  right: 16px;
+  width: 28px;
+  height: 28px;
+  color: var(--color-gray-400);
+}
+
+.modal :global(.ant-modal-close:hover) {
+  color: var(--color-gray-700);
+  background: var(--color-background-tertiary);
+}
+
+.modal :global(.ant-modal-body) {
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  min-height: 0;
+  max-height: calc(90vh - 56px);
+  padding: 0 !important;
+}
+
+/* === Header === */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--color-border-light);
+  flex-shrink: 0;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-gray-900);
+  white-space: nowrap;
+}
+
+.recordCount {
+  font-size: 12px;
+  color: var(--color-gray-400);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-right: 32px;
+}
+
+/* === Filter tags === */
+.filterBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--color-border-light);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.filterTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-gray-600);
+  background: var(--color-background-tertiary);
+  white-space: nowrap;
+  line-height: 18px;
+}
+
+/* === Tabs === */
+.tabBar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--color-border-light);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  background: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-gray-500);
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab:hover {
+  color: var(--color-gray-700);
+}
+
+.tabActive {
+  color: var(--color-gray-900);
+  border-bottom-color: var(--color-gray-900);
+}
+
+.tabCount {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-gray-400);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabActive .tabCount {
+  color: var(--color-gray-500);
+}
+
+/* === Table === */
+.tableWrap :global(.ant-table-wrapper) {
+  border-radius: 0;
+}
+
+.tableWrap :global(.ant-table) {
+  border-radius: 0;
+}
+
+.tableWrap :global(.ant-table-thead > tr > th) {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-gray-500);
+  background: var(--color-background-secondary) !important;
+  border-bottom: 1px solid var(--color-border-light) !important;
+  padding: 8px 12px !important;
+}
+
+.tableWrap :global(.ant-table-tbody > tr > td) {
+  padding: 6px 12px !important;
+  font-size: 13px;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.tableWrap :global(.ant-table-tbody > tr:hover > td) {
+  background: var(--color-background-secondary) !important;
+}
+
+.tableWrap :global(.ant-pagination) {
+  padding: 10px 20px !important;
+  margin: 0 !important;
+}
+
+/* === Cell styles === */
+.monoCell {
+  font-family: var(--font-family-mono);
+  font-size: 12px;
+  color: var(--color-gray-500);
+}
+
+.dateCell {
+  font-size: 12px;
+  color: var(--color-gray-500);
+  white-space: nowrap;
+}
+
+.urlCell {
+  font-size: 12px;
+  color: var(--color-gray-700);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+}
+
+.urlLink {
+  color: var(--color-gray-700);
+  text-decoration: none;
+}
+
+.urlLink:hover {
+  color: var(--color-accent-blue);
+  text-decoration: underline;
+}
+
+.boolTrue {
+  color: var(--color-success);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.boolFalse {
+  color: var(--color-gray-300);
+  font-size: 13px;
+}
+
+/* === Unique visitor badge === */
+.uniqueBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--color-primary-50);
+  color: var(--color-primary);
+}
+
+/* === Error === */
+.error {
+  padding: 10px 20px;
+  background: #fff2f0;
+  border-bottom: 1px solid #ffccc7;
+  color: var(--color-error);
+  font-size: 12px;
+}
