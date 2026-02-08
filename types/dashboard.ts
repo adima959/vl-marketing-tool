@@ -15,7 +15,10 @@ export interface DashboardRow extends BaseTableRow {
     subscriptions: number;    // COUNT of subscription IDs
     trials: number;           // COUNT of trial_order_id
     trialsApproved: number;   // COUNT of approved trials (is_marked = 1)
+    approvalRate: number;     // trialsApproved / trials (decimal ratio for formatPercentage)
     upsells: number;          // COUNT of upsells where upsell_type = 'ots'
+    upsellsApproved: number;  // COUNT of approved upsells (is_marked = 1)
+    upsellApprovalRate: number; // upsellsApproved / upsells (decimal ratio for formatPercentage)
   };
 }
 
@@ -38,6 +41,7 @@ export interface TimeSeriesDataPoint {
   trialsApproved: number;
   customers: number;
   upsells: number;
+  upsellsApproved: number;
 }
 
 /**

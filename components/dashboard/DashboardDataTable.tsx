@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { GenericDataTable } from '@/components/table/GenericDataTable';
-import { CustomerSubscriptionDetailModal } from '@/components/modals/CustomerSubscriptionDetailModal';
+import { CrmDetailModal } from '@/components/modals/CrmDetailModal';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { useDashboardColumnStore } from '@/stores/dashboardColumnStore';
 import { DASHBOARD_METRIC_COLUMNS, DASHBOARD_COLUMN_GROUPS } from '@/config/dashboardColumns';
@@ -18,6 +18,9 @@ export function DashboardDataTable() {
   const [modalOpen, setModalOpen] = useState(false);
 
   const handleMetricClick = (context: MetricClickContext) => {
+    // Dashboard aggregate always excludes upsell-tagged invoices from trials,
+    // so detail query must match by setting excludeUpsellTags
+    context.filters.excludeUpsellTags = true;
     setModalContext(context);
     setModalOpen(true);
   };
@@ -40,9 +43,10 @@ export function DashboardDataTable() {
         hideZeroValues={true}
       />
 
-      <CustomerSubscriptionDetailModal
+      <CrmDetailModal
         open={modalOpen}
         onClose={handleModalClose}
+        variant="dashboard"
         context={modalContext}
       />
     </div>

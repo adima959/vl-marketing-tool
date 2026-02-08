@@ -5,10 +5,12 @@ import { useDashboardStore } from '@/stores/dashboardStore';
 import type { DashboardRow } from '@/types/dashboard';
 import styles from './dashboard2.module.css';
 
+type CountMetricKey = 'customers' | 'subscriptions' | 'trials' | 'trialsApproved' | 'upsells';
+
 interface KPIConfig {
   id: string;
   label: string;
-  metricKey: keyof DashboardRow['metrics'];
+  metricKey: CountMetricKey;
 }
 
 const KPI_CONFIGS: KPIConfig[] = [

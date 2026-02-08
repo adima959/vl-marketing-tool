@@ -494,7 +494,6 @@ export class DashboardDetailQueryBuilder {
       INNER JOIN customer c ON s.customer_id = c.id
       INNER JOIN invoice uo ON uo.customer_id = s.customer_id
         AND uo.tag LIKE CONCAT('%parent-sub-id=', s.id, '%')
-        AND uo.type = 3
       LEFT JOIN invoice_product ip ON ip.invoice_id = uo.id
       LEFT JOIN product p ON p.id = ip.product_id
       LEFT JOIN source sr ON sr.id = uo.source_id
@@ -513,7 +512,6 @@ export class DashboardDetailQueryBuilder {
       INNER JOIN customer c ON s.customer_id = c.id
       INNER JOIN invoice uo ON uo.customer_id = s.customer_id
         AND uo.tag LIKE CONCAT('%parent-sub-id=', s.id, '%')
-        AND uo.type = 3
       LEFT JOIN invoice_product ip ON ip.invoice_id = uo.id
       LEFT JOIN product p ON p.id = ip.product_id
       LEFT JOIN source sr ON sr.id = uo.source_id

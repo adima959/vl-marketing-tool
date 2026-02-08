@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { GenericDataTable } from '@/components/table/GenericDataTable';
-import { CustomerSubscriptionDetailModal } from '@/components/modals/CustomerSubscriptionDetailModal';
+import { CrmDetailModal } from '@/components/modals/CrmDetailModal';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { useDashboardColumnStore } from '@/stores/dashboardColumnStore';
 import { DASHBOARD_METRIC_COLUMNS, DASHBOARD_COLUMN_GROUPS } from '@/config/dashboardColumns';
@@ -40,9 +40,10 @@ export function Dashboard2DataTable() {
         hideZeroValues={true}
       />
 
-      <CustomerSubscriptionDetailModal
+      <CrmDetailModal
         open={modalOpen}
         onClose={handleModalClose}
+        variant="dashboard"
         context={modalContext}
       />
     </div>

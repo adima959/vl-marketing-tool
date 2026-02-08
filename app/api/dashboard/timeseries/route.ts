@@ -27,6 +27,7 @@ interface RawTimeSeriesRow {
   trials: number | string;
   trialsApproved: number | string;
   upsells: number | string;
+  upsellsApproved: number | string;
 }
 
 /**
@@ -75,6 +76,7 @@ async function handleTimeSeriesQuery(
         trials: Number(row.trials) || 0,
         trialsApproved: Number(row.trialsApproved) || 0,
         upsells: Number(row.upsells) || 0,
+        upsellsApproved: Number(row.upsellsApproved) || 0,
       };
     });
 

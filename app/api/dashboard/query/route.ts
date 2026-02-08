@@ -91,6 +91,9 @@ async function handleDashboardQuery(
       // Apply title case for proper capitalization (e.g., "denmark" -> "Denmark")
       const displayValue = toTitleCase(rawValue);
 
+      const trials = Number(row.trial_count) || 0;
+      const trialsApproved = Number(row.trials_approved_count) || 0;
+
       return {
         key: `${keyPrefix}${displayValue}`,
         attribute: displayValue,
@@ -99,9 +102,14 @@ async function handleDashboardQuery(
         metrics: {
           customers: Number(row.customer_count) || 0,
           subscriptions: Number(row.subscription_count) || 0,
-          trials: Number(row.trial_count) || 0,
-          trialsApproved: Number(row.trials_approved_count) || 0,
+          trials,
+          trialsApproved,
+          approvalRate: trials > 0 ? trialsApproved / trials : 0,
           upsells: Number(row.upsell_count) || 0,
+          upsellsApproved: Number(row.upsells_approved_count) || 0,
+          upsellApprovalRate: (Number(row.upsell_count) || 0) > 0
+            ? (Number(row.upsells_approved_count) || 0) / (Number(row.upsell_count) || 0)
+            : 0,
         },
       };
     });

@@ -37,6 +37,7 @@ export class DashboardQueryBuilder {
     trials: 'trial_count',
     trialsApproved: 'trials_approved_count',
     upsells: 'upsell_count',
+    upsellsApproved: 'upsells_approved_count',
   };
 
   /**
@@ -159,7 +160,8 @@ export class DashboardQueryBuilder {
         COUNT(DISTINCT s.id) AS subscription_count,
         COUNT(DISTINCT CASE WHEN i.type = 1 THEN i.id END) AS trial_count,
         COUNT(DISTINCT CASE WHEN i.type = 1 AND i.is_marked = 1 THEN i.id END) AS trials_approved_count,
-        COUNT(DISTINCT uo.id) AS upsell_count
+        COUNT(DISTINCT uo.id) AS upsell_count,
+        COUNT(DISTINCT CASE WHEN uo.is_marked = 1 THEN uo.id END) AS upsells_approved_count
       FROM subscription s
       LEFT JOIN customer c ON s.customer_id = c.id
       LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
@@ -195,7 +197,8 @@ export class DashboardQueryBuilder {
         COUNT(DISTINCT s.id) AS subscriptions,
         COUNT(DISTINCT CASE WHEN i.type = 1 THEN i.id END) AS trials,
         COUNT(DISTINCT CASE WHEN i.type = 1 AND i.is_marked = 1 THEN i.id END) AS trialsApproved,
-        COUNT(DISTINCT uo.id) AS upsells
+        COUNT(DISTINCT uo.id) AS upsells,
+        COUNT(DISTINCT CASE WHEN uo.is_marked = 1 THEN uo.id END) AS upsellsApproved
       FROM subscription s
       LEFT JOIN customer c ON s.customer_id = c.id
       LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1

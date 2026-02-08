@@ -14,7 +14,7 @@ import {
 import type { TimeSeriesDataPoint } from '@/types/dashboard';
 import type { MetricClickContext } from '@/types/dashboardDetails';
 import { fetchDashboardTimeSeries } from '@/lib/api/dashboardClient';
-import { CustomerSubscriptionDetailModal } from '@/components/modals/CustomerSubscriptionDetailModal';
+import { CrmDetailModal } from '@/components/modals/CrmDetailModal';
 import styles from './DashboardTimeSeriesChart.module.css';
 
 const CHART_HEIGHT = 300;
@@ -79,7 +79,7 @@ const METRIC_CONFIG = {
     key: 'upsells',
     label: 'Upsells',
     color: '#f97316',
-    defaultVisible: false,
+    defaultVisible: true,
     yAxisId: 'left',
     isPercentage: false,
     isArea: false,
@@ -295,6 +295,7 @@ export function DashboardTimeSeriesChart(): React.ReactElement {
       value: payload[metricKey] as number,
       filters: {
         dateRange: { start: date, end: date },
+        excludeUpsellTags: true,
       },
     });
     setModalOpen(true);
@@ -454,9 +455,10 @@ export function DashboardTimeSeriesChart(): React.ReactElement {
           </ResponsiveContainer>
         )}
       </div>
-      <CustomerSubscriptionDetailModal
+      <CrmDetailModal
         open={modalOpen}
         onClose={handleModalClose}
+        variant="dashboard"
         context={modalContext}
       />
     </div>

@@ -47,6 +47,17 @@ export const DASHBOARD_METRIC_COLUMNS: MetricColumn[] = [
     align: 'right',
   },
   {
+    id: 'approvalRate',
+    label: 'Approval %',
+    shortLabel: 'Appr. %',
+    description: 'Percentage of trials approved (trialsApproved / trials)',
+    format: 'percentage',
+    category: 'calculated',
+    defaultVisible: true,
+    width: 120,
+    align: 'right',
+  },
+  {
     id: 'upsells',
     label: 'Upsells',
     shortLabel: 'Upsells',
@@ -57,12 +68,23 @@ export const DASHBOARD_METRIC_COLUMNS: MetricColumn[] = [
     width: 120,
     align: 'right',
   },
+  {
+    id: 'upsellApprovalRate',
+    label: 'Upsell Appv %',
+    shortLabel: 'Ups. Appv %',
+    description: 'Percentage of upsells approved (upsellsApproved / upsells)',
+    format: 'percentage',
+    category: 'calculated',
+    defaultVisible: true,
+    width: 120,
+    align: 'right',
+  },
 ];
 
 export const DASHBOARD_COLUMN_GROUPS: ColumnGroup[] = [
   {
     title: 'Order Metrics',
-    metricIds: ['customers', 'subscriptions', 'trials', 'trialsApproved', 'upsells']
+    metricIds: ['customers', 'subscriptions', 'trials', 'trialsApproved', 'approvalRate', 'upsells', 'upsellApprovalRate']
   },
 ];
 
