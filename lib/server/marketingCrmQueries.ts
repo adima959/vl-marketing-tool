@@ -92,3 +92,4 @@ export async function getCRMSubscriptions(
 
   return executeMariaDBQuery<CRMSubscriptionRow>(query, params);
 }
+

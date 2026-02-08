@@ -6,12 +6,16 @@ import type { Product, TrackerUser } from '@/types/marketing-tracker';
 import { FormRichEditor } from '@/components/ui/FormRichEditor';
 import modalStyles from '@/styles/components/modal.module.css';
 
-/** 20 curated product colors derived from the design system palette */
+/** 24 subtle product colors inspired by VitaLiv product packaging */
 const PRODUCT_COLORS = [
-  '#3b82f6', '#2563eb', '#6366f1', '#8b5cf6', '#a855f7',
-  '#d946ef', '#ec4899', '#ef4444', '#f97316', '#f59e0b',
-  '#eab308', '#84cc16', '#22c55e', '#10b981', '#00B96B',
-  '#14b8a6', '#06b6d4', '#0ea5e9', '#6b7280', '#374151',
+  '#c4926e', '#d4a878', '#a08060', // warm amber, golden honey, coffee
+  '#9e8872', '#8a7e65', '#a0846b', // taupe, mocha, terracotta
+  '#7580a8', '#6b8fa3', '#5a7e98', // muted indigo, steel blue, ocean
+  '#5a9a78', '#6ba088', '#7a9e7a', // sage emerald, eucalyptus, soft sage
+  '#559487', '#88a070', '#6b7e6b', // teal, olive, forest
+  '#8a6b9a', '#7b70a0', '#9a80a8', // berry, soft violet, lavender
+  '#b88099', '#c49898', '#a88090', // dusty rose, blush, mauve
+  '#5a6570', '#788580', '#8a94a8', // slate, sage gray, periwinkle
 ];
 
 interface ProductDialogProps {
@@ -97,8 +101,6 @@ export function ProductDialog({ product, users, open, onClose, onSuccess }: Prod
     }
   }, [product, open, form]);
 
-  const labelStyle = { fontSize: 13, fontWeight: 500, color: 'var(--color-gray-700)' } as const;
-
   return (
     <Modal
       title={null}
@@ -110,31 +112,21 @@ export function ProductDialog({ product, users, open, onClose, onSuccess }: Prod
       cancelText="Cancel"
       destroyOnHidden
       width={520}
-      className={modalStyles.modal}
-      styles={{
-        header: { display: 'none' },
-        body: { padding: '20px 24px 16px' },
-        footer: { padding: '12px 24px 20px', borderTop: '1px solid var(--color-border-light)' },
-      }}
+      className={`${modalStyles.modal} ${modalStyles.formDialog}`}
     >
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-gray-900)', marginBottom: 4 }}>
+      <div className={modalStyles.dialogHeader}>
+        <div className={modalStyles.dialogTitle}>
           {isEdit ? 'Edit product' : 'New product'}
         </div>
-        <div style={{ fontSize: 12, color: 'var(--color-gray-500)' }}>
+        <div className={modalStyles.dialogSubtitle}>
           {isEdit ? 'Update product details.' : 'Add a new product to the system.'}
         </div>
       </div>
 
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleSubmit}
-        style={{ marginBottom: 0 }}
-      >
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+      <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        <div className={modalStyles.formGrid}>
           <Form.Item
-            label={<span style={labelStyle}>Name</span>}
+            label={<span className={modalStyles.formLabel}>Name</span>}
             name="name"
             rules={[{ required: true, message: 'Product name is required' }]}
           >
@@ -142,14 +134,14 @@ export function ProductDialog({ product, users, open, onClose, onSuccess }: Prod
           </Form.Item>
 
           <Form.Item
-            label={<span style={labelStyle}>SKU</span>}
+            label={<span className={modalStyles.formLabel}>SKU</span>}
             name="sku"
           >
             <Input placeholder="e.g. VL-FR-001" />
           </Form.Item>
 
           <Form.Item
-            label={<span style={labelStyle}>Product owner</span>}
+            label={<span className={modalStyles.formLabel}>Product owner</span>}
             name="ownerId"
             rules={[{ required: true, message: 'Product owner is required' }]}
           >
@@ -162,31 +154,22 @@ export function ProductDialog({ product, users, open, onClose, onSuccess }: Prod
             </Select>
           </Form.Item>
 
-          <Form.Item label={<span style={labelStyle}>Color</span>}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          <Form.Item label={<span className={modalStyles.formLabel}>Color</span>}>
+            <div className={modalStyles.colorGrid}>
               {PRODUCT_COLORS.map(color => (
                 <button
                   key={color}
                   type="button"
                   onClick={() => setSelectedColor(selectedColor === color ? null : color)}
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 4,
-                    border: selectedColor === color ? '2px solid var(--color-gray-900)' : '2px solid transparent',
-                    background: color,
-                    cursor: 'pointer',
-                    padding: 0,
-                    outline: 'none',
-                    boxShadow: selectedColor === color ? '0 0 0 1px var(--color-background-primary)' : 'none',
-                  }}
+                  className={`${modalStyles.colorSwatch} ${selectedColor === color ? modalStyles.colorSwatchSelected : ''}`}
+                  style={{ background: color }}
                 />
               ))}
             </div>
           </Form.Item>
 
           <Form.Item
-            label={<span style={labelStyle}>Description</span>}
+            label={<span className={modalStyles.formLabel}>Description</span>}
             name="description"
             style={{ gridColumn: '1 / -1', marginBottom: 0 }}
           >

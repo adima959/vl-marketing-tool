@@ -6,6 +6,7 @@ import { EditOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AppUser } from '@/types/user';
 import type { ColumnsType } from 'antd/es/table';
+import styles from '@/styles/components/settings.module.css';
 
 const EditRoleDialog = lazy(() =>
   import('@/components/users/EditRoleDialog').then((mod) => ({ default: mod.EditRoleDialog }))
@@ -73,7 +74,6 @@ export default function UsersPage() {
         credentials: 'same-origin',
       });
       if (!response.ok) throw new Error('Failed to update');
-      // Update local state immediately
       setUsers(prev => prev.map(u => u.id === record.id ? { ...u, is_product_owner: checked } : u));
     } catch {
       message.error('Failed to update product owner status');
@@ -88,8 +88,8 @@ export default function UsersPage() {
       width: 200,
       render: (name: string, record: AppUser) => (
         <div>
-          <div className="text-[13px] font-medium text-[var(--color-gray-900)]">{name}</div>
-          <div className="text-[12px] text-[var(--color-gray-500)]">{record.email}</div>
+          <div className={styles.cellPrimary}>{name}</div>
+          <div className={styles.cellSecondary}>{record.email}</div>
         </div>
       ),
     },
@@ -98,9 +98,7 @@ export default function UsersPage() {
       dataIndex: 'external_id',
       key: 'external_id',
       width: 180,
-      render: (id: string) => (
-        <span className="text-[12px] font-mono text-[var(--color-gray-500)]">{id}</span>
-      ),
+      render: (id: string) => <span className={styles.cellMono}>{id}</span>,
     },
     {
       title: 'Role',
@@ -110,15 +108,7 @@ export default function UsersPage() {
       render: (role: string) => (
         <Tag
           color={role === 'admin' ? 'red' : undefined}
-          style={{
-            fontSize: 11,
-            lineHeight: '18px',
-            padding: '0 6px',
-            borderRadius: 4,
-            fontWeight: 500,
-            textTransform: 'uppercase',
-            letterSpacing: '0.025em',
-          }}
+          className={styles.tag}
         >
           {role}
         </Tag>
@@ -144,7 +134,7 @@ export default function UsersPage() {
       key: 'created_at',
       width: 160,
       render: (date: string) => (
-        <span className="text-[12px] text-[var(--color-gray-500)]">
+        <span className={styles.cellDate}>
           {new Date(date).toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
@@ -164,48 +154,42 @@ export default function UsersPage() {
           size="small"
           icon={<EditOutlined />}
           onClick={() => handleEditRole(record)}
-          className="text-[var(--color-gray-400)] hover:text-[var(--color-gray-700)]"
+          className={styles.rowAction}
         />
       ),
     },
   ];
 
   if (authLoading) {
-    return (
-      <div className="flex items-center justify-center h-48">
-        <Spin size="small" />
-      </div>
-    );
+    return <div className={styles.centeredState}><Spin size="small" /></div>;
   }
 
   if (!isAuthenticated) {
-    return (
-      <div className="p-6 text-[13px] text-[var(--color-gray-500)]">
-        Please log in to access this page.
-      </div>
-    );
+    return <div className={styles.authMessage}>Please log in to access this page.</div>;
   }
 
   return (
-    <div className="p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <div>
-          <h2 className="text-[14px] font-semibold text-[var(--color-gray-900)]">Team members</h2>
-          <p className="text-[12px] text-[var(--color-gray-500)] mt-0.5">
+    <div className={styles.page}>
+      <div className={styles.sectionHeader}>
+        <div className={styles.sectionInfo}>
+          <h2 className={styles.sectionTitle}>Team members</h2>
+          <p className={styles.sectionSubtitle}>
             {users.length > 0 ? `${users.length} user${users.length !== 1 ? 's' : ''}` : 'Manage user accounts and roles'}
           </p>
         </div>
-        <Button
-          icon={<ReloadOutlined />}
-          onClick={fetchUsers}
-          loading={loading}
-          size="small"
-        >
-          Refresh
-        </Button>
+        <div className={styles.sectionActions}>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={fetchUsers}
+            loading={loading}
+            size="small"
+          >
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      <div className="rounded-md border border-[var(--color-border-light)] bg-white overflow-hidden">
+      <div className={styles.tableCard}>
         <Table
           columns={columns}
           dataSource={users}
@@ -215,9 +199,7 @@ export default function UsersPage() {
           pagination={{
             pageSize: 20,
             showTotal: (total) => (
-              <span className="text-[12px] text-[var(--color-gray-500)]">
-                {total} total
-              </span>
+              <span className={styles.cellDate}>{total} total</span>
             ),
             size: 'small',
           }}

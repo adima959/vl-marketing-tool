@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Modal, Select, Button, Spin, Tooltip } from 'antd';
+import { Select, Button, Spin, Tooltip } from 'antd';
 import { CheckOutlined, CloseOutlined, StopOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import {
   fetchUrlClassifications,
@@ -11,7 +11,8 @@ import {
   unclassifyUrl,
 } from '@/lib/api/urlClassificationsClient';
 import type { ClassifiedUrl, IgnoredUrl, ProductOption } from '@/lib/api/urlClassificationsClient';
-import modalStyles from '@/styles/components/modal.module.css';
+import { SidebarModal } from '@/components/ui/SidebarModal';
+import type { SidebarModalItem } from '@/components/ui/SidebarModal';
 import styles from './UrlClassificationModal.module.css';
 
 interface UrlClassificationModalProps {
@@ -78,7 +79,7 @@ export function UrlClassificationModal({
     }
   }, [open, loadData]);
 
-  // Group classified URLs by product for tabs
+  // Group classified URLs by product for sidebar items
   const productGroups = useMemo(() => {
     const groups = new Map<string, { product: ProductOption; urls: ClassifiedUrl[] }>();
     for (const item of classified) {
@@ -90,11 +91,22 @@ export function UrlClassificationModal({
       }
       groups.get(item.productId)!.urls.push(item);
     }
-    // Sort by product name
     return Array.from(groups.values()).sort((a, b) =>
       a.product.name.localeCompare(b.product.name)
     );
   }, [classified]);
+
+  // Build sidebar items
+  const sidebarItems = useMemo((): SidebarModalItem[] => [
+    { key: 'unclassified', label: 'Unclassified', count: unclassified.length },
+    ...(ignored.length > 0 ? [{ key: 'ignored', label: 'Ignored', count: ignored.length }] : []),
+    ...productGroups.map(g => ({
+      key: g.product.id,
+      label: g.product.name,
+      color: g.product.color,
+      count: g.urls.length,
+    })),
+  ], [unclassified.length, ignored.length, productGroups]);
 
   const handleDraftChange = (urlPath: string, field: 'countryCode' | 'productId', value: string) => {
     setDrafts((prev) => ({
@@ -110,7 +122,6 @@ export function UrlClassificationModal({
     setSavingUrl(urlPath);
     try {
       const result = await classifyUrl(urlPath, draft.productId, draft.countryCode);
-      // Optimistic update
       setUnclassified((prev) => prev.filter((u) => u !== urlPath));
       setClassified((prev) => [...prev, result]);
       setDrafts((prev) => {
@@ -163,7 +174,6 @@ export function UrlClassificationModal({
     setRemovingId(item.id);
     try {
       const urlPath = await unclassifyUrl(item.id);
-      // Optimistic update
       setClassified((prev) => prev.filter((c) => c.id !== item.id));
       setUnclassified((prev) => [...prev, urlPath].sort());
       onCountChange?.(unclassified.length + 1);
@@ -180,7 +190,6 @@ export function UrlClassificationModal({
     try {
       const result = await autoMatchUrls();
       if (result.matchedCount > 0) {
-        // Remove matched URLs from unclassified, add to classified
         const matchedPaths = new Set(result.matched.map((m) => m.urlPath));
         setUnclassified((prev) => prev.filter((u) => !matchedPaths.has(u)));
         setClassified((prev) => [...prev, ...result.matched]);
@@ -207,30 +216,39 @@ export function UrlClassificationModal({
     [products]
   );
 
-  // Active tab content
-  const activeProductGroup = activeTab !== 'unclassified'
+  // Derive content pane title + extra from active tab
+  const activeProductGroup = activeTab !== 'unclassified' && activeTab !== 'ignored'
     ? productGroups.find((g) => g.product.id === activeTab)
     : null;
 
+  const contentTitle = activeTab === 'unclassified'
+    ? 'Unclassified'
+    : activeTab === 'ignored'
+      ? 'Ignored'
+      : activeProductGroup?.product.name ?? '';
+
+  const activeCount = activeTab === 'unclassified'
+    ? unclassified.length
+    : activeTab === 'ignored'
+      ? ignored.length
+      : activeProductGroup?.urls.length ?? 0;
+
   return (
-    <Modal
-      title="URL Path Classification"
+    <SidebarModal
       open={open}
-      onCancel={onClose}
+      onClose={onClose}
+      title="URL Path Classification"
       width={800}
-      centered
-      footer={null}
-      className={`${modalStyles.modal} ${styles.modal}`}
-    >
-      {/* Custom header */}
-      <div className={styles.header}>
-        <div className={styles.headerLeft}>
-          <span className={styles.title}>URL Path Classification</span>
-          <span className={styles.subtitle}>
-            {unclassified.length} unclassified
-          </span>
-        </div>
-        {unclassified.length > 0 && (
+      sidebar={{
+        title: 'Categories',
+        items: sidebarItems,
+        activeKey: activeTab,
+        onSelect: setActiveTab,
+      }}
+      contentTitle={contentTitle}
+      contentExtra={`${activeCount} URLs`}
+      contentActions={
+        activeTab === 'unclassified' && unclassified.length > 0 ? (
           <Button
             size="small"
             icon={<ThunderboltOutlined />}
@@ -239,155 +257,121 @@ export function UrlClassificationModal({
           >
             Auto-match
           </Button>
-        )}
-      </div>
-
+        ) : undefined
+      }
+    >
       {error && <div className={styles.error}>{error}</div>}
 
-      {/* Tabs */}
-      <div className={styles.tabBar}>
-        <button
-          className={`${styles.tab} ${activeTab === 'unclassified' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('unclassified')}
-        >
-          Unclassified
-          <span className={styles.tabCount}>{unclassified.length}</span>
-        </button>
-        {ignored.length > 0 && (
-          <button
-            className={`${styles.tab} ${activeTab === 'ignored' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('ignored')}
-          >
-            Ignored
-            <span className={styles.tabCount}>{ignored.length}</span>
-          </button>
-        )}
-        {productGroups.map((group) => (
-          <button
-            key={group.product.id}
-            className={`${styles.tab} ${activeTab === group.product.id ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab(group.product.id)}
-          >
-            <span className={styles.tabDot} style={{ backgroundColor: group.product.color }} />
-            {group.product.name}
-            <span className={styles.tabCount}>{group.urls.length}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Content */}
-      <div className={styles.content}>
-        {loading ? (
-          <div className={styles.loadingState}>
-            <Spin />
-          </div>
-        ) : activeTab === 'unclassified' ? (
-          unclassified.length === 0 ? (
-            <div className={styles.emptyState}>All URL paths are classified</div>
-          ) : (
-            unclassified.map((urlPath) => {
-              const draft = drafts[urlPath] || { countryCode: null, productId: null };
-              const canSave = draft.countryCode && draft.productId;
-              const isSaving = savingUrl === urlPath;
-              const isIgnoring = ignoringUrl === urlPath;
-
-              return (
-                <div key={urlPath} className={styles.urlRow}>
-                  <Tooltip title={urlPath}>
-                    <span className={styles.urlPath}>{urlPath}</span>
-                  </Tooltip>
-                  <div className={styles.selectWrap}>
-                    <Select
-                      size="small"
-                      placeholder="Country"
-                      options={COUNTRY_OPTIONS}
-                      value={draft.countryCode}
-                      onChange={(val) => handleDraftChange(urlPath, 'countryCode', val)}
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                  <div className={styles.productSelectWrap}>
-                    <Select
-                      size="small"
-                      placeholder="Product"
-                      options={productOptions}
-                      value={draft.productId}
-                      onChange={(val) => handleDraftChange(urlPath, 'productId', val)}
-                      style={{ width: '100%' }}
-                      popupMatchSelectWidth={false}
-                    />
-                  </div>
-                  <Button
-                    className={styles.classifyBtn}
-                    type="primary"
-                    size="small"
-                    icon={<CheckOutlined />}
-                    disabled={!canSave || isSaving}
-                    loading={isSaving}
-                    onClick={() => handleClassify(urlPath)}
-                  />
-                  <Tooltip title="Ignore">
-                    <Button
-                      className={styles.ignoreBtn}
-                      type="text"
-                      size="small"
-                      icon={<StopOutlined />}
-                      loading={isIgnoring}
-                      disabled={isSaving}
-                      onClick={() => handleIgnore(urlPath)}
-                    />
-                  </Tooltip>
-                </div>
-              );
-            })
-          )
-        ) : activeTab === 'ignored' ? (
-          ignored.length === 0 ? (
-            <div className={styles.emptyState}>No ignored URLs</div>
-          ) : (
-            ignored.map((item) => (
-              <div key={item.id} className={styles.classifiedRow}>
-                <Tooltip title={item.urlPath}>
-                  <span className={styles.urlPath}>{item.urlPath}</span>
-                </Tooltip>
-                <Button
-                  className={styles.removeBtn}
-                  type="text"
-                  size="small"
-                  icon={<CloseOutlined />}
-                  danger
-                  loading={removingId === item.id}
-                  onClick={() => handleUnignore(item)}
-                />
-              </div>
-            ))
-          )
-        ) : activeProductGroup ? (
-          activeProductGroup.urls.length === 0 ? (
-            <div className={styles.emptyState}>No URLs classified under this product</div>
-          ) : (
-            activeProductGroup.urls.map((item) => (
-              <div key={item.id} className={styles.classifiedRow}>
-                <Tooltip title={item.urlPath}>
-                  <span className={styles.urlPath}>{item.urlPath}</span>
-                </Tooltip>
-                <span className={styles.countryBadge}>{item.countryCode}</span>
-                <Button
-                  className={styles.removeBtn}
-                  type="text"
-                  size="small"
-                  icon={<CloseOutlined />}
-                  danger
-                  loading={removingId === item.id}
-                  onClick={() => handleUnclassify(item)}
-                />
-              </div>
-            ))
-          )
+      {loading ? (
+        <div className={styles.loadingState}>
+          <Spin />
+        </div>
+      ) : activeTab === 'unclassified' ? (
+        unclassified.length === 0 ? (
+          <div className={styles.emptyState}>All URL paths are classified</div>
         ) : (
-          <div className={styles.emptyState}>Select a tab</div>
-        )}
-      </div>
-    </Modal>
+          unclassified.map((urlPath) => {
+            const draft = drafts[urlPath] || { countryCode: null, productId: null };
+            const canSave = draft.countryCode && draft.productId;
+            const isSaving = savingUrl === urlPath;
+            const isIgnoring = ignoringUrl === urlPath;
+
+            return (
+              <div key={urlPath} className={styles.urlRow}>
+                <Tooltip title={urlPath}>
+                  <span className={styles.urlPath}>{urlPath}</span>
+                </Tooltip>
+                <div className={styles.selectWrap}>
+                  <Select
+                    size="small"
+                    placeholder="Country"
+                    options={COUNTRY_OPTIONS}
+                    value={draft.countryCode}
+                    onChange={(val) => handleDraftChange(urlPath, 'countryCode', val)}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div className={styles.productSelectWrap}>
+                  <Select
+                    size="small"
+                    placeholder="Product"
+                    options={productOptions}
+                    value={draft.productId}
+                    onChange={(val) => handleDraftChange(urlPath, 'productId', val)}
+                    style={{ width: '100%' }}
+                    popupMatchSelectWidth={false}
+                  />
+                </div>
+                <Button
+                  className={styles.classifyBtn}
+                  type="primary"
+                  size="small"
+                  icon={<CheckOutlined />}
+                  disabled={!canSave || isSaving}
+                  loading={isSaving}
+                  onClick={() => handleClassify(urlPath)}
+                />
+                <Tooltip title="Ignore">
+                  <Button
+                    className={styles.ignoreBtn}
+                    type="text"
+                    size="small"
+                    icon={<StopOutlined />}
+                    loading={isIgnoring}
+                    disabled={isSaving}
+                    onClick={() => handleIgnore(urlPath)}
+                  />
+                </Tooltip>
+              </div>
+            );
+          })
+        )
+      ) : activeTab === 'ignored' ? (
+        ignored.length === 0 ? (
+          <div className={styles.emptyState}>No ignored URLs</div>
+        ) : (
+          ignored.map((item) => (
+            <div key={item.id} className={styles.classifiedRow}>
+              <Tooltip title={item.urlPath}>
+                <span className={styles.urlPath}>{item.urlPath}</span>
+              </Tooltip>
+              <Button
+                className={styles.removeBtn}
+                type="text"
+                size="small"
+                icon={<CloseOutlined />}
+                danger
+                loading={removingId === item.id}
+                onClick={() => handleUnignore(item)}
+              />
+            </div>
+          ))
+        )
+      ) : activeProductGroup ? (
+        activeProductGroup.urls.length === 0 ? (
+          <div className={styles.emptyState}>No URLs classified under this product</div>
+        ) : (
+          activeProductGroup.urls.map((item) => (
+            <div key={item.id} className={styles.classifiedRow}>
+              <Tooltip title={item.urlPath}>
+                <span className={styles.urlPath}>{item.urlPath}</span>
+              </Tooltip>
+              <span className={styles.countryBadge}>{item.countryCode}</span>
+              <Button
+                className={styles.removeBtn}
+                type="text"
+                size="small"
+                icon={<CloseOutlined />}
+                danger
+                loading={removingId === item.id}
+                onClick={() => handleUnclassify(item)}
+              />
+            </div>
+          ))
+        )
+      ) : (
+        <div className={styles.emptyState}>Select a category</div>
+      )}
+    </SidebarModal>
   );
 }

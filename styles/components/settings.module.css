@@ -1,0 +1,154 @@
+/* === Shared Settings Page Styles === */
+
+/* Page content wrapper */
+.page {
+  padding: var(--spacing-6);
+}
+
+/* Section header — card bar with title + actions */
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  margin-bottom: var(--spacing-5);
+}
+
+.sectionInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-gray-900);
+  letter-spacing: -0.01em;
+}
+
+.sectionSubtitle {
+  font-size: 12px;
+  color: var(--color-gray-500);
+  font-variant-numeric: tabular-nums;
+}
+
+.sectionActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Table card container */
+.tableCard {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-light);
+  background: var(--color-background-primary);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+}
+
+/* Ant Table overrides inside settings */
+.tableCard :global(.ant-table-thead > tr > th) {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  color: var(--color-gray-500) !important;
+  background: var(--color-background-secondary) !important;
+  padding: 10px 16px !important;
+  border-bottom: 1px solid var(--color-gray-200) !important;
+}
+
+.tableCard :global(.ant-table-tbody > tr > td) {
+  padding: 10px 16px !important;
+  border-bottom: 1px solid var(--color-gray-100) !important;
+}
+
+.tableCard :global(.ant-table-tbody > tr:last-child > td) {
+  border-bottom: none !important;
+}
+
+.tableCard :global(.ant-table-tbody > tr:hover > td) {
+  background: var(--color-gray-50) !important;
+}
+
+.tableCard :global(.ant-table-pagination) {
+  padding: 8px 16px !important;
+  margin: 0 !important;
+  border-top: 1px solid var(--color-gray-100) !important;
+}
+
+/* Cell helpers */
+.cellPrimary {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-gray-900);
+}
+
+.cellSecondary {
+  font-size: 12px;
+  color: var(--color-gray-500);
+  margin-top: 1px;
+}
+
+.cellMono {
+  font-size: 12px;
+  font-family: var(--font-family-mono);
+  color: var(--color-gray-500);
+}
+
+.cellDate {
+  font-size: 12px;
+  color: var(--color-gray-500);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Product color dot */
+.colorDot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* Status tag overrides */
+.tag {
+  font-size: 11px !important;
+  line-height: 18px !important;
+  padding: 0 6px !important;
+  border-radius: var(--radius-sm) !important;
+  font-weight: 500 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.025em !important;
+}
+
+/* Row action button */
+.rowAction {
+  color: var(--color-gray-400) !important;
+  transition: color var(--transition-fast) !important;
+}
+
+.rowAction:hover {
+  color: var(--color-gray-700) !important;
+}
+
+/* Loading / empty / auth states */
+.centeredState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 192px;
+}
+
+.authMessage {
+  padding: var(--spacing-6);
+  font-size: 13px;
+  color: var(--color-gray-500);
+}

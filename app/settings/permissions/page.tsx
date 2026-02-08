@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { App, Table, Button, Checkbox, Tag, Modal, Input, Select, Spin } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { FEATURES } from '@/types/roles';
 import modalStyles from '@/styles/components/modal.module.css';
+import settingsStyles from '@/styles/components/settings.module.css';
 import styles from './permissions.module.css';
 import type {
   Role,
@@ -346,13 +347,9 @@ export default function PermissionsPage() {
       width: 200,
       render: (label: string, record: PermissionGridRow) => {
         if (record.isGroupHeader) {
-          return (
-            <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--color-gray-600)]">
-              {label}
-            </span>
-          );
+          return <span className={styles.groupLabel}>{label}</span>;
         }
-        return <span className="text-[13px] text-[var(--color-gray-800)] pl-2">{label}</span>;
+        return <span className={styles.featureLabel}>{label}</span>;
       },
     },
     ...(['can_view', 'can_create', 'can_edit', 'can_delete'] as PermissionAction[]).map(action => ({
@@ -389,36 +386,29 @@ export default function PermissionsPage() {
   // ------------------------------------------------------------------
 
   if (authLoading) {
-    return (
-      <div className="flex items-center justify-center h-48">
-        <Spin size="small" />
-      </div>
-    );
+    return <div className={settingsStyles.centeredState}><Spin size="small" /></div>;
   }
 
   if (!isAuthenticated) {
-    return (
-      <div className="p-6 text-[13px] text-[var(--color-gray-500)]">
-        Please log in to access this page.
-      </div>
-    );
+    return <div className={settingsStyles.authMessage}>Please log in to access this page.</div>;
   }
 
   return (
-    <div className="p-4">
-      {/* Header */}
-      <div className="mb-3">
-        <h2 className="text-[14px] font-semibold text-[var(--color-gray-900)]">Roles & Permissions</h2>
-        <p className="text-[12px] text-[var(--color-gray-500)] mt-0.5">
-          Manage roles and configure feature access for each role.
-        </p>
+    <div className={settingsStyles.page}>
+      <div className={settingsStyles.sectionHeader}>
+        <div className={settingsStyles.sectionInfo}>
+          <h2 className={settingsStyles.sectionTitle}>Roles & Permissions</h2>
+          <p className={settingsStyles.sectionSubtitle}>
+            Manage roles and configure feature access for each role.
+          </p>
+        </div>
       </div>
 
-      <div className="flex gap-4" style={{ minHeight: 480 }}>
+      <div className={styles.layout}>
         {/* Left panel: Role list */}
-        <div className="w-[260px] shrink-0">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-[12px] font-medium text-[var(--color-gray-600)]">
+        <div className={styles.rolePanel}>
+          <div className={styles.rolePanelHeader}>
+            <span className={styles.rolePanelCount}>
               {roles.length} role{roles.length !== 1 ? 's' : ''}
             </span>
             <Button
@@ -431,96 +421,63 @@ export default function PermissionsPage() {
             </Button>
           </div>
 
-          <div className="rounded-md border border-[var(--color-border-light)] bg-white overflow-hidden">
+          <div className={styles.roleList}>
             {loading ? (
-              <div className="flex items-center justify-center h-32">
+              <div className={styles.roleListLoading}>
                 <Spin size="small" />
               </div>
             ) : (
-              <div className="divide-y divide-[var(--color-border-light)]">
-                {roles.map(role => (
-                  <button
-                    key={role.id}
-                    onClick={() => setSelectedRoleId(role.id)}
-                    className={`w-full text-left px-3 py-2.5 transition-colors cursor-pointer ${
-                      selectedRoleId === role.id
-                        ? 'bg-[var(--color-gray-50)] border-l-2 border-l-[var(--color-gray-900)]'
-                        : 'border-l-2 border-l-transparent hover:bg-[var(--color-gray-50)]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[13px] font-medium text-[var(--color-gray-900)]">
-                        {role.name}
-                      </span>
-                      {role.isSystem && (
-                        <Tag
-                          style={{
-                            fontSize: 10,
-                            lineHeight: '16px',
-                            padding: '0 4px',
-                            borderRadius: 3,
-                            margin: 0,
-                          }}
-                        >
-                          System
-                        </Tag>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between mt-0.5">
-                      <span className="text-[11px] text-[var(--color-gray-500)] line-clamp-1">
-                        {role.description || 'No description'}
-                      </span>
-                      <span className="text-[11px] text-[var(--color-gray-400)] ml-2 shrink-0">
-                        {role.userCount ?? 0} user{(role.userCount ?? 0) !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
+              roles.map(role => (
+                <button
+                  key={role.id}
+                  onClick={() => setSelectedRoleId(role.id)}
+                  className={`${styles.roleItem} ${selectedRoleId === role.id ? styles.roleItemActive : ''}`}
+                >
+                  <div className={styles.roleItemTop}>
+                    <span className={styles.roleItemName}>{role.name}</span>
+                    {role.isSystem && <Tag className={styles.systemTag}>System</Tag>}
+                  </div>
+                  <div className={styles.roleItemBottom}>
+                    <span className={styles.roleItemDesc}>
+                      {role.description || 'No description'}
+                    </span>
+                    <span className={styles.roleItemUsers}>
+                      {role.userCount ?? 0} user{(role.userCount ?? 0) !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </button>
+              ))
             )}
           </div>
         </div>
 
         {/* Right panel: Permission grid */}
-        <div className="flex-1 min-w-0">
+        <div className={styles.gridPanel}>
           {selectedRoleId && roleDetail ? (
             <>
-              {/* Role header */}
-              <div className="mb-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-[13px] font-semibold text-[var(--color-gray-900)]">
-                    {roleDetail.name}
-                  </span>
+              <div className={styles.gridHeader}>
+                <div className={styles.gridHeaderLeft}>
+                  <span className={styles.gridHeaderName}>{roleDetail.name}</span>
                   {roleDetail.isSystem && (
-                    <LockOutlined className="text-[var(--color-gray-400)]" style={{ fontSize: 12 }} />
+                    <LockOutlined className={styles.systemBannerIcon} />
                   )}
                 </div>
                 {!roleDetail.isSystem && (
-                  <div className="flex gap-1">
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<EditOutlined />}
-                      onClick={openEditDialog}
-                    />
-                    <Button
-                      type="text"
-                      size="small"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={handleDeleteRole}
-                    />
+                  <div className={styles.gridHeaderActions}>
+                    <Button type="text" size="small" icon={<EditOutlined />} onClick={openEditDialog} />
+                    <Button type="text" size="small" danger icon={<DeleteOutlined />} onClick={handleDeleteRole} />
                   </div>
                 )}
               </div>
 
               {roleDetail.isSystem && (
-                <div className="mb-2 rounded-md bg-[var(--color-gray-50)] border border-[var(--color-border-light)] px-3 py-2 text-[12px] text-[var(--color-gray-500)]">
+                <div className={styles.systemBanner}>
+                  <InfoCircleOutlined className={styles.systemBannerIcon} />
                   System role — permissions cannot be modified.
                 </div>
               )}
 
-              <div className={`rounded-md border border-[var(--color-border-light)] bg-white overflow-hidden ${styles.permissionGrid}`}>
+              <div className={`${settingsStyles.tableCard} ${styles.permissionGrid}`}>
                 <Table
                   key={selectedRoleId}
                   columns={gridColumns}
@@ -536,7 +493,7 @@ export default function PermissionsPage() {
               </div>
 
               {!roleDetail.isSystem && (
-                <div className="mt-3 flex justify-end">
+                <div className={styles.gridFooter}>
                   <Button
                     type="primary"
                     size="small"
@@ -550,7 +507,7 @@ export default function PermissionsPage() {
               )}
             </>
           ) : (
-            <div className="flex items-center justify-center h-48 text-[13px] text-[var(--color-gray-400)]">
+            <div className={styles.gridEmpty}>
               {loading ? <Spin size="small" /> : 'Select a role to view permissions'}
             </div>
           )}
@@ -559,7 +516,7 @@ export default function PermissionsPage() {
 
       {/* Create/Edit Role Dialog */}
       <Modal
-        title={dialogMode === 'create' ? 'Create Role' : 'Edit Role'}
+        title={null}
         open={dialogOpen}
         onCancel={() => setDialogOpen(false)}
         onOk={handleDialogSubmit}
@@ -567,44 +524,46 @@ export default function PermissionsPage() {
         okText={dialogMode === 'create' ? 'Create' : 'Save'}
         destroyOnHidden
         width={420}
-        className={modalStyles.modal}
+        className={`${modalStyles.modal} ${modalStyles.formDialog}`}
       >
-        <div className="flex flex-col gap-3 mt-4">
-          <div>
-            <label className="block text-[12px] font-medium text-[var(--color-gray-700)] mb-1">
-              Name
-            </label>
+        <div className={modalStyles.dialogHeader}>
+          <div className={modalStyles.dialogTitle}>
+            {dialogMode === 'create' ? 'Create role' : 'Edit role'}
+          </div>
+          <div className={modalStyles.dialogSubtitle}>
+            {dialogMode === 'create'
+              ? 'Define a new role and optionally clone permissions.'
+              : 'Update role name and description.'}
+          </div>
+        </div>
+
+        <div className={styles.dialogForm}>
+          <div className={styles.dialogField}>
+            <label className={styles.dialogLabel}>Name</label>
             <Input
               value={dialogName}
               onChange={(e) => setDialogName(e.target.value)}
               placeholder="e.g. Marketing Manager"
-              size="small"
             />
           </div>
-          <div>
-            <label className="block text-[12px] font-medium text-[var(--color-gray-700)] mb-1">
-              Description
-            </label>
+          <div className={styles.dialogField}>
+            <label className={styles.dialogLabel}>Description</label>
             <TextArea
               value={dialogDescription}
               onChange={(e) => setDialogDescription(e.target.value)}
               placeholder="Optional description of this role's purpose"
               rows={2}
-              size="small"
             />
           </div>
           {dialogMode === 'create' && (
-            <div>
-              <label className="block text-[12px] font-medium text-[var(--color-gray-700)] mb-1">
-                Clone permissions from
-              </label>
+            <div className={styles.dialogField}>
+              <label className={styles.dialogLabel}>Clone permissions from</label>
               <Select
                 value={dialogCloneFrom}
                 onChange={setDialogCloneFrom}
                 placeholder="Start with blank permissions"
                 allowClear
-                size="small"
-                className="w-full"
+                style={{ width: '100%' }}
                 options={roles.map(r => ({ label: r.name, value: r.id }))}
               />
             </div>

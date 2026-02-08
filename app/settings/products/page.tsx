@@ -6,6 +6,7 @@ import { EditOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Product, TrackerUser } from '@/types/marketing-tracker';
 import type { ColumnsType } from 'antd/es/table';
+import styles from '@/styles/components/settings.module.css';
 
 const ProductDialog = lazy(() =>
   import('@/components/settings/ProductDialog').then((mod) => ({ default: mod.ProductDialog }))
@@ -94,11 +95,14 @@ export default function ProductsPage() {
       key: 'name',
       width: 200,
       render: (name: string, record: Product) => (
-        <div>
-          <div className="text-[13px] font-medium text-[var(--color-gray-900)]">{name}</div>
-          {record.sku && (
-            <div className="text-[12px] font-mono text-[var(--color-gray-500)]">{record.sku}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {record.color && (
+            <span className={styles.colorDot} style={{ backgroundColor: record.color }} />
           )}
+          <div>
+            <div className={styles.cellPrimary}>{name}</div>
+            {record.sku && <div className={styles.cellMono}>{record.sku}</div>}
+          </div>
         </div>
       ),
     },
@@ -106,11 +110,12 @@ export default function ProductsPage() {
       title: 'Description',
       dataIndex: 'description',
       key: 'description',
+      width: 300,
       ellipsis: true,
       render: (desc: string) => {
         const plain = desc ? desc.replace(/<[^>]*>/g, '') : '';
         return (
-          <span className="text-[12px] text-[var(--color-gray-600)]">
+          <span className={styles.cellSecondary}>
             {plain || '\u2014'}
           </span>
         );
@@ -121,7 +126,7 @@ export default function ProductsPage() {
       key: 'owner',
       width: 160,
       render: (_: unknown, record: Product) => (
-        <span className="text-[13px] text-[var(--color-gray-700)]">
+        <span className={styles.cellPrimary} style={{ fontWeight: 400 }}>
           {record.owner?.name || '\u2014'}
         </span>
       ),
@@ -134,15 +139,7 @@ export default function ProductsPage() {
       render: (status: string) => (
         <Tag
           color={status === 'active' ? 'green' : undefined}
-          style={{
-            fontSize: 11,
-            lineHeight: '18px',
-            padding: '0 6px',
-            borderRadius: 4,
-            fontWeight: 500,
-            textTransform: 'uppercase',
-            letterSpacing: '0.025em',
-          }}
+          className={styles.tag}
         >
           {status}
         </Tag>
@@ -159,38 +156,30 @@ export default function ProductsPage() {
           size="small"
           icon={<EditOutlined />}
           onClick={() => handleEdit(record)}
-          className="text-[var(--color-gray-400)] hover:text-[var(--color-gray-700)]"
+          className={styles.rowAction}
         />
       ),
     },
   ];
 
   if (authLoading) {
-    return (
-      <div className="flex items-center justify-center h-48">
-        <Spin size="small" />
-      </div>
-    );
+    return <div className={styles.centeredState}><Spin size="small" /></div>;
   }
 
   if (!isAuthenticated) {
-    return (
-      <div className="p-6 text-[13px] text-[var(--color-gray-500)]">
-        Please log in to access this page.
-      </div>
-    );
+    return <div className={styles.authMessage}>Please log in to access this page.</div>;
   }
 
   return (
-    <div className="p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <div>
-          <h2 className="text-[14px] font-semibold text-[var(--color-gray-900)]">Products</h2>
-          <p className="text-[12px] text-[var(--color-gray-500)] mt-0.5">
+    <div className={styles.page}>
+      <div className={styles.sectionHeader}>
+        <div className={styles.sectionInfo}>
+          <h2 className={styles.sectionTitle}>Products</h2>
+          <p className={styles.sectionSubtitle}>
             {products.length > 0 ? `${products.length} product${products.length !== 1 ? 's' : ''}` : 'Manage products and their details'}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className={styles.sectionActions}>
           <Button
             icon={<ReloadOutlined />}
             onClick={fetchProducts}
@@ -210,7 +199,7 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      <div className="rounded-md border border-[var(--color-border-light)] bg-white overflow-hidden">
+      <div className={styles.tableCard}>
         <Table
           columns={columns}
           dataSource={products}
@@ -220,9 +209,7 @@ export default function ProductsPage() {
           pagination={{
             pageSize: 20,
             showTotal: (total) => (
-              <span className="text-[12px] text-[var(--color-gray-500)]">
-                {total} total
-              </span>
+              <span className={styles.cellDate}>{total} total</span>
             ),
             size: 'small',
           }}

@@ -71,15 +71,26 @@ export function SavedViewsDropdown({ pagePath, onApplyView, getCurrentState }: S
     setDropdownOpen(false);
   };
 
+  const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
+
   const handleToggleFavorite = async (viewId: string, currentlyFavorite: boolean) => {
+    if (togglingIds.has(viewId)) return;
+    // Optimistic update
+    setTogglingIds((prev) => new Set(prev).add(viewId));
+    setViews((prev) =>
+      prev.map((v) => v.id === viewId ? { ...v, isFavorite: !currentlyFavorite } : v)
+    );
+    window.dispatchEvent(new Event('favorites-changed'));
     try {
       await toggleFavorite(viewId, !currentlyFavorite);
+    } catch {
+      // Revert on failure
       setViews((prev) =>
-        prev.map((v) => v.id === viewId ? { ...v, isFavorite: !currentlyFavorite } : v)
+        prev.map((v) => v.id === viewId ? { ...v, isFavorite: currentlyFavorite } : v)
       );
       window.dispatchEvent(new Event('favorites-changed'));
-    } catch (err) {
-      console.warn('Failed to toggle favorite:', err);
+    } finally {
+      setTogglingIds((prev) => { const next = new Set(prev); next.delete(viewId); return next; });
     }
   };
 
@@ -115,10 +126,14 @@ export function SavedViewsDropdown({ pagePath, onApplyView, getCurrentState }: S
           <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginRight: -4 }}>
             <button
               title={view.isFavorite ? 'Remove from sidebar' : 'Add to sidebar'}
+              disabled={togglingIds.has(view.id)}
               onClick={(e) => { e.stopPropagation(); handleToggleFavorite(view.id, view.isFavorite); }}
               style={{
                 ...iconButton,
                 color: view.isFavorite ? 'var(--color-primary-500)' : 'var(--color-gray-400)',
+                opacity: togglingIds.has(view.id) ? 0.5 : 1,
+                pointerEvents: togglingIds.has(view.id) ? 'none' : undefined,
+                transition: 'color 0.15s, opacity 0.15s',
               }}
               onMouseEnter={(e) => {
                 if (!view.isFavorite) {

@@ -70,3 +70,126 @@
   font-weight: 600;
   color: var(--color-gray-600);
 }
+
+/* ==========================================================================
+   Form dialog variant — custom header, refined spacing
+   Usage: className={`${modalStyles.modal} ${modalStyles.formDialog}`}
+   ========================================================================== */
+
+.formDialog :global(.ant-modal-header) {
+  display: none;
+}
+
+.formDialog :global(.ant-modal-body) {
+  padding: 20px 24px 16px !important;
+}
+
+.formDialog :global(.ant-modal-footer) {
+  padding: 12px 24px 20px !important;
+  border-top: 1px solid var(--color-border-light) !important;
+}
+
+/* Custom dialog header area */
+.dialogHeader {
+  margin-bottom: 16px;
+}
+
+.dialogTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-gray-900);
+  margin-bottom: 4px;
+}
+
+.dialogSubtitle {
+  font-size: 12px;
+  color: var(--color-gray-500);
+}
+
+/* User info card in dialog */
+.dialogUserCard {
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-light);
+  background: var(--color-background-secondary);
+  margin-bottom: 16px;
+}
+
+.dialogUserName {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-gray-900);
+}
+
+.dialogUserEmail {
+  font-size: 12px;
+  color: var(--color-gray-500);
+  margin-top: 2px;
+}
+
+.dialogUserId {
+  font-size: 11px;
+  font-family: var(--font-family-mono);
+  color: var(--color-gray-400);
+  margin-top: 6px;
+}
+
+/* Form label override (for Form.Item label prop) */
+.formLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-gray-700);
+}
+
+/* Two-column form grid */
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+}
+
+/* Switch toggle row */
+.switchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.switchLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-gray-700);
+}
+
+.switchDesc {
+  font-size: 12px;
+  color: var(--color-gray-400);
+  margin-top: 2px;
+}
+
+/* Color swatch picker */
+.colorGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.colorSwatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.colorSwatch:hover {
+  border-color: var(--color-gray-400);
+}
+
+.colorSwatchSelected {
+  border-color: var(--color-gray-900);
+  box-shadow: 0 0 0 1px var(--color-background-primary);
+}

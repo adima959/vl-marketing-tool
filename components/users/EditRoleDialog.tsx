@@ -62,7 +62,6 @@ export function EditRoleDialog({ user, open, onClose, onSuccess }: EditRoleDialo
       onSuccess();
       onClose();
     } catch (error) {
-      console.error('Error updating user role:', error);
       message.error(error instanceof Error ? error.message : 'Failed to update user role');
     } finally {
       setLoading(false);
@@ -85,57 +84,24 @@ export function EditRoleDialog({ user, open, onClose, onSuccess }: EditRoleDialo
       cancelText="Cancel"
       destroyOnHidden
       width={400}
-      className={modalStyles.modal}
-      styles={{
-        header: { display: 'none' },
-        body: { padding: '20px 24px 16px' },
-        footer: { padding: '12px 24px 20px', borderTop: '1px solid var(--color-border-light)' },
-      }}
+      className={`${modalStyles.modal} ${modalStyles.formDialog}`}
     >
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-gray-900)', marginBottom: 4 }}>
-          Edit role
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--color-gray-500)' }}>
+      <div className={modalStyles.dialogHeader}>
+        <div className={modalStyles.dialogTitle}>Edit role</div>
+        <div className={modalStyles.dialogSubtitle}>
           Change the permission level for this user.
         </div>
       </div>
 
-      <div
-        style={{
-          padding: '12px',
-          borderRadius: 6,
-          border: '1px solid var(--color-border-light)',
-          backgroundColor: 'var(--color-background-secondary)',
-          marginBottom: 16,
-        }}
-      >
-        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-gray-900)' }}>
-          {user?.name}
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--color-gray-500)', marginTop: 2 }}>
-          {user?.email}
-        </div>
-        <div
-          style={{
-            fontSize: 11,
-            fontFamily: 'var(--font-family-mono)',
-            color: 'var(--color-gray-400)',
-            marginTop: 6,
-          }}
-        >
-          ID {user?.external_id}
-        </div>
+      <div className={modalStyles.dialogUserCard}>
+        <div className={modalStyles.dialogUserName}>{user?.name}</div>
+        <div className={modalStyles.dialogUserEmail}>{user?.email}</div>
+        <div className={modalStyles.dialogUserId}>ID {user?.external_id}</div>
       </div>
 
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleSubmit}
-        style={{ marginBottom: 0 }}
-      >
+      <Form form={form} layout="vertical" onFinish={handleSubmit}>
         <Form.Item
-          label={<span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-gray-700)' }}>Role</span>}
+          label={<span className={modalStyles.formLabel}>Role</span>}
           name="role_id"
           rules={[{ required: true, message: 'Please select a role' }]}
           style={{ marginBottom: 16 }}
@@ -150,14 +116,14 @@ export function EditRoleDialog({ user, open, onClose, onSuccess }: EditRoleDialo
           />
         </Form.Item>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className={modalStyles.switchRow}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-gray-700)' }}>Product Owner</div>
-            <div style={{ fontSize: 12, color: 'var(--color-gray-400)', marginTop: 2 }}>
+            <div className={modalStyles.switchLabel}>Product Owner</div>
+            <div className={modalStyles.switchDesc}>
               Appears as an owner in the marketing pipeline
             </div>
           </div>
-          <Form.Item name="is_product_owner" valuePropName="checked" style={{ marginBottom: 0 }}>
+          <Form.Item name="is_product_owner" valuePropName="checked" noStyle>
             <Switch size="small" />
           </Form.Item>
         </div>

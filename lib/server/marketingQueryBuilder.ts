@@ -80,6 +80,25 @@ const metricMap: Record<string, string> = {
 };
 
 /**
+ * Maps sort keys to AggregatedMetrics property names for JavaScript-side sorting
+ */
+const jsSortMap: Record<string, keyof AggregatedMetrics> = {
+  cost: 'cost',
+  clicks: 'clicks',
+  impressions: 'impressions',
+  conversions: 'conversions',
+  ctr: 'ctr_percent',
+  cpc: 'cpc',
+  cpm: 'cpm',
+  conversionRate: 'conversion_rate',
+  crmSubscriptions: 'crm_subscriptions',
+  approvedSales: 'approved_sales',
+  approvalRate: 'approval_rate',
+  realCpa: 'real_cpa',
+};
+
+
+/**
  * Format a Date as 'YYYY-MM-DD' using local timezone
  * Avoids the timezone bug where toISOString().split('T')[0] returns
  * the previous day for users ahead of UTC (e.g., Europe)
@@ -105,7 +124,7 @@ function matchSource(network: string, source: string | null): boolean {
   }
 
   if (networkLower === 'facebook') {
-    return sourceLower === 'facebook' || sourceLower === 'meta';
+    return sourceLower === 'facebook' || sourceLower === 'meta' || sourceLower === 'fb';
   }
 
   return false;
@@ -209,7 +228,8 @@ function buildTableFilters(
 
 /**
  * Get marketing data with two-database approach (PostgreSQL for ads, MariaDB for CRM)
- * Supports hierarchical loading like the original queryBuilder
+ * Queries PostgreSQL for aggregated ad metrics, then matches CRM subscription data
+ * from MariaDB via tracking IDs (campaign_id, adset_id, ad_id).
  */
 export async function getMarketingData(
   params: MarketingQueryParams
@@ -226,18 +246,9 @@ export async function getMarketingData(
     limit = 1000,
   } = params;
 
-  // Product filter is only used when explicitly provided via API
   const effectiveProductFilter = productFilter;
-
-  // Validate depth
-  if (depth >= dimensions.length) {
-    throw new Error(`Depth ${depth} exceeds dimensions length ${dimensions.length}`);
-  }
-
-  // Validate limit
   const safeLimit = Math.max(1, Math.min(10000, Math.floor(limit)));
 
-  // Get current dimension to group by
   const currentDimension = dimensions[depth];
   const sqlColumn = dimensionMap[currentDimension];
 
@@ -245,36 +256,27 @@ export async function getMarketingData(
     throw new Error(`Unknown dimension: ${currentDimension}`);
   }
 
-  // Get sort column
   const sortColumn = metricMap[sortBy] || 'clicks';
   const finalSortColumn = currentDimension === 'date' ? sqlColumn : sortColumn;
   const finalSortDirection = currentDimension === 'date' ? 'DESC' : validateSortDirection(sortDirection);
 
-  // Step 1: Build PostgreSQL query for aggregated ads data
-  // IMPORTANT: The date column, when cast to date, already represents Denmark local dates
-  // When we do date::date, PostgreSQL extracts the date in the database's timezone
-  // So no date adjustment needed - use dates as-is from frontend
   const pgParams: any[] = [
-    formatLocalDate(dateRange.start), // $1 - e.g., "2026-02-05"
-    formatLocalDate(dateRange.end),   // $2 - e.g., "2026-02-05"
+    formatLocalDate(dateRange.start),
+    formatLocalDate(dateRange.end),
   ];
 
-  // Build parent filters (drill-down)
   const { whereClause, params: filterParams } = buildParentFilters(
     parentFilters,
     pgParams.length
   );
   pgParams.push(...filterParams);
 
-  // Build table filters (user-defined WHERE clauses)
   const { whereClause: tableFilterClause, params: tableFilterParams } = buildTableFilters(
     filters,
     pgParams.length
   );
   pgParams.push(...tableFilterParams);
 
-  // Query ads data grouped by current dimension, including ID mappings via array_agg
-  // This eliminates the need for a separate ID mapping query (was a second round-trip)
   const adsQuery = `
     SELECT
       ${sqlColumn} AS dimension_value,
@@ -306,7 +308,6 @@ export async function getMarketingData(
     networks: string[];
   };
 
-  // Step 1 & 2: Run PostgreSQL ads query and MariaDB CRM query in parallel
   const crmFilters: CRMQueryFilters = {
     dateStart: `${formatLocalDate(dateRange.start)} 00:00:00`,
     dateEnd: `${formatLocalDate(dateRange.end)} 23:59:59`,
@@ -318,7 +319,6 @@ export async function getMarketingData(
     getCRMSubscriptions(crmFilters),
   ]);
 
-  // Step 3: Pre-index CRM data into a Map for O(1) lookups instead of O(n) scans
   const crmIndex = new Map<string, CRMSubscriptionRow[]>();
   for (const crm of crmData) {
     const key = `${crm.campaign_id}|${crm.adset_id}|${crm.ad_id}`;
@@ -328,18 +328,15 @@ export async function getMarketingData(
     crmIndex.get(key)!.push(crm);
   }
 
-  // Step 4: Match CRM data to aggregated ads data using indexed lookups
-  const result = adsData.map(row => {
+  return adsData.map(row => {
     let crm_subscriptions = 0;
     let approved_sales = 0;
 
-    // Build all unique (campaign, adset, ad, network) combinations from array_agg results
     const campaignIds = row.campaign_ids || [];
     const adsetIds = row.adset_ids || [];
     const adIds = row.ad_ids || [];
     const networkList = row.networks || [];
 
-    // For each unique ad ID tuple, look up CRM data via the index
     for (const campaignId of campaignIds) {
       for (const adsetId of adsetIds) {
         for (const adId of adIds) {
@@ -348,7 +345,6 @@ export async function getMarketingData(
           if (!crmRows) continue;
 
           for (const crm of crmRows) {
-            // Check network/source match
             const sourceMatched = networkList.some(n => matchSource(n, crm.source));
             if (sourceMatched) {
               crm_subscriptions += Number(crm.subscription_count || 0);
@@ -359,14 +355,10 @@ export async function getMarketingData(
       }
     }
 
-    // Calculate derived metrics
     const cost = Number(row.cost) || 0;
-    const realCpa = approved_sales > 0 ? cost / approved_sales : 0;
-    const approvalRate = crm_subscriptions > 0 ? approved_sales / crm_subscriptions : 0;
-
     return {
       dimension_value: row.dimension_value,
-      cost: Number(row.cost) || 0,
+      cost,
       clicks: Number(row.clicks) || 0,
       impressions: Number(row.impressions) || 0,
       conversions: Number(row.conversions) || 0,
@@ -376,10 +368,9 @@ export async function getMarketingData(
       conversion_rate: Number(row.conversion_rate) || 0,
       crm_subscriptions,
       approved_sales,
-      approval_rate: approvalRate,
-      real_cpa: realCpa,
+      approval_rate: crm_subscriptions > 0 ? approved_sales / crm_subscriptions : 0,
+      real_cpa: approved_sales > 0 ? cost / approved_sales : 0,
     };
   });
-
-  return result;
 }
+

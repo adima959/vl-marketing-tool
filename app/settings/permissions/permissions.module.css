@@ -1,49 +1,292 @@
-/**
- * Permissions grid table styling
- * Only override what's needed — let Ant Design handle checked/disabled states
- */
+/* === Permissions Page — Two-panel layout === */
 
-/* Feature row padding */
+/* Master layout: sidebar + grid */
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: var(--spacing-5);
+  align-items: start;
+}
+
+/* ── Role sidebar panel ── */
+.rolePanel {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-light);
+  background: var(--color-background-primary);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+  position: sticky;
+  top: 20px;
+}
+
+.rolePanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--color-background-secondary);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.rolePanelCount {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-gray-500);
+}
+
+/* Role list */
+.roleList {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+.roleListLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+/* Individual role item */
+.roleItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 16px;
+  text-align: left;
+  background: none;
+  border: none;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+  width: 100%;
+  font-family: inherit;
+}
+
+.roleItem:hover {
+  background: var(--color-gray-50);
+}
+
+.roleItemActive {
+  background: var(--color-primary-50);
+  border-left-color: var(--color-primary-500);
+}
+
+.roleItemActive:hover {
+  background: var(--color-primary-50);
+}
+
+.roleItemActive .roleItemName {
+  color: var(--color-primary-800);
+}
+
+.roleItemActive .roleItemUsers {
+  color: var(--color-primary-600);
+}
+
+.roleItemTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.roleItemName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-gray-900);
+}
+
+.roleItemBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.roleItemDesc {
+  font-size: 11px;
+  color: var(--color-gray-500);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 170px;
+}
+
+.roleItemUsers {
+  font-size: 11px;
+  color: var(--color-gray-400);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* System role tag */
+.systemTag {
+  font-size: 10px !important;
+  line-height: 16px !important;
+  padding: 0 5px !important;
+  border-radius: var(--radius-sm) !important;
+  font-weight: 500 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.03em !important;
+  color: var(--color-gray-500) !important;
+  background: var(--color-gray-100) !important;
+  border-color: var(--color-gray-200) !important;
+}
+
+/* ── Grid panel ── */
+.gridPanel {
+  min-width: 0;
+}
+
+.gridHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  margin-bottom: 14px;
+}
+
+.gridHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gridHeaderName {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-gray-900);
+  letter-spacing: -0.01em;
+}
+
+.gridHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* System role info banner */
+.systemBanner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-gray-600);
+  background: var(--color-gray-50);
+  border: 1px solid var(--color-gray-200);
+  border-left: 3px solid var(--color-gray-400);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+
+.systemBannerIcon {
+  font-size: 13px;
+  color: var(--color-gray-400);
+  flex-shrink: 0;
+}
+
+/* Grid footer with save button */
+.gridFooter {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 14px;
+}
+
+/* Empty / loading state */
+.gridEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 240px;
+  font-size: 13px;
+  color: var(--color-gray-400);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--color-gray-200);
+  background: var(--color-background-primary);
+}
+
+/* ── Permission grid table overrides ── */
+
 .permissionGrid :global(.ant-table-tbody > tr > td) {
   padding: 8px 12px !important;
 }
 
-/* Column headers */
 .permissionGrid :global(.ant-table-thead > tr > th) {
   padding: 10px 12px !important;
-  font-size: 11px !important;
-  font-weight: 600 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.04em !important;
-  color: var(--color-gray-500) !important;
 }
 
-/* Stronger unchecked checkbox border — only target non-checked state */
+/* Stronger unchecked checkbox border */
 .permissionGrid :global(.ant-checkbox:not(.ant-checkbox-checked):not(.ant-checkbox-disabled) .ant-checkbox-inner) {
   border-color: var(--color-gray-400) !important;
 }
 
-/* Hover on unchecked — accent color hint */
+/* Hover on unchecked — accent hint */
 .permissionGrid :global(.ant-checkbox:not(.ant-checkbox-checked):not(.ant-checkbox-disabled):hover .ant-checkbox-inner) {
-  border-color: var(--color-accent) !important;
+  border-color: var(--color-primary-500) !important;
 }
 
-/* Group header rows — prominent section dividers */
+/* Group header rows — section dividers */
 .permissionGrid :global(.ant-table-row.groupRow > td) {
-  background-color: var(--color-gray-100, #f0f1f3) !important;
+  background: var(--color-background-secondary) !important;
   padding: 11px 12px !important;
-  border-top: 16px solid white !important;
-  border-bottom: 2px solid var(--color-gray-200, #dcdfe4) !important;
+  border-top: 20px solid var(--color-background-primary) !important;
+  border-bottom: 1px solid var(--color-gray-200) !important;
 }
 
-/* First group header — less top spacing */
 .permissionGrid :global(.ant-table-row.groupRow:first-child > td) {
   border-top: none !important;
 }
 
 /* Dash for non-applicable actions */
 .dash {
-  color: var(--color-gray-300);
+  color: var(--color-gray-200);
   font-size: 14px;
   user-select: none;
+}
+
+/* Group header label */
+.groupLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-gray-600);
+}
+
+/* Feature row label */
+.featureLabel {
+  font-size: 13px;
+  color: var(--color-gray-800);
+  padding-left: 8px;
+}
+
+/* ── Create/Edit dialog form ── */
+
+.dialogForm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 8px 0 4px;
+}
+
+.dialogField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dialogLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-gray-600);
 }
