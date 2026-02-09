@@ -52,6 +52,10 @@ export interface OnPageDetailRecord {
   fcpS: number | null;
   lcpS: number | null;
   ttiS: number | null;
+  dclS: number | null;
+  loadS: number | null;
+  timezone: string | null;
+  localHourOfDay: number | null;
   formErrors: number;
   formErrorsDetail: Array<{ field: string; error_count: number }> | null;
 }

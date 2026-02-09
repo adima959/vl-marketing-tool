@@ -90,15 +90,17 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
         // Session/Identity
         'Timestamp', 'Visitor ID', 'Session ID', 'Visit #',
         // Page/URL
-        'Type', 'URL Path', 'Full URL',
+        'Page Type', 'URL Path', 'Full URL',
         // Traffic Source
         'Source', 'Campaign', 'Adset', 'Ad', 'UTM Term', 'Keyword', 'Placement', 'Referrer',
         // Device/Environment
-        'Device', 'OS', 'OS Version', 'Browser', 'Platform', 'Language', 'User Agent', 'Country',
+        'Device Type', 'Operating System', 'OS Version', 'Browser', 'Platform', 'Language', 'User Agent', 'Country',
         // Engagement
-        'Active Time (s)', 'Scroll %', 'Hero Scroll', 'Form View', 'Form Started', 'Form Errors', 'Form Errors Detail', 'CTA View', 'CTA Click',
+        'Active Time (s)', 'Scroll %', 'Hero Scroll Passed', 'Form View', 'Form Started', 'Form Errors', 'Form Error Details', 'CTA Viewed', 'CTA Clicked',
         // Performance
-        'FCP (s)', 'LCP (s)', 'TTI (s)',
+        'First Contentful Paint (s)', 'Largest Contentful Paint (s)', 'Time to Interactive (s)', 'DOMContentLoaded (s)', 'Page Load (s)',
+        // User Context
+        'Timezone', 'Local Hour',
       ];
 
       const csvRows = [
@@ -145,6 +147,11 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
           r.fcpS != null ? r.fcpS.toFixed(2) : '',
           r.lcpS != null ? r.lcpS.toFixed(2) : '',
           r.ttiS != null ? r.ttiS.toFixed(2) : '',
+          r.dclS != null ? r.dclS.toFixed(2) : '',
+          r.loadS != null ? r.loadS.toFixed(2) : '',
+          // User Context
+          `"${r.timezone || ''}"`,
+          r.localHourOfDay != null ? r.localHourOfDay : '',
         ].join(',')),
       ];
 
@@ -414,9 +421,9 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
       ),
     },
     {
-      title: 'OS Ver',
+      title: 'OS Version',
       dataIndex: 'osVersion',
-      width: 80,
+      width: 90,
       ellipsis: { showTitle: false },
       render: (val: string | null) => (
         <Tooltip title={val}><span style={{ fontSize: 12 }}>{val || '–'}</span></Tooltip>
@@ -469,9 +476,9 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
 
     // ========== 5. ENGAGEMENT ==========
     {
-      title: 'Active Time',
+      title: 'Active Time (s)',
       dataIndex: 'activeTimeS',
-      width: 100,
+      width: 110,
       align: 'right',
       render: (val: number | null) => (
         <span className={styles.monoCell}>{formatDuration(val)}</span>
@@ -487,9 +494,9 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
       ),
     },
     {
-      title: 'Hero',
+      title: 'Hero Scroll',
       dataIndex: 'heroScrollPassed',
-      width: 60,
+      width: 90,
       align: 'center',
       render: (val: boolean) => (
         <span className={val ? styles.boolTrue : styles.boolFalse}>
@@ -520,9 +527,9 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
       ),
     },
     {
-      title: 'Form Err',
+      title: 'Form Errors',
       dataIndex: 'formErrors',
-      width: 50,
+      width: 95,
       align: 'center',
       render: (val: number) => (
         <span className={val > 0 ? styles.boolTrue : styles.boolFalse}>
@@ -555,30 +562,88 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
 
     // ========== 6. PERFORMANCE ==========
     {
-      title: 'FCP',
+      title: (
+        <Tooltip title="First Contentful Paint: Time when first content appears">
+          <span>FCP (s)</span>
+        </Tooltip>
+      ),
       dataIndex: 'fcpS',
-      width: 60,
+      width: 75,
       align: 'right',
       render: (val: number | null) => (
         <span className={styles.monoCell}>{val != null ? `${val.toFixed(1)}s` : '–'}</span>
       ),
     },
     {
-      title: 'LCP',
+      title: (
+        <Tooltip title="Largest Contentful Paint: Time when main content is visible">
+          <span>LCP (s)</span>
+        </Tooltip>
+      ),
       dataIndex: 'lcpS',
-      width: 60,
+      width: 75,
       align: 'right',
       render: (val: number | null) => (
         <span className={styles.monoCell}>{val != null ? `${val.toFixed(1)}s` : '–'}</span>
       ),
     },
     {
-      title: 'TTI',
+      title: (
+        <Tooltip title="Time to Interactive: When page becomes fully interactive">
+          <span>TTI (s)</span>
+        </Tooltip>
+      ),
       dataIndex: 'ttiS',
-      width: 60,
+      width: 75,
       align: 'right',
       render: (val: number | null) => (
         <span className={styles.monoCell}>{val != null ? `${val.toFixed(1)}s` : '–'}</span>
+      ),
+    },
+    {
+      title: (
+        <Tooltip title="DOMContentLoaded: When HTML is parsed and DOM is ready">
+          <span>DCL (s)</span>
+        </Tooltip>
+      ),
+      dataIndex: 'dclS',
+      width: 75,
+      align: 'right',
+      render: (val: number | null) => (
+        <span className={styles.monoCell}>{val != null ? `${val.toFixed(1)}s` : '–'}</span>
+      ),
+    },
+    {
+      title: (
+        <Tooltip title="Page Load: Time until page and all resources are fully loaded">
+          <span>Load (s)</span>
+        </Tooltip>
+      ),
+      dataIndex: 'loadS',
+      width: 75,
+      align: 'right',
+      render: (val: number | null) => (
+        <span className={styles.monoCell}>{val != null ? `${val.toFixed(1)}s` : '–'}</span>
+      ),
+    },
+
+    // ========== 7. USER CONTEXT ==========
+    {
+      title: 'Timezone',
+      dataIndex: 'timezone',
+      width: 120,
+      ellipsis: { showTitle: false },
+      render: (val: string | null) => (
+        <Tooltip title={val}><span style={{ fontSize: 12 }}>{val || '–'}</span></Tooltip>
+      ),
+    },
+    {
+      title: 'Local Hour',
+      dataIndex: 'localHourOfDay',
+      width: 90,
+      align: 'center',
+      render: (val: number | null) => (
+        <span className={styles.monoCell}>{val != null ? `${val}:00` : '–'}</span>
       ),
     },
   ], [repeatRowIds]);

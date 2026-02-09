@@ -721,7 +721,8 @@ export class OnPageQueryBuilder {
         device_type, country_code, page_type,
         utm_source, utm_campaign, utm_content, utm_medium, utm_term,
         keyword, placement, referrer, user_agent, language, platform,
-        os_name, os_version, browser_name, fcp_s, lcp_s, tti_s, form_errors, form_errors_detail`;
+        os_name, os_version, browser_name, fcp_s, lcp_s, tti_s, dcl_s, load_s,
+        timezone, local_hour_of_day, form_errors, form_errors_detail`;
 
     const query = isUniqueVisitors
       ? `

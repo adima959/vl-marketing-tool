@@ -41,6 +41,10 @@ interface RawPageViewRow {
   fcp_s: string | null;
   lcp_s: string | null;
   tti_s: string | null;
+  dcl_s: string | null;
+  load_s: string | null;
+  timezone: string | null;
+  local_hour_of_day: number | null;
   form_errors: string | null;
   form_errors_detail: unknown;
 }
@@ -121,6 +125,10 @@ async function handleOnPageDetail(
       fcpS: row.fcp_s != null ? Number(row.fcp_s) : null,
       lcpS: row.lcp_s != null ? Number(row.lcp_s) : null,
       ttiS: row.tti_s != null ? Number(row.tti_s) : null,
+      dclS: row.dcl_s != null ? Number(row.dcl_s) : null,
+      loadS: row.load_s != null ? Number(row.load_s) : null,
+      timezone: row.timezone,
+      localHourOfDay: row.local_hour_of_day,
       formErrors: Number(row.form_errors) || 0,
       formErrorsDetail: row.form_errors_detail as Array<{ field: string; error_count: number }> | null,
     }));
