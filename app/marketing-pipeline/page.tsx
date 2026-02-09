@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Target, SlidersHorizontal } from 'lucide-react';
 import { Alert, Button } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
@@ -10,9 +10,34 @@ import { PipelineFilters } from '@/components/marketing-tracker/PipelineFilters'
 import { ConceptDetailPanel } from '@/components/marketing-tracker/ConceptDetailPanel';
 import { NewMessageModal } from '@/components/marketing-tracker/NewMessageModal';
 import { AngleManagerModal } from '@/components/marketing-tracker/AngleManagerModal';
+import { SavedViewsDropdown } from '@/components/saved-views/SavedViewsDropdown';
 import { usePipelineStore } from '@/stores/pipelineStore';
 import { usePipelineUrlSync } from '@/hooks/usePipelineUrlSync';
+import { useApplyViewFromUrl } from '@/hooks/useApplyViewFromUrl';
+import type { ResolvedViewParams } from '@/types/savedViews';
 import styles from './page.module.css';
+
+/** Decode pipeline filters from saved view's generic filters field */
+function decodePipelineFilters(filters?: { field: string; operator: string; value: string }[]): {
+  ownerFilter: string;
+  productFilter: string;
+  angleFilter: string;
+  channelFilters: string[];
+  geoFilters: string[];
+} {
+  const state = { ownerFilter: 'all', productFilter: 'all', angleFilter: 'all', channelFilters: [] as string[], geoFilters: [] as string[] };
+  if (!filters) return state;
+  for (const f of filters) {
+    switch (f.field) {
+      case 'owner': state.ownerFilter = f.value; break;
+      case 'product': state.productFilter = f.value; break;
+      case 'angle': state.angleFilter = f.value; break;
+      case 'channels': state.channelFilters = f.value ? f.value.split(',') : []; break;
+      case 'geos': state.geoFilters = f.value ? f.value.split(',') : []; break;
+    }
+  }
+  return state;
+}
 
 export default function PipelinePage() {
   const { isPanelOpen, closePanel, selectedMessage } = usePipelineStore();
@@ -20,6 +45,25 @@ export default function PipelinePage() {
   const [anglesOpen, setAnglesOpen] = useState(false);
 
   usePipelineUrlSync();
+
+  const handleApplyView = useCallback((params: ResolvedViewParams) => {
+    const decoded = decodePipelineFilters(params.filters);
+    usePipelineStore.setState(decoded);
+    usePipelineStore.getState().loadPipeline();
+  }, []);
+
+  useApplyViewFromUrl(handleApplyView);
+
+  const getCurrentState = useCallback(() => {
+    const { ownerFilter, productFilter, angleFilter, channelFilters, geoFilters } = usePipelineStore.getState();
+    const filters: { field: string; operator: string; value: string }[] = [];
+    if (ownerFilter !== 'all') filters.push({ field: 'owner', operator: 'equals', value: ownerFilter });
+    if (productFilter !== 'all') filters.push({ field: 'product', operator: 'equals', value: productFilter });
+    if (angleFilter !== 'all') filters.push({ field: 'angle', operator: 'equals', value: angleFilter });
+    if (channelFilters.length > 0) filters.push({ field: 'channels', operator: 'equals', value: channelFilters.join(',') });
+    if (geoFilters.length > 0) filters.push({ field: 'geos', operator: 'equals', value: geoFilters.join(',') });
+    return { ...(filters.length > 0 && { filters }) };
+  }, []);
 
   return (
     <>
@@ -47,6 +91,13 @@ export default function PipelinePage() {
               New Message
             </Button>
           </div>
+        }
+        titleExtra={
+          <SavedViewsDropdown
+            pagePath="/marketing-pipeline"
+            onApplyView={handleApplyView}
+            getCurrentState={getCurrentState}
+          />
         }
       />
       <div className={styles.container}>
