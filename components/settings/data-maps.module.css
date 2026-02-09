@@ -1,0 +1,341 @@
+/* === Data Maps Page — Sub-tabs + Two-panel layout === */
+
+/* Sub-tab navigation (inside the page, below SettingsNav) */
+.tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: var(--spacing-5);
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-gray-500);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast),
+    border-color var(--transition-fast);
+  font-family: inherit;
+}
+
+.tab:hover {
+  color: var(--color-gray-700);
+  background: var(--color-background-primary);
+}
+
+.tabActive {
+  color: var(--color-gray-900);
+  background: var(--color-background-primary);
+  border-color: var(--color-border-light);
+  box-shadow: var(--shadow-xs);
+}
+
+.tabIcon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.tabBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: var(--color-gray-100);
+  color: var(--color-gray-500);
+}
+
+.tabBadgeAlert {
+  background: var(--color-warning-50, #fff7e6);
+  color: var(--color-warning-600, #d48806);
+}
+
+/* Two-column layout */
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: var(--spacing-5);
+  align-items: start;
+}
+
+/* ── Sidebar panel (categories) ── */
+.sidebar {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-light);
+  background: var(--color-background-primary);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+  position: sticky;
+  top: 20px;
+}
+
+.sidebarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--color-background-secondary);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.sidebarTitle {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-gray-500);
+}
+
+.sidebarList {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+.sidebarItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-gray-700);
+  background: none;
+  border: none;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+  width: 100%;
+  font-family: inherit;
+  text-align: left;
+}
+
+.sidebarItem:hover {
+  background: var(--color-gray-50);
+}
+
+.sidebarItemActive {
+  background: var(--color-primary-50);
+  border-left-color: var(--color-primary-500);
+  color: var(--color-primary-800);
+}
+
+.sidebarItemActive:hover {
+  background: var(--color-primary-50);
+}
+
+.sidebarDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sidebarCount {
+  margin-left: auto;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-gray-400);
+  flex-shrink: 0;
+}
+
+.sidebarItemActive .sidebarCount {
+  color: var(--color-primary-600);
+}
+
+/* ── Content panel (right side) ── */
+.content {
+  min-width: 0;
+}
+
+.contentHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  margin-bottom: 14px;
+}
+
+.contentHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.contentTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-gray-900);
+  letter-spacing: -0.01em;
+}
+
+.contentCount {
+  font-size: 12px;
+  color: var(--color-gray-400);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Item list container */
+.itemList {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-light);
+  background: var(--color-background-primary);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+}
+
+/* === Row styles (shared by Campaign / URL maps) === */
+.itemRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--color-border-light);
+  transition: background 0.1s;
+}
+
+.itemRow:last-child {
+  border-bottom: none;
+}
+
+.itemRow:hover {
+  background: var(--color-background-secondary);
+}
+
+.itemName {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--color-gray-700);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemNameMono {
+  composes: itemName;
+  font-family: var(--font-family-mono);
+}
+
+.selectWrap {
+  flex-shrink: 0;
+  width: 120px;
+}
+
+.productSelectWrap {
+  flex-shrink: 0;
+  width: 160px;
+}
+
+.classifyBtn {
+  flex-shrink: 0;
+}
+
+.ignoreBtn {
+  flex-shrink: 0;
+  color: var(--color-gray-400) !important;
+}
+
+.ignoreBtn:hover {
+  color: var(--color-gray-600) !important;
+}
+
+.countryBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-gray-600);
+  background: var(--color-background-tertiary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.removeBtn {
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.itemRow:hover .removeBtn {
+  opacity: 1;
+}
+
+.productDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+/* === States === */
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 20px;
+  font-size: 13px;
+  color: var(--color-gray-400);
+}
+
+.loadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+}
+
+.error {
+  padding: 10px 12px;
+  background: #fff2f0;
+  border-bottom: 1px solid #ffccc7;
+  color: var(--color-error);
+  font-size: 12px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 4px;
+}
+
+/* Placeholder panel for Affiliate Map */
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 320px;
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--color-gray-200);
+  background: var(--color-background-primary);
+}
+
+.placeholderIcon {
+  width: 40px;
+  height: 40px;
+  color: var(--color-gray-300);
+}
+
+.placeholderText {
+  font-size: 13px;
+  color: var(--color-gray-400);
+}
