@@ -40,7 +40,6 @@ let pool: mysql.Pool | null = null;
 function getPool(): mysql.Pool {
   if (!pool) {
     pool = mysql.createPool(poolConfig);
-    console.log('✅ MariaDB connection pool created');
   }
   return pool;
 }
@@ -260,10 +259,9 @@ export async function testMariaDBConnection(): Promise<boolean> {
     // Release connection back to pool
     connection.release();
 
-    console.log('✅ MariaDB connection test successful');
     return true;
   } catch (error) {
-    console.error('❌ MariaDB connection test failed:', {
+    console.error('MariaDB connection test failed:', {
       error: error instanceof Error ? error.message : 'Unknown error',
       host: process.env.MARIADB_HOST,
       database: process.env.MARIADB_DATABASE,
@@ -282,7 +280,6 @@ export async function closeMariaDBPool(): Promise<void> {
   if (pool) {
     await pool.end();
     pool = null;
-    console.log('✅ MariaDB connection pool closed');
   }
 }
 

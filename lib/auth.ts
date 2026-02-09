@@ -25,7 +25,6 @@ export async function saveSessionToDatabase(token: string, userId: string): Prom
        WHERE external_id = $3`,
       [token, expiresAt, userId]
     );
-    console.log(`[Auth] Session saved to database for user ${userId}`);
   } finally {
     client.release();
   }
@@ -47,12 +46,10 @@ async function validateTokenFromDatabase(token: string): Promise<{ valid: boolea
     );
 
     if (result.rows.length === 0) {
-      console.log('[Auth] Token not found or expired in database');
       return { valid: false };
     }
 
     const user = result.rows[0];
-    console.log('[Auth] Token validated from database:', user.email);
 
     return {
       valid: true,
@@ -77,8 +74,6 @@ export async function validateTokenWithCRM(token: string): Promise<AuthValidatio
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    console.log('[Auth] Validating with CRM:', `${CRM_BASE_URL}${CRM_VALIDATE_ENDPOINT}`);
-
     const response = await fetch(`${CRM_BASE_URL}${CRM_VALIDATE_ENDPOINT}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -87,7 +82,6 @@ export async function validateTokenWithCRM(token: string): Promise<AuthValidatio
     });
 
     clearTimeout(timeoutId);
-    console.log('[Auth] CRM response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -110,12 +104,10 @@ export async function validateTokenWithCRM(token: string): Promise<AuthValidatio
       );
 
       if (dbResult.rows.length === 0) {
-        console.log(`[Auth] User ${userData.id} not found in database`);
         return { success: false, error: 'User not found or deleted' };
       }
 
       const dbUser = dbResult.rows[0];
-      console.log('[Auth] CRM validation successful:', dbUser.email);
 
       return {
         success: true,
@@ -185,7 +177,6 @@ export async function clearSessionFromDatabase(token: string): Promise<void> {
       'UPDATE app_users SET active_token = NULL, token_expires_at = NULL WHERE active_token = $1',
       [token]
     );
-    console.log('[Auth] Session cleared from database');
   } finally {
     client.release();
   }
@@ -216,7 +207,6 @@ export async function revokeUserSessions(userId: string): Promise<number> {
       'UPDATE app_users SET active_token = NULL, token_expires_at = NULL WHERE external_id = $1',
       [userId]
     );
-    console.log(`[Auth] Revoked sessions for user ${userId}`);
     return result.rowCount || 0;
   } finally {
     client.release();
@@ -232,7 +222,6 @@ export async function clearExpiredSessions(): Promise<number> {
     const result = await client.query(
       'UPDATE app_users SET active_token = NULL, token_expires_at = NULL WHERE token_expires_at < NOW()'
     );
-    console.log(`[Auth] Cleared ${result.rowCount} expired sessions`);
     return result.rowCount || 0;
   } finally {
     client.release();

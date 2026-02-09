@@ -25,7 +25,6 @@ const migrateFromOldKey = (): void => {
   // Only migrate if old exists and new doesn't
   if (oldData && !newData) {
     localStorage.setItem(newKey, oldData);
-    console.log('✅ Migrated column settings from legacy key');
   }
 };
 

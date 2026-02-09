@@ -71,13 +71,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const returnUrl = encodeURIComponent(window.location.href);
     const redirectUrl = `${authConfig.loginUrl}?callback_url=${authConfig.callbackUrl}&returnUrl=${returnUrl}`;
 
-    console.log('[Auth] Refreshing session, redirecting to:', redirectUrl);
     window.location.href = redirectUrl;
   };
 
   const logout = async () => {
     setIsLoggingOut(true);
-    
+
     try {
       await fetch('/api/auth/logout', {
         method: 'POST',
@@ -87,7 +86,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch (error) {
       console.error('Logout error:', error);
     }
-    
+
     // Always redirect to CRM base URL (not login page) to prevent auto-login
     const crmLogoutUrl = process.env.NEXT_PUBLIC_CRM_LOGOUT_URL || 'https://vitaliv.no/admin';
     window.location.href = crmLogoutUrl;
@@ -97,14 +96,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     fetch('/api/auth/config')
       .then(res => {
-        console.log('[AuthContext] Config response status:', res.status);
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
         }
         return res.json();
       })
       .then(config => {
-        console.log('[AuthContext] Config loaded:', config);
         setAuthConfig(config);
       })
       .catch(error => {
@@ -114,7 +111,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
           callbackUrl: `${window.location.origin}/api/auth/callback`,
           loginUrl: process.env.NEXT_PUBLIC_CRM_LOGIN_URL || 'https://vitaliv.no/admin/site/marketing',
         };
-        console.log('[AuthContext] Using fallback config:', fallbackConfig);
         setAuthConfig(fallbackConfig);
       });
   }, []);

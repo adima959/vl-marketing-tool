@@ -62,8 +62,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  console.log(`[Revoke Sessions] Revoking all sessions for user: ${body.external_id}`);
-
   // Revoke all sessions for this user
   const removedCount = await revokeUserSessions(body.external_id);
 

@@ -17,7 +17,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const { searchParams } = new URL(request.url);
     const angleId = searchParams.get('angleId');
     const status = searchParams.get('status');
-    const geo = searchParams.get('geo');
 
     if (!angleId) {
       return NextResponse.json(
@@ -31,12 +30,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Filter by status if provided
     if (status && status !== 'all') {
       messages = messages.filter((m) => m.status === status);
-    }
-
-    // Filter by geo if provided (messages don't have geo directly, but we could filter by assets/creatives geo)
-    // For now, geo filter is a placeholder for future implementation
-    if (geo && geo !== 'all') {
-      // TODO: Implement geo filtering based on associated assets/creatives
     }
 
     return NextResponse.json({

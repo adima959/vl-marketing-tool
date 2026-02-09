@@ -4,20 +4,15 @@ import { NextRequest, NextResponse } from 'next/server';
 /**
  * Auth callback route handler
  * Receives session token from CRM redirect, validates it, saves to database, sets cookie, and redirects
- * 
+ *
  * Expected query parameters:
  * - token: The session token (PHPSESSID) from CRM
  * - returnUrl: (optional) The URL to redirect to after setting the cookie
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  console.log('[Callback] Auth callback called');
-
   const searchParams = request.nextUrl.searchParams;
   const token = searchParams.get('token');
   const returnUrl = searchParams.get('returnUrl') || '/';
-
-  console.log('[Callback] Token received:', token ? `${token.substring(0, 20)}...` : 'null');
-  console.log('[Callback] Return URL:', returnUrl);
 
   // Validate required parameters
   if (!token) {
@@ -29,7 +24,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // Validate token with CRM first to get user info
-  console.log('[Callback] Validating token with CRM');
   const validation = await validateTokenWithCRM(token);
 
   if (!validation.success) {
@@ -39,8 +33,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       { status: 401 }
     );
   }
-
-  console.log('[Callback] Token validation successful, user:', validation.user?.email);
 
   // Ensure user exists in validation response
   if (!validation.user) {
@@ -52,7 +44,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // Save token to database for session persistence across server instances
-  console.log('[Callback] Saving session to database');
   await saveSessionToDatabase(token, validation.user.id);
 
   // Get the base URL from APP_CALLBACK_URL environment variable
@@ -64,7 +55,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (appCallbackUrl) {
     // Extract base URL from callback URL (remove /api/auth/callback)
     const baseUrl = appCallbackUrl.replace('/api/auth/callback', '');
-    console.log('[Callback] Using base URL from APP_CALLBACK_URL:', baseUrl);
     redirectUrl = new URL('/', baseUrl);
   } else {
     // Fallback to request.url (will be localhost behind proxy)
@@ -72,15 +62,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     redirectUrl = new URL('/', request.url);
   }
 
-  console.log('[Callback] Redirect URL:', redirectUrl.toString());
-
   // Create redirect response to home page
   const response = NextResponse.redirect(redirectUrl);
 
   // Set HTTP-only auth cookie with the session token
-  console.log('[Callback] Setting auth cookie');
   setAuthCookie(token, response);
 
-  console.log('[Callback] Redirecting to home page');
   return response;
 }
