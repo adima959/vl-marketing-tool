@@ -15,6 +15,8 @@ export interface MarketingMetricClickContext {
     adset?: string;          // Maps to tracking_id_2
     ad?: string;             // Maps to tracking_id
     date?: string;           // Specific date filter (ISO string)
+    classifiedProduct?: string;  // Classification dimension: product name
+    classifiedCountry?: string;  // Classification dimension: country code
   };
 }
 
@@ -30,6 +32,8 @@ export interface MarketingDetailRequest {
     adset?: string;
     ad?: string;
     date?: string;
+    classifiedProduct?: string;
+    classifiedCountry?: string;
   };
   pagination?: { page: number; pageSize: number };
 }

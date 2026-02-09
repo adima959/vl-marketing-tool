@@ -31,6 +31,8 @@ export async function fetchMarketingDetails(
       adset: context.filters.adset,
       ad: context.filters.ad,
       date: context.filters.date,
+      classifiedProduct: context.filters.classifiedProduct,
+      classifiedCountry: context.filters.classifiedCountry,
     },
     pagination: pagination || { page: 1, pageSize: 50 },
   });

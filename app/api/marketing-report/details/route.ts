@@ -40,6 +40,8 @@ async function resolveTrackingIdTuples(
     adset?: string;
     ad?: string;
     date?: string;
+    classifiedProduct?: string;
+    classifiedCountry?: string;
   }
 ): Promise<TrackingIdTuple[]> {
   const params: any[] = [
@@ -49,10 +51,13 @@ async function resolveTrackingIdTuples(
 
   const conditions: string[] = [
     'date::date BETWEEN $1::date AND $2::date',
-    'campaign_id IS NOT NULL',
-    'adset_id IS NOT NULL',
-    'ad_id IS NOT NULL',
+    'm.campaign_id IS NOT NULL',
+    'm.adset_id IS NOT NULL',
+    'm.ad_id IS NOT NULL',
   ];
+
+  // Classification dimensions require JOINs to app_campaign_classifications + app_products
+  const needsClassificationJoin = !!(filters.classifiedProduct || filters.classifiedCountry);
 
   if (filters.network) {
     if (filters.network === 'Unknown') {
@@ -95,9 +100,33 @@ async function resolveTrackingIdTuples(
     conditions.push(`date::date = $${params.length}::date`);
   }
 
+  if (filters.classifiedProduct) {
+    if (filters.classifiedProduct === 'Unknown') {
+      conditions.push('ap.name IS NULL');
+    } else {
+      params.push(filters.classifiedProduct);
+      conditions.push(`ap.name = $${params.length}`);
+    }
+  }
+
+  if (filters.classifiedCountry) {
+    if (filters.classifiedCountry === 'Unknown') {
+      conditions.push('cc.country_code IS NULL');
+    } else {
+      params.push(filters.classifiedCountry);
+      conditions.push(`cc.country_code = $${params.length}`);
+    }
+  }
+
+  const classificationJoin = needsClassificationJoin
+    ? `LEFT JOIN app_campaign_classifications cc ON m.campaign_id = cc.campaign_id AND cc.is_ignored = false
+       LEFT JOIN app_products ap ON cc.product_id = ap.id`
+    : '';
+
   const query = `
-    SELECT DISTINCT campaign_id, adset_id, ad_id
-    FROM merged_ads_spending
+    SELECT DISTINCT m.campaign_id, m.adset_id, m.ad_id
+    FROM merged_ads_spending m
+    ${classificationJoin}
     WHERE ${conditions.join(' AND ')}
   `;
 
@@ -188,6 +217,8 @@ async function handleMarketingDetails(
         adset: body.filters.adset,
         ad: body.filters.ad,
         date: body.filters.date,
+        classifiedProduct: body.filters.classifiedProduct,
+        classifiedCountry: body.filters.classifiedCountry,
       }
     );
 
@@ -211,6 +242,7 @@ async function handleMarketingDetails(
         dateRange,
         trackingIdTuples,
         date: body.filters.date,
+        network: body.filters.network,
       },
       pagination
     );

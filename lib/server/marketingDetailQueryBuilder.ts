@@ -10,6 +10,7 @@ interface DetailQueryOptions {
   dateRange: DateRange;
   trackingIdTuples: TrackingIdTuple[];
   date?: string;          // Specific date (ISO string) for date dimension filtering
+  network?: string;       // Network filter (e.g., 'Google Ads') for source matching
 }
 
 interface PaginationOptions {
@@ -60,6 +61,16 @@ export class MarketingDetailQueryBuilder {
       );
       for (const tuple of filters.trackingIdTuples) {
         params.push(tuple.campaign_id, tuple.adset_id, tuple.ad_id);
+      }
+    }
+
+    // Source/network filter — mirrors matchSource() from marketingQueryBuilder
+    if (filters.network) {
+      const networkLower = filters.network.toLowerCase();
+      if (networkLower === 'google ads') {
+        conditions.push("LOWER(sr.source) IN ('adwords', 'google')");
+      } else if (networkLower === 'facebook') {
+        conditions.push("LOWER(sr.source) IN ('facebook', 'meta', 'fb')");
       }
     }
 

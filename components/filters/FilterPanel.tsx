@@ -16,10 +16,10 @@ interface FilterPanelProps {
 }
 
 const OPERATOR_OPTIONS: { value: FilterOperator; label: string }[] = [
-  { value: 'equals', label: 'equals' },
-  { value: 'not_equals', label: 'not equals' },
   { value: 'contains', label: 'contains' },
   { value: 'not_contains', label: 'not contains' },
+  { value: 'equals', label: 'equals' },
+  { value: 'not_equals', label: 'not equals' },
 ];
 
 function makeFilterId(): string {
@@ -44,7 +44,7 @@ export function FilterPanel({ filters, onFiltersChange, dimensionGroups, embedde
     const newFilter: TableFilter = {
       id: makeFilterId(),
       field: '',
-      operator: 'equals',
+      operator: 'contains',
       value: '',
     };
     onFiltersChange([...filters, newFilter]);

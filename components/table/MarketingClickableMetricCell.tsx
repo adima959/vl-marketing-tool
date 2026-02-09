@@ -54,15 +54,19 @@ export function MarketingClickableMetricCell({
       adset: undefined,
       ad: undefined,
       date: undefined,
+      classifiedProduct: undefined,
+      classifiedCountry: undefined,
     };
 
     // Map row key parts to filters based on actual dimension order
-    // Marketing report dimensions: network, campaign, adset, ad, date
+    // Supports both advertising (network, campaign, adset, ad, date) and
+    // classification (classifiedProduct, classifiedCountry) dimensions
+    type FilterKey = keyof typeof filters;
+    const validKeys = new Set<string>(['network', 'campaign', 'adset', 'ad', 'date', 'classifiedProduct', 'classifiedCountry']);
     parts.forEach((part, index) => {
       const dimensionName = dimensions[index];
-      if (dimensionName && part) {
-        // Map the dimension name to the filter property
-        filters[dimensionName as 'network' | 'campaign' | 'adset' | 'ad' | 'date'] = part;
+      if (dimensionName && part && validKeys.has(dimensionName)) {
+        filters[dimensionName as Exclude<FilterKey, 'dateRange'>] = part;
       }
     });
 

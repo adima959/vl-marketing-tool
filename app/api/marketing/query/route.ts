@@ -56,9 +56,21 @@ async function handleMarketingQuery(
     const keyPrefix = parentKeyParts ? `${parentKeyParts}::` : '';
 
     // Transform database rows to frontend format (same as /api/reports/query)
-    const data: ReportRow[] = rows.map((row) => ({
-      key: `${keyPrefix}${row.dimension_value || 'Unknown'}`,
-      attribute: toTitleCase(row.dimension_value || 'Unknown'),
+    const currentDimension = body.dimensions[body.depth];
+    const data: ReportRow[] = rows.map((row) => {
+      // PG driver returns Date objects for date columns — cast to dd/mm/yyyy
+      let dimValue: string;
+      const raw: unknown = row.dimension_value;
+      if (raw instanceof Date) {
+        dimValue = `${String(raw.getUTCDate()).padStart(2, '0')}/${String(raw.getUTCMonth() + 1).padStart(2, '0')}/${raw.getUTCFullYear()}`;
+      } else {
+        dimValue = raw != null ? String(raw) : 'Unknown';
+      }
+      return {
+      key: `${keyPrefix}${dimValue}`,
+      attribute: currentDimension === 'classifiedCountry'
+        ? dimValue.toUpperCase()
+        : currentDimension === 'date' ? dimValue : toTitleCase(dimValue),
       depth: body.depth,
       hasChildren: hasMoreDimensions,
       metrics: {
@@ -75,7 +87,8 @@ async function handleMarketingQuery(
         approvalRate: row.approval_rate,
         realCpa: row.real_cpa,
       },
-    }));
+    };
+    });
 
     return NextResponse.json({
       success: true,

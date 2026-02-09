@@ -87,19 +87,24 @@ export class OnPageQueryBuilder {
   private readonly classificationDims: Record<string, {
     selectExpr: string;
     groupByExpr: string;
-    filterExpr: string;
+    /** Used for parent drill-down filters (matches against the ID/key) */
+    parentFilterExpr: string;
+    /** Used for user-typed table filters (matches against the display name) */
+    tableFilterExpr: string;
     nameExpr?: string;
   }> = {
     classifiedProduct: {
       selectExpr: 'ap.id::text',
       groupByExpr: 'ap.id',
-      filterExpr: 'ap.id::text',
+      parentFilterExpr: 'ap.id::text',
+      tableFilterExpr: 'ap.name',
       nameExpr: 'MAX(ap.name)',
     },
     classifiedCountry: {
       selectExpr: 'uc.country_code',
       groupByExpr: 'uc.country_code',
-      filterExpr: 'uc.country_code',
+      parentFilterExpr: 'uc.country_code',
+      tableFilterExpr: 'uc.country_code',
     },
   };
 
@@ -154,10 +159,10 @@ export class OnPageQueryBuilder {
       const classifDim = this.classificationDims[dimId];
       if (classifDim) {
         if (value === 'Unknown') {
-          conditions.push(`${classifDim.filterExpr} IS NULL`);
+          conditions.push(`${classifDim.parentFilterExpr} IS NULL`);
         } else {
           params.push(value);
-          conditions.push(`${classifDim.filterExpr} = $${paramOffset + params.length}`);
+          conditions.push(`${classifDim.parentFilterExpr} = $${paramOffset + params.length}`);
         }
         return;
       }
@@ -205,7 +210,7 @@ export class OnPageQueryBuilder {
   ): { colExpr: string; textExpr: string } | null {
     const classifDim = this.classificationDims[field];
     if (classifDim) {
-      return { colExpr: classifDim.filterExpr, textExpr: `${classifDim.filterExpr}::text` };
+      return { colExpr: classifDim.tableFilterExpr, textExpr: `${classifDim.tableFilterExpr}::text` };
     }
     const sqlColumn = this.dimensionMap[field];
     if (!sqlColumn) return null;

@@ -94,14 +94,18 @@ function isClassificationDim(dim: string): boolean {
   return dim in classificationDimMap;
 }
 
-/** Check if any dimension in the hierarchy needs classification JOINs */
+/** Check if any dimension in the hierarchy or table filters needs classification JOINs */
 function needsClassificationJoins(
   currentDim: string,
-  parentFilters?: Record<string, string>
+  parentFilters?: Record<string, string>,
+  tableFilters?: MarketingQueryParams['filters']
 ): boolean {
   if (isClassificationDim(currentDim)) return true;
   if (parentFilters) {
-    return Object.keys(parentFilters).some(isClassificationDim);
+    if (Object.keys(parentFilters).some(isClassificationDim)) return true;
+  }
+  if (tableFilters) {
+    if (tableFilters.some(f => isClassificationDim(f.field))) return true;
   }
   return false;
 }
@@ -237,10 +241,12 @@ function buildTableFilters(
   for (const filter of filters) {
     if (!filter.value && filter.operator !== 'equals' && filter.operator !== 'not_equals') continue;
 
+    // Check standard dimensions first, then classification dimensions
     const sqlColumn = dimensionMap[filter.field];
-    if (!sqlColumn) continue;
+    const classConfig = classificationDimMap[filter.field];
+    if (!sqlColumn && !classConfig) continue;
 
-    const colExpr = sqlColumn;
+    const colExpr = sqlColumn || classConfig!.filterExpr;
     const textExpr = `${colExpr}::text`;
 
     switch (filter.operator) {
@@ -315,7 +321,7 @@ export async function getMarketingData(
   const finalSortDirection = currentDimension === 'date' ? 'DESC' : validateSortDirection(sortDirection);
 
   // Classification JOINs needed?
-  const useClassificationJoins = needsClassificationJoins(currentDimension, parentFilters);
+  const useClassificationJoins = needsClassificationJoins(currentDimension, parentFilters, filters);
 
   const pgParams: any[] = [
     formatLocalDate(dateRange.start),
