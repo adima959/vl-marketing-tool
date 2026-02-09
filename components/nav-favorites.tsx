@@ -86,25 +86,25 @@ function SortableFavorite({ view, onNavigate, onEdit }: SortableFavoriteProps) {
       <SidebarMenuButton
         size="sm"
         tooltip={view.name}
-        className="pr-6"
+        className="relative pr-5"
         onClick={() => onNavigate(view)}
       >
         <span
           {...attributes}
           {...listeners}
-          className="shrink-0 cursor-grab active:cursor-grabbing opacity-0 group-hover/fav-item:opacity-100 transition-opacity text-sidebar-foreground/50 hover:text-sidebar-foreground"
+          className="absolute left-0.5 top-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing opacity-0 group-hover/fav-item:opacity-100 transition-opacity text-sidebar-foreground/50 hover:text-sidebar-foreground"
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() }}
         >
           <GripVertical className="size-3" />
         </span>
         <Icon className="shrink-0" />
-        <span className="truncate text-xs" title={view.name}>{view.name}</span>
+        <span className="truncate text-[11px]" title={view.name}>{view.name}</span>
       </SidebarMenuButton>
       <button
         title="Edit view"
         onClick={(e) => { e.stopPropagation(); onEdit(view); }}
-        className="absolute right-1 top-1/2 -translate-y-1/2 flex aspect-square w-5 items-center justify-center rounded-md p-0 outline-none hover:bg-sidebar-accent opacity-0 group-hover/fav-item:opacity-100 transition-opacity group-data-[collapsible=icon]:hidden"
+        className="absolute right-0.5 top-1/2 -translate-y-1/2 flex aspect-square w-5 items-center justify-center rounded-md p-0 outline-none hover:bg-sidebar-accent opacity-0 group-hover/fav-item:opacity-100 transition-opacity group-data-[collapsible=icon]:hidden"
         style={{ color: 'var(--color-gray-400)' }}
       >
         <Pencil className="size-3" />
