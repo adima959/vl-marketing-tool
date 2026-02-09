@@ -1,7 +1,7 @@
 /* Pipeline page */
 .container {
   padding: var(--spacing-5) var(--spacing-5);
-  background: var(--color-gray-100);
+  background: var(--color-background-canvas);
   min-height: calc(100vh - 64px);
   display: flex;
   flex-direction: column;

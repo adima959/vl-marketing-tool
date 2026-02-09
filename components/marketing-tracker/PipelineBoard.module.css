@@ -3,47 +3,26 @@
 .filtersWrapper {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px 16px;
+  gap: 10px;
+  padding: 12px 16px;
   background: var(--color-background-primary);
-  border: 1px solid var(--color-border-light);
+  border: 1px solid var(--color-gray-200);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xs);
 }
 
 .filterBar {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .filterBarSecondary {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding-top: 8px;
-  border-top: 1px solid var(--color-gray-100);
-}
-
-.filterSelect {
-  min-width: 120px;
-  border-color: var(--color-gray-300) !important;
-  font-size: 12px !important;
-  font-weight: 500 !important;
-  color: var(--color-gray-700) !important;
-  border-radius: var(--radius-full) !important;
-}
-
-.filterSelect:hover {
-  border-color: var(--color-gray-400) !important;
-}
-
-/* Active select (has non-default value) */
-.filterSelectActive {
-  border-color: var(--color-primary-500) !important;
-  background: var(--color-primary-50) !important;
-  color: var(--color-primary-800) !important;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-gray-200);
 }
 
 /* Filter divider */
@@ -51,24 +30,22 @@
   width: 1px;
   height: 20px;
   background: var(--color-gray-200);
-  margin: 0 4px;
+  margin: 0 6px;
   flex-shrink: 0;
 }
 
 /* Chip group */
 .chipGroup {
   display: flex;
-  gap: 5px;
+  gap: 6px;
   align-items: center;
 }
 
 .chipGroupLabel {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-gray-500);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-right: 2px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-gray-400);
+  margin-right: 4px;
   white-space: nowrap;
 }
 
@@ -76,10 +53,10 @@
   font-size: 12px;
   font-weight: 500;
   color: var(--color-gray-600);
-  background: var(--color-background-primary);
+  background: var(--color-background-secondary);
   border: 1px solid var(--color-gray-200);
   border-radius: var(--radius-full);
-  padding: 4px 12px;
+  padding: 3px 10px;
   cursor: pointer;
   transition: all var(--transition-fast);
   user-select: none;
@@ -88,51 +65,22 @@
 }
 
 .chip:hover {
-  background: var(--color-gray-50);
+  background: var(--color-gray-100);
   border-color: var(--color-gray-300);
   color: var(--color-gray-800);
 }
 
+/* Active state — subtle fill + medium border */
 .chipActive {
-  color: var(--color-primary-800);
-  background: var(--color-primary-50);
-  border-color: var(--color-primary-500);
+  color: var(--color-gray-800);
+  background: var(--color-gray-100);
+  border-color: var(--color-gray-400);
   font-weight: 600;
 }
 
 .chipActive:hover {
-  background: var(--color-primary-100);
-}
-
-/* Category-specific chip accents */
-.chipOwner.chipActive {
-  color: #3730a3;
-  background: #eef2ff;
-  border-color: #818cf8;
-}
-
-.chipOwner.chipActive:hover {
-  background: #e0e7ff;
-}
-
-.chipChannel.chipActive {
-  color: #92400e;
-  background: #fffbeb;
-  border-color: #fbbf24;
-}
-
-.chipChannel.chipActive:hover {
-  background: #fef3c7;
-}
-
-.chipGeo.chipActive {
-  color: #115e59;
-  background: #f0fdfa;
-  border-color: #2dd4bf;
-}
-
-.chipGeo.chipActive:hover {
-  background: #ccfbf1;
+  background: var(--color-gray-100);
+  border-color: var(--color-gray-500);
 }
 
 /* ── Board ───────────────────────────────────────────────── */
@@ -144,9 +92,8 @@
 
 .board {
   display: grid;
-  grid-template-columns: repeat(5, minmax(250px, 1fr));
-  gap: var(--spacing-4);
-  min-width: 1300px;
+  grid-template-columns: repeat(5, minmax(260px, 1fr));
+  gap: 12px;
 }
 
 /* ── Column ──────────────────────────────────────────────── */
@@ -156,96 +103,67 @@
   flex-direction: column;
   min-height: 200px;
   max-height: calc(100vh - 280px);
-  background: var(--color-background-secondary);
-  border: 1px solid var(--color-gray-200);
+  background: transparent;
   border-radius: var(--radius-lg);
-  padding: 0 var(--spacing-2) var(--spacing-2);
-  transition: box-shadow var(--transition-fast);
+  padding: 0 var(--spacing-1) var(--spacing-2);
 }
 
-/* Stage-specific column tints */
+/* Stage-specific column styles — transparent, cards float on page bg */
 .columnBacklog {}
+.columnProduction {}
+.columnTesting {}
+.columnScaling {}
 
-.columnProduction {
-  border-top: 3px solid #d97706;
-}
-
-.columnTesting {
-  border-top: 3px solid #2563eb;
-}
-
-.columnScaling {
-  border-top: 3px solid #059669;
-  background: #f6fdf8;
-}
-
-.columnRetired {
-  border-top: 3px solid var(--color-gray-300);
-  opacity: 0.75;
-}
+.columnRetired {}
 
 /* Column header */
 .columnHeader {
   display: flex;
   align-items: center;
   gap: var(--spacing-2);
-  padding: 14px var(--spacing-2) 10px;
+  padding: 12px var(--spacing-1) 10px;
   margin-bottom: 2px;
-  border-radius: var(--radius-md);
   position: sticky;
   top: 0;
   z-index: 1;
+  background: var(--color-background-canvas);
 }
 
-.columnHeaderDefault {
-  background: var(--color-background-secondary);
-}
+.columnHeaderDefault {}
+.columnHeaderScaling {}
 
-.columnHeaderScaling {
-  background: #f0fbf4;
-}
-
-.columnHeaderRetired {
-  opacity: 0.8;
-  background: var(--color-background-secondary);
-}
+.columnHeaderRetired {}
 
 .columnAccent {
-  width: 3px;
-  height: 16px;
-  border-radius: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
   flex-shrink: 0;
 }
 
 .columnName {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   color: var(--color-gray-700);
 }
 
 .columnCount {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-gray-600);
-  background: var(--color-gray-200);
-  padding: 0 7px;
-  border-radius: 10px;
-  line-height: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-gray-500);
   margin-left: auto;
-  min-width: 20px;
-  text-align: center;
 }
 
 /* Card list */
 .cardList {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   overflow-y: auto;
   flex: 1;
-  padding: 2px 2px 2px 0;
+  padding: 2px 4px 2px 4px;
 }
 
 .cardList::-webkit-scrollbar {

@@ -31,13 +31,13 @@
 }
 
 .versionBadge {
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   color: #4338ca;
   background: #eef2ff;
   padding: 1px 7px;
-  border-radius: 3px;
-  line-height: 17px;
+  border-radius: var(--radius-sm);
+  line-height: 18px;
   flex-shrink: 0;
 }
 
@@ -50,12 +50,11 @@
 }
 
 .metaTag {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 8px;
-  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
   line-height: 18px;
-  letter-spacing: 0.1px;
 }
 
 .metaTagProduct {
@@ -98,10 +97,8 @@
 }
 
 .metaDetailLabel {
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
+  font-size: 11px;
+  font-weight: 500;
   color: var(--color-gray-400);
   margin-right: 3px;
 }
@@ -166,10 +163,10 @@
 }
 
 .sectionTitle {
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.04em;
   color: var(--color-gray-500);
   margin-bottom: 12px;
   padding-bottom: 8px;
@@ -205,10 +202,8 @@
 }
 
 .fieldLabel {
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--color-primary-600);
   margin-bottom: 2px;
 }
@@ -262,7 +257,7 @@
 }
 
 .geoExpandIcon {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--color-gray-400);
   width: 14px;
   text-align: center;
@@ -300,15 +295,13 @@
 }
 
 .primaryBadge {
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+  font-size: 11px;
+  font-weight: 600;
   color: #059669;
   background: #ecfdf5;
   padding: 1px 6px;
-  border-radius: 3px;
-  line-height: 16px;
+  border-radius: var(--radius-sm);
+  line-height: 18px;
   flex-shrink: 0;
 }
 
@@ -322,10 +315,8 @@
 }
 
 .geoSubLabel {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
+  font-size: 11px;
+  font-weight: 500;
   color: var(--color-gray-400);
   margin-bottom: 6px;
 }
@@ -350,10 +341,9 @@
 }
 
 .campaignsTable :global(.ant-table-thead > tr > th) {
-  font-size: 10px;
-  font-weight: var(--font-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   padding: 6px 8px !important;
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Target, SlidersHorizontal } from 'lucide-react';
 import { Alert, Button } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
@@ -11,16 +11,15 @@ import { ConceptDetailPanel } from '@/components/marketing-tracker/ConceptDetail
 import { NewMessageModal } from '@/components/marketing-tracker/NewMessageModal';
 import { AngleManagerModal } from '@/components/marketing-tracker/AngleManagerModal';
 import { usePipelineStore } from '@/stores/pipelineStore';
+import { usePipelineUrlSync } from '@/hooks/usePipelineUrlSync';
 import styles from './page.module.css';
 
 export default function PipelinePage() {
-  const { loadPipeline, isPanelOpen, closePanel, selectedMessage } = usePipelineStore();
+  const { isPanelOpen, closePanel, selectedMessage } = usePipelineStore();
   const [newConceptOpen, setNewConceptOpen] = useState(false);
   const [anglesOpen, setAnglesOpen] = useState(false);
 
-  useEffect(() => {
-    loadPipeline();
-  }, [loadPipeline]);
+  usePipelineUrlSync();
 
   return (
     <>

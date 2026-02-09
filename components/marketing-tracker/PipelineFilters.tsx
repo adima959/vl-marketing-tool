@@ -1,6 +1,5 @@
 'use client';
 
-import { Select } from 'antd';
 import { CHANNEL_CONFIG, GEO_CONFIG } from '@/types';
 import { usePipelineStore } from '@/stores/pipelineStore';
 import styles from './PipelineBoard.module.css';
@@ -41,11 +40,6 @@ export function PipelineFilters() {
     ? angles.filter(a => a.productId === productFilter)
     : angles;
 
-  const angleOptions = [
-    { value: 'all', label: 'All Angles' },
-    ...filteredAngles.map(a => ({ value: a.id, label: a.name })),
-  ];
-
   return (
     <div className={styles.filtersWrapper}>
       {/* Row 1: Owner chips | Channel chips | GEO chips | New Message */}
@@ -68,6 +62,7 @@ export function PipelineFilters() {
 
         {activeChannels.size > 0 && (
           <div className={styles.chipGroup}>
+            <span className={styles.chipGroupLabel}>Network</span>
             {Object.entries(CHANNEL_CONFIG)
               .filter(([key]) => activeChannels.has(key))
               .map(([key, config]) => (
@@ -87,6 +82,7 @@ export function PipelineFilters() {
           <>
             {activeChannels.size > 0 && <div className={styles.filterDivider} />}
             <div className={styles.chipGroup}>
+              <span className={styles.chipGroupLabel}>Country</span>
               {Object.entries(GEO_CONFIG)
                 .filter(([key]) => activeGeos.has(key))
                 .map(([key, config]) => (
@@ -122,18 +118,23 @@ export function PipelineFilters() {
             ))}
           </div>
 
-          {/* Angle dropdown (conditional on product) */}
+          {/* Angle chips (conditional on product) */}
           {productFilter !== 'all' && filteredAngles.length > 0 && (
             <>
               <div className={styles.filterDivider} />
-              <Select
-                value={angleFilter}
-                onChange={setAngleFilter}
-                options={angleOptions}
-                size="small"
-                className={`${styles.filterSelect} ${angleFilter !== 'all' ? styles.filterSelectActive : ''}`}
-                popupMatchSelectWidth={false}
-              />
+              <div className={styles.chipGroup}>
+                <span className={styles.chipGroupLabel}>Angle</span>
+                {filteredAngles.map(a => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    className={`${styles.chip} ${angleFilter === a.id ? styles.chipActive : ''}`}
+                    onClick={() => setAngleFilter(angleFilter === a.id ? 'all' : a.id)}
+                  >
+                    {a.name}
+                  </button>
+                ))}
+              </div>
             </>
           )}
         </div>

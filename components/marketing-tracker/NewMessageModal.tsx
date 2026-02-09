@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Modal, Form, Input, Select } from 'antd';
+import { Modal, Form, Input } from 'antd';
 import { usePipelineStore } from '@/stores/pipelineStore';
 import modalStyles from '@/styles/components/modal.module.css';
+import styles from './NewMessageModal.module.css';
 
 interface NewMessageModalProps {
   open: boolean;
@@ -18,6 +19,45 @@ interface MessageFormValues {
 }
 
 const NEW_ANGLE_VALUE = '__new__';
+
+/* Chip selector — controlled component compatible with Ant Design Form.Item */
+function ChipSelect({
+  options,
+  value,
+  onChange,
+  allowNew,
+  newLabel = '+ New',
+}: {
+  options: { value: string; label: string }[];
+  value?: string;
+  onChange?: (val: string) => void;
+  allowNew?: boolean;
+  newLabel?: string;
+}): React.ReactNode {
+  return (
+    <div className={styles.chipRow}>
+      {options.map(opt => (
+        <button
+          key={opt.value}
+          type="button"
+          className={`${styles.chip} ${value === opt.value ? styles.chipActive : ''}`}
+          onClick={() => onChange?.(opt.value)}
+        >
+          {opt.label}
+        </button>
+      ))}
+      {allowNew && (
+        <button
+          type="button"
+          className={`${styles.chip} ${styles.chipNew} ${value === NEW_ANGLE_VALUE ? styles.chipActive : ''}`}
+          onClick={() => onChange?.(NEW_ANGLE_VALUE)}
+        >
+          {newLabel}
+        </button>
+      )}
+    </div>
+  );
+}
 
 export function NewMessageModal({ open, onClose }: NewMessageModalProps) {
   const [form] = Form.useForm<MessageFormValues>();
@@ -44,12 +84,7 @@ export function NewMessageModal({ open, onClose }: NewMessageModalProps) {
     return angles.filter(a => a.productId === selectedProductId);
   }, [selectedProductId, angles]);
 
-  const angleOptions = [
-    ...filteredAngles.map(a => ({ value: a.id, label: a.name })),
-    { value: NEW_ANGLE_VALUE, label: '+ Create new angle' },
-  ];
-
-  const handleSubmit = async (values: MessageFormValues) => {
+  const handleSubmit = async (values: MessageFormValues): Promise<void> => {
     setLoading(true);
     try {
       let angleId = values.angleId;
@@ -92,51 +127,49 @@ export function NewMessageModal({ open, onClose }: NewMessageModalProps) {
         form={form}
         layout="vertical"
         onFinish={handleSubmit}
+        className={styles.form}
       >
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-          <Form.Item
-            name="name"
-            label="Message Name"
-            rules={[{ required: true, message: 'Name is required' }]}
-            style={{ gridColumn: '1 / -1' }}
-          >
-            <Input placeholder="e.g., Morning Routine Hook v1" />
-          </Form.Item>
+        <Form.Item
+          name="name"
+          label="Message Name"
+          rules={[{ required: true, message: 'Name is required' }]}
+        >
+          <Input placeholder="e.g., Morning Routine Hook v1" />
+        </Form.Item>
 
-          <Form.Item
-            name="productId"
-            label="Product"
-            rules={[{ required: true, message: 'Select a product' }]}
-          >
-            <Select
-              options={products.map(p => ({ value: p.id, label: p.name }))}
-              placeholder="Select product"
-            />
-          </Form.Item>
+        <Form.Item
+          name="productId"
+          label="Product"
+          rules={[{ required: true, message: 'Select a product' }]}
+        >
+          <ChipSelect
+            options={products.map(p => ({ value: p.id, label: p.name }))}
+          />
+        </Form.Item>
 
+        {selectedProductId && (
           <Form.Item
             name="angleId"
             label="Angle"
             rules={[{ required: true, message: 'Select or create an angle' }]}
           >
-            <Select
-              options={angleOptions}
-              placeholder={selectedProductId ? 'Select angle' : 'Select product first'}
-              disabled={!selectedProductId}
+            <ChipSelect
+              options={filteredAngles.map(a => ({ value: a.id, label: a.name }))}
+              allowNew
+              newLabel="+ New angle"
             />
           </Form.Item>
+        )}
 
-          {selectedAngleId === NEW_ANGLE_VALUE && (
-            <Form.Item
-              name="newAngleName"
-              label="New Angle Name"
-              rules={[{ required: true, message: 'Angle name is required' }]}
-              style={{ gridColumn: '1 / -1' }}
-            >
-              <Input placeholder="e.g., Joint Pain Relief" />
-            </Form.Item>
-          )}
-        </div>
+        {selectedAngleId === NEW_ANGLE_VALUE && (
+          <Form.Item
+            name="newAngleName"
+            label="New Angle Name"
+            rules={[{ required: true, message: 'Angle name is required' }]}
+          >
+            <Input placeholder="e.g., Joint Pain Relief" />
+          </Form.Item>
+        )}
       </Form>
     </Modal>
   );
