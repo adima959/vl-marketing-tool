@@ -42,6 +42,7 @@ interface RawPageViewRow {
   lcp_s: string | null;
   tti_s: string | null;
   form_errors: string | null;
+  form_errors_detail: unknown;
 }
 
 /**
@@ -121,6 +122,7 @@ async function handleOnPageDetail(
       lcpS: row.lcp_s != null ? Number(row.lcp_s) : null,
       ttiS: row.tti_s != null ? Number(row.tti_s) : null,
       formErrors: Number(row.form_errors) || 0,
+      formErrorsDetail: row.form_errors_detail as Array<{ field: string; error_count: number }> | null,
     }));
 
     return NextResponse.json({

@@ -712,7 +712,7 @@ export class OnPageQueryBuilder {
     `;
 
     const safePage = Math.max(1, Math.floor(page));
-    const safePageSize = Math.max(1, Math.min(500, Math.floor(pageSize)));
+    const safePageSize = Math.max(1, Math.min(50000, Math.floor(pageSize)));
     const offset = (safePage - 1) * safePageSize;
 
     const selectCols = `id, created_at, url_path, url_full, ff_visitor_id, session_id,
@@ -721,7 +721,7 @@ export class OnPageQueryBuilder {
         device_type, country_code, page_type,
         utm_source, utm_campaign, utm_content, utm_medium, utm_term,
         keyword, placement, referrer, user_agent, language, platform,
-        os_name, os_version, browser_name, fcp_s, lcp_s, tti_s, form_errors`;
+        os_name, os_version, browser_name, fcp_s, lcp_s, tti_s, form_errors, form_errors_detail`;
 
     const query = isUniqueVisitors
       ? `

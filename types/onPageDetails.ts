@@ -53,6 +53,7 @@ export interface OnPageDetailRecord {
   lcpS: number | null;
   ttiS: number | null;
   formErrors: number;
+  formErrorsDetail: Array<{ field: string; error_count: number }> | null;
 }
 
 /**

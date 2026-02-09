@@ -70,8 +70,8 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
     setExportProgress({ current: 0, total: 0 });
 
     try {
-      // Fetch all data in batches of 1000 (increased from 500)
-      const batchSize = 1000;
+      // Fetch all data in batches of 2500
+      const batchSize = 2500;
       const totalPages = Math.ceil(data.total / batchSize);
       const allRecords: OnPageDetailRecord[] = [];
 
@@ -96,7 +96,7 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
         // Device/Environment
         'Device', 'OS', 'OS Version', 'Browser', 'Platform', 'Language', 'User Agent', 'Country',
         // Engagement
-        'Active Time (s)', 'Scroll %', 'Hero Scroll', 'Form View', 'Form Started', 'Form Errors', 'CTA View', 'CTA Click',
+        'Active Time (s)', 'Scroll %', 'Hero Scroll', 'Form View', 'Form Started', 'Form Errors', 'Form Errors Detail', 'CTA View', 'CTA Click',
         // Performance
         'FCP (s)', 'LCP (s)', 'TTI (s)',
       ];
@@ -138,6 +138,7 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
           r.formView ? 'Yes' : 'No',
           r.formStarted ? 'Yes' : 'No',
           r.formErrors || 0,
+          `"${r.formErrorsDetail ? r.formErrorsDetail.map(e => `${e.field}: ${e.error_count}`).join('; ') : ''}"`,
           r.ctaViewed ? 'Yes' : 'No',
           r.ctaClicked ? 'Yes' : 'No',
           // Performance
