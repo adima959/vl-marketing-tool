@@ -129,7 +129,9 @@ export function SaveViewModal({ open, onClose, pagePath, currentState, onSaved }
 
       if (addToSidebar) {
         await toggleFavorite(created.id, true);
-        window.dispatchEvent(new Event('favorites-changed'));
+        window.dispatchEvent(new CustomEvent('favorites-changed', {
+          detail: { action: 'add', view: { ...created, isFavorite: true } },
+        }));
       }
 
       onSaved();

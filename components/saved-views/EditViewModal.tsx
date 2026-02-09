@@ -44,17 +44,21 @@ export function EditViewModal({ open, onClose, view, onRenamed, onDeleted }: Edi
     setSaving(true);
     setError(null);
     try {
-      let updated = view;
+      let updated: SavedView = { ...view, isFavorite };
       if (nameChanged) {
-        updated = await renameSavedView(view.id, trimmed);
+        const renamed = await renameSavedView(view.id, trimmed);
+        updated = { ...updated, ...renamed, isFavorite: updated.isFavorite };
       }
       if (favoriteChanged) {
         await toggleFavorite(view.id, isFavorite);
-        updated = { ...updated, isFavorite };
       }
       onRenamed(updated);
-      if (favoriteChanged) {
-        window.dispatchEvent(new Event('favorites-changed'));
+      if (favoriteChanged || nameChanged) {
+        window.dispatchEvent(new CustomEvent('favorites-changed', {
+          detail: favoriteChanged && !isFavorite
+            ? { action: 'remove', viewId: view.id }
+            : { action: 'update', view: { ...updated, isFavorite } },
+        }));
       }
       onClose();
     } catch (err) {

@@ -143,6 +143,27 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   },
 
   moveMessage: async (messageId, targetStage, verdictType, verdictNotes) => {
+    const isSimpleMove = !verdictType;
+    const prevStages = get().stages;
+
+    // Optimistic update for simple stage moves (arrow clicks)
+    if (isSimpleMove) {
+      let sourceStage: PipelineStage | null = null;
+      let card: PipelineCard | null = null;
+
+      for (const [stage, cards] of Object.entries(prevStages) as [PipelineStage, PipelineCard[]][]) {
+        const found = cards.find(c => c.id === messageId);
+        if (found) { sourceStage = stage; card = found; break; }
+      }
+
+      if (sourceStage && card && sourceStage !== targetStage) {
+        const newStages = { ...prevStages };
+        newStages[sourceStage] = prevStages[sourceStage].filter(c => c.id !== messageId);
+        newStages[targetStage] = [...prevStages[targetStage], { ...card, pipelineStage: targetStage }];
+        set({ stages: newStages });
+      }
+    }
+
     try {
       const res = await fetch(`/api/marketing-pipeline/messages/${messageId}/move`, {
         method: 'PATCH',
@@ -152,16 +173,18 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       const json = await res.json();
       if (!json.success) {
         console.error('Move failed:', json.error);
+        if (isSimpleMove) set({ stages: prevStages });
         return;
       }
 
-      // Refresh board
-      get().loadPipeline();
+      // Complex moves (verdict/iterate) or server-created entities need full refresh
+      if (!isSimpleMove || json.data?.newMessageId) {
+        get().loadPipeline();
+      }
 
       // If panel is open for this message, refresh it
       const { selectedMessageId } = get();
       if (selectedMessageId === messageId) {
-        // For iterate, the original message is now retired. Show the new version if created.
         if (json.data?.newMessageId) {
           get().selectMessage(json.data.newMessageId);
         } else {
@@ -170,6 +193,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       }
     } catch (err) {
       console.error('Failed to move message:', err);
+      if (isSimpleMove) set({ stages: prevStages });
     }
   },
 

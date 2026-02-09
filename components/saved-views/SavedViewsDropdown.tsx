@@ -76,12 +76,17 @@ export function SavedViewsDropdown({ pagePath, onApplyView, getCurrentState }: S
 
   const handleToggleFavorite = async (viewId: string, currentlyFavorite: boolean) => {
     if (togglingIds.has(viewId)) return;
+    const view = views.find(v => v.id === viewId);
     // Optimistic update
     setTogglingIds((prev) => new Set(prev).add(viewId));
     setViews((prev) =>
       prev.map((v) => v.id === viewId ? { ...v, isFavorite: !currentlyFavorite } : v)
     );
-    window.dispatchEvent(new Event('favorites-changed'));
+    window.dispatchEvent(new CustomEvent('favorites-changed', {
+      detail: currentlyFavorite
+        ? { action: 'remove', viewId }
+        : { action: 'add', view: view ? { ...view, isFavorite: true } : undefined },
+    }));
     try {
       await toggleFavorite(viewId, !currentlyFavorite);
     } catch {
@@ -89,7 +94,11 @@ export function SavedViewsDropdown({ pagePath, onApplyView, getCurrentState }: S
       setViews((prev) =>
         prev.map((v) => v.id === viewId ? { ...v, isFavorite: currentlyFavorite } : v)
       );
-      window.dispatchEvent(new Event('favorites-changed'));
+      window.dispatchEvent(new CustomEvent('favorites-changed', {
+        detail: currentlyFavorite
+          ? { action: 'add', view: view ? { ...view, isFavorite: true } : undefined }
+          : { action: 'remove', viewId },
+      }));
     } finally {
       setTogglingIds((prev) => { const next = new Set(prev); next.delete(viewId); return next; });
     }
@@ -111,7 +120,7 @@ export function SavedViewsDropdown({ pagePath, onApplyView, getCurrentState }: S
 
   const handleDeleted = (viewId: string) => {
     setViews((prev) => prev.filter((v) => v.id !== viewId));
-    window.dispatchEvent(new Event('favorites-changed'));
+    window.dispatchEvent(new CustomEvent('favorites-changed', { detail: { action: 'remove', viewId } }));
   };
 
   const menuItems = [

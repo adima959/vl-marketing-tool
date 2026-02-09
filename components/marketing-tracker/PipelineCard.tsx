@@ -1,10 +1,9 @@
 'use client';
 
-import type { PipelineCard as PipelineCardType, PipelineStage, Channel, Geography } from '@/types';
-import { CHANNEL_CONFIG, GEO_CONFIG, GEO_STAGE_CONFIG } from '@/types';
-import { getCpaTarget, getCpaHealth, type CpaHealth } from '@/lib/marketing-pipeline/cpaUtils';
+import { memo } from 'react';
+import type { PipelineCard as PipelineCardType, PipelineStage } from '@/types';
+import { GEO_CONFIG, GEO_STAGE_CONFIG, PIPELINE_STAGES_ORDER, PIPELINE_STAGE_CONFIG } from '@/types';
 import { usePipelineStore } from '@/stores/pipelineStore';
-import { PipelineStageBadge } from './PipelineStageBadge';
 import styles from './PipelineCard.module.css';
 
 interface PipelineCardProps {
@@ -27,35 +26,21 @@ const STAGE_CLASS_MAP: Record<PipelineStage, string> = {
   retired: styles.cardRetired,
 };
 
-function buildMatrix(card: PipelineCardType) {
-  const channels: Channel[] = [];
-  const geos: Geography[] = [];
-  const matrix: Record<string, CpaHealth> = {};
+export const PipelineCard = memo(function PipelineCard({ card }: PipelineCardProps) {
+  const selectMessage = usePipelineStore(s => s.selectMessage);
+  const moveMessage = usePipelineStore(s => s.moveMessage);
 
-  const products = usePipelineStore.getState().products;
-  const product = products.find(p => p.id === card.productId);
-
-  for (const campaign of card.campaigns) {
-    if (!channels.includes(campaign.channel)) channels.push(campaign.channel);
-    if (!geos.includes(campaign.geo)) geos.push(campaign.geo);
-
-    const target = product ? getCpaTarget(product, campaign.geo) : undefined;
-    const health = getCpaHealth(campaign.cpa, target);
-    matrix[`${campaign.channel}-${campaign.geo}`] = health;
-  }
-
-  return { channels, geos, matrix };
-}
-
-export function PipelineCard({ card }: PipelineCardProps) {
-  const { selectMessage, moveMessage } = usePipelineStore();
-
-  const handleCardClick = () => selectMessage(card.id);
-  const handleStageChange = (newStage: PipelineStage) => moveMessage(card.id, newStage);
-
-  const { channels, geos, matrix } = buildMatrix(card);
-  const hasMatrix = channels.length > 0 && geos.length > 0;
+  const handleCardClick = (): void => selectMessage(card.id);
   const stageClass = STAGE_CLASS_MAP[card.pipelineStage] || '';
+
+  const stageIdx = PIPELINE_STAGES_ORDER.indexOf(card.pipelineStage);
+  const prevStage = stageIdx > 0 ? PIPELINE_STAGES_ORDER[stageIdx - 1] : null;
+  const nextStage = stageIdx < PIPELINE_STAGES_ORDER.length - 1 ? PIPELINE_STAGES_ORDER[stageIdx + 1] : null;
+
+  const handleMove = (e: React.MouseEvent, stage: PipelineStage): void => {
+    e.stopPropagation();
+    moveMessage(card.id, stage);
+  };
 
   return (
     <div className={`${styles.card} ${stageClass}`} onClick={handleCardClick}>
@@ -76,19 +61,21 @@ export function PipelineCard({ card }: PipelineCardProps) {
         {card.angleName && <span className={styles.angleTag}>{card.angleName}</span>}
       </div>
 
-      {/* Geo flags with stage indicators */}
+      {/* Geo flags with stage labels */}
       {card.geos.length > 0 && (
         <div className={styles.geoFlags}>
           {card.geos.map(g => {
             const geoConfig = GEO_CONFIG[g.geo];
             const stageConfig = GEO_STAGE_CONFIG[g.stage];
             return (
-              <span key={g.id} className={styles.geoFlag} title={`${geoConfig.label}: ${stageConfig.label}`}>
+              <span key={g.id} className={styles.geoFlag}>
                 <span className={styles.geoFlagEmoji}>{geoConfig.flag}</span>
                 <span
-                  className={styles.geoStageIndicator}
-                  style={{ backgroundColor: stageConfig.color }}
-                />
+                  className={styles.geoStageLabel}
+                  style={{ color: stageConfig.color }}
+                >
+                  {stageConfig.label}
+                </span>
               </span>
             );
           })}
@@ -96,66 +83,48 @@ export function PipelineCard({ card }: PipelineCardProps) {
       )}
 
       <div className={styles.bottomRow}>
-        <span className={styles.campaignCount}>
-          {card.activeCampaignCount > 0
-            ? `${card.activeCampaignCount} campaign${card.activeCampaignCount !== 1 ? 's' : ''}`
-            : ''
-          }
+        <span className={styles.cardMeta}>
+          {[
+            card.ownerName,
+            card.activeCampaignCount > 0
+              ? `${card.activeCampaignCount} campaign${card.activeCampaignCount !== 1 ? 's' : ''}`
+              : null,
+          ].filter(Boolean).join(' · ')}
         </span>
         {card.version > 1 && (
           <span className={styles.versionBadge}>v{card.version}</span>
         )}
       </div>
 
-      {hasMatrix && (
-        <div className={styles.hoverContent}>
-          <div className={styles.matrixWrapper}>
-            <div className={styles.matrixTitle}>Coverage</div>
-            <div
-              className={styles.matrix}
-              style={{ gridTemplateColumns: `28px ${geos.map(() => '28px').join(' ')}` }}
+      {/* Stage navigation — hover-reveal arrows */}
+      {(prevStage || nextStage) && (
+        <div className={styles.stageNav} aria-hidden="true">
+          {prevStage && (
+            <button
+              type="button"
+              className={`${styles.stageArrow} ${styles.stageArrowLeft}`}
+              onClick={(e) => handleMove(e, prevStage)}
+              aria-label={`Move to ${PIPELINE_STAGE_CONFIG[prevStage].label}`}
             >
-              <span />
-              {geos.map(geo => (
-                <span key={geo} className={styles.matrixHeader}>
-                  {GEO_CONFIG[geo].flag}
-                </span>
-              ))}
-              {channels.map(channel => (
-                <span key={`row-${channel}`} style={{ display: 'contents' }}>
-                  <span className={styles.matrixLabel}>
-                    {CHANNEL_CONFIG[channel].shortLabel}
-                  </span>
-                  {geos.map(geo => {
-                    const health = matrix[`${channel}-${geo}`];
-                    const cellClass = health && health !== 'none'
-                      ? `${styles.matrixCell} ${styles[`matrixCell${health.charAt(0).toUpperCase()}${health.slice(1)}`]}`
-                      : styles.matrixCell;
-                    return (
-                      <span key={`${channel}-${geo}`} className={cellClass}>
-                        {health && health !== 'none'
-                          ? <span className={`${styles.matrixDot} ${styles[health]}`} />
-                          : <span className={styles.matrixEmpty}>–</span>
-                        }
-                      </span>
-                    );
-                  })}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className={styles.stageAction} onClick={e => e.stopPropagation()}>
-            <span className={styles.stageActionLabel}>Move to</span>
-            <PipelineStageBadge
-              stage={card.pipelineStage}
-              editable
-              onChange={handleStageChange}
-              size="small"
-            />
-          </div>
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6.5 2L3.5 5l3 3" />
+              </svg>
+            </button>
+          )}
+          {nextStage && (
+            <button
+              type="button"
+              className={`${styles.stageArrow} ${styles.stageArrowRight}`}
+              onClick={(e) => handleMove(e, nextStage)}
+              aria-label={`Move to ${PIPELINE_STAGE_CONFIG[nextStage].label}`}
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3.5 2L6.5 5l-3 3" />
+              </svg>
+            </button>
+          )}
         </div>
       )}
     </div>
   );
-}
+});

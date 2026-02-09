@@ -7,7 +7,9 @@ import {
   BarChart3,
   FileSearch,
   ClipboardCheck,
-  Star,
+  Target,
+  Pencil,
+  GripVertical,
   type LucideIcon,
 } from "lucide-react"
 import {
@@ -29,9 +31,9 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import {
   fetchFavoriteViews,
-  toggleFavorite,
   reorderFavorites,
 } from "@/lib/api/savedViewsClient"
+import { EditViewModal } from "@/components/saved-views/EditViewModal"
 import type { SavedView } from "@/types/savedViews"
 import {
   SidebarGroup,
@@ -44,6 +46,7 @@ import {
 const PAGE_ICONS: Record<string, LucideIcon> = {
   "/": LayoutDashboard,
   "/marketing-report": BarChart3,
+  "/marketing-pipeline": Target,
   "/on-page-analysis": FileSearch,
   "/validation-reports/approval-rate": ClipboardCheck,
   "/validation-reports/buy-rate": ClipboardCheck,
@@ -57,10 +60,10 @@ function getPageIcon(pagePath: string): LucideIcon {
 interface SortableFavoriteProps {
   view: SavedView
   onNavigate: (view: SavedView) => void
-  onUnfavorite: (viewId: string) => void
+  onEdit: (view: SavedView) => void
 }
 
-function SortableFavorite({ view, onNavigate, onUnfavorite }: SortableFavoriteProps) {
+function SortableFavorite({ view, onNavigate, onEdit }: SortableFavoriteProps) {
   const {
     attributes,
     listeners,
@@ -79,24 +82,32 @@ function SortableFavorite({ view, onNavigate, onUnfavorite }: SortableFavoritePr
   const Icon = getPageIcon(view.pagePath)
 
   return (
-    <SidebarMenuItem ref={setNodeRef} style={style} {...attributes} className="group/fav-item">
+    <SidebarMenuItem ref={setNodeRef} style={style} className="group/fav-item">
       <SidebarMenuButton
         size="sm"
         tooltip={view.name}
-        className="pr-6 cursor-grab active:cursor-grabbing"
+        className="pr-6"
         onClick={() => onNavigate(view)}
-        {...listeners}
       >
+        <span
+          {...attributes}
+          {...listeners}
+          className="shrink-0 cursor-grab active:cursor-grabbing opacity-0 group-hover/fav-item:opacity-100 transition-opacity text-sidebar-foreground/50 hover:text-sidebar-foreground"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() }}
+        >
+          <GripVertical className="size-3" />
+        </span>
         <Icon className="shrink-0" />
         <span className="truncate text-xs" title={view.name}>{view.name}</span>
       </SidebarMenuButton>
       <button
-        title="Remove from favorites"
-        onClick={(e) => { e.stopPropagation(); onUnfavorite(view.id); }}
+        title="Edit view"
+        onClick={(e) => { e.stopPropagation(); onEdit(view); }}
         className="absolute right-1 top-1/2 -translate-y-1/2 flex aspect-square w-5 items-center justify-center rounded-md p-0 outline-none hover:bg-sidebar-accent opacity-0 group-hover/fav-item:opacity-100 transition-opacity group-data-[collapsible=icon]:hidden"
-        style={{ color: 'var(--color-primary-500)' }}
+        style={{ color: 'var(--color-gray-400)' }}
       >
-        <Star className="size-3" fill="currentColor" />
+        <Pencil className="size-3" />
       </button>
     </SidebarMenuItem>
   )
@@ -106,6 +117,7 @@ export function NavFavorites() {
   const router = useRouter()
   const [favorites, setFavorites] = useState<SavedView[]>([])
   const [mounted, setMounted] = useState(false)
+  const [editView, setEditView] = useState<SavedView | null>(null)
 
   const loadFavorites = useCallback(async () => {
     try {
@@ -121,9 +133,23 @@ export function NavFavorites() {
     loadFavorites()
   }, [loadFavorites])
 
-  // Listen for changes from SavedViewsDropdown
+  // Listen for changes — handle optimistic CustomEvents or fallback to re-fetch
   useEffect(() => {
-    const handler = () => loadFavorites()
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail?.action === 'add' && detail.view) {
+        setFavorites(prev => {
+          if (prev.some(f => f.id === detail.view.id)) return prev
+          return [...prev, { ...detail.view, isFavorite: true }]
+        })
+      } else if (detail?.action === 'remove' && detail.viewId) {
+        setFavorites(prev => prev.filter(f => f.id !== detail.viewId))
+      } else if (detail?.action === 'update' && detail.view) {
+        setFavorites(prev => prev.map(f => f.id === detail.view.id ? { ...f, ...detail.view } : f))
+      } else {
+        loadFavorites()
+      }
+    }
     window.addEventListener("favorites-changed", handler)
     return () => window.removeEventListener("favorites-changed", handler)
   }, [loadFavorites])
@@ -158,16 +184,20 @@ export function NavFavorites() {
     router.push(`${view.pagePath}?viewId=${view.id}`)
   }
 
-  const handleUnfavorite = async (viewId: string) => {
-    // Optimistic removal
-    setFavorites((prev) => prev.filter((f) => f.id !== viewId))
-    try {
-      await toggleFavorite(viewId, false)
-      window.dispatchEvent(new Event("favorites-changed"))
-    } catch (err) {
-      console.warn("Failed to unfavorite:", err)
-      loadFavorites() // Revert on failure
+  const handleRenamed = (updated: SavedView) => {
+    if (!updated.isFavorite) {
+      // Unfavorited through edit modal — remove from list
+      setFavorites(prev => prev.filter(f => f.id !== updated.id))
+    } else {
+      setFavorites(prev => prev.map(f => f.id === updated.id ? { ...f, name: updated.name } : f))
     }
+  }
+
+  const handleDeleted = (viewId: string) => {
+    setFavorites(prev => prev.filter(f => f.id !== viewId))
+    window.dispatchEvent(new CustomEvent('favorites-changed', {
+      detail: { action: 'remove', viewId },
+    }))
   }
 
   if (!mounted || favorites.length === 0) return null
@@ -190,12 +220,20 @@ export function NavFavorites() {
                 key={view.id}
                 view={view}
                 onNavigate={handleNavigate}
-                onUnfavorite={handleUnfavorite}
+                onEdit={setEditView}
               />
             ))}
           </SidebarMenu>
         </SortableContext>
       </DndContext>
+
+      <EditViewModal
+        open={editView !== null}
+        onClose={() => setEditView(null)}
+        view={editView}
+        onRenamed={handleRenamed}
+        onDeleted={handleDeleted}
+      />
     </SidebarGroup>
   )
 }

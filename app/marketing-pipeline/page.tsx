@@ -14,6 +14,8 @@ import { SavedViewsDropdown } from '@/components/saved-views/SavedViewsDropdown'
 import { usePipelineStore } from '@/stores/pipelineStore';
 import { usePipelineUrlSync } from '@/hooks/usePipelineUrlSync';
 import { useApplyViewFromUrl } from '@/hooks/useApplyViewFromUrl';
+import { CHANNEL_CONFIG, GEO_CONFIG } from '@/types';
+import type { Channel, Geography } from '@/types';
 import type { ResolvedViewParams } from '@/types/savedViews';
 import styles from './page.module.css';
 
@@ -55,14 +57,26 @@ export default function PipelinePage() {
   useApplyViewFromUrl(handleApplyView);
 
   const getCurrentState = useCallback(() => {
-    const { ownerFilter, productFilter, angleFilter, channelFilters, geoFilters } = usePipelineStore.getState();
+    const { users, products, angles, ownerFilter, productFilter, angleFilter, channelFilters, geoFilters } = usePipelineStore.getState();
     const filters: { field: string; operator: string; value: string }[] = [];
     if (ownerFilter !== 'all') filters.push({ field: 'owner', operator: 'equals', value: ownerFilter });
     if (productFilter !== 'all') filters.push({ field: 'product', operator: 'equals', value: productFilter });
     if (angleFilter !== 'all') filters.push({ field: 'angle', operator: 'equals', value: angleFilter });
     if (channelFilters.length > 0) filters.push({ field: 'channels', operator: 'equals', value: channelFilters.join(',') });
     if (geoFilters.length > 0) filters.push({ field: 'geos', operator: 'equals', value: geoFilters.join(',') });
-    return { ...(filters.length > 0 && { filters }) };
+
+    // Build a descriptive name from active filters
+    const nameParts: string[] = [];
+    if (ownerFilter !== 'all') nameParts.push(users.find(u => u.id === ownerFilter)?.name ?? ownerFilter);
+    if (productFilter !== 'all') nameParts.push(products.find(p => p.id === productFilter)?.name ?? productFilter);
+    if (angleFilter !== 'all') nameParts.push(angles.find(a => a.id === angleFilter)?.name ?? angleFilter);
+    if (channelFilters.length > 0) nameParts.push(channelFilters.map(c => CHANNEL_CONFIG[c as Channel]?.label ?? c).join(', '));
+    if (geoFilters.length > 0) nameParts.push(geoFilters.map(g => GEO_CONFIG[g as Geography]?.label ?? g).join(', '));
+
+    return {
+      ...(filters.length > 0 && { filters }),
+      suggestedName: nameParts.length > 0 ? nameParts.join(' — ') : undefined,
+    };
   }, []);
 
   return (

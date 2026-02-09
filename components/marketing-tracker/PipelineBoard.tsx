@@ -20,7 +20,8 @@ function getColumnClass(stage: PipelineStage): string {
 }
 
 export function PipelineBoard() {
-  const { stages, isLoading } = usePipelineStore();
+  const stages = usePipelineStore(s => s.stages);
+  const isLoading = usePipelineStore(s => s.isLoading);
 
   if (isLoading) {
     return (
