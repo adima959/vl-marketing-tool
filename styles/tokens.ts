@@ -95,6 +95,7 @@ export const colors = {
     primary: '#ffffff',
     secondary: '#fafbfc',
     tertiary: '#f5f6f7',
+    canvas: '#eef0f2',
     hover: '#f0f9ff',
     active: '#e0f2fe',
     expanded: '#e6f7ed',
