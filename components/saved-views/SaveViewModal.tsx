@@ -26,7 +26,7 @@ function getDimensionLabel(id: string): string {
 }
 
 interface CurrentState {
-  dateRange: { start: Date; end: Date };
+  dateRange?: { start: Date; end: Date };
   dimensions?: string[];
   filters?: { field: string; operator: string; value: string }[];
   sortBy?: string | null;
@@ -34,6 +34,7 @@ interface CurrentState {
   period?: 'weekly' | 'biweekly' | 'monthly' | null;
   visibleColumns?: string[];
   totalColumns?: number;
+  suggestedName?: string;
 }
 
 interface SaveViewModalProps {
@@ -57,9 +58,11 @@ export function SaveViewModal({ open, onClose, pagePath, currentState, onSaved }
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const hasDates = !!currentState.dateRange;
+
   const detectedPreset = useMemo(
-    () => detectDatePreset(currentState.dateRange.start, currentState.dateRange.end),
-    [currentState.dateRange.start, currentState.dateRange.end]
+    () => hasDates ? detectDatePreset(currentState.dateRange!.start, currentState.dateRange!.end) : null,
+    [hasDates, currentState.dateRange?.start, currentState.dateRange?.end]
   );
 
   const autoName = useMemo(() => {
@@ -67,15 +70,17 @@ export function SaveViewModal({ open, onClose, pagePath, currentState, onSaved }
     if (currentState.dimensions?.length) {
       parts.push(currentState.dimensions.map(getDimensionLabel).join(', '));
     }
-    if (dateMode === 'relative' && datePreset) {
-      parts.push(DATE_PRESET_LABELS[datePreset]);
-    } else {
-      const start = formatLocalDate(currentState.dateRange.start);
-      const end = formatLocalDate(currentState.dateRange.end);
-      parts.push(start === end ? start : `${start} — ${end}`);
+    if (hasDates) {
+      if (dateMode === 'relative' && datePreset) {
+        parts.push(DATE_PRESET_LABELS[datePreset]);
+      } else {
+        const start = formatLocalDate(currentState.dateRange!.start);
+        const end = formatLocalDate(currentState.dateRange!.end);
+        parts.push(start === end ? start : `${start} — ${end}`);
+      }
     }
-    return parts.join(' — ');
-  }, [currentState.dimensions, currentState.dateRange, dateMode, datePreset]);
+    return parts.join(' — ') || currentState.suggestedName || 'Saved view';
+  }, [currentState.dimensions, currentState.dateRange, currentState.suggestedName, hasDates, dateMode, datePreset]);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -84,7 +89,10 @@ export function SaveViewModal({ open, onClose, pagePath, currentState, onSaved }
       setAddToSidebar(false);
       setError(null);
       setSaving(false);
-      if (detectedPreset) {
+      if (!hasDates) {
+        setDateMode('none');
+        setDatePreset(undefined);
+      } else if (detectedPreset) {
         setDateMode('relative');
         setDatePreset(detectedPreset);
       } else {
@@ -92,7 +100,7 @@ export function SaveViewModal({ open, onClose, pagePath, currentState, onSaved }
         setDatePreset(undefined);
       }
     }
-  }, [open, detectedPreset]);
+  }, [open, detectedPreset, hasDates]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -105,10 +113,12 @@ export function SaveViewModal({ open, onClose, pagePath, currentState, onSaved }
         dateMode,
         ...(dateMode === 'relative'
           ? { datePreset }
-          : {
-              dateStart: formatLocalDate(currentState.dateRange.start),
-              dateEnd: formatLocalDate(currentState.dateRange.end),
-            }),
+          : dateMode === 'absolute'
+            ? {
+                dateStart: formatLocalDate(currentState.dateRange!.start),
+                dateEnd: formatLocalDate(currentState.dateRange!.end),
+              }
+            : {}),
         ...(currentState.dimensions && { dimensions: currentState.dimensions }),
         ...(currentState.filters?.length && { filters: currentState.filters }),
         ...(currentState.sortBy && { sortBy: currentState.sortBy }),
@@ -189,32 +199,36 @@ export function SaveViewModal({ open, onClose, pagePath, currentState, onSaved }
           </div>
         )}
 
-        <div>
-          <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 4 }}>
-            Date Range
-          </label>
-          <Radio.Group
-            value={dateMode}
-            onChange={(e) => setDateMode(e.target.value)}
-            style={{ display: 'flex', gap: 16 }}
-          >
-            <Radio value="relative">Relative</Radio>
-            <Radio value="absolute">Absolute</Radio>
-          </Radio.Group>
-        </div>
+        {hasDates && (
+          <>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 4 }}>
+                Date Range
+              </label>
+              <Radio.Group
+                value={dateMode}
+                onChange={(e) => setDateMode(e.target.value)}
+                style={{ display: 'flex', gap: 16 }}
+              >
+                <Radio value="relative">Relative</Radio>
+                <Radio value="absolute">Absolute</Radio>
+              </Radio.Group>
+            </div>
 
-        {dateMode === 'relative' ? (
-          <Select
-            placeholder="Select a date preset"
-            value={datePreset}
-            onChange={(val) => setDatePreset(val)}
-            options={presetOptions}
-            style={{ width: '100%' }}
-          />
-        ) : (
-          <div style={{ fontSize: 13, color: '#6b7280', padding: '8px 12px', background: '#f5f6f7', borderRadius: 6 }}>
-            {formatLocalDate(currentState.dateRange.start)} — {formatLocalDate(currentState.dateRange.end)}
-          </div>
+            {dateMode === 'relative' ? (
+              <Select
+                placeholder="Select a date preset"
+                value={datePreset}
+                onChange={(val) => setDatePreset(val)}
+                options={presetOptions}
+                style={{ width: '100%' }}
+              />
+            ) : (
+              <div style={{ fontSize: 13, color: '#6b7280', padding: '8px 12px', background: '#f5f6f7', borderRadius: 6 }}>
+                {formatLocalDate(currentState.dateRange!.start)} — {formatLocalDate(currentState.dateRange!.end)}
+              </div>
+            )}
+          </>
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0 0' }}>

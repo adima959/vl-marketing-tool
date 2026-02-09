@@ -84,7 +84,12 @@ export function resolveViewParams(view: SavedView): ResolvedViewParams {
   let start: Date;
   let end: Date;
 
-  if (view.dateMode === 'relative' && view.datePreset) {
+  if (view.dateMode === 'none') {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    start = today;
+    end = new Date(today);
+  } else if (view.dateMode === 'relative' && view.datePreset) {
     const resolved = resolveDatePreset(view.datePreset);
     start = resolved.start;
     end = resolved.end;

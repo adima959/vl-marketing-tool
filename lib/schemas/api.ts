@@ -113,7 +113,7 @@ const datePresetSchema = z.enum([
 export const savedViewCreateSchema = z.object({
   name: z.string().min(1).max(100),
   pagePath: z.string().min(1),
-  dateMode: z.enum(['relative', 'absolute']),
+  dateMode: z.enum(['relative', 'absolute', 'none']),
   datePreset: datePresetSchema.optional(),
   dateStart: z.string().date().optional(),
   dateEnd: z.string().date().optional(),
@@ -125,6 +125,7 @@ export const savedViewCreateSchema = z.object({
   visibleColumns: z.array(z.string()).optional(),
 }).refine(
   (data) => {
+    if (data.dateMode === 'none') return true;
     if (data.dateMode === 'relative') return !!data.datePreset;
     return !!data.dateStart && !!data.dateEnd;
   },

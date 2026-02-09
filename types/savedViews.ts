@@ -10,7 +10,7 @@ export type DatePreset =
   | 'thisMonth'
   | 'lastMonth';
 
-export type DateMode = 'relative' | 'absolute';
+export type DateMode = 'relative' | 'absolute' | 'none';
 
 export interface SavedView {
   id: string;

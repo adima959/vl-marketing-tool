@@ -11,7 +11,7 @@ import type { SavedView, ResolvedViewParams } from '@/types/savedViews';
 import dropdownStyles from './SavedViewsDropdown.module.css';
 
 interface CurrentState {
-  dateRange: { start: Date; end: Date };
+  dateRange?: { start: Date; end: Date };
   dimensions?: string[];
   filters?: { field: string; operator: string; value: string }[];
   sortBy?: string | null;
@@ -19,6 +19,7 @@ interface CurrentState {
   period?: 'weekly' | 'biweekly' | 'monthly' | null;
   visibleColumns?: string[];
   totalColumns?: number;
+  suggestedName?: string;
 }
 
 interface SavedViewsDropdownProps {
