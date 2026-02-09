@@ -2,12 +2,12 @@
 
 import { Button } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
-import { OnPageDateRangePicker } from './OnPageDateRangePicker';
+import { DateRangePicker } from '@/components/filters/DateRangePicker';
 import { OnPageDimensionPicker } from './OnPageDimensionPicker';
-import { OnPageDimensionPills } from './OnPageDimensionPills';
+import { DimensionPills } from '@/components/filters/DimensionPills';
 import { FilterPanel } from '@/components/filters/FilterPanel';
 import { useOnPageStore } from '@/stores/onPageStore';
-import { ON_PAGE_DIMENSION_GROUPS } from '@/config/onPageDimensions';
+import { getOnPageDimensionLabel, ON_PAGE_DIMENSION_GROUPS } from '@/config/onPageDimensions';
 import type { TableFilter } from '@/types/filters';
 import styles from '@/components/filters/FilterToolbar.module.css';
 
@@ -17,7 +17,7 @@ interface OnPageFilterToolbarProps {
 }
 
 export function OnPageFilterToolbar({ filters, onFiltersChange }: OnPageFilterToolbarProps) {
-  const { loadData, isLoading, hasUnsavedChanges, hasLoadedOnce } = useOnPageStore();
+  const { dimensions, removeDimension, reorderDimensions, dateRange, setDateRange, loadData, isLoading, hasUnsavedChanges, hasLoadedOnce } = useOnPageStore();
 
   return (
     <div className={styles.toolbar}>
@@ -27,7 +27,12 @@ export function OnPageFilterToolbar({ filters, onFiltersChange }: OnPageFilterTo
           <div className={styles.dimensionsWrapper}>
             <span className={styles.dimensionsLabel}>DIMENSIONS:</span>
             <div className={styles.dimensionsContent}>
-              <OnPageDimensionPills />
+              <DimensionPills
+                dimensions={dimensions}
+                reorderDimensions={reorderDimensions}
+                removeDimension={removeDimension}
+                getLabel={getOnPageDimensionLabel}
+              />
               <OnPageDimensionPicker />
             </div>
           </div>
@@ -47,7 +52,7 @@ export function OnPageFilterToolbar({ filters, onFiltersChange }: OnPageFilterTo
 
         {/* Right: Date range and controls */}
         <div className={styles.rightSection}>
-          <OnPageDateRangePicker />
+          <DateRangePicker dateRange={dateRange} setDateRange={setDateRange} />
 
           <div className={styles.loadButtonWrapper}>
             <Button

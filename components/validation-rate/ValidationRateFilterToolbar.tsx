@@ -5,8 +5,9 @@ import { ReloadOutlined, SwapRightOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { ValidationRateDimensionPicker } from './ValidationRateDimensionPicker';
-import { ValidationRateDimensionPills } from './ValidationRateDimensionPills';
+import { DimensionPills } from '@/components/filters/DimensionPills';
 import { TimePeriodToggle } from './TimePeriodToggle';
+import { getValidationRateDimensionLabel } from '@/config/validationRateDimensions';
 import type { ValidationRateStore } from '@/types';
 import type { UseBoundStore, StoreApi } from 'zustand';
 import styles from '@/components/filters/FilterToolbar.module.css';
@@ -53,6 +54,9 @@ interface ValidationRateFilterToolbarProps {
 
 export function ValidationRateFilterToolbar({ useStore }: ValidationRateFilterToolbarProps) {
   const {
+    dimensions,
+    removeDimension,
+    reorderDimensions,
     dateRange,
     setDateRange,
     loadData,
@@ -79,7 +83,12 @@ export function ValidationRateFilterToolbar({ useStore }: ValidationRateFilterTo
         <div className={styles.leftSection} style={{ flex: 2, flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
           <span className={styles.dimensionsLabel}>DIMENSIONS</span>
           <div className={styles.dimensionsContent}>
-            <ValidationRateDimensionPills useStore={useStore} />
+            <DimensionPills
+              dimensions={dimensions}
+              reorderDimensions={reorderDimensions}
+              removeDimension={removeDimension}
+              getLabel={getValidationRateDimensionLabel}
+            />
             <ValidationRateDimensionPicker useStore={useStore} />
           </div>
         </div>

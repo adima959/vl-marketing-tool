@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { App, Spin, Empty, Button, Modal, Tabs } from 'antd';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { PlusOutlined, EditOutlined, ExportOutlined, LinkOutlined, CheckOutlined, DeleteOutlined } from '@ant-design/icons';
 import { Target, ChevronRight, Globe, FileText, ExternalLink, Lightbulb, MessageSquare, Video } from 'lucide-react';
 import Link from 'next/link';
@@ -613,7 +614,7 @@ export default function MessagePage() {
             {selectedAsset.content && (
               <div className={styles.modalSection}>
                 <h4 className={styles.modalSectionTitle}>Content</h4>
-                <div className={styles.modalContentText} dangerouslySetInnerHTML={{ __html: selectedAsset.content }} />
+                <div className={styles.modalContentText} dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedAsset.content) }} />
               </div>
             )}
 

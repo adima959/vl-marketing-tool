@@ -79,6 +79,14 @@ export async function autoMatchCampaigns(): Promise<AutoMatchResult> {
   return json.data;
 }
 
+/** Lightweight count-only fetch — avoids loading the full modal component */
+export async function fetchUnclassifiedCount(): Promise<number> {
+  const res = await fetch('/api/marketing/campaign-classifications');
+  const json = await res.json();
+  if (!json.success) return 0;
+  return json.data.unclassified.length;
+}
+
 export async function unclassifyCampaign(id: string): Promise<string> {
   const res = await fetch('/api/marketing/campaign-classifications', {
     method: 'DELETE',

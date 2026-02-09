@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Spin, Empty, Button, Table, Avatar, Radio, Alert } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { Target, Package, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -99,7 +100,7 @@ export default function MarketingTrackerDashboard() {
             {record.description && (
               <span
                 className={styles.productDesc}
-                dangerouslySetInnerHTML={{ __html: record.description }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(record.description) }}
               />
             )}
           </div>

@@ -55,7 +55,7 @@ export interface AggregatedMetrics {
 }
 
 /**
- * Maps dashboard dimension IDs to database column names
+ * Maps dashboard dimension IDs to database column names (ads table columns)
  */
 const dimensionMap: Record<string, string> = {
   network: 'network',
@@ -64,6 +64,47 @@ const dimensionMap: Record<string, string> = {
   ad: 'ad_name',
   date: 'date',
 };
+
+/**
+ * Classification dimensions that require JOINs to app_campaign_classifications
+ */
+interface ClassificationDimConfig {
+  /** SQL expression for SELECT ... AS dimension_value */
+  selectExpr: string;
+  /** SQL expression for GROUP BY */
+  groupByExpr: string;
+  /** SQL expression for WHERE clause filtering (parent filters) */
+  filterExpr: string;
+}
+
+const classificationDimMap: Record<string, ClassificationDimConfig> = {
+  classifiedProduct: {
+    selectExpr: "COALESCE(ap.name, 'Unknown')",
+    groupByExpr: 'ap.name',
+    filterExpr: 'ap.name',
+  },
+  classifiedCountry: {
+    selectExpr: "COALESCE(cc.country_code, 'Unknown')",
+    groupByExpr: 'cc.country_code',
+    filterExpr: 'cc.country_code',
+  },
+};
+
+function isClassificationDim(dim: string): boolean {
+  return dim in classificationDimMap;
+}
+
+/** Check if any dimension in the hierarchy needs classification JOINs */
+function needsClassificationJoins(
+  currentDim: string,
+  parentFilters?: Record<string, string>
+): boolean {
+  if (isClassificationDim(currentDim)) return true;
+  if (parentFilters) {
+    return Object.keys(parentFilters).some(isClassificationDim);
+  }
+  return false;
+}
 
 /**
  * Maps dashboard metric IDs to SQL expressions
@@ -146,6 +187,18 @@ function buildParentFilters(
   const conditions: string[] = [];
 
   Object.entries(parentFilters).forEach(([dimId, value]) => {
+    // Check classification dimensions first
+    const classConfig = classificationDimMap[dimId];
+    if (classConfig) {
+      if (value === 'Unknown') {
+        conditions.push(`${classConfig.filterExpr} IS NULL`);
+      } else {
+        params.push(value);
+        conditions.push(`${classConfig.filterExpr} = $${paramOffset + params.length}`);
+      }
+      return;
+    }
+
     const sqlColumn = dimensionMap[dimId];
     if (!sqlColumn) {
       throw new Error(`Unknown dimension in parent filter: ${dimId}`);
@@ -250,15 +303,19 @@ export async function getMarketingData(
   const safeLimit = Math.max(1, Math.min(10000, Math.floor(limit)));
 
   const currentDimension = dimensions[depth];
-  const sqlColumn = dimensionMap[currentDimension];
+  const classConfig = classificationDimMap[currentDimension];
+  const sqlColumn = classConfig ? null : dimensionMap[currentDimension];
 
-  if (!sqlColumn) {
+  if (!sqlColumn && !classConfig) {
     throw new Error(`Unknown dimension: ${currentDimension}`);
   }
 
   const sortColumn = metricMap[sortBy] || 'clicks';
-  const finalSortColumn = currentDimension === 'date' ? sqlColumn : sortColumn;
+  const finalSortColumn = currentDimension === 'date' ? sqlColumn! : sortColumn;
   const finalSortDirection = currentDimension === 'date' ? 'DESC' : validateSortDirection(sortDirection);
+
+  // Classification JOINs needed?
+  const useClassificationJoins = needsClassificationJoins(currentDimension, parentFilters);
 
   const pgParams: any[] = [
     formatLocalDate(dateRange.start),
@@ -277,26 +334,36 @@ export async function getMarketingData(
   );
   pgParams.push(...tableFilterParams);
 
+  // Build SELECT/GROUP BY/JOIN based on dimension type
+  const selectDimExpr = classConfig ? classConfig.selectExpr : sqlColumn!;
+  const groupByExpr = classConfig ? classConfig.groupByExpr : sqlColumn!;
+
+  const classificationJoinClause = useClassificationJoins
+    ? `LEFT JOIN app_campaign_classifications cc ON m.campaign_id = cc.campaign_id AND cc.is_ignored = false
+       LEFT JOIN app_products ap ON cc.product_id = ap.id`
+    : '';
+
   const adsQuery = `
     SELECT
-      ${sqlColumn} AS dimension_value,
-      ROUND(SUM(cost::numeric), 2) AS cost,
-      SUM(clicks::integer) AS clicks,
-      SUM(impressions::integer) AS impressions,
-      ROUND(SUM(conversions::numeric), 0) AS conversions,
-      ROUND(SUM(clicks::integer)::numeric / NULLIF(SUM(impressions::integer), 0), 4) AS ctr_percent,
-      ROUND(SUM(cost::numeric) / NULLIF(SUM(clicks::integer), 0), 2) AS cpc,
-      ROUND(SUM(cost::numeric) / NULLIF(SUM(impressions::integer), 0) * 1000, 2) AS cpm,
-      ROUND(SUM(conversions::numeric) / NULLIF(SUM(impressions::integer), 0), 6) AS conversion_rate,
-      array_agg(DISTINCT campaign_id) AS campaign_ids,
-      array_agg(DISTINCT adset_id) AS adset_ids,
-      array_agg(DISTINCT ad_id) AS ad_ids,
-      array_agg(DISTINCT network) AS networks
-    FROM merged_ads_spending
-    WHERE date::date BETWEEN $1::date AND $2::date
+      ${selectDimExpr} AS dimension_value,
+      ROUND(SUM(m.cost::numeric), 2) AS cost,
+      SUM(m.clicks::integer) AS clicks,
+      SUM(m.impressions::integer) AS impressions,
+      ROUND(SUM(m.conversions::numeric), 0) AS conversions,
+      ROUND(SUM(m.clicks::integer)::numeric / NULLIF(SUM(m.impressions::integer), 0), 4) AS ctr_percent,
+      ROUND(SUM(m.cost::numeric) / NULLIF(SUM(m.clicks::integer), 0), 2) AS cpc,
+      ROUND(SUM(m.cost::numeric) / NULLIF(SUM(m.impressions::integer), 0) * 1000, 2) AS cpm,
+      ROUND(SUM(m.conversions::numeric) / NULLIF(SUM(m.impressions::integer), 0), 6) AS conversion_rate,
+      array_agg(DISTINCT m.campaign_id) AS campaign_ids,
+      array_agg(DISTINCT m.adset_id) AS adset_ids,
+      array_agg(DISTINCT m.ad_id) AS ad_ids,
+      array_agg(DISTINCT m.network) AS networks
+    FROM merged_ads_spending m
+    ${classificationJoinClause}
+    WHERE m.date::date BETWEEN $1::date AND $2::date
       ${whereClause}
       ${tableFilterClause}
-    GROUP BY ${sqlColumn}
+    GROUP BY ${groupByExpr}
     ORDER BY ${finalSortColumn} ${finalSortDirection}
     LIMIT ${safeLimit}
   `;

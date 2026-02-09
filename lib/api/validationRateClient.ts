@@ -25,19 +25,11 @@ export interface ValidationRateClientParams {
 }
 
 /**
- * Serialize date range to ISO strings for API request
- */
-function serializeDateRange(dateRange: DateRange): { start: string; end: string } {
-  return {
-    start: formatLocalDate(dateRange.start),
-    end: formatLocalDate(dateRange.end),
-  };
-}
-
-/**
- * Fetch validation rate data from API with timeout support
- * Queries MariaDB CRM for rates by dimension and time period
- * Supports all rate types: approval, pay, buy
+ * Fetch validation rate data from API with timeout support.
+ *
+ * NOTE: This client doesn't use createQueryClient because the response
+ * shape is non-standard (data + periodColumns at top level instead of
+ * nested under .data).
  */
 export async function fetchValidationRateData(
   params: ValidationRateClientParams,
@@ -47,10 +39,12 @@ export async function fetchValidationRateData(
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    // Serialize params to request format
     const requestBody = {
       rateType: params.rateType,
-      dateRange: serializeDateRange(params.dateRange),
+      dateRange: {
+        start: formatLocalDate(params.dateRange.start),
+        end: formatLocalDate(params.dateRange.end),
+      },
       dimensions: params.dimensions,
       depth: params.depth,
       parentFilters: params.parentFilters,
@@ -69,12 +63,10 @@ export async function fetchValidationRateData(
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      // Handle authentication errors globally
       if (isAuthError(response.status)) {
         triggerAuthError();
       }
-
-      const error = await response.json();
+      const error = await response.json().catch(() => ({ error: `API request failed: ${response.statusText}` }));
       throw createNetworkError(
         error.error || `API request failed: ${response.statusText}`,
         { statusCode: response.status }
@@ -94,12 +86,10 @@ export async function fetchValidationRateData(
   } catch (error: unknown) {
     clearTimeout(timeoutId);
 
-    // Handle timeout specifically
     if (error instanceof Error && error.name === 'AbortError') {
       throw createTimeoutError();
     }
 
-    // Normalize and re-throw
     throw normalizeError(error);
   }
 }

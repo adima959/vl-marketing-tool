@@ -6,6 +6,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Underline from '@tiptap/extension-underline';
 import { Input } from 'antd';
+import { sanitizeHtml } from '@/lib/sanitize';
 import type { InputRef } from 'antd';
 import {
   Bold,
@@ -243,7 +244,7 @@ export function EditableHeader({
         {hasDescription ? (
           <div
             className={styles.description}
-            dangerouslySetInnerHTML={{ __html: description }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(description) }}
           />
         ) : (
           <p className={styles.descriptionPlaceholder}>{descriptionPlaceholder}</p>

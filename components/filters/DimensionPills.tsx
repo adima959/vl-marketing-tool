@@ -20,17 +20,16 @@ import {
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useReportStore } from '@/stores/reportStore';
-import { getDimensionLabel } from '@/config/dimensions';
 import styles from './DimensionPills.module.css';
 
 interface SortableTagProps {
   dimId: string;
+  label: string;
   onRemove: () => void;
   canRemove: boolean;
 }
 
-function SortableTag({ dimId, onRemove, canRemove }: SortableTagProps) {
+function SortableTag({ dimId, label, onRemove, canRemove }: SortableTagProps) {
   const {
     attributes,
     listeners,
@@ -59,7 +58,7 @@ function SortableTag({ dimId, onRemove, canRemove }: SortableTagProps) {
       {...attributes}
     >
       <HolderOutlined className={styles.dragHandle} {...listeners} />
-      <span {...listeners}>{getDimensionLabel(dimId)}</span>
+      <span {...listeners}>{label}</span>
       {canRemove && (
         <CloseOutlined
           className={styles.closeIcon}
@@ -71,8 +70,21 @@ function SortableTag({ dimId, onRemove, canRemove }: SortableTagProps) {
   );
 }
 
-export function DimensionPills() {
-  const { dimensions, removeDimension, reorderDimensions } = useReportStore();
+export interface DimensionPillsProps {
+  dimensions: string[];
+  reorderDimensions: (newOrder: string[]) => void;
+  removeDimension?: (id: string) => void;
+  getLabel: (id: string) => string;
+  canRemove?: boolean;
+}
+
+export function DimensionPills({
+  dimensions,
+  reorderDimensions,
+  removeDimension,
+  getLabel,
+  canRemove = true,
+}: DimensionPillsProps): React.ReactNode {
   const [mounted, setMounted] = useState(false);
 
   // Only render DnD after client-side mount to avoid hydration issues
@@ -115,8 +127,9 @@ export function DimensionPills() {
             <SortableTag
               key={dimId}
               dimId={dimId}
-              onRemove={() => removeDimension(dimId)}
-              canRemove={dimensions.length > 1}
+              label={getLabel(dimId)}
+              onRemove={() => removeDimension?.(dimId)}
+              canRemove={canRemove && dimensions.length > 1}
             />
           ))}
         </Space>

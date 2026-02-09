@@ -2,6 +2,7 @@
 // Uses PostgreSQL (Neon) - placeholders: $1, $2, $3
 
 import { executeQuery } from '@/lib/server/db';
+import { toCamelCase, rowsToCamelCase } from '@/lib/server/caseUtils';
 import { FEATURES } from '@/types/roles';
 import type {
   Role,
@@ -11,23 +12,6 @@ import type {
   UpdateRoleRequest,
   UpdatePermissionsRequest,
 } from '@/types/roles';
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-function toCamelCase<T>(row: Record<string, unknown>): T {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(row)) {
-    const camelKey = key.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
-    result[camelKey] = value;
-  }
-  return result as T;
-}
-
-function rowsToCamelCase<T>(rows: Record<string, unknown>[]): T[] {
-  return rows.map(row => toCamelCase<T>(row));
-}
 
 // ============================================================================
 // Roles

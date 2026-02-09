@@ -3,11 +3,8 @@
 // Uses PostgreSQL (Neon) - placeholders: $1, $2, $3
 
 import { executeQuery } from '@/lib/server/db';
+import { toCamelCase } from '@/lib/server/caseUtils';
 import type { EntityType, ActivityAction } from '@/types/marketing-tracker';
-
-// ============================================================================
-// Types
-// ============================================================================
 
 export type HistoryAction = ActivityAction; // 'created' | 'updated' | 'deleted'
 
@@ -67,24 +64,6 @@ const DERIVED_FIELD_NAMES = [
   'assetsByGeo', 'creativesByGeo',
   'angle', 'product', 'campaigns', 'assets', 'creatives', 'versions',
 ];
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Converts snake_case database row keys to camelCase TypeScript object keys
- */
-function toCamelCase<T>(row: Record<string, unknown>): T {
-  const result: Record<string, unknown> = {};
-
-  for (const [key, value] of Object.entries(row)) {
-    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-    result[camelKey] = value;
-  }
-
-  return result as T;
-}
 
 /**
  * Deep equality check for comparing field values

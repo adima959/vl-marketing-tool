@@ -3,7 +3,6 @@ import { SwapRightOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import type { Dayjs } from 'dayjs';
-import { useReportStore } from '@/stores/reportStore';
 import styles from './DateRangePicker.module.css';
 
 // Extend dayjs with plugins
@@ -11,9 +10,12 @@ dayjs.extend(utc);
 
 const { RangePicker } = DatePicker;
 
-export function DateRangePicker() {
-  const { dateRange, setDateRange } = useReportStore();
+export interface DateRangePickerProps {
+  dateRange: { start: Date; end: Date };
+  setDateRange: (range: { start: Date; end: Date }) => void;
+}
 
+export function DateRangePicker({ dateRange, setDateRange }: DateRangePickerProps) {
   const handleChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
     if (dates && dates[0] && dates[1]) {
       // Extract date components from local dayjs object

@@ -2,6 +2,7 @@
 // Uses PostgreSQL (Neon) - placeholders: $1, $2, $3
 
 import { executeQuery } from '@/lib/server/db';
+import { toCamelCase, rowsToCamelCase } from '@/lib/server/caseUtils';
 import type {
   Product,
   ProductStatus,
@@ -15,32 +16,6 @@ import type {
   CreateCreativeRequest,
   CreateAssetRequest,
 } from '@/types/marketing-tracker';
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Converts snake_case database row keys to camelCase TypeScript object keys
- */
-function toCamelCase<T>(row: Record<string, unknown>): T {
-  const result: Record<string, unknown> = {};
-
-  for (const [key, value] of Object.entries(row)) {
-    // Convert snake_case to camelCase
-    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-    result[camelKey] = value;
-  }
-
-  return result as T;
-}
-
-/**
- * Converts an array of database rows to camelCase objects
- */
-function rowsToCamelCase<T>(rows: Record<string, unknown>[]): T[] {
-  return rows.map(row => toCamelCase<T>(row));
-}
 
 // ============================================================================
 // Type Definitions for Create/Update Operations

@@ -5,7 +5,6 @@ import { Button } from 'antd';
 import { SettingOutlined, TagsOutlined } from '@ant-design/icons';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FilterToolbar } from '@/components/filters/FilterToolbar';
-import { FilterPanel } from '@/components/filters/FilterPanel';
 import { DataTable } from '@/components/table/DataTable';
 import { SavedViewsDropdown } from '@/components/saved-views/SavedViewsDropdown';
 import { useUrlSync } from '@/hooks/useUrlSync';
@@ -15,6 +14,7 @@ import { useReportStore } from '@/stores/reportStore';
 import { DIMENSION_GROUPS } from '@/config/dimensions';
 import { BarChart3 } from 'lucide-react';
 import { TableInfoBanner } from '@/components/ui/TableInfoBanner';
+import { fetchUnclassifiedCount } from '@/lib/api/campaignClassificationsClient';
 import pageStyles from '@/components/dashboard/dashboard.module.css';
 import type { MarketingMetricClickContext } from '@/types/marketingDetails';
 import type { ResolvedViewParams } from '@/types/savedViews';
@@ -35,11 +35,17 @@ const CampaignClassificationModal = lazy(() =>
 function MarketingReportContent() {
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
   const [classificationOpen, setClassificationOpen] = useState(false);
+  const [unclassifiedCount, setUnclassifiedCount] = useState<number | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailModalContext, setDetailModalContext] = useState<MarketingMetricClickContext | null>(null);
   const { setOpen } = useSidebar();
   const hasCollapsed = useRef(false);
   const { hasUnsavedChanges, resetFilters, dateRange, filters, setFilters } = useReportStore();
+
+  // Fetch unclassified count for badge (lightweight, no full modal needed)
+  useEffect(() => {
+    fetchUnclassifiedCount().then(setUnclassifiedCount).catch(() => {});
+  }, []);
 
   // Handle CRM metric click to show detail modal
   const handleMarketingMetricClick = (context: MarketingMetricClickContext) => {
@@ -129,7 +135,12 @@ function MarketingReportContent() {
         onClick={() => setClassificationOpen(true)}
         size="small"
       >
-        Classify
+        Campaign Map
+        {unclassifiedCount != null && unclassifiedCount > 0 && (
+          <span className={pageStyles.countBadge}>
+            {unclassifiedCount}
+          </span>
+        )}
       </Button>
       <Button
         type="text"
@@ -158,8 +169,7 @@ function MarketingReportContent() {
           }
         />
         <div className={pageStyles.content}>
-          <FilterToolbar />
-          <FilterPanel
+          <FilterToolbar
             filters={filters}
             onFiltersChange={setFilters}
             dimensionGroups={DIMENSION_GROUPS}
@@ -183,6 +193,7 @@ function MarketingReportContent() {
           <CampaignClassificationModal
             open={classificationOpen}
             onClose={() => setClassificationOpen(false)}
+            onCountChange={setUnclassifiedCount}
           />
         </Suspense>
       )}

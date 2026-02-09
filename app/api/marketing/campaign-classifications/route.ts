@@ -33,6 +33,16 @@ interface UnclassifiedRow {
 
 const VALID_COUNTRY_CODES = ['NO', 'SE', 'DK', 'FI'];
 
+/** Shared query: unclassified campaigns not yet in the mapping table */
+const UNCLASSIFIED_QUERY = `
+  SELECT DISTINCT ON (campaign_id) campaign_id, campaign_name
+  FROM merged_ads_spending
+  WHERE campaign_id IS NOT NULL
+    AND campaign_id != ''
+    AND campaign_id NOT IN (SELECT campaign_id FROM app_campaign_classifications)
+  ORDER BY campaign_id, campaign_name
+  LIMIT 500`;
+
 /**
  * GET /api/marketing/campaign-classifications
  * Returns unclassified campaigns, classified entries, ignored entries, and product list
@@ -81,15 +91,7 @@ async function handleGet(
       ),
 
       // Unclassified: distinct campaigns not in the mapping table
-      executeQuery<UnclassifiedRow>(
-        `SELECT DISTINCT campaign_id, campaign_name
-         FROM merged_ads_spending
-         WHERE campaign_id IS NOT NULL
-           AND campaign_id != ''
-           AND campaign_id NOT IN (SELECT campaign_id FROM app_campaign_classifications)
-         ORDER BY campaign_name
-         LIMIT 500`
-      ),
+      executeQuery<UnclassifiedRow>(UNCLASSIFIED_QUERY),
     ]);
 
     return NextResponse.json({
@@ -193,15 +195,7 @@ async function handlePut(
 ): Promise<NextResponse> {
   try {
     const [unclassified, products] = await Promise.all([
-      executeQuery<UnclassifiedRow>(
-        `SELECT DISTINCT campaign_id, campaign_name
-         FROM merged_ads_spending
-         WHERE campaign_id IS NOT NULL
-           AND campaign_id != ''
-           AND campaign_id NOT IN (SELECT campaign_id FROM app_campaign_classifications)
-         ORDER BY campaign_name
-         LIMIT 500`
-      ),
+      executeQuery<UnclassifiedRow>(UNCLASSIFIED_QUERY),
       executeQuery<ProductRow>(
         `SELECT id, name, COALESCE(color, '#6b7280') as color
          FROM app_products

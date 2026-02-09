@@ -12,6 +12,14 @@ export const DIMENSION_GROUPS: DimensionGroupConfig[] = [
       { id: 'date', label: 'Date', group: 'advertising' },
     ],
   },
+  {
+    id: 'classification',
+    label: 'Classification',
+    dimensions: [
+      { id: 'classifiedProduct', label: 'Product', group: 'classification' },
+      { id: 'classifiedCountry', label: 'Market', group: 'classification' },
+    ],
+  },
 ];
 
 export const ALL_DIMENSIONS = DIMENSION_GROUPS.flatMap((g) => g.dimensions);

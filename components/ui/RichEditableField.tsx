@@ -5,6 +5,7 @@ import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Underline from '@tiptap/extension-underline';
+import { sanitizeHtml } from '@/lib/sanitize';
 import {
   Bold,
   Italic,
@@ -301,7 +302,7 @@ export function RichEditableField({
               ref={contentRef}
               className={`${styles.renderedContent} ${shouldTruncate ? styles.truncated : ''}`}
               style={shouldTruncate ? { maxHeight: maxCollapsedHeight } : undefined}
-              dangerouslySetInnerHTML={{ __html: displayValue }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(displayValue) }}
             />
           )}
           <Pencil size={14} className={styles.editIcon} />

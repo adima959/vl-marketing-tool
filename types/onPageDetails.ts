@@ -53,17 +53,3 @@ export interface OnPageDetailRequest {
   pagination?: { page: number; pageSize: number };
 }
 
-/**
- * API response structure for on-page detail endpoint
- */
-export interface OnPageDetailResponse {
-  success: boolean;
-  data?: {
-    records: OnPageDetailRecord[];
-    total: number;
-    page: number;
-    pageSize: number;
-    pageTypeSummary: PageTypeSummary[];
-  };
-  error?: string;
-}

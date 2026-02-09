@@ -2,6 +2,7 @@
 // Uses PostgreSQL (Neon) - placeholders: $1, $2, $3
 
 import { executeQuery } from '@/lib/server/db';
+import { toCamelCase, rowsToCamelCase } from '@/lib/server/caseUtils';
 import { computeSummary } from '@/lib/marketing-pipeline/cpaUtils';
 import type {
   PipelineCard,
@@ -21,23 +22,6 @@ import type {
   VerdictType,
   CreateCampaignRequest,
 } from '@/types';
-
-// ════════════════════════════════════════════════════════════════════
-// Helpers
-// ════════════════════════════════════════════════════════════════════
-
-function toCamelCase<T>(row: Record<string, unknown>): T {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(row)) {
-    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-    result[camelKey] = value;
-  }
-  return result as T;
-}
-
-function rowsToCamelCase<T>(rows: Record<string, unknown>[]): T[] {
-  return rows.map(row => toCamelCase<T>(row));
-}
 
 
 // ════════════════════════════════════════════════════════════════════
