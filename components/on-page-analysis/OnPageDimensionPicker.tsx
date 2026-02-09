@@ -8,10 +8,10 @@ import { useOnPageStore } from '@/stores/onPageStore';
 import styles from '@/components/filters/DimensionPicker.module.css';
 
 const GROUP_COLORS: Record<string, string> = {
-  pages: '#3b82f6',
-  advertising: '#f59e0b',
-  visitor: '#8b5cf6',
-  general: '#10b981',
+  content: '#3b82f6',    // Blue - what they viewed
+  source: '#f59e0b',     // Orange - how they got there
+  audience: '#8b5cf6',   // Purple - who they are
+  time: '#10b981',       // Green - when
 };
 
 export function OnPageDimensionPicker(): React.ReactElement {

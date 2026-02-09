@@ -23,12 +23,15 @@ export interface OnPageDetailRecord {
   urlPath: string;
   urlFull: string | null;
   ffVisitorId: string;
+  sessionId: string | null;
   visitNumber: number | null;
   activeTimeS: number | null;
   scrollPercent: number | null;
   heroScrollPassed: boolean;
   formView: boolean;
   formStarted: boolean;
+  ctaViewed: boolean;
+  ctaClicked: boolean;
   deviceType: string | null;
   countryCode: string | null;
   pageType: string | null;
@@ -37,20 +40,19 @@ export interface OnPageDetailRecord {
   utmContent: string | null;
   utmMedium: string | null;
   utmTerm: string | null;
+  keyword: string | null;
+  placement: string | null;
+  referrer: string | null;
+  userAgent: string | null;
+  language: string | null;
+  platform: string | null;
   osName: string | null;
+  osVersion: string | null;
   browserName: string | null;
   fcpS: number | null;
   lcpS: number | null;
   ttiS: number | null;
   formErrors: number;
-}
-
-/**
- * Page type tab with count, sorted by count descending
- */
-export interface PageTypeSummary {
-  pageType: string;
-  count: number;
 }
 
 /**
@@ -60,7 +62,6 @@ export interface OnPageDetailRequest {
   dateRange: { start: string; end: string };
   dimensionFilters: Record<string, string>;
   metricId?: string;
-  pageTypeFilter?: string;
   pagination?: { page: number; pageSize: number };
 }
 

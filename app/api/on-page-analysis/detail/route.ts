@@ -12,12 +12,15 @@ interface RawPageViewRow {
   url_path: string;
   url_full: string | null;
   ff_visitor_id: string;
+  session_id: string | null;
   visit_number: number | null;
   active_time_s: number | null;
   scroll_percent: number | null;
   hero_scroll_passed: boolean;
   form_view: boolean;
   form_started: boolean;
+  cta_viewed: boolean;
+  cta_clicked: boolean;
   device_type: string | null;
   country_code: string | null;
   page_type: string | null;
@@ -26,7 +29,14 @@ interface RawPageViewRow {
   utm_content: string | null;
   utm_medium: string | null;
   utm_term: string | null;
+  keyword: string | null;
+  placement: string | null;
+  referrer: string | null;
+  user_agent: string | null;
+  language: string | null;
+  platform: string | null;
   os_name: string | null;
+  os_version: string | null;
   browser_name: string | null;
   fcp_s: string | null;
   lcp_s: string | null;
@@ -56,7 +66,7 @@ async function handleOnPageDetail(
     const page = body.pagination?.page ?? 1;
     const pageSize = body.pagination?.pageSize ?? 100;
 
-    const { query, countQuery, summaryQuery, params, summaryParams } =
+    const { query, countQuery, params } =
       onPageQueryBuilder.buildDetailQuery({
         dateRange: {
           start: new Date(body.dateRange.start),
@@ -64,15 +74,13 @@ async function handleOnPageDetail(
         },
         dimensionFilters: body.dimensionFilters || {},
         metricId: body.metricId,
-        pageTypeFilter: body.pageTypeFilter,
         page,
         pageSize,
       });
 
-    const [rows, countResult, summaryResult] = await Promise.all([
+    const [rows, countResult] = await Promise.all([
       executeQuery<RawPageViewRow>(query, params),
       executeQuery<{ total: string }>(countQuery, params),
-      executeQuery<{ page_type: string; count: string }>(summaryQuery, summaryParams),
     ]);
 
     const total = Number(countResult[0]?.total) || 0;
@@ -83,12 +91,15 @@ async function handleOnPageDetail(
       urlPath: row.url_path,
       urlFull: row.url_full,
       ffVisitorId: row.ff_visitor_id,
+      sessionId: row.session_id,
       visitNumber: row.visit_number != null ? Number(row.visit_number) : null,
       activeTimeS: row.active_time_s != null ? Number(row.active_time_s) : null,
       scrollPercent: row.scroll_percent != null ? Number(row.scroll_percent) : null,
       heroScrollPassed: Boolean(row.hero_scroll_passed),
       formView: Boolean(row.form_view),
       formStarted: Boolean(row.form_started),
+      ctaViewed: Boolean(row.cta_viewed),
+      ctaClicked: Boolean(row.cta_clicked),
       deviceType: row.device_type,
       countryCode: row.country_code,
       pageType: row.page_type,
@@ -97,7 +108,14 @@ async function handleOnPageDetail(
       utmContent: row.utm_content,
       utmMedium: row.utm_medium,
       utmTerm: row.utm_term,
+      keyword: row.keyword,
+      placement: row.placement,
+      referrer: row.referrer,
+      userAgent: row.user_agent,
+      language: row.language,
+      platform: row.platform,
       osName: row.os_name,
+      osVersion: row.os_version,
       browserName: row.browser_name,
       fcpS: row.fcp_s != null ? Number(row.fcp_s) : null,
       lcpS: row.lcp_s != null ? Number(row.lcp_s) : null,
@@ -105,14 +123,9 @@ async function handleOnPageDetail(
       formErrors: Number(row.form_errors) || 0,
     }));
 
-    const pageTypeSummary = summaryResult.map((r) => ({
-      pageType: r.page_type,
-      count: Number(r.count),
-    }));
-
     return NextResponse.json({
       success: true,
-      data: { records, total, page, pageSize, pageTypeSummary },
+      data: { records, total, page, pageSize },
     });
   } catch (error: unknown) {
     const { message, statusCode } = maskErrorForClient(error, 'On-Page Detail API');

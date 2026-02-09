@@ -96,54 +96,6 @@
   line-height: 18px;
 }
 
-/* === Tabs === */
-.tabBar {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  padding: 0 20px;
-  border-bottom: 1px solid var(--color-border-light);
-  flex-shrink: 0;
-  overflow-x: auto;
-}
-
-.tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border: none;
-  background: none;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-gray-500);
-  cursor: pointer;
-  white-space: nowrap;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  transition: color 0.15s, border-color 0.15s;
-}
-
-.tab:hover {
-  color: var(--color-gray-700);
-}
-
-.tabActive {
-  color: var(--color-gray-900);
-  border-bottom-color: var(--color-gray-900);
-}
-
-.tabCount {
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--color-gray-400);
-  font-variant-numeric: tabular-nums;
-}
-
-.tabActive .tabCount {
-  color: var(--color-gray-500);
-}
-
 /* === Table === */
 .tableWrap :global(.ant-table-wrapper) {
   border-radius: 0;
@@ -234,6 +186,70 @@
   border-radius: 3px;
   background: var(--color-primary-50);
   color: var(--color-primary);
+}
+
+/* === Export progress === */
+.exportProgress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+  margin-right: 12px;
+}
+
+.progressBar {
+  width: 160px;
+  height: 4px;
+  background: var(--color-background-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 2px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.progressFill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 100%
+  );
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.progressText {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-gray-500);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.exportButton {
+  min-width: 80px;
 }
 
 /* === Error === */

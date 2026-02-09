@@ -20,6 +20,7 @@ function formatLocalDate(date: Date): string {
 export class OnPageQueryBuilder {
   /**
    * Maps frontend dimension IDs to database column names
+   * url_path is already normalized in the materialized view (no # or ? params)
    */
   private readonly dimensionMap: Record<string, string> = {
     urlPath: 'url_path',
@@ -31,6 +32,9 @@ export class OnPageQueryBuilder {
     webmasterId: 'utm_medium',
     funnelId: 'ff_funnel_id',
     utmTerm: 'utm_term',
+    keyword: 'keyword',
+    placement: 'placement',
+    referrer: 'referrer',
     deviceType: 'device_type',
     osName: 'os_name',
     browserName: 'browser_name',
@@ -459,6 +463,7 @@ export class OnPageQueryBuilder {
     }
 
     // Append classification JOINs when needed
+    // url_path is already normalized in the view, so direct comparison is fine
     if (needsClassificationJoin) {
       fromClause += `
       LEFT JOIN app_url_classifications uc ON ${columnPrefix}url_path = uc.url_path AND uc.is_ignored = false
@@ -609,6 +614,7 @@ export class OnPageQueryBuilder {
   /**
    * Maps dimension IDs to raw column names for detail queries (no JOINs needed).
    * Enriched dimensions map to their raw utm_ columns instead of mas.* columns.
+   * url_path is already normalized in the materialized view (no # or ? params)
    */
   private readonly detailFilterMap: Record<string, string> = {
     urlPath: 'url_path',
@@ -647,11 +653,10 @@ export class OnPageQueryBuilder {
     dateRange: { start: Date; end: Date };
     dimensionFilters: Record<string, string>;
     metricId?: string;
-    pageTypeFilter?: string;
     page: number;
     pageSize: number;
-  }): { query: string; countQuery: string; summaryQuery: string; params: any[]; summaryParams: any[] } {
-    const { dateRange, dimensionFilters, metricId, pageTypeFilter, page, pageSize } = options;
+  }): { query: string; countQuery: string; params: any[] } {
+    const { dateRange, dimensionFilters, metricId, page, pageSize } = options;
 
     // Base params shared by all queries (date range + dimension filters)
     const baseParams: any[] = [
@@ -662,6 +667,7 @@ export class OnPageQueryBuilder {
     const conditions: string[] = [];
     for (const [dimId, value] of Object.entries(dimensionFilters)) {
       // Classification dims use IN subqueries (no table alias needed)
+      // url_path is already normalized in the view, so direct comparison is fine
       if (dimId === 'classifiedProduct') {
         if (value === 'Unknown') {
           conditions.push(`url_path NOT IN (SELECT uc_f.url_path FROM app_url_classifications uc_f WHERE uc_f.is_ignored = false)`);
@@ -705,36 +711,17 @@ export class OnPageQueryBuilder {
         ${whereExtra}
     `;
 
-    // Summary query uses only base params (no pageType filter)
-    const summaryParams = [...baseParams];
-    const summaryQuery = `
-      SELECT COALESCE(page_type, 'unknown') as page_type, COUNT(*) as count
-      FROM remote_session_tracker.event_page_view_enriched_v2
-      ${baseWhere}
-      GROUP BY page_type
-      ORDER BY count DESC
-    `;
-
-    // Detail query params include optional pageType filter
-    const detailParams = [...baseParams];
-    let pageTypeWhere = '';
-    if (pageTypeFilter) {
-      detailParams.push(pageTypeFilter);
-      pageTypeWhere = `AND COALESCE(page_type, 'unknown') = $${detailParams.length}`;
-    }
-
     const safePage = Math.max(1, Math.floor(page));
     const safePageSize = Math.max(1, Math.min(500, Math.floor(pageSize)));
     const offset = (safePage - 1) * safePageSize;
 
-    const detailWhere = `${baseWhere} ${pageTypeWhere}`;
-
-    const selectCols = `id, created_at, url_path, url_full, ff_visitor_id,
+    const selectCols = `id, created_at, url_path, url_full, ff_visitor_id, session_id,
         visit_number, active_time_s, scroll_percent,
-        hero_scroll_passed, form_view, form_started,
+        hero_scroll_passed, form_view, form_started, cta_viewed, cta_clicked,
         device_type, country_code, page_type,
         utm_source, utm_campaign, utm_content, utm_medium, utm_term,
-        os_name, browser_name, fcp_s, lcp_s, tti_s, form_errors`;
+        keyword, placement, referrer, user_agent, language, platform,
+        os_name, os_version, browser_name, fcp_s, lcp_s, tti_s, form_errors`;
 
     const query = isUniqueVisitors
       ? `
@@ -742,17 +729,17 @@ export class OnPageQueryBuilder {
       FROM (
         SELECT DISTINCT ON (ff_visitor_id) ${selectCols}
         FROM remote_session_tracker.event_page_view_enriched_v2
-        ${detailWhere}
+        ${baseWhere}
         ORDER BY ff_visitor_id, created_at DESC
       ) sub
-      ORDER BY created_at DESC
+      ORDER BY created_at DESC, ff_visitor_id ASC
       LIMIT ${safePageSize} OFFSET ${offset}
     `
       : `
       SELECT ${selectCols}
       FROM remote_session_tracker.event_page_view_enriched_v2
-      ${detailWhere}
-      ORDER BY created_at DESC
+      ${baseWhere}
+      ORDER BY created_at DESC, ff_visitor_id ASC
       LIMIT ${safePageSize} OFFSET ${offset}
     `;
 
@@ -760,15 +747,15 @@ export class OnPageQueryBuilder {
       ? `
       SELECT COUNT(DISTINCT ff_visitor_id) as total
       FROM remote_session_tracker.event_page_view_enriched_v2
-      ${detailWhere}
+      ${baseWhere}
     `
       : `
       SELECT COUNT(*) as total
       FROM remote_session_tracker.event_page_view_enriched_v2
-      ${detailWhere}
+      ${baseWhere}
     `;
 
-    return { query, countQuery, summaryQuery, params: detailParams, summaryParams };
+    return { query, countQuery, params: baseParams };
   }
 }
 

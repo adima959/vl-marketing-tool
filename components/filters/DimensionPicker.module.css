@@ -1,4 +1,10 @@
-/* ── Trigger button ── */
+/* ════════════════════════════════════════════════════════════
+   DIMENSION PICKER - Refined Analytics Dashboard Component
+   ════════════════════════════════════════════════════════════
+   Refined for smooth, polished interactions with subtle feedback
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Trigger Button ── */
 .triggerBtn {
   width: 30px !important;
   height: 30px !important;
@@ -11,23 +17,34 @@
   border: 1px dashed var(--color-gray-300) !important;
   color: var(--color-gray-400) !important;
   background: var(--color-background-primary) !important;
-  transition: all var(--transition-fast) !important;
+  transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1) !important;
   cursor: pointer !important;
 }
 
-.triggerBtn:hover,
-.triggerBtnOpen {
+.triggerBtn:hover {
   border-color: var(--color-gray-400) !important;
   border-style: solid !important;
   color: var(--color-gray-600) !important;
   background: var(--color-gray-50) !important;
 }
 
-/* ── Popover overrides ── */
+.triggerBtnOpen {
+  border-color: var(--color-primary) !important;
+  border-style: solid !important;
+  color: var(--color-primary) !important;
+  background: var(--color-primary-50) !important;
+}
+
+.triggerBtn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ── Popover Overrides ── */
 .popover :global(.ant-popover-inner) {
   padding: 0 !important;
-  border-radius: var(--radius-xl) !important;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.06) !important;
   border: 1px solid var(--color-gray-200) !important;
   overflow: hidden;
 }
@@ -36,79 +53,96 @@
   display: none !important;
 }
 
-/* ── Panel layout ── */
+/* ── Panel Layout ── */
 .panel {
-  width: 220px;
+  width: 240px;
 }
 
-/* ── Search ── */
+/* ── Search Section ── */
 .searchWrapper {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--color-gray-100);
+  padding: 12px 12px 10px 12px;
+  border-bottom: 1px solid var(--color-gray-150);
+  background: linear-gradient(to bottom, var(--color-gray-25), transparent);
 }
 
 .searchInput {
   width: 100%;
-  height: 32px;
-  border: 1px solid var(--color-gray-200);
-  border-radius: var(--radius-md);
-  padding: 0 10px;
-  font-size: 13px;
-  color: var(--color-gray-800);
-  background: var(--color-gray-50);
+  height: 34px;
+  border: 1px solid var(--color-gray-250);
+  border-radius: 7px;
+  padding: 0 11px;
+  font-size: 13.5px;
+  font-weight: 400;
+  color: var(--color-gray-900);
+  background: var(--color-background-primary);
   outline: none;
-  transition: border-color var(--transition-fast), background var(--transition-fast);
+  transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1);
   font-family: var(--font-family-data);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .searchInput::placeholder {
   color: var(--color-gray-400);
 }
 
-.searchInput:focus {
-  border-color: var(--color-gray-300);
-  background: var(--color-background-primary);
+.searchInput:hover {
+  border-color: var(--color-gray-350);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-/* ── Scrollable list ── */
+.searchInput:focus {
+  border-color: var(--color-primary);
+  background: var(--color-background-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* ── Scrollable List ── */
 .listArea {
-  max-height: 340px;
+  max-height: 360px;
   overflow-y: auto;
-  padding: 4px 0;
+  padding: 6px 8px 8px 8px;
   overscroll-behavior: contain;
 }
 
 .listArea::-webkit-scrollbar {
-  width: 4px;
+  width: 5px;
 }
 
 .listArea::-webkit-scrollbar-track {
   background: transparent;
+  margin: 4px 0;
 }
 
 .listArea::-webkit-scrollbar-thumb {
-  background: var(--color-gray-200);
-  border-radius: 2px;
+  background: var(--color-gray-250);
+  border-radius: 3px;
+  transition: background 180ms ease;
 }
 
-/* ── Group ── */
+.listArea::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gray-350);
+}
+
+/* ── Group Section ── */
 .group {
   padding: 0;
 }
 
 .group + .group {
-  margin-top: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-gray-100);
 }
 
-/* ── Group header ── */
+/* ── Group Header ── */
 .groupHeader {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 12px;
-  margin: 0 6px;
-  border-radius: var(--radius-sm);
-  background: var(--color-gray-50);
+  padding: 4px 8px;
+  margin: 0 2px 3px 2px;
+  border-radius: 5px;
+  background: transparent;
   user-select: none;
 }
 
@@ -128,65 +162,87 @@
   line-height: 1;
 }
 
-/* ── Dimension item ── */
+/* ── Dimension Item ── */
 .item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 10px;
-  margin: 1px 6px;
-  border-radius: var(--radius-md);
-  font-size: 14px;
+  gap: 9px;
+  padding: 7px 10px;
+  margin: 1px 2px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 400;
   color: var(--color-gray-800);
   cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1);
   user-select: none;
-  line-height: 1.3;
+  line-height: 1.4;
   position: relative;
+  background: transparent;
 }
 
 .item:hover {
-  background: var(--color-gray-50);
+  background: var(--color-primary-50);
   color: var(--color-gray-900);
+  transform: translateX(1px);
 }
 
 .item:active {
-  background: var(--color-gray-100);
+  background: var(--color-primary-75);
+  transform: translateX(1px) scale(0.99);
 }
 
-/* Selected / already-active dimension */
+.item:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+/* ── Selected State ── */
 .itemSelected {
   color: var(--color-gray-400);
   background: transparent;
   cursor: default;
+  font-weight: 400;
 }
 
 .itemSelected:hover {
   background: transparent;
   color: var(--color-gray-400);
+  transform: none;
+}
+
+.itemSelected:active {
+  transform: none;
 }
 
 .itemLabel {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+/* ── Check Icon ── */
 .itemCheck {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--color-gray-400);
   flex-shrink: 0;
   opacity: 0;
-  transition: opacity var(--transition-fast);
+  transition: opacity 220ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .itemSelected .itemCheck {
   opacity: 1;
 }
 
-/* ── Empty state ── */
+/* ── Empty State ── */
 .empty {
-  padding: 20px 12px;
+  padding: 28px 16px;
   text-align: center;
   color: var(--color-gray-400);
-  font-size: 12px;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.5;
 }
