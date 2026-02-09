@@ -732,7 +732,9 @@ export class OnPageQueryBuilder {
     const selectCols = `id, created_at, url_path, url_full, ff_visitor_id,
         visit_number, active_time_s, scroll_percent,
         hero_scroll_passed, form_view, form_started,
-        device_type, country_code, page_type`;
+        device_type, country_code, page_type,
+        utm_source, utm_campaign, utm_content, utm_medium, utm_term,
+        os_name, browser_name, fcp_s, lcp_s, tti_s, form_errors`;
 
     const query = isUniqueVisitors
       ? `

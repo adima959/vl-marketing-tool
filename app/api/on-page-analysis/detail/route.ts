@@ -21,6 +21,17 @@ interface RawPageViewRow {
   device_type: string | null;
   country_code: string | null;
   page_type: string | null;
+  utm_source: string | null;
+  utm_campaign: string | null;
+  utm_content: string | null;
+  utm_medium: string | null;
+  utm_term: string | null;
+  os_name: string | null;
+  browser_name: string | null;
+  fcp_s: string | null;
+  lcp_s: string | null;
+  tti_s: string | null;
+  form_errors: string | null;
 }
 
 /**
@@ -81,6 +92,17 @@ async function handleOnPageDetail(
       deviceType: row.device_type,
       countryCode: row.country_code,
       pageType: row.page_type,
+      utmSource: row.utm_source,
+      utmCampaign: row.utm_campaign,
+      utmContent: row.utm_content,
+      utmMedium: row.utm_medium,
+      utmTerm: row.utm_term,
+      osName: row.os_name,
+      browserName: row.browser_name,
+      fcpS: row.fcp_s != null ? Number(row.fcp_s) : null,
+      lcpS: row.lcp_s != null ? Number(row.lcp_s) : null,
+      ttiS: row.tti_s != null ? Number(row.tti_s) : null,
+      formErrors: Number(row.form_errors) || 0,
     }));
 
     const pageTypeSummary = summaryResult.map((r) => ({

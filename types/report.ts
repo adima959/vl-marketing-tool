@@ -15,6 +15,7 @@ export interface ReportRow {
     conversionRate: number;
     crmSubscriptions: number;
     approvedSales: number;
+    trials: number;
     approvalRate: number;
     realCpa: number;
   };

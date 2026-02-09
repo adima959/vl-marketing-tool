@@ -187,7 +187,7 @@ export function GenericDataTable<TRow extends BaseTableRow>({
         .filter((col) => group.metricIds.includes(col.id))
         .map((col) => ({
           title: (
-            <Tooltip title={col.label} placement="top">
+            <Tooltip title={col.description || col.label} placement="top">
               <span style={{ cursor: 'default' }}>{col.shortLabel}</span>
             </Tooltip>
           ),

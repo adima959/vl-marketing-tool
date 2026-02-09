@@ -153,6 +153,7 @@ export class MarketingDetailQueryBuilder {
         AND s.tracking_id IS NOT NULL
         AND s.tracking_id != 'null'
         ${whereClause}
+      GROUP BY s.id
       ORDER BY s.date_create DESC
       ${limitClause}
     `;
@@ -235,6 +236,7 @@ export class MarketingDetailQueryBuilder {
         AND s.tracking_id IS NOT NULL
         AND s.tracking_id != 'null'
         ${whereClause}
+      GROUP BY s.id
       ORDER BY s.date_create DESC
       ${limitClause}
     `;
@@ -275,6 +277,7 @@ export class MarketingDetailQueryBuilder {
   ): QueryResult {
     switch (metricId) {
       case 'crmSubscriptions':
+      case 'trials':
         return this.buildCrmSubscriptionsQuery(filters, pagination);
       case 'approvedSales':
         return this.buildApprovedSalesQuery(filters, pagination);

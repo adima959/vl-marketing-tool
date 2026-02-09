@@ -24,6 +24,7 @@ export interface AdsRow {
 export interface MarketingRow extends AdsRow {
   crm_subscriptions: number;
   approved_sales: number;
+  trials: number;
 }
 
 export interface MarketingQueryParams {
@@ -50,6 +51,7 @@ export interface AggregatedMetrics {
   conversion_rate: number;
   crm_subscriptions: number;
   approved_sales: number;
+  trials: number;
   approval_rate: number;
   real_cpa: number;
 }
@@ -138,6 +140,7 @@ const jsSortMap: Record<string, keyof AggregatedMetrics> = {
   conversionRate: 'conversion_rate',
   crmSubscriptions: 'crm_subscriptions',
   approvedSales: 'approved_sales',
+  trials: 'trials',
   approvalRate: 'approval_rate',
   realCpa: 'real_cpa',
 };
@@ -404,6 +407,7 @@ export async function getMarketingData(
   return adsData.map(row => {
     let crm_subscriptions = 0;
     let approved_sales = 0;
+    let trials = 0;
 
     const campaignIds = row.campaign_ids || [];
     const adsetIds = row.adset_ids || [];
@@ -422,6 +426,7 @@ export async function getMarketingData(
             if (sourceMatched) {
               crm_subscriptions += Number(crm.subscription_count || 0);
               approved_sales += Number(crm.approved_count || 0);
+              trials += Number(crm.trial_count || 0);
             }
           }
         }
@@ -441,6 +446,7 @@ export async function getMarketingData(
       conversion_rate: Number(row.conversion_rate) || 0,
       crm_subscriptions,
       approved_sales,
+      trials,
       approval_rate: crm_subscriptions > 0 ? approved_sales / crm_subscriptions : 0,
       real_cpa: approved_sales > 0 ? cost / approved_sales : 0,
     };

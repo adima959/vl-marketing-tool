@@ -8,6 +8,7 @@ export interface CRMSubscriptionRow {
   date: string;
   subscription_count: number;
   approved_count: number;
+  trial_count: number;
 }
 
 export interface CRMQueryFilters {
@@ -81,7 +82,8 @@ export async function getCRMSubscriptions(
       s.tracking_id as ad_id,
       DATE(s.date_create) as date,
       COUNT(DISTINCT s.id) as subscription_count,
-      COUNT(DISTINCT CASE WHEN i.is_marked = 1 AND i.deleted = 0 THEN i.id END) as approved_count
+      COUNT(DISTINCT CASE WHEN i.is_marked = 1 AND i.deleted = 0 THEN i.id END) as approved_count,
+      COUNT(DISTINCT i.id) as trial_count
     FROM subscription s
     INNER JOIN invoice i ON i.subscription_id = s.id
       AND i.type = 1

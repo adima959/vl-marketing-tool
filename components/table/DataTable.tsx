@@ -20,7 +20,7 @@ const COLUMN_GROUPS: ColumnGroup[] = [
 ];
 
 // Define which CRM metrics are clickable
-const CLICKABLE_MARKETING_METRICS = ['crmSubscriptions', 'approvedSales'];
+const CLICKABLE_MARKETING_METRICS = ['crmSubscriptions', 'approvedSales', 'trials'];
 
 interface DataTableProps {
   /** Optional callback when a CRM metric cell is clicked (for detail modals) */

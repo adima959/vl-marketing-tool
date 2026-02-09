@@ -175,9 +175,9 @@ async function handleMarketingDetails(
       );
     }
 
-    if (!['crmSubscriptions', 'approvedSales'].includes(body.metricId)) {
+    if (!['crmSubscriptions', 'approvedSales', 'trials'].includes(body.metricId)) {
       return NextResponse.json(
-        { success: false, error: `Invalid metricId: ${body.metricId}. Must be 'crmSubscriptions' or 'approvedSales'` },
+        { success: false, error: `Invalid metricId: ${body.metricId}. Must be 'crmSubscriptions', 'approvedSales', or 'trials'` },
         { status: 400 }
       );
     }

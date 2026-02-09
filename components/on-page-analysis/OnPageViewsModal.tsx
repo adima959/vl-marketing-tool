@@ -96,7 +96,9 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
       const headers = [
         'Timestamp', 'URL', 'Full URL', 'Visitor ID', 'Visit #',
         'Active Time (s)', 'Scroll %', 'Hero Scroll', 'Form View',
-        'Form Started', 'Device', 'Country',
+        'Form Started', 'Form Errors', 'Device', 'Country',
+        'Source', 'Campaign', 'Adset', 'Ad', 'UTM Term',
+        'OS', 'Browser', 'FCP (s)', 'LCP (s)', 'TTI (s)',
       ];
 
       const csvRows = [
@@ -112,8 +114,19 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
           r.heroScrollPassed ? 'Yes' : 'No',
           r.formView ? 'Yes' : 'No',
           r.formStarted ? 'Yes' : 'No',
+          r.formErrors || 0,
           `"${r.deviceType || ''}"`,
           `"${r.countryCode || ''}"`,
+          `"${(r.utmSource || '').replace(/"/g, '""')}"`,
+          `"${(r.utmCampaign || '').replace(/"/g, '""')}"`,
+          `"${(r.utmContent || '').replace(/"/g, '""')}"`,
+          `"${(r.utmMedium || '').replace(/"/g, '""')}"`,
+          `"${(r.utmTerm || '').replace(/"/g, '""')}"`,
+          `"${r.osName || ''}"`,
+          `"${r.browserName || ''}"`,
+          r.fcpS != null ? r.fcpS.toFixed(2) : '',
+          r.lcpS != null ? r.lcpS.toFixed(2) : '',
+          r.ttiS != null ? r.ttiS.toFixed(2) : '',
         ].join(',')),
       ];
 
@@ -315,6 +328,105 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
         <span className={styles.monoCell}>{val || '–'}</span>
       ),
     },
+    {
+      title: 'Source',
+      dataIndex: 'utmSource',
+      width: 90,
+      ellipsis: { showTitle: false },
+      render: (val: string | null) => (
+        <Tooltip title={val}><span style={{ fontSize: 12 }}>{val || '–'}</span></Tooltip>
+      ),
+    },
+    {
+      title: 'Campaign',
+      dataIndex: 'utmCampaign',
+      width: 130,
+      ellipsis: { showTitle: false },
+      render: (val: string | null) => (
+        <Tooltip title={val}><span className={styles.monoCell}>{val || '–'}</span></Tooltip>
+      ),
+    },
+    {
+      title: 'Adset',
+      dataIndex: 'utmContent',
+      width: 130,
+      ellipsis: { showTitle: false },
+      render: (val: string | null) => (
+        <Tooltip title={val}><span className={styles.monoCell}>{val || '–'}</span></Tooltip>
+      ),
+    },
+    {
+      title: 'Ad',
+      dataIndex: 'utmMedium',
+      width: 130,
+      ellipsis: { showTitle: false },
+      render: (val: string | null) => (
+        <Tooltip title={val}><span className={styles.monoCell}>{val || '–'}</span></Tooltip>
+      ),
+    },
+    {
+      title: 'UTM Term',
+      dataIndex: 'utmTerm',
+      width: 100,
+      ellipsis: { showTitle: false },
+      render: (val: string | null) => (
+        <Tooltip title={val}><span style={{ fontSize: 12 }}>{val || '–'}</span></Tooltip>
+      ),
+    },
+    {
+      title: 'OS',
+      dataIndex: 'osName',
+      width: 70,
+      render: (val: string | null) => (
+        <span style={{ fontSize: 12 }}>{val || '–'}</span>
+      ),
+    },
+    {
+      title: 'Browser',
+      dataIndex: 'browserName',
+      width: 80,
+      render: (val: string | null) => (
+        <span style={{ fontSize: 12 }}>{val || '–'}</span>
+      ),
+    },
+    {
+      title: 'FCP',
+      dataIndex: 'fcpS',
+      width: 60,
+      align: 'right',
+      render: (val: number | null) => (
+        <span className={styles.monoCell}>{val != null ? `${val.toFixed(1)}s` : '–'}</span>
+      ),
+    },
+    {
+      title: 'LCP',
+      dataIndex: 'lcpS',
+      width: 60,
+      align: 'right',
+      render: (val: number | null) => (
+        <span className={styles.monoCell}>{val != null ? `${val.toFixed(1)}s` : '–'}</span>
+      ),
+    },
+    {
+      title: 'TTI',
+      dataIndex: 'ttiS',
+      width: 60,
+      align: 'right',
+      render: (val: number | null) => (
+        <span className={styles.monoCell}>{val != null ? `${val.toFixed(1)}s` : '–'}</span>
+      ),
+    },
+    {
+      title: 'Form Err',
+      dataIndex: 'formErrors',
+      width: 50,
+      align: 'center',
+      render: (val: number) => (
+        <span className={val > 0 ? styles.boolTrue : styles.boolFalse}>
+          {val > 0 ? val : '–'}
+        </span>
+      ),
+    },
   ], [repeatRowIds]);
 
   return (
@@ -322,7 +434,7 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
       title="Page Views"
       open={open}
       onCancel={onClose}
-      width={1400}
+      width="95vw"
       centered
       footer={null}
       className={`${modalStyles.modal} ${styles.modal}`}
@@ -400,7 +512,7 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
             ),
           }}
           rowKey="id"
-          scroll={{ x: 1420 }}
+          scroll={{ x: 2380 }}
           size="small"
         />
       </div>

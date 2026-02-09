@@ -84,6 +84,7 @@ async function handleMarketingQuery(
         conversionRate: row.conversion_rate,
         crmSubscriptions: row.crm_subscriptions,
         approvedSales: row.approved_sales,
+        trials: row.trials,
         approvalRate: row.approval_rate,
         realCpa: row.real_cpa,
       },

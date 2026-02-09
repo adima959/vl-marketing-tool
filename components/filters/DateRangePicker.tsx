@@ -2,11 +2,16 @@ import { DatePicker } from 'antd';
 import { SwapRightOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
+import isoWeek from 'dayjs/plugin/isoWeek';
+import updateLocale from 'dayjs/plugin/updateLocale';
 import type { Dayjs } from 'dayjs';
 import styles from './DateRangePicker.module.css';
 
 // Extend dayjs with plugins
 dayjs.extend(utc);
+dayjs.extend(isoWeek);
+dayjs.extend(updateLocale);
+dayjs.updateLocale('en', { weekStart: 1 });
 
 const { RangePicker } = DatePicker;
 
@@ -42,8 +47,8 @@ export function DateRangePicker({ dateRange, setDateRange }: DateRangePickerProp
   const rangePresets: { label: string; value: [Dayjs, Dayjs] }[] = [
     { label: 'Today', value: [dayjs().startOf('day'), dayjs().endOf('day')] },
     { label: 'Yesterday', value: [dayjs().subtract(1, 'day').startOf('day'), dayjs().subtract(1, 'day').endOf('day')] },
-    { label: 'This Week', value: [dayjs().startOf('week'), dayjs().endOf('week')] },
-    { label: 'Last Week', value: [dayjs().subtract(1, 'week').startOf('week'), dayjs().subtract(1, 'week').endOf('week')] },
+    { label: 'This Week', value: [dayjs().startOf('isoWeek'), dayjs().endOf('isoWeek')] },
+    { label: 'Last Week', value: [dayjs().subtract(1, 'week').startOf('isoWeek'), dayjs().subtract(1, 'week').endOf('isoWeek')] },
     { label: 'This Month', value: [dayjs().startOf('month'), dayjs().endOf('month')] },
     { label: 'Last Month', value: [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')] },
     { label: 'Last 7 Days', value: [dayjs().subtract(6, 'day').startOf('day'), dayjs().endOf('day')] },

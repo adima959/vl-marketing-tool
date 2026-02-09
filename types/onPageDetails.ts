@@ -32,6 +32,17 @@ export interface OnPageDetailRecord {
   deviceType: string | null;
   countryCode: string | null;
   pageType: string | null;
+  utmSource: string | null;
+  utmCampaign: string | null;
+  utmContent: string | null;
+  utmMedium: string | null;
+  utmTerm: string | null;
+  osName: string | null;
+  browserName: string | null;
+  fcpS: number | null;
+  lcpS: number | null;
+  ttiS: number | null;
+  formErrors: number;
 }
 
 /**
