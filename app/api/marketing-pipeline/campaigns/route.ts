@@ -9,6 +9,7 @@ import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 import { withAuth } from '@/lib/rbac';
 import { createCampaignSchema } from '@/lib/schemas/marketingPipeline';
 import type { AppUser } from '@/types/user';
+import { ZodError } from 'zod';
 
 export const POST = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
@@ -39,15 +40,15 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
     console.error('Error creating campaign:', error);
 
     // Handle Zod validation errors
-    if (error && typeof error === 'object' && 'issues' in error) {
+    if (error instanceof ZodError) {
       return NextResponse.json(
-        { success: false, error: 'Validation error', issues: (error as any).issues },
+        { success: false, error: 'Validation error', issues: error.issues },
         { status: 400 },
       );
     }
 
     return NextResponse.json(
-      { success: false, error: 'Failed to create campaign' },
+      { success: false, error: error instanceof Error ? error.message : 'Failed to create campaign' },
       { status: 500 },
     );
   }

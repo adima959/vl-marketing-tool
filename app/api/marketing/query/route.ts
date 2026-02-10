@@ -25,10 +25,11 @@ async function handleMarketingQuery(
     const rawBody = await request.json();
     const body = marketingQueryRequestSchema.parse(rawBody);
 
-    // Parse and build query parameters (convert null to undefined for parseQueryRequest)
+    // Parse and build query parameters (omit productFilter, convert null to undefined)
+    const { productFilter, sortBy, ...rest } = body;
     const queryParams = parseQueryRequest({
-      ...body,
-      sortBy: body.sortBy ?? undefined,
+      ...rest,
+      sortBy: sortBy ?? undefined,
     });
 
     // Build marketing query params with two-database approach
