@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -48,12 +48,18 @@ function ToolbarButton({
 }
 
 export function FormRichEditor({ value, onChange, placeholder = 'Write something...' }: FormRichEditorProps) {
-  const editor = useEditor({
-    extensions: [
+  // Memoize extensions to prevent re-registration warnings
+  const extensions = useMemo(
+    () => [
       StarterKit.configure({ heading: false, codeBlock: false, code: false, blockquote: false }),
       Placeholder.configure({ placeholder }),
       Underline,
     ],
+    [placeholder]
+  );
+
+  const editor = useEditor({
+    extensions,
     content: value || '',
     immediatelyRender: false,
     onUpdate: ({ editor: ed }) => {
