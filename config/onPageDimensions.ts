@@ -8,7 +8,6 @@ export const ON_PAGE_DIMENSION_GROUPS: DimensionGroupConfig[] = [
       { id: 'urlPath', label: 'URL', group: 'content' },
       { id: 'pageType', label: 'Page Type', group: 'content' },
       { id: 'classifiedProduct', label: 'Product', group: 'content' },
-      { id: 'classifiedCountry', label: 'Market', group: 'content' },
     ],
   },
   {

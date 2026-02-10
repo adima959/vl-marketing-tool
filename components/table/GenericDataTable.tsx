@@ -287,6 +287,8 @@ export function GenericDataTable<TRow extends BaseTableRow>({
     onMetricClick,
     onMarketingMetricClick,
     clickableMarketingMetrics,
+    onOnPageMetricClick,
+    clickableOnPageMetrics,
     loadedDimensions,
     loadedDateRange,
     toast,

@@ -15,7 +15,9 @@
 --    → Now JOINed from event_page_scroll table using MAX(depth) per page_load_id
 -- 3. form_errors was using wrong JSONB key ('errors' instead of 'error_count')
 --    → Now sums 'error_count' from each form in forms_properties
--- 4. hero_scroll_passed was using wrong JSONB key ('scroll_passed' instead of 'scrolled_past')
+-- 4. form_errors_detail (NEW) aggregates all error objects from all forms into JSONB array
+--    → Collects {field, value, message} objects for detailed error analysis
+-- 5. hero_scroll_passed was using wrong JSONB key ('scroll_passed' instead of 'scrolled_past')
 --    → Now checks 'scrolled_past' with ILIKE 'hero%' pattern
 --
 -- New JOINs added:
@@ -131,7 +133,7 @@ SELECT
     eps.max_scroll_percent AS scroll_percent,
     -- ============================================================
 
-    -- Form tracking (unchanged)
+    -- Form tracking (FIXED: form_errors count + NEW: form_errors_detail)
     COALESCE(
         (
             SELECT bool_or(COALESCE((f.value ->> 'viewed')::boolean, false))
@@ -146,6 +148,16 @@ SELECT
         ),
         0::bigint
     ) AS form_errors,
+    -- NEW: Aggregate all error objects from all forms into a JSONB array
+    (
+        SELECT jsonb_agg(error_obj)
+        FROM (
+            SELECT jsonb_array_elements(f.value -> 'errors') as error_obj
+            FROM jsonb_each(epv.forms_properties) f(key, value)
+            WHERE f.value -> 'errors' IS NOT NULL
+              AND jsonb_typeof(f.value -> 'errors') = 'array'
+        ) errors_list
+    ) AS form_errors_detail,
     COALESCE(
         (
             SELECT bool_or(COALESCE((f.value ->> 'started')::boolean, false))
@@ -226,6 +238,7 @@ Updated 2026-02-09: Fixed engagement metrics and tracking
   - active_time_s: Calculated from GREATEST(created_at, max_scroll_at, max_signal_at, max_form_at) capped by page_leave_at
   - scroll_percent: JOINed from event_page_scroll MAX(depth)
   - form_errors: Fixed to use error_count key (was using errors)
+  - form_errors_detail: NEW - JSONB array of all error objects with field, value, and message
   - hero_scroll_passed: Fixed to use scrolled_past key with hero% pattern (was using scroll_passed with hero)';
 
 

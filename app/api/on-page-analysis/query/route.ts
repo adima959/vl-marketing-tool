@@ -15,6 +15,15 @@ const CRM_METRIC_IDS = new Set(['crmConvRate', 'crmTrials', 'crmApproved', 'crmA
 /** Classification dims have no CRM equivalent — skip tracking match entirely */
 const SKIP_TRACKING_MATCH_DIMS = new Set(['classifiedProduct', 'classifiedCountry']);
 
+/** Maps dimension IDs to their corresponding tracking field for combo key exclusion */
+const TRACKING_FIELD_FOR_DIMENSION: Record<string, 'source' | 'campaign_id' | 'adset_id' | 'ad_id' | null> = {
+  utmSource: 'source',
+  campaign: 'campaign_id',
+  adset: 'adset_id',
+  ad: 'ad_id',
+  webmasterId: 'ad_id',
+};
+
 interface OnPageAggregatedRow {
   dimension_id?: string;
   dimension_value: string;
@@ -40,33 +49,64 @@ interface TrackingMatchRow {
 }
 
 /**
+ * Builds a tracking combo key, optionally excluding a specific field.
+ * Used to match CRM and PG data on shared tracking IDs while avoiding
+ * circular dependencies when grouping by a dimension that IS a tracking field.
+ */
+function buildTrackingKey(
+  source: string,
+  campaign_id: string,
+  adset_id: string,
+  ad_id: string,
+  excludeFields: string[] = []
+): string {
+  // Normalize 'null' strings to empty strings (CRM stores literal 'null')
+  const normalize = (val: string) => val === 'null' || val === null ? '' : val;
+
+  const parts = [];
+  if (!excludeFields.includes('source')) parts.push(normalize(source));
+  if (!excludeFields.includes('campaign_id')) parts.push(normalize(campaign_id));
+  if (!excludeFields.includes('adset_id')) parts.push(normalize(adset_id));
+  if (!excludeFields.includes('ad_id')) parts.push(normalize(ad_id));
+  return parts.join('::');
+}
+
+/**
  * Joins CRM tracking data with PG page view tracking data to attribute
  * CRM conversions to any page view dimension via shared tracking IDs.
  * Distributes trials/approved proportionally by visitor count when a
  * tracking combo spans multiple dimension values.
+ *
+ * Excludes specified tracking fields from the combo key to avoid circular
+ * matching when grouping by those dimensions or when they're parent filters.
  */
 function buildTrackingCrmMatch(
   crmTrackingRows: OnPageCRMTrackingRow[],
-  pgTrackingRows: TrackingMatchRow[]
+  pgTrackingRows: TrackingMatchRow[],
+  excludeFields: string[]
 ): Map<string, { trials: number; approved: number }> {
-  // Index CRM data by tracking combo key
+
+  // Index CRM data by tracking combo key (excluding specified fields)
   const crmIndex = new Map<string, { trials: number; approved: number }>();
   for (const row of crmTrackingRows) {
-    const key = `${row.source}::${row.campaign_id}::${row.adset_id}::${row.ad_id}`;
-    crmIndex.set(key, { trials: Number(row.trials), approved: Number(row.approved) });
+    const key = buildTrackingKey(row.source, row.campaign_id, row.adset_id, row.ad_id, excludeFields);
+    const existing = crmIndex.get(key) || { trials: 0, approved: 0 };
+    existing.trials += Number(row.trials);
+    existing.approved += Number(row.approved);
+    crmIndex.set(key, existing);
   }
 
   // Sum visitors per tracking combo across all dimension values
   const comboTotals = new Map<string, number>();
   for (const row of pgTrackingRows) {
-    const key = `${row.source}::${row.campaign_id}::${row.adset_id}::${row.ad_id}`;
+    const key = buildTrackingKey(row.source, row.campaign_id, row.adset_id, row.ad_id, excludeFields);
     comboTotals.set(key, (comboTotals.get(key) || 0) + Number(row.unique_visitors));
   }
 
   // Distribute CRM data proportionally per dimension value
   const result = new Map<string, { trials: number; approved: number }>();
   for (const row of pgTrackingRows) {
-    const comboKey = `${row.source}::${row.campaign_id}::${row.adset_id}::${row.ad_id}`;
+    const comboKey = buildTrackingKey(row.source, row.campaign_id, row.adset_id, row.ad_id, excludeFields);
     const crmData = crmIndex.get(comboKey);
     if (!crmData) continue;
 
@@ -172,11 +212,32 @@ async function handleOnPageQuery(
     ]);
 
     // Build CRM lookup: direct index for matchable dims, tracking match for others
+    // Normalize NULL to 'unknown' for consistent matching
     const directCrmIndex = directCrmRows
-      ? new Map(directCrmRows.map((r) => [String(r.dimension_value), r]))
+      ? new Map(directCrmRows.map((r) => {
+          const key = r.dimension_value != null
+            ? String(r.dimension_value).toLowerCase()
+            : 'unknown';
+          return [key, r];
+        }))
       : null;
+    // Determine fields to exclude from tracking combo:
+    // 1. Exclude current dimension's field (if it's a tracking dimension)
+    // 2. Exclude fields from parent dimensions (to handle drilldown from webmasterId='Unknown' → urlPath)
+    const fieldsToExclude = new Set<string>();
+    const currentExclude = TRACKING_FIELD_FOR_DIMENSION[currentDimension];
+    if (currentExclude) fieldsToExclude.add(currentExclude);
+
+    // Also exclude tracking fields from parent filters (e.g., when drilling from webmasterId='Unknown')
+    if (body.parentFilters) {
+      for (const dimId of Object.keys(body.parentFilters)) {
+        const exclude = TRACKING_FIELD_FOR_DIMENSION[dimId];
+        if (exclude) fieldsToExclude.add(exclude);
+      }
+    }
+
     const trackingCrm = (crmTrackingRows && pgTrackingRows)
-      ? buildTrackingCrmMatch(crmTrackingRows, pgTrackingRows)
+      ? buildTrackingCrmMatch(crmTrackingRows, pgTrackingRows, Array.from(fieldsToExclude))
       : null;
 
     // Check if there are more dimensions (children available)
@@ -202,9 +263,10 @@ async function handleOnPageQuery(
         : 'Unknown';
 
       // Match CRM data: direct match for matchable dims, tracking match for others
+      // Normalize NULL to 'unknown' for consistent matching
       const crmKey = row.dimension_id != null
         ? String(row.dimension_id)
-        : (row.dimension_value != null ? String(row.dimension_value).toLowerCase() : null);
+        : (row.dimension_value != null ? String(row.dimension_value).toLowerCase() : 'unknown');
 
       let trials: number | null = null;
       let approved: number | null = null;

@@ -1,6 +1,17 @@
 import { executeMariaDBQuery } from './mariadb';
 
 /**
+ * Maps country codes to possible CRM country values for filtering.
+ * CRM database may contain uppercase codes, lowercase codes, or full country names.
+ */
+const COUNTRY_CODE_VARIANTS: Record<string, string[]> = {
+  DK: ['DK', 'dk', 'Denmark', 'denmark', 'DNK', 'dnk'],
+  SE: ['SE', 'se', 'Sweden', 'sweden', 'SWE', 'swe'],
+  NO: ['NO', 'no', 'Norway', 'norway', 'NOR', 'nor'],
+  FI: ['FI', 'fi', 'Finland', 'finland', 'FIN', 'fin'],
+};
+
+/**
  * Maps on-page dimension IDs to CRM query fields.
  * Only dimensions with a CRM equivalent are listed here.
  */
@@ -8,9 +19,10 @@ export const CRM_DIMENSION_MAP: Record<string, {
   groupBy: string;
   filterField: string;
   isSource?: boolean;
+  isCountry?: boolean;
 }> = {
   utmSource: {
-    groupBy: "LOWER(COALESCE(sr.source, 'unknown'))",
+    groupBy: "LOWER(sr.source)",
     filterField: 'sr.source',
     isSource: true,
   },
@@ -29,6 +41,17 @@ export const CRM_DIMENSION_MAP: Record<string, {
   date: {
     groupBy: "DATE_FORMAT(s.date_create, '%Y-%m-%d')",
     filterField: 'DATE(s.date_create)',
+  },
+  countryCode: {
+    groupBy: `CASE
+      WHEN c.country IN ('DK', 'dk', 'Denmark', 'denmark', 'DNK', 'dnk') THEN 'DK'
+      WHEN c.country IN ('SE', 'se', 'Sweden', 'sweden', 'SWE', 'swe') THEN 'SE'
+      WHEN c.country IN ('NO', 'no', 'Norway', 'norway', 'NOR', 'nor') THEN 'NO'
+      WHEN c.country IN ('FI', 'fi', 'Finland', 'finland', 'FIN', 'fin') THEN 'FI'
+      ELSE COALESCE(c.country, 'Unknown')
+    END`,
+    filterField: 'c.country',
+    isCountry: true,
   },
 };
 
@@ -98,6 +121,8 @@ export async function getOnPageCRMData(
     if (filter.value === 'Unknown') {
       if (mapping.isSource) {
         whereClauses.push('sr.source IS NULL');
+      } else if (mapping.isCountry) {
+        whereClauses.push('c.country IS NULL');
       } else {
         whereClauses.push(`${mapping.filterField} IS NULL`);
       }
@@ -115,6 +140,17 @@ export async function getOnPageCRMData(
         whereClauses.push('LOWER(sr.source) = ?');
         params.push(filter.value.toLowerCase());
       }
+    } else if (mapping.isCountry) {
+      // Expand country code to matching CRM variants
+      const variants = COUNTRY_CODE_VARIANTS[filter.value.toUpperCase()];
+      if (variants) {
+        const placeholders = variants.map(() => '?').join(', ');
+        whereClauses.push(`c.country IN (${placeholders})`);
+        params.push(...variants);
+      } else {
+        whereClauses.push('c.country = ?');
+        params.push(filter.value);
+      }
     } else {
       whereClauses.push(`${mapping.filterField} = ?`);
       params.push(filter.value);
@@ -127,6 +163,7 @@ export async function getOnPageCRMData(
       COUNT(DISTINCT s.id) AS trials,
       COUNT(DISTINCT CASE WHEN i.is_marked = 1 AND i.deleted = 0 THEN s.id END) AS approved
     FROM subscription s
+    INNER JOIN customer c ON s.customer_id = c.id
     INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
     LEFT JOIN source sr ON sr.id = s.source_id
     WHERE ${whereClauses.join(' AND ')}
@@ -175,6 +212,8 @@ export async function getOnPageCRMByTrackingIds(
     if (filter.value === 'Unknown') {
       if (mapping.isSource) {
         whereClauses.push('sr.source IS NULL');
+      } else if (mapping.isCountry) {
+        whereClauses.push('c.country IS NULL');
       } else {
         whereClauses.push(`${mapping.filterField} IS NULL`);
       }
@@ -191,6 +230,16 @@ export async function getOnPageCRMByTrackingIds(
         whereClauses.push('LOWER(sr.source) = ?');
         params.push(filter.value.toLowerCase());
       }
+    } else if (mapping.isCountry) {
+      const variants = COUNTRY_CODE_VARIANTS[filter.value.toUpperCase()];
+      if (variants) {
+        const placeholders = variants.map(() => '?').join(', ');
+        whereClauses.push(`c.country IN (${placeholders})`);
+        params.push(...variants);
+      } else {
+        whereClauses.push('c.country = ?');
+        params.push(filter.value);
+      }
     } else {
       whereClauses.push(`${mapping.filterField} = ?`);
       params.push(filter.value);
@@ -206,6 +255,7 @@ export async function getOnPageCRMByTrackingIds(
       COUNT(DISTINCT s.id) AS trials,
       COUNT(DISTINCT CASE WHEN i.is_marked = 1 AND i.deleted = 0 THEN s.id END) AS approved
     FROM subscription s
+    INNER JOIN customer c ON s.customer_id = c.id
     INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
     LEFT JOIN source sr ON sr.id = s.source_id
     WHERE ${whereClauses.join(' AND ')}
