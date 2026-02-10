@@ -8,30 +8,21 @@ import { ValidationRateDataTable } from '@/components/validation-rate/Validation
 import { SavedViewsDropdown } from '@/components/saved-views/SavedViewsDropdown';
 import { useValidationRateUrlSync } from '@/hooks/useValidationRateUrlSync';
 import { useApplyViewFromUrl } from '@/hooks/useApplyViewFromUrl';
+import { VALIDATION_REPORTS, type ValidationReportType } from '@/config/validationReports';
 import pageStyles from '@/components/dashboard/dashboard.module.css';
 import type { ResolvedViewParams } from '@/types/savedViews';
-import type { LucideIcon } from 'lucide-react';
-import type { UseBoundStore, StoreApi } from 'zustand';
-import type { ValidationRateStore } from '@/types/validationRate';
-
-type RateType = 'approval' | 'buy' | 'pay';
-
-interface ValidationConfig {
-  title: string;
-  Icon: LucideIcon;
-  useStore: UseBoundStore<StoreApi<ValidationRateStore>>;
-  urlParam: RateType;
-  promptTitle: string;
-  rateType?: RateType;
-  modalRecordLabel?: string;
-}
 
 interface ValidationReportClientProps {
   type: string;
-  config: ValidationConfig;
 }
 
-export function ValidationReportClient({ type, config }: ValidationReportClientProps) {
+export function ValidationReportClient({ type }: ValidationReportClientProps) {
+  const config = VALIDATION_REPORTS[type as ValidationReportType];
+
+  if (!config) {
+    return <div>Invalid validation report type</div>;
+  }
+
   const { title, Icon, useStore, urlParam, promptTitle, rateType, modalRecordLabel } = config;
   const { hasUnsavedChanges, resetFilters } = useStore();
 

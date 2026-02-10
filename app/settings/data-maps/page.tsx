@@ -14,7 +14,8 @@
  */
 'use client';
 
-import { useState, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Spin } from 'antd';
 import { Megaphone, Globe, Link2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -49,7 +50,23 @@ const TABS: Tab[] = [
 
 export default function DataMapsPage(): React.ReactNode {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey>('campaign');
+
+  // Set initial tab from URL parameter
+  useEffect(() => {
+    const tabParam = searchParams.get('tab') as TabKey | null;
+    if (tabParam && ['campaign', 'url', 'affiliate'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
+
+  // Update URL when tab changes
+  const handleTabChange = (tabKey: TabKey) => {
+    setActiveTab(tabKey);
+    router.push(`/settings/data-maps?tab=${tabKey}`, { scroll: false });
+  };
 
   if (authLoading) {
     return <div className={settingsStyles.centeredState}><Spin size="small" /></div>;
@@ -79,7 +96,7 @@ export default function DataMapsPage(): React.ReactNode {
             <button
               key={tab.key}
               className={`${styles.tab} ${isActive ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => handleTabChange(tab.key)}
             >
               <Icon className={styles.tabIcon} />
               {tab.label}

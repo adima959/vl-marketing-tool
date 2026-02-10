@@ -82,3 +82,11 @@ export async function unclassifyUrl(id: string): Promise<string> {
   if (!json.success) throw new Error(json.error || 'Failed to unclassify URL');
   return json.data.urlPath;
 }
+
+/** Lightweight count-only fetch */
+export async function fetchUnclassifiedCount(): Promise<number> {
+  const res = await fetch('/api/on-page-analysis/url-classifications');
+  const json = await res.json();
+  if (!json.success) return 0;
+  return json.data.unclassified.length;
+}

@@ -85,7 +85,7 @@ export interface GenericDataTableConfig<TRow extends BaseTableRow> {
   /** Optional callback when a marketing metric cell is clicked (for detail modals) - Marketing context */
   onMarketingMetricClick?: (context: MarketingMetricClickContext) => void;
 
-  /** IDs of metrics that should be clickable for marketing details (e.g., ['crmSubscriptions', 'approvedSales']) */
+  /** IDs of metrics that should be clickable for marketing details (e.g., ['subscriptions', 'trialsApproved']) */
   clickableMarketingMetrics?: string[];
 
   /** Optional callback when a metric cell is clicked in On-Page Analysis */

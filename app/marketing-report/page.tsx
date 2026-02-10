@@ -2,7 +2,8 @@
 
 import { useState, Suspense, useEffect, useRef, useMemo, useCallback, lazy } from 'react';
 import { Button } from 'antd';
-import { SettingOutlined, TagsOutlined } from '@ant-design/icons';
+import { SettingOutlined } from '@ant-design/icons';
+import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FilterToolbar } from '@/components/filters/FilterToolbar';
 import { DataTable } from '@/components/table/DataTable';
@@ -28,21 +29,16 @@ const CrmDetailModal = lazy(() =>
   import('@/components/modals/CrmDetailModal').then((mod) => ({ default: mod.CrmDetailModal }))
 );
 
-const CampaignClassificationModal = lazy(() =>
-  import('@/components/marketing-report/CampaignClassificationModal').then((mod) => ({ default: mod.CampaignClassificationModal }))
-);
-
 function MarketingReportContent() {
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
-  const [classificationOpen, setClassificationOpen] = useState(false);
-  const [unclassifiedCount, setUnclassifiedCount] = useState<number | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailModalContext, setDetailModalContext] = useState<MarketingMetricClickContext | null>(null);
+  const [unclassifiedCount, setUnclassifiedCount] = useState<number | null>(null);
   const { setOpen } = useSidebar();
   const hasCollapsed = useRef(false);
   const { hasUnsavedChanges, resetFilters, dateRange, filters, setFilters } = useReportStore();
 
-  // Fetch unclassified count for badge (lightweight, no full modal needed)
+  // Fetch unclassified campaign count for badge
   useEffect(() => {
     fetchUnclassifiedCount().then(setUnclassifiedCount).catch(() => {});
   }, []);
@@ -129,19 +125,19 @@ function MarketingReportContent() {
           Reset
         </Button>
       )}
-      <Button
-        type="text"
-        icon={<TagsOutlined />}
-        onClick={() => setClassificationOpen(true)}
-        size="small"
-      >
-        Campaign Map
-        {unclassifiedCount != null && unclassifiedCount > 0 && (
-          <span className={pageStyles.countBadge}>
-            {unclassifiedCount}
-          </span>
-        )}
-      </Button>
+      <Link href="/settings/data-maps?tab=campaign">
+        <Button
+          type="text"
+          size="small"
+        >
+          Campaign Map
+          {unclassifiedCount != null && unclassifiedCount > 0 && (
+            <span className={pageStyles.countBadge}>
+              {unclassifiedCount}
+            </span>
+          )}
+        </Button>
+      </Link>
       <Button
         type="text"
         icon={<SettingOutlined />}
@@ -185,15 +181,6 @@ function MarketingReportContent() {
           <ColumnSettingsModal
             open={columnSettingsOpen}
             onClose={() => setColumnSettingsOpen(false)}
-          />
-        </Suspense>
-      )}
-      {classificationOpen && (
-        <Suspense fallback={null}>
-          <CampaignClassificationModal
-            open={classificationOpen}
-            onClose={() => setClassificationOpen(false)}
-            onCountChange={setUnclassifiedCount}
           />
         </Suspense>
       )}

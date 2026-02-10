@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeMariaDBQuery } from '@/lib/server/mariadb';
 import { executeQuery } from '@/lib/server/db';
-import { marketingDetailQueryBuilder } from '@/lib/server/marketingDetailQueryBuilder';
+import { crmDetailModalQueryBuilder } from '@/lib/server/crmDetailModalQueryBuilder';
 import { safeValidateRequest, marketingDetailsRequestSchema } from '@/lib/schemas/api';
 import type { DetailRecord } from '@/types/dashboardDetails';
 import type { MarketingDetailResponse } from '@/types/marketingDetails';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { maskErrorForClient } from '@/lib/types/errors';
+import type { DashboardDetailMetricId } from '@/lib/server/crmMetrics';
 
 interface TrackingIdTuple {
   campaign_id: string;
@@ -210,9 +211,20 @@ async function handleMarketingDetails(
       });
     }
 
-    // Build queries with resolved ID tuples
-    const { query, params, countQuery, countParams } = marketingDetailQueryBuilder.buildDetailQuery(
-      metricId,
+    // Map Marketing metric IDs to Dashboard metric IDs for unified builder
+    const metricIdMap: Record<string, DashboardDetailMetricId> = {
+      crmSubscriptions: 'subscriptions',
+      approvedSales: 'trialsApproved',
+      trials: 'trials',
+      customers: 'customers',
+      ots: 'ots',
+      upsells: 'upsells',
+    };
+    const unifiedMetricId = metricIdMap[metricId] || metricId;
+
+    // Build queries with resolved ID tuples using unified builder
+    const { query, params, countQuery, countParams } = crmDetailModalQueryBuilder.buildDetailQuery(
+      unifiedMetricId as DashboardDetailMetricId,
       {
         dateRange,
         trackingIdTuples,

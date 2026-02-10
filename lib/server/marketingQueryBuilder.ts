@@ -55,8 +55,8 @@ export interface AggregatedMetrics {
   cpc: number;
   cpm: number;
   conversion_rate: number;
-  crm_subscriptions: number;
-  approved_sales: number;
+  subscriptions: number;
+  trials_approved: number;
   trials: number;
   customers: number;
   ots: number;
@@ -169,13 +169,15 @@ const jsSortMap: Record<string, keyof AggregatedMetrics> = {
   cpc: 'cpc',
   cpm: 'cpm',
   conversionRate: 'conversion_rate',
-  crmSubscriptions: 'crm_subscriptions',
-  approvedSales: 'approved_sales',
+  subscriptions: 'subscriptions',
+  trialsApproved: 'trials_approved',
   trials: 'trials',
   customers: 'customers',
   ots: 'ots',
+  otsApproved: 'ots_approved',
   otsApprovalRate: 'ots_approval_rate',
   upsells: 'upsells',
+  upsellsApproved: 'upsells_approved',
   upsellApprovalRate: 'upsell_approval_rate',
   approvalRate: 'approval_rate',
   realCpa: 'real_cpa',
@@ -405,8 +407,8 @@ export async function getMarketingData(
   }
 
   return adsData.map(row => {
-    let crm_subscriptions = 0;
-    let approved_sales = 0;
+    let subscriptions = 0;
+    let trials_approved = 0;
     let trials = 0;
     let customers = 0;
     let upsells = 0;
@@ -430,8 +432,8 @@ export async function getMarketingData(
             for (const crm of crmRows) {
               const sourceMatched = networkList.some(n => matchNetworkToSource(n, crm.source));
               if (sourceMatched) {
-                crm_subscriptions += Number(crm.subscription_count || 0);
-                approved_sales += Number(crm.approved_count || 0);
+                subscriptions += Number(crm.subscription_count || 0);
+                trials_approved += Number(crm.approved_count || 0);
                 trials += Number(crm.trial_count || 0);
                 customers += Number(crm.customer_count || 0);
                 upsells += Number(crm.upsell_count || 0);
@@ -467,18 +469,18 @@ export async function getMarketingData(
       cpc: Number(row.cpc) || 0,
       cpm: Number(row.cpm) || 0,
       conversion_rate: Number(row.conversion_rate) || 0,
-      crm_subscriptions,
-      approved_sales,
+      subscriptions,
+      trials_approved,
       trials,
       customers,
       ots,
       ots_approved,
       upsells,
       upsells_approved,
-      approval_rate: approvalDenominator > 0 ? (approved_sales + ots_approved) / approvalDenominator : 0,
+      approval_rate: approvalDenominator > 0 ? (trials_approved + ots_approved) / approvalDenominator : 0,
       ots_approval_rate: ots > 0 ? ots_approved / ots : 0,
       upsell_approval_rate: upsells > 0 ? upsells_approved / upsells : 0,
-      real_cpa: approved_sales > 0 ? cost / approved_sales : 0,
+      real_cpa: trials_approved > 0 ? cost / trials_approved : 0,
     };
   });
 }

@@ -14,13 +14,15 @@ export interface ReportRow {
     cpm: number;
     conversionRate: number;
     customers: number;
-    crmSubscriptions: number;
+    subscriptions: number;
     trials: number;
-    approvedSales: number;
-    approvalRate: number;
+    trialsApproved: number;
     ots: number;
+    otsApproved: number;
+    approvalRate: number;
     otsApprovalRate: number;
     upsells: number;
+    upsellsApproved: number;
     upsellApprovalRate: number;
     realCpa: number;
   };

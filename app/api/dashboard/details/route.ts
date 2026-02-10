@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeMariaDBQuery } from '@/lib/server/mariadb';
-import { dashboardDrilldownQueryBuilder } from '@/lib/server/dashboardDrilldownQueryBuilder';
+import { dashboardDrilldownQueryBuilder } from '@/lib/server/crmDetailModalQueryBuilder';
 import { safeValidateRequest, dashboardDetailsRequestSchema } from '@/lib/schemas/api';
 import type { DetailRecord, DetailQueryResponse } from '@/types/dashboardDetails';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { maskErrorForClient } from '@/lib/types/errors';
+import { logDebug } from '@/lib/server/debugLogger';
 
 /**
  * POST /api/dashboard/details
@@ -72,6 +73,24 @@ async function handleDashboardDetails(
       pagination
     );
 
+    // DEBUG: Log detail query
+    logDebug('DETAIL QUERY', {
+      metricId,
+      filters: {
+        dateRange: filters.dateRange,
+        country: filters.country,
+        productName: filters.productName,
+        product: filters.product,
+        source: filters.source,
+        excludeDeleted: filters.excludeDeleted,
+        excludeUpsellTags: filters.excludeUpsellTags,
+        rateType: filters.rateType,
+      },
+      pagination,
+      query,
+      params,
+    });
+
     // Execute queries in parallel
     const [rawRecords, countResult] = await Promise.all([
       executeMariaDBQuery<Record<string, unknown>>(query, params),
@@ -79,6 +98,14 @@ async function handleDashboardDetails(
     ]);
 
     const total = Number(countResult[0]?.total) || 0;
+
+    // DEBUG: Log results
+    logDebug('DETAIL RESULTS', {
+      metricId,
+      recordCount: rawRecords.length,
+      total,
+      first3Records: rawRecords.slice(0, 3),
+    });
 
     // Normalize numeric fields — mysql2 binary protocol can return
     // computed columns (MAX, IF, etc.) as unexpected types (Buffer, string, BigInt)

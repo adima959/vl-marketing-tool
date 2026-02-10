@@ -4,12 +4,23 @@ import { FilterBuilder } from './queryBuilderUtils';
 
 type SqlParam = string | number | boolean | null | Date;
 
+interface TrackingIdTuple {
+  campaign_id: string;
+  adset_id: string;
+  ad_id: string;
+}
+
 interface DetailQueryOptions {
   dateRange: DateRange;
+  // Geography-based filters (Dashboard mode)
   country?: string;
   productName?: string;
   product?: string;
   source?: string;
+  // Tracking-tuple filters (Marketing mode)
+  trackingIdTuples?: TrackingIdTuple[];
+  date?: string; // Specific date (ISO string) for date dimension filtering
+  network?: string; // Network filter (e.g., 'Google Ads') for source matching
   /** If true, exclude deleted subscriptions (s.deleted = 0). Used by approval rate page. */
   excludeDeleted?: boolean;
   /** If true, exclude upsell invoices (i.tag NOT LIKE '%parent-sub-id=%'). Used by approval rate page. */
@@ -31,10 +42,11 @@ interface QueryResult {
 }
 
 /**
- * Query builder for fetching individual detail records from MariaDB
- * Used when user clicks on a metric cell to see underlying data
+ * Unified query builder for CRM detail modal records from MariaDB
+ * Used when user clicks on a metric cell in Dashboard or Marketing Report
+ * Supports both geography-based filtering (Dashboard) and tracking-tuple filtering (Marketing)
  */
-export class DashboardDrilldownQueryBuilder {
+export class CrmDetailModalQueryBuilder {
   /**
    * Filter builder for subscription-based queries (with COALESCE for alternative paths)
    */
@@ -64,6 +76,23 @@ export class DashboardDrilldownQueryBuilder {
       productName: 'pg.group_name',
       product: 'p.product_name',
       source: 'sr.source',
+    },
+  });
+
+  /**
+   * Filter builder for upsell queries (uses trial subscription's product only)
+   * Upsells are attributed to the trial subscription's product, not the upsell invoice's products
+   */
+  private readonly upsellFilterBuilder = new FilterBuilder({
+    dbType: 'mariadb',
+    dimensionMap: {
+      country: {
+        column: 'c.country',
+        nullCheck: "(c.country IS NULL OR c.country = '')",
+      },
+      productName: 'pg_sub.group_name',
+      product: 'p_sub.product_name',
+      source: 'COALESCE(sr.source, sr_sub.source)',
     },
   });
 
@@ -132,13 +161,108 @@ export class DashboardDrilldownQueryBuilder {
   }
 
   /**
+   * Build WHERE clause for upsell queries.
+   * Upsells are attributed to the trial subscription's product, not the upsell invoice's products.
+   */
+  private buildUpsellFilterClause(filters: DetailQueryOptions): { whereClause: string; params: SqlParam[] } {
+    const parentFilters: Record<string, string> = {};
+    if (filters.country) parentFilters.country = filters.country;
+    if (filters.productName) parentFilters.productName = filters.productName;
+    if (filters.product) parentFilters.product = filters.product;
+    if (filters.source) parentFilters.source = filters.source;
+    return this.upsellFilterBuilder.buildParentFilters(parentFilters);
+  }
+
+  /**
+   * Build WHERE clause from tracking ID tuples (Marketing mode)
+   * Uses MariaDB row-value constructor for precise tuple matching
+   */
+  private buildTrackingTupleFilterClause(filters: DetailQueryOptions): { whereClause: string; params: SqlParam[] } {
+    const params: SqlParam[] = [];
+    const conditions: string[] = [];
+
+    // Filter by tracking ID tuples from PostgreSQL
+    if (filters.trackingIdTuples && filters.trackingIdTuples.length > 0) {
+      const tuplePlaceholders = filters.trackingIdTuples.map(() => '(?, ?, ?)').join(', ');
+      conditions.push(
+        `(s.tracking_id_4, s.tracking_id_2, s.tracking_id) IN (${tuplePlaceholders})`
+      );
+      for (const tuple of filters.trackingIdTuples) {
+        params.push(tuple.campaign_id, tuple.adset_id, tuple.ad_id);
+      }
+    }
+
+    // Network/source filter (maps network to source using shared logic)
+    if (filters.network) {
+      const { buildSourceFilterParams } = require('./crmMetrics');
+      const sourceFilter = buildSourceFilterParams(filters.network);
+      if (sourceFilter) {
+        conditions.push(sourceFilter.whereClause);
+        params.push(...sourceFilter.params);
+      }
+    }
+
+    // Specific date filter (when date dimension is used)
+    if (filters.date) {
+      conditions.push('DATE(s.date_create) = DATE(?)');
+      params.push(filters.date);
+    }
+
+    return {
+      whereClause: conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '',
+      params,
+    };
+  }
+
+  /**
+   * Smart filter clause builder - uses tracking tuples if present, otherwise geography filters
+   * This allows the same query methods to work for both Dashboard and Marketing modes
+   */
+  private buildSmartFilterClause(filters: DetailQueryOptions): { whereClause: string; params: SqlParam[] } {
+    // If tracking tuples are present, use Marketing mode (tracking-based filtering)
+    if (filters.trackingIdTuples && filters.trackingIdTuples.length > 0) {
+      return this.buildTrackingTupleFilterClause(filters);
+    }
+    // Otherwise use Dashboard mode (geography-based filtering)
+    return this.buildFilterClause(filters);
+  }
+
+  /**
+   * Smart upsell filter clause builder
+   * For geography mode: uses trial subscription's product only (Dashboard fix)
+   * For tracking mode: uses tracking tuple filter (Marketing)
+   */
+  private buildSmartUpsellFilterClause(filters: DetailQueryOptions): { whereClause: string; params: SqlParam[] } {
+    // If tracking tuples are present, use Marketing mode (tracking-based filtering)
+    if (filters.trackingIdTuples && filters.trackingIdTuples.length > 0) {
+      return this.buildTrackingTupleFilterClause(filters);
+    }
+    // Otherwise use Dashboard mode with upsell-specific filtering (trial subscription product only)
+    return this.buildUpsellFilterClause(filters);
+  }
+
+  /**
+   * Get tracking validation WHERE clauses for Marketing mode
+   * Returns empty string for Dashboard mode (geography)
+   */
+  private getTrackingValidation(filters: DetailQueryOptions): string {
+    const isTrackingMode = filters.trackingIdTuples && filters.trackingIdTuples.length > 0;
+    if (!isTrackingMode) return '';
+    return `
+      AND ${CRM_WHERE.deletedSubExclusion}
+      AND ${CRM_WHERE.trackingIdValidation.join(' AND ')}
+    `;
+  }
+
+  /**
    * Build query for Customers metric (new customers where registration date = subscription date)
    */
   private buildCustomersQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
     const startDate = formatDateForMariaDB(filters.dateRange.start, false);
     const endDate = formatDateForMariaDB(filters.dateRange.end, true);
-    const { whereClause, params: filterParams } = this.buildFilterClause(filters);
+    const { whereClause, params: filterParams } = this.buildSmartFilterClause(filters);
     const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
+    const trackingValidation = this.getTrackingValidation(filters);
 
     const baseParams = [startDate, endDate, ...filterParams];
 
@@ -178,6 +302,7 @@ export class DashboardDrilldownQueryBuilder {
       ${CRM_JOINS.cancelReason}
       WHERE s.date_create BETWEEN ? AND ?
         AND DATE(c.date_registered) = DATE(s.date_create)
+        ${trackingValidation}
         ${whereClause}
       GROUP BY s.id
       ORDER BY s.date_create DESC
@@ -198,6 +323,7 @@ export class DashboardDrilldownQueryBuilder {
       ${needsSourceJoin ? `${CRM_JOINS.sourceFromInvoice} ${CRM_JOINS.sourceFromSubAlt}` : ''}
       WHERE s.date_create BETWEEN ? AND ?
         AND DATE(c.date_registered) = DATE(s.date_create)
+        ${trackingValidation}
         ${whereClause}
     `;
 
@@ -215,8 +341,9 @@ export class DashboardDrilldownQueryBuilder {
   private buildSubscriptionsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
     const startDate = formatDateForMariaDB(filters.dateRange.start, false);
     const endDate = formatDateForMariaDB(filters.dateRange.end, true);
-    const { whereClause, params: filterParams } = this.buildFilterClause(filters);
+    const { whereClause, params: filterParams } = this.buildSmartFilterClause(filters);
     const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
+    const trackingValidation = this.getTrackingValidation(filters);
 
     const baseParams = [startDate, endDate, ...filterParams];
 
@@ -255,6 +382,7 @@ export class DashboardDrilldownQueryBuilder {
       ${CRM_JOINS.sourceFromSubAlt}
       ${CRM_JOINS.cancelReason}
       WHERE s.date_create BETWEEN ? AND ?
+        ${trackingValidation}
         ${whereClause}
       GROUP BY s.id
       ORDER BY s.date_create DESC
@@ -274,6 +402,7 @@ export class DashboardDrilldownQueryBuilder {
       ${needsProductJoin ? `${CRM_JOINS.invoiceProduct} ${CRM_JOINS.product} ${CRM_JOINS.productSub} ${CRM_JOINS.productGroup} ${CRM_JOINS.productGroupSub}` : ''}
       ${needsSourceJoin ? `${CRM_JOINS.sourceFromInvoice} ${CRM_JOINS.sourceFromSubAlt}` : ''}
       WHERE s.date_create BETWEEN ? AND ?
+        ${trackingValidation}
         ${whereClause}
     `;
 
@@ -292,8 +421,9 @@ export class DashboardDrilldownQueryBuilder {
   private buildTrialsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
     const startDate = formatDateForMariaDB(filters.dateRange.start, false);
     const endDate = formatDateForMariaDB(filters.dateRange.end, true);
-    const { whereClause, params: filterParams } = this.buildFilterClause(filters);
+    const { whereClause, params: filterParams } = this.buildSmartFilterClause(filters);
     const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
+    const trackingValidation = this.getTrackingValidation(filters);
 
     // Build optional filter conditions
     const deletedFilter = filters.excludeDeleted ? `AND ${CRM_WHERE.deletedSubExclusion}` : '';
@@ -339,6 +469,7 @@ export class DashboardDrilldownQueryBuilder {
       WHERE s.date_create BETWEEN ? AND ?
         ${deletedFilter}
         ${tagFilter}
+        ${trackingValidation}
         ${whereClause}
       GROUP BY i.id
       ORDER BY i.order_date DESC
@@ -359,6 +490,7 @@ export class DashboardDrilldownQueryBuilder {
       WHERE s.date_create BETWEEN ? AND ?
         ${deletedFilter}
         ${tagFilter}
+        ${trackingValidation}
         ${whereClause}
     `;
 
@@ -377,8 +509,9 @@ export class DashboardDrilldownQueryBuilder {
   private buildTrialsApprovedQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
     const startDate = formatDateForMariaDB(filters.dateRange.start, false);
     const endDate = formatDateForMariaDB(filters.dateRange.end, true);
-    const { whereClause, params: filterParams } = this.buildFilterClause(filters);
+    const { whereClause, params: filterParams } = this.buildSmartFilterClause(filters);
     const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
+    const trackingValidation = this.getTrackingValidation(filters);
 
     // Build optional filter conditions
     const deletedFilter = filters.excludeDeleted ? `AND ${CRM_WHERE.deletedSubExclusion}` : '';
@@ -424,6 +557,7 @@ export class DashboardDrilldownQueryBuilder {
       WHERE s.date_create BETWEEN ? AND ?
         ${deletedFilter}
         ${tagFilter}
+        ${trackingValidation}
         ${whereClause}
       GROUP BY i.id
       ORDER BY i.order_date DESC
@@ -444,6 +578,7 @@ export class DashboardDrilldownQueryBuilder {
       WHERE s.date_create BETWEEN ? AND ?
         ${deletedFilter}
         ${tagFilter}
+        ${trackingValidation}
         ${whereClause}
     `;
 
@@ -529,12 +664,16 @@ export class DashboardDrilldownQueryBuilder {
 
   /**
    * Build query for Upsells metric (invoices where type = 3 linked to parent subscription)
+   * Supports both geography mode (Dashboard) and tracking mode (Marketing)
    */
   private buildUpsellsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
     const startDate = formatDateForMariaDB(filters.dateRange.start, false);
     const endDate = formatDateForMariaDB(filters.dateRange.end, true);
-    const { whereClause, params: filterParams } = this.buildFilterClause(filters);
+    const { whereClause, params: filterParams } = this.buildSmartUpsellFilterClause(filters);
     const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
+
+    // Add tracking validation for Marketing mode (excludes deleted subs and validates tracking IDs)
+    const trackingValidation = this.getTrackingValidation(filters);
 
     const baseParams = [startDate, endDate, ...filterParams];
 
@@ -574,6 +713,7 @@ export class DashboardDrilldownQueryBuilder {
       ${CRM_JOINS.sourceFromSubAlt}
       ${CRM_JOINS.cancelReason}
       WHERE s.date_create BETWEEN ? AND ?
+        ${trackingValidation}
         ${whereClause}
       GROUP BY uo.id
       ORDER BY uo.order_date DESC
@@ -593,6 +733,7 @@ export class DashboardDrilldownQueryBuilder {
       LEFT JOIN source sr ON sr.id = uo.source_id
       ${CRM_JOINS.sourceFromSubAlt}
       WHERE s.date_create BETWEEN ? AND ?
+        ${trackingValidation}
         ${whereClause}
     `;
 
@@ -807,5 +948,8 @@ export class DashboardDrilldownQueryBuilder {
   }
 }
 
-// Export singleton instance
-export const dashboardDrilldownQueryBuilder = new DashboardDrilldownQueryBuilder();
+// Export singleton instance (supports both Dashboard and Marketing)
+export const crmDetailModalQueryBuilder = new CrmDetailModalQueryBuilder();
+
+// Backward compatibility export for Dashboard API
+export const dashboardDrilldownQueryBuilder = crmDetailModalQueryBuilder;

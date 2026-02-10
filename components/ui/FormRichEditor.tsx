@@ -69,6 +69,13 @@ export function FormRichEditor({ value, onChange, placeholder = 'Write something
     },
   });
 
+  // Clean up editor instance on unmount
+  useEffect(() => {
+    return () => {
+      editor?.destroy();
+    };
+  }, [editor]);
+
   // Sync external value changes (e.g. form reset)
   useEffect(() => {
     if (!editor) return;

@@ -16,10 +16,9 @@ interface UsersClientTableProps {
   users: AppUser[];
 }
 
-export function UsersClientTable({ users: initialUsers }: UsersClientTableProps) {
+export function UsersClientTable({ users }: UsersClientTableProps) {
   const { message } = App.useApp();
   const router = useRouter();
-  const [users, setUsers] = useState<AppUser[]>(initialUsers);
   const [loading, setLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -57,7 +56,7 @@ export function UsersClientTable({ users: initialUsers }: UsersClientTableProps)
         credentials: 'same-origin',
       });
       if (!response.ok) throw new Error('Failed to update');
-      setUsers(prev => prev.map(u => u.id === record.id ? { ...u, is_product_owner: checked } : u));
+      router.refresh();
     } catch {
       message.error('Failed to update product owner status');
     }

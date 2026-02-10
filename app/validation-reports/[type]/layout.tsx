@@ -1,33 +1,23 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-
-const METADATA_MAP: Record<string, { title: string; description: string }> = {
-  'approval-rate': {
-    title: 'Approval Rate | Vitaliv Analytics',
-    description: 'Approval rate analysis across dimensions and time periods',
-  },
-  'buy-rate': {
-    title: 'Buy Rate | Vitaliv Analytics',
-    description: 'Buy rate analysis across dimensions and time periods',
-  },
-  'pay-rate': {
-    title: 'Pay Rate | Vitaliv Analytics',
-    description: 'Pay rate analysis across dimensions and time periods',
-  },
-};
+import { VALIDATION_REPORTS, type ValidationReportType } from '@/config/validationReports';
 
 export async function generateMetadata({
   params,
 }: {
-  params: { type: string };
+  params: Promise<{ type: string }>;
 }): Promise<Metadata> {
-  const metadata = METADATA_MAP[params.type];
+  const { type } = await params;
+  const config = VALIDATION_REPORTS[type as ValidationReportType];
 
-  if (!metadata) {
+  if (!config) {
     notFound();
   }
 
-  return metadata;
+  return {
+    title: config.title,
+    description: config.description,
+  };
 }
 
 export default function ValidationReportLayout({

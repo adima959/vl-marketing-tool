@@ -2,12 +2,12 @@
 
 import { useState, Suspense, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Button } from 'antd';
-import { SettingOutlined, LinkOutlined } from '@ant-design/icons';
+import { SettingOutlined } from '@ant-design/icons';
+import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { OnPageFilterToolbar } from '@/components/on-page-analysis/OnPageFilterToolbar';
 import { OnPageDataTable } from '@/components/on-page-analysis/OnPageDataTable';
 import { OnPageColumnSettingsModal } from '@/components/on-page-analysis/OnPageColumnSettingsModal';
-import { UrlClassificationModal } from '@/components/on-page-analysis/UrlClassificationModal';
 import { SavedViewsDropdown } from '@/components/saved-views/SavedViewsDropdown';
 import { useOnPageUrlSync } from '@/hooks/useOnPageUrlSync';
 import { useApplyViewFromUrl } from '@/hooks/useApplyViewFromUrl';
@@ -17,6 +17,7 @@ import { useOnPageColumnStore } from '@/stores/onPageColumnStore';
 import { ON_PAGE_METRIC_COLUMNS } from '@/config/onPageColumns';
 
 import { TableInfoBanner } from '@/components/ui/TableInfoBanner';
+import { fetchUnclassifiedCount } from '@/lib/api/urlClassificationsClient';
 import { Eye } from 'lucide-react';
 import pageStyles from '@/components/dashboard/dashboard.module.css';
 import type { ResolvedViewParams } from '@/types/savedViews';
@@ -24,11 +25,15 @@ import type { TableFilter } from '@/types/filters';
 
 function OnPageAnalysisContent() {
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
-  const [urlClassificationOpen, setUrlClassificationOpen] = useState(false);
   const [unclassifiedCount, setUnclassifiedCount] = useState<number | null>(null);
   const { setOpen } = useSidebar();
   const hasCollapsed = useRef(false);
   const { hasUnsavedChanges, resetFilters, dateRange, filters, setFilters } = useOnPageStore();
+
+  // Fetch unclassified URL count for badge
+  useEffect(() => {
+    fetchUnclassifiedCount().then(setUnclassifiedCount).catch(() => {});
+  }, []);
 
   // Check if today's date is in the selected range
   const includesToday = useMemo(() => {
@@ -104,33 +109,19 @@ function OnPageAnalysisContent() {
           Reset
         </Button>
       )}
-      <Button
-        type="text"
-        icon={<LinkOutlined />}
-        onClick={() => setUrlClassificationOpen(true)}
-        size="small"
-      >
-        URL Paths
-        {unclassifiedCount != null && unclassifiedCount > 0 && (
-          <span style={{
-            marginLeft: 4,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minWidth: 18,
-            height: 18,
-            padding: '0 5px',
-            borderRadius: 9,
-            fontSize: 11,
-            fontWeight: 600,
-            lineHeight: 1,
-            color: '#fff',
-            background: 'var(--color-error)',
-          }}>
-            {unclassifiedCount}
-          </span>
-        )}
-      </Button>
+      <Link href="/settings/data-maps?tab=url">
+        <Button
+          type="text"
+          size="small"
+        >
+          URL Map
+          {unclassifiedCount != null && unclassifiedCount > 0 && (
+            <span className={pageStyles.countBadge}>
+              {unclassifiedCount}
+            </span>
+          )}
+        </Button>
+      </Link>
       <Button
         type="text"
         icon={<SettingOutlined />}
@@ -169,11 +160,6 @@ function OnPageAnalysisContent() {
       <OnPageColumnSettingsModal
         open={columnSettingsOpen}
         onClose={() => setColumnSettingsOpen(false)}
-      />
-      <UrlClassificationModal
-        open={urlClassificationOpen}
-        onClose={() => setUrlClassificationOpen(false)}
-        onCountChange={setUnclassifiedCount}
       />
     </>
   );

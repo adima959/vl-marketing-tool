@@ -226,11 +226,12 @@ export type DashboardDetailMetricId = typeof DASHBOARD_DETAIL_METRIC_IDS[number]
 
 /**
  * Marketing detail metric IDs (marketing report drilldown queries).
- * Used by: types/marketingDetails, marketingDetailQueryBuilder,
+ * Now unified with Dashboard - uses same IDs for consistency.
+ * Used by: types/marketingDetails, crmDetailModalQueryBuilder,
  * MarketingClickableMetricCell, DataTable, marketing details API route.
  */
 export const MARKETING_DETAIL_METRIC_IDS = [
-  'crmSubscriptions', 'approvedSales', 'trials', 'customers', 'ots', 'upsells',
+  'subscriptions', 'trialsApproved', 'trials', 'customers', 'ots', 'upsells',
 ] as const;
 
 export type MarketingDetailMetricId = typeof MARKETING_DETAIL_METRIC_IDS[number];

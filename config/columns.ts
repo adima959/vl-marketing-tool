@@ -90,7 +90,7 @@ export const METRIC_COLUMNS: MetricColumn[] = [
     align: 'right',
   },
   {
-    id: 'crmSubscriptions',
+    id: 'subscriptions',
     label: 'Subscriptions',
     shortLabel: 'Subs',
     description: 'Total subscriptions matched by tracking IDs from the CRM',
@@ -112,7 +112,7 @@ export const METRIC_COLUMNS: MetricColumn[] = [
     align: 'right',
   },
   {
-    id: 'approvedSales',
+    id: 'trialsApproved',
     label: 'Approved',
     shortLabel: 'Approved',
     description: 'Approved trial invoices (is_marked = 1)',
@@ -191,7 +191,7 @@ export const METRIC_COLUMNS: MetricColumn[] = [
 ];
 
 export const MARKETING_METRIC_IDS = ['impressions', 'clicks', 'ctr', 'cost', 'cpc', 'cpm', 'conversions'] as const;
-export const CRM_METRIC_IDS = ['customers', 'crmSubscriptions', 'trials', 'approvedSales', 'approvalRate', 'ots', 'otsApprovalRate', 'upsells', 'upsellApprovalRate', 'realCpa'] as const;
+export const CRM_METRIC_IDS = ['customers', 'subscriptions', 'trials', 'trialsApproved', 'approvalRate', 'ots', 'otsApprovalRate', 'upsells', 'upsellApprovalRate', 'realCpa'] as const;
 
 export const DEFAULT_VISIBLE_COLUMNS = METRIC_COLUMNS
   .filter((col) => col.defaultVisible)
