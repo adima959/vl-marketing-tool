@@ -1,7 +1,7 @@
 'use client';
 
 import { GenericDimensionPicker } from '@/components/shared/GenericDimensionPicker';
-import { DIMENSION_GROUPS } from '@/config/dimensions';
+import { MARKETING_DIMENSION_GROUPS } from '@/config/marketingDimensions';
 import { useReportStore } from '@/stores/reportStore';
 
 const GROUP_COLORS: Record<string, string> = {
@@ -27,7 +27,7 @@ export function DimensionPicker(): React.ReactElement {
     <GenericDimensionPicker
       dimensions={dimensions}
       addDimension={addDimension}
-      dimensionGroups={DIMENSION_GROUPS}
+      dimensionGroups={MARKETING_DIMENSION_GROUPS}
       groupColors={GROUP_COLORS}
     />
   );

@@ -2,38 +2,25 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Users, Package, Map, Shield } from 'lucide-react';
+import { SETTINGS_PAGES } from '@/config/settings';
 import styles from './SettingsNav.module.css';
-
-interface TabItem {
-  title: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
-
-const tabs: TabItem[] = [
-  { title: 'Users', href: '/settings/users', icon: Users },
-  { title: 'Products', href: '/settings/products', icon: Package },
-  { title: 'Data Maps', href: '/settings/data-maps', icon: Map },
-  { title: 'Permissions', href: '/settings/permissions', icon: Shield },
-];
 
 export function SettingsNav() {
   const pathname = usePathname();
 
   return (
     <nav className={styles.nav}>
-      {tabs.map((tab) => {
-        const isActive = pathname === tab.href;
-        const Icon = tab.icon;
+      {SETTINGS_PAGES.map((page) => {
+        const isActive = pathname === page.href;
+        const Icon = page.icon;
         return (
           <Link
-            key={tab.href}
-            href={tab.href}
+            key={page.href}
+            href={page.href}
             className={`${styles.tab} ${isActive ? styles.tabActive : ''}`}
           >
             <Icon className={styles.tabIcon} />
-            {tab.title}
+            {page.title}
           </Link>
         );
       })}

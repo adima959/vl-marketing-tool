@@ -6,7 +6,7 @@ import { DimensionPills } from './DimensionPills';
 import { FilterPanel } from './FilterPanel';
 import { LoadDataButton } from '@/components/shared/LoadDataButton';
 import { useReportStore } from '@/stores/reportStore';
-import { getDimensionLabel } from '@/config/dimensions';
+import { getMarketingDimensionLabel } from '@/config/marketingDimensions';
 import type { TableFilter } from '@/types/filters';
 import type { DimensionGroupConfig } from '@/types/dimensions';
 import styles from './FilterToolbar.module.css';
@@ -34,7 +34,7 @@ export function FilterToolbar({ filters, onFiltersChange, dimensionGroups }: Fil
                 dimensions={dimensions}
                 reorderDimensions={reorderDimensions}
                 removeDimension={removeDimension}
-                getLabel={getDimensionLabel}
+                getLabel={getMarketingDimensionLabel}
               />
               <DimensionPicker />
             </div>

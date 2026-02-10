@@ -1,7 +1,7 @@
 'use client';
 
 import { GenericDimensionPickerDropdown } from '@/components/shared/GenericDimensionPickerDropdown';
-import { DASHBOARD_DIMENSION_GROUPS } from '@/config/dashboardDimensions';
+import { CRM_DIMENSION_GROUPS } from '@/config/crmDimensions';
 import { useDashboardStore } from '@/stores/dashboardStore';
 
 /**
@@ -15,7 +15,7 @@ export function DashboardDimensionPicker(): React.ReactElement {
     <GenericDimensionPickerDropdown
       dimensions={dimensions}
       addDimension={addDimension}
-      dimensionGroups={DASHBOARD_DIMENSION_GROUPS}
+      dimensionGroups={CRM_DIMENSION_GROUPS}
     />
   );
 }

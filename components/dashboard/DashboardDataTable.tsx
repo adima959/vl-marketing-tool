@@ -5,13 +5,23 @@ import { GenericDataTable } from '@/components/table/GenericDataTable';
 import { CrmDetailModal } from '@/components/modals/CrmDetailModal';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { useDashboardColumnStore } from '@/stores/dashboardColumnStore';
-import { DASHBOARD_METRIC_COLUMNS, DASHBOARD_COLUMN_GROUPS } from '@/config/dashboardColumns';
+import { METRIC_COLUMNS, CRM_METRIC_IDS } from '@/config/columns';
 import type { DashboardRow } from '@/types/dashboard';
 import type { MetricClickContext } from '@/types/dashboardDetails';
 import type { ColumnGroup } from '@/types/table';
 import styles from './dashboard.module.css';
 
-const COLUMN_GROUPS: ColumnGroup[] = DASHBOARD_COLUMN_GROUPS;
+// Extract CRM columns from unified columns config
+const DASHBOARD_METRIC_COLUMNS = METRIC_COLUMNS.filter(col =>
+  CRM_METRIC_IDS.includes(col.id as any)
+);
+
+const COLUMN_GROUPS: ColumnGroup[] = [
+  {
+    title: 'CRM Metrics',
+    metricIds: Array.from(CRM_METRIC_IDS),
+  },
+];
 
 export function DashboardDataTable() {
   const [modalContext, setModalContext] = useState<MetricClickContext | null>(null);

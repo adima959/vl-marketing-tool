@@ -6,16 +6,16 @@ import { Star } from 'lucide-react';
 import { createSavedView, toggleFavorite } from '@/lib/api/savedViewsClient';
 import { detectDatePreset, DATE_PRESET_LABELS } from '@/lib/savedViews';
 import { formatLocalDate } from '@/lib/types/api';
-import { ALL_DIMENSIONS } from '@/config/dimensions';
-import { ALL_DASHBOARD_DIMENSIONS } from '@/config/dashboardDimensions';
+import { ALL_MARKETING_DIMENSIONS } from '@/config/marketingDimensions';
+import { ALL_CRM_DIMENSIONS } from '@/config/crmDimensions';
 import { ALL_ON_PAGE_DIMENSIONS } from '@/config/onPageDimensions';
 import { ALL_VALIDATION_RATE_DIMENSIONS } from '@/config/validationRateDimensions';
 import type { DatePreset, DateMode } from '@/types/savedViews';
 import modalStyles from '@/styles/components/modal.module.css';
 
 const ALL_KNOWN_DIMENSIONS = [
-  ...ALL_DIMENSIONS,
-  ...ALL_DASHBOARD_DIMENSIONS,
+  ...ALL_MARKETING_DIMENSIONS,
+  ...ALL_CRM_DIMENSIONS,
   ...ALL_ON_PAGE_DIMENSIONS,
   ...ALL_VALIDATION_RATE_DIMENSIONS,
 ];

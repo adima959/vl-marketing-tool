@@ -4,7 +4,7 @@ import { DateRangePicker } from '@/components/filters/DateRangePicker';
 import { DimensionPills } from '@/components/filters/DimensionPills';
 import { LoadDataButton } from '@/components/shared/LoadDataButton';
 import { useDashboardStore } from '@/stores/dashboardStore';
-import { getDashboardDimensionLabel } from '@/config/dashboardDimensions';
+import { getCrmDimensionLabel } from '@/config/crmDimensions';
 import styles from './dashboard.module.css';
 
 export function DashboardFilterToolbar() {
@@ -17,7 +17,7 @@ export function DashboardFilterToolbar() {
         <DimensionPills
           dimensions={dimensions}
           reorderDimensions={reorderDimensions}
-          getLabel={getDashboardDimensionLabel}
+          getLabel={getCrmDimensionLabel}
           canRemove={false}
         />
       </div>

@@ -1,10 +1,7 @@
 import { Pool } from '@neondatabase/serverless';
-import { validateTokenFromDatabase } from '@/lib/auth';
-import { getUserByExternalId } from '@/lib/rbac';
+import { SettingsPageWrapper } from '@/components/settings/SettingsPageWrapper';
 import type { AppUser } from '@/types/user';
 import { UsersClientTable } from '@/components/settings/UsersClientTable';
-import styles from '@/styles/components/settings.module.css';
-import { cookies } from 'next/headers';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
@@ -25,39 +22,12 @@ async function getUsers(): Promise<AppUser[]> {
   }
 }
 
-async function checkAuth(): Promise<{ isAuthenticated: boolean; isAdmin: boolean }> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('crm_auth_token');
-
-  if (!token) {
-    return { isAuthenticated: false, isAdmin: false };
-  }
-
-  const { valid, user: crmUser } = await validateTokenFromDatabase(token.value);
-
-  if (!valid || !crmUser) {
-    return { isAuthenticated: false, isAdmin: false };
-  }
-
-  const user = await getUserByExternalId(crmUser.id);
-  return {
-    isAuthenticated: !!user,
-    isAdmin: user?.role === 'admin'
-  };
-}
-
 export default async function UsersPage() {
-  const { isAuthenticated, isAdmin } = await checkAuth();
-
-  if (!isAuthenticated) {
-    return <div className={styles.authMessage}>Please log in to access this page.</div>;
-  }
-
-  if (!isAdmin) {
-    return <div className={styles.authMessage}>You do not have permission to view this page.</div>;
-  }
-
   const users = await getUsers();
 
-  return <UsersClientTable users={users} />;
+  return (
+    <SettingsPageWrapper requireAdmin>
+      <UsersClientTable users={users} />
+    </SettingsPageWrapper>
+  );
 }

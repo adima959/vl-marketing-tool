@@ -1,6 +1,11 @@
 import type { DimensionGroupConfig } from '@/types';
 
-export const DIMENSION_GROUPS: DimensionGroupConfig[] = [
+/**
+ * Marketing Report Dimensions
+ * Used by Marketing Report for drilling down into ads data
+ * by network, campaign hierarchy, date, and campaign classifications
+ */
+export const MARKETING_DIMENSION_GROUPS: DimensionGroupConfig[] = [
   {
     id: 'advertising',
     label: 'Advertising',
@@ -22,9 +27,14 @@ export const DIMENSION_GROUPS: DimensionGroupConfig[] = [
   },
 ];
 
-export const ALL_DIMENSIONS = DIMENSION_GROUPS.flatMap((g) => g.dimensions);
+export const ALL_MARKETING_DIMENSIONS = MARKETING_DIMENSION_GROUPS.flatMap((g) => g.dimensions);
 
-export const getDimensionLabel = (id: string): string => {
-  const dim = ALL_DIMENSIONS.find((d) => d.id === id);
+export const getMarketingDimensionLabel = (id: string): string => {
+  const dim = ALL_MARKETING_DIMENSIONS.find((d) => d.id === id);
   return dim?.label ?? id;
 };
+
+// Backward compatibility exports (deprecated - use MARKETING_* exports)
+export const DIMENSION_GROUPS = MARKETING_DIMENSION_GROUPS;
+export const ALL_DIMENSIONS = ALL_MARKETING_DIMENSIONS;
+export const getDimensionLabel = getMarketingDimensionLabel;

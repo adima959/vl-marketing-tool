@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { DASHBOARD_DEFAULT_VISIBLE_COLUMNS } from '@/config/dashboardColumns';
+import { METRIC_COLUMNS, CRM_METRIC_IDS } from '@/config/columns';
+
+// Extract CRM column defaults from unified columns config
+const DASHBOARD_DEFAULT_VISIBLE_COLUMNS = METRIC_COLUMNS
+  .filter(col => CRM_METRIC_IDS.includes(col.id as any) && col.defaultVisible)
+  .map(col => col.id);
 
 interface DashboardColumnState {
   visibleColumns: string[];

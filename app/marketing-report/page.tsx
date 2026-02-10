@@ -12,7 +12,7 @@ import { useUrlSync } from '@/hooks/useUrlSync';
 import { useApplyViewFromUrl } from '@/hooks/useApplyViewFromUrl';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useReportStore } from '@/stores/reportStore';
-import { DIMENSION_GROUPS } from '@/config/dimensions';
+import { MARKETING_DIMENSION_GROUPS } from '@/config/marketingDimensions';
 import { BarChart3 } from 'lucide-react';
 import { TableInfoBanner } from '@/components/ui/TableInfoBanner';
 import { fetchUnclassifiedCount } from '@/lib/api/campaignClassificationsClient';
@@ -168,7 +168,7 @@ function MarketingReportContent() {
           <FilterToolbar
             filters={filters}
             onFiltersChange={setFilters}
-            dimensionGroups={DIMENSION_GROUPS}
+            dimensionGroups={MARKETING_DIMENSION_GROUPS}
           />
           {includesToday && (
             <TableInfoBanner messages={["Today's data may be incomplete"]} />
