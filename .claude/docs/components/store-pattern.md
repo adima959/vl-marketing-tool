@@ -1,7 +1,9 @@
 # Component Template: Report Store Pattern
 
 ## Overview
-Standard Zustand store pattern for dashboard/report pages with hierarchical data, filters, and loading states.
+Standardized Zustand store pattern for dashboard/report pages with hierarchical data, filters, and loading states.
+
+**NEW**: All table stores now use the **`createTableStore` factory** for maximum code reuse and consistency.
 
 ## When to Use
 
@@ -9,9 +11,9 @@ Standard Zustand store pattern for dashboard/report pages with hierarchical data
 ```
 Need new report/dashboard? → YES
   ↓
-Similar to existing reportStore or onPageStore? → YES
+Hierarchical table with dimensions/filters? → YES
   ↓
-→ COPY existing store, change domain-specific logic
+→ USE createTableStore factory (20 lines of config)
 ```
 
 **Use this pattern for**:
@@ -20,274 +22,79 @@ Similar to existing reportStore or onPageStore? → YES
 - Tables with expandable rows and sorting
 - Any feature using GenericDataTable + useGenericUrlSync
 
-## Complete Store Template
+## Quick Start: Using the Factory
 
 ### File: `stores/myStore.ts`
 
 ```typescript
-import { create } from 'zustand';
+import { fetchMyReportData } from '@/lib/api/myReportClient';
 import type { MyReportRow } from '@/types/myReport';
+import { createTableStore } from './createTableStore';
 
-/**
- * Store state interface
- * Follows dual-state pattern: active (user editing) vs loaded (server truth)
- */
-interface MyStoreState {
-  // ========================================
-  // DATA (loaded from server)
-  // ========================================
-  reportData: MyReportRow[];
-  loadedDimensions: string[];
-  loadedDateRange: { start: Date; end: Date };
-
-  // ========================================
-  // UI STATE (active = user is editing)
-  // ========================================
-  dimensions: string[];
-  dateRange: { start: Date; end: Date };
-  expandedRowKeys: string[];
-  sortColumn: string | null;
-  sortDirection: 'ascend' | 'descend' | null;
-
-  // ========================================
-  // LOADING STATE
-  // ========================================
-  isLoading: boolean;
-  hasLoadedOnce: boolean;
-  error: string | null;
-  hasUnsavedChanges: boolean;
-
-  // ========================================
-  // ACTIONS
-  // ========================================
-  loadData: () => Promise<void>;
-  loadChildData: (key: string, value: string, depth: number) => Promise<void>;
-  setDimensions: (dimensions: string[]) => void;
-  setDateRange: (range: { start: Date; end: Date }) => void;
-  setSort: (column: string | null, direction: 'ascend' | 'descend' | null) => Promise<void>;
-  setExpandedRowKeys: (keys: string[]) => void;
-  reset: () => void;
-}
-
-/**
- * Default date range (last 30 days)
- */
-const getDefaultDateRange = () => {
-  const end = new Date();
-  const start = new Date();
-  start.setDate(start.getDate() - 30);
-  return { start, end };
-};
-
-/**
- * My Report Store
- * Manages report data, filters, and loading states
- */
-export const useMyStore = create<MyStoreState>((set, get) => ({
-  // ========================================
-  // INITIAL STATE
-  // ========================================
-  reportData: [],
-  loadedDimensions: [],
-  loadedDateRange: getDefaultDateRange(),
-
-  dimensions: [],
-  dateRange: getDefaultDateRange(),
-  expandedRowKeys: [],
-  sortColumn: null,
-  sortDirection: null,
-
-  isLoading: false,
-  hasLoadedOnce: false,
-  error: null,
-  hasUnsavedChanges: false,
-
-  // ========================================
-  // LOAD DATA (parent rows only)
-  // ========================================
-  loadData: async () => {
-    const { dimensions, dateRange, sortColumn, sortDirection } = get();
-
-    // Validate inputs
-    if (dimensions.length === 0) {
-      set({ error: 'At least one dimension is required' });
-      return;
-    }
-
-    set({ isLoading: true, error: null });
-
-    try {
-      // Call your API
-      const response = await fetch('/api/my-report/query', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dimensions,
-          dateRange: {
-            start: dateRange.start.toISOString().split('T')[0],
-            end: dateRange.end.toISOString().split('T')[0],
-          },
-          sortColumn,
-          sortDirection,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to load data');
-      }
-
-      // Update state with loaded data
-      set({
-        reportData: result.data,
-        loadedDimensions: [...dimensions],
-        loadedDateRange: { ...dateRange },
-        isLoading: false,
-        hasLoadedOnce: true,
-        hasUnsavedChanges: false,
-        expandedRowKeys: [], // Collapse all rows on new data load
-      });
-    } catch (error: any) {
-      set({
-        error: error.message || 'An error occurred',
-        isLoading: false,
-      });
-    }
+export const useMyStore = createTableStore<MyReportRow>({
+  fetchData: (params) => fetchMyReportData(params),
+  defaultDateRange: () => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
   },
-
-  // ========================================
-  // LOAD CHILD DATA (lazy loading on expand)
-  // ========================================
-  loadChildData: async (key: string, value: string, depth: number) => {
-    const { dimensions, dateRange, reportData } = get();
-
-    // Determine next dimension
-    const nextDimension = dimensions[depth + 1];
-    if (!nextDimension) return; // No more dimensions to drill into
-
-    try {
-      // Call API for child rows
-      const response = await fetch('/api/my-report/query', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dimensions: dimensions.slice(0, depth + 2), // Include parent + next dimension
-          dateRange: {
-            start: dateRange.start.toISOString().split('T')[0],
-            end: dateRange.end.toISOString().split('T')[0],
-          },
-          parentKey: key,
-          parentValue: value,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to load child data');
-      }
-
-      // Insert child rows into reportData
-      const updateRowChildren = (rows: MyReportRow[]): MyReportRow[] => {
-        return rows.map(row => {
-          if (row.key === key) {
-            return {
-              ...row,
-              children: result.data,
-              hasChildren: result.data.length > 0,
-            };
-          }
-          if (row.children) {
-            return {
-              ...row,
-              children: updateRowChildren(row.children),
-            };
-          }
-          return row;
-        });
-      };
-
-      set({
-        reportData: updateRowChildren(reportData),
-      });
-    } catch (error: any) {
-      console.error('Failed to load child data:', error);
-      set({ error: error.message || 'Failed to load child data' });
-    }
-  },
-
-  // ========================================
-  // SET DIMENSIONS
-  // ========================================
-  setDimensions: (dimensions: string[]) => {
-    const { loadedDimensions } = get();
-    const hasChanged = JSON.stringify(dimensions) !== JSON.stringify(loadedDimensions);
-
-    set({
-      dimensions,
-      hasUnsavedChanges: hasChanged,
-      expandedRowKeys: [], // Collapse all when dimensions change
-    });
-  },
-
-  // ========================================
-  // SET DATE RANGE
-  // ========================================
-  setDateRange: (dateRange: { start: Date; end: Date }) => {
-    const { loadedDateRange } = get();
-    const hasChanged =
-      dateRange.start.getTime() !== loadedDateRange.start.getTime() ||
-      dateRange.end.getTime() !== loadedDateRange.end.getTime();
-
-    set({
-      dateRange,
-      hasUnsavedChanges: hasChanged,
-      expandedRowKeys: [], // Collapse all when date range changes
-    });
-  },
-
-  // ========================================
-  // SET SORT
-  // ========================================
-  setSort: async (column: string | null, direction: 'ascend' | 'descend' | null) => {
-    set({
-      sortColumn: column,
-      sortDirection: direction,
-    });
-
-    // Reload data with new sort
-    await get().loadData();
-  },
-
-  // ========================================
-  // SET EXPANDED ROWS
-  // ========================================
-  setExpandedRowKeys: (keys: string[]) => {
-    set({ expandedRowKeys: keys });
-  },
-
-  // ========================================
-  // RESET
-  // ========================================
-  reset: () => {
-    set({
-      reportData: [],
-      loadedDimensions: [],
-      loadedDateRange: getDefaultDateRange(),
-      dimensions: [],
-      dateRange: getDefaultDateRange(),
-      expandedRowKeys: [],
-      sortColumn: null,
-      sortDirection: null,
-      isLoading: false,
-      hasLoadedOnce: false,
-      error: null,
-      hasUnsavedChanges: false,
-    });
-  },
-}));
+  defaultDimensions: ['campaign', 'adGroup', 'keyword'],
+  defaultSortColumn: 'clicks',
+  defaultSortDirection: 'descend',
+  hasFilters: true, // Set to false if no user-defined filters needed
+});
 ```
+
+**That's it!** The factory provides all standard actions and state management automatically.
+
+## Factory Configuration
+
+### TableStoreConfig<TRow>
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `fetchData` | `(params: QueryParams) => Promise<TRow[]>` | **Required**. API client function to fetch data |
+| `defaultDateRange` | `() => DateRange` | **Required**. Function returning default date range |
+| `defaultDimensions` | `string[]` | **Required**. Default dimension hierarchy (e.g., `['country', 'product']`) |
+| `defaultSortColumn` | `string` | **Required**. Default column to sort by |
+| `defaultSortDirection` | `'ascend' \| 'descend'` | **Required**. Default sort direction |
+| `hasFilters` | `boolean` | **Optional** (default: `false`). Enable user-defined table filters |
+
+### What the Factory Provides
+
+The factory automatically implements:
+
+**State**:
+- `reportData: TRow[]` - Hierarchical data tree
+- `dimensions: string[]` / `loadedDimensions: string[]` - Dual-state pattern
+- `dateRange: DateRange` / `loadedDateRange: DateRange` - Dual-state pattern
+- `filters: TableFilter[]` / `loadedFilters: TableFilter[]` - If `hasFilters: true`
+- `expandedRowKeys: string[]` - Currently expanded rows
+- `sortColumn: string | null` / `sortDirection: 'ascend' | 'descend' | null`
+- `isLoading: boolean` / `isLoadingSubLevels: boolean`
+- `hasUnsavedChanges: boolean` / `hasLoadedOnce: boolean`
+- `error: string | null`
+
+**Actions**:
+- `loadData()` - Load depth 0 data with auto-expansion
+- `loadChildData(key, value, depth)` - Lazy-load children on expand
+- `setDateRange(range)` - Update date range, mark as unsaved
+- `setFilters(filters)` - Update filters (if enabled)
+- `addDimension(id)` / `removeDimension(id)` / `reorderDimensions(newOrder)`
+- `setSort(column, direction)` - Update sort and reload
+- `setExpandedRowKeys(keys)` - Update expanded rows
+- `resetFilters()` - Revert to last-loaded state
+
+### Behavior Built-In
+
+1. **Auto-Expansion**: Automatically expands depth 0 + depth 1 on initial load
+2. **Batched Loading**: Loads depth 1 children in batches of 10 to avoid server overload
+3. **Expanded Keys Restoration**: Restores expanded rows level-by-level after reload
+4. **hasChildren Management**: Updates `hasChildren` property when dimensions change
+5. **Dual-State Pattern**: Tracks active vs loaded state for "unsaved changes" indicator
 
 ## Key Patterns
 
@@ -474,17 +281,60 @@ const hasChanged = JSON.stringify(dimensions) !== JSON.stringify(loadedDimension
 
 ## Real-World Examples
 
-### Example 1: Marketing Report Store
-**Location**: [stores/reportStore.ts](stores/reportStore.ts)
-**Features**: Campaign hierarchy, date range, dimensions, lazy child loading
+### Example 1: Dashboard Store
+**Location**: [stores/dashboardStore.ts](stores/dashboardStore.ts)
+```typescript
+export const useDashboardStore = createTableStore<DashboardRow>({
+  fetchData: (params) => fetchDashboardData(params),
+  defaultDateRange: () => { /* today */ },
+  defaultDimensions: ['country', 'productName', 'product', 'source'],
+  defaultSortColumn: 'subscriptions',
+  defaultSortDirection: 'descend',
+  hasFilters: false, // Dashboard has no user-defined filters
+});
+```
 
-### Example 2: On-Page Analysis Store
-**Location**: [stores/onPageStore.ts](stores/onPageStore.ts)
-**Features**: Page hierarchy, similar structure to report store, 98% identical
+### Example 2: Marketing Report Store
+**Location**: [stores/reportStore.ts](stores/reportStore.ts)
+```typescript
+export const useReportStore = createTableStore<ReportRow>({
+  fetchData: (params) => fetchMarketingData(params),
+  defaultDateRange: () => { /* yesterday */ },
+  defaultDimensions: ['network', 'campaign', 'adset'],
+  defaultSortColumn: 'clicks',
+  defaultSortDirection: 'descend',
+  hasFilters: true, // Marketing report has user-defined filters
+});
+```
+
+### Example 3: Factory Implementation
+**Location**: [stores/createTableStore.ts](stores/createTableStore.ts)
+**Lines**: ~530 lines of centralized logic
+**Features**: All standard table store patterns in one reusable factory
+
+## Migration Guide
+
+If you have an old-style store (pre-factory), migrate like this:
+
+**Before** (420 lines):
+```typescript
+export const useMyStore = create<MyStoreState>((set, get) => ({
+  // 400+ lines of duplicated logic...
+}));
+```
+
+**After** (20 lines):
+```typescript
+export const useMyStore = createTableStore<MyReportRow>({
+  fetchData: (params) => fetchMyReportData(params),
+  // ... config only
+});
+```
 
 ## Related Documentation
 - See `.claude/docs/workflows/new-dashboard.md` for complete workflow
 - See `.claude/docs/components/generic-table.md` for table integration
 - See `.claude/docs/components/url-sync.md` for URL sync integration
 - See `.claude/docs/state.md` for detailed state management guide
-- See `stores/reportStore.ts` and `stores/onPageStore.ts` for real examples
+- See `stores/createTableStore.ts` for factory implementation
+- See `stores/dashboardStore.ts` and `stores/reportStore.ts` for real examples
