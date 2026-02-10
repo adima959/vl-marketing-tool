@@ -53,6 +53,7 @@ export interface UseGenericUrlSyncConfig<TRow extends BaseReportRow> {
   useStore: StoreHook<TRow>;
   fetchData: (params: any) => Promise<TRow[]>;
   defaultSortColumn: string;
+  skipDimensions?: boolean; // Don't sync dimensions to/from URL (dashboard has fixed dimensions)
 }
 
 /**
@@ -94,6 +95,7 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
   useStore,
   fetchData,
   defaultSortColumn,
+  skipDimensions = false,
 }: UseGenericUrlSyncConfig<TRow>) {
   // Define URL parsers with defaults
   const getDefaultDateRange = () => {
@@ -162,8 +164,8 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
         });
       }
 
-      // Parse and apply dimensions from URL
-      if (urlState.dimensions && urlState.dimensions.length > 0) {
+      // Parse and apply dimensions from URL (skip if disabled)
+      if (!skipDimensions && urlState.dimensions && urlState.dimensions.length > 0) {
         useStore.setState({ dimensions: urlState.dimensions });
       }
 
@@ -310,7 +312,7 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
     setUrlState({
       start: dateRange.start,
       end: dateRange.end,
-      dimensions: dimensions.length > 0 ? dimensions : null, // null removes param
+      dimensions: skipDimensions ? null : (dimensions.length > 0 ? dimensions : null), // null removes param
       expanded: expandedRowKeys.length > 0 ? Array.from(new Set(expandedRowKeys)) : null,
       sortBy: sortColumn || defaultSortColumn,
       sortDir: sortDirection || 'descend',
