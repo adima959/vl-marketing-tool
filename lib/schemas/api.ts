@@ -48,7 +48,7 @@ export const queryRequestSchema = z.object({
   depth: z.number().int().min(0, 'depth must be a non-negative integer'),
   parentFilters: z.record(z.string(), z.string()).optional(),
   filters: z.array(tableFilterSchema).optional(),
-  sortBy: z.string().optional(),
+  sortBy: z.string().nullish(),
   sortDirection: sortDirectionSchema.optional(),
 });
 
@@ -56,7 +56,7 @@ export const queryRequestSchema = z.object({
  * Marketing query request schema (extends base with productFilter)
  */
 export const marketingQueryRequestSchema = queryRequestSchema.extend({
-  productFilter: z.string().optional(),
+  productFilter: z.string().nullish(),
 });
 
 /**
@@ -101,10 +101,10 @@ export const dashboardDetailsRequestSchema = z.object({
   metricId: z.enum([...DASHBOARD_DETAIL_METRIC_IDS]),
   filters: z.object({
     dateRange: dateRangeSchema,
-    country: z.string().optional(),
-    product: z.string().optional(),
-    productName: z.string().optional(),
-    source: z.string().optional(),
+    country: z.string().nullish(),
+    product: z.string().nullish(),
+    productName: z.string().nullish(),
+    source: z.string().nullish(),
     excludeDeleted: z.boolean().optional(),
     excludeUpsellTags: z.boolean().optional(),
     rateType: validationRateTypeSchema.optional(),
@@ -120,13 +120,13 @@ export const marketingDetailsRequestSchema = z.object({
   metricId: z.enum([...MARKETING_DETAIL_METRIC_IDS]),
   filters: z.object({
     dateRange: dateRangeSchema,
-    network: z.string().optional(),
-    campaign: z.string().optional(),
-    adset: z.string().optional(),
-    ad: z.string().optional(),
+    network: z.string().nullish(),
+    campaign: z.string().nullish(),
+    adset: z.string().nullish(),
+    ad: z.string().nullish(),
     date: z.string().date().optional(),
-    classifiedProduct: z.string().optional(),
-    classifiedCountry: z.string().optional(),
+    classifiedProduct: z.string().nullish(),
+    classifiedCountry: z.string().nullish(),
   }),
   pagination: paginationSchema,
 });
@@ -144,11 +144,11 @@ export const savedViewCreateSchema = z.object({
   pagePath: z.string().min(1),
   dateMode: z.enum(['relative', 'absolute', 'none']),
   datePreset: datePresetSchema.optional(),
-  dateStart: z.string().date().optional(),
-  dateEnd: z.string().date().optional(),
+  dateStart: z.string().date().nullish(),
+  dateEnd: z.string().date().nullish(),
   dimensions: z.array(z.string()).optional(),
   filters: z.array(tableFilterSchema).optional(),
-  sortBy: z.string().optional(),
+  sortBy: z.string().nullish(),
   sortDir: z.enum(['ascend', 'descend']).optional(),
   period: z.enum(['weekly', 'biweekly', 'monthly']).optional(),
   visibleColumns: z.array(z.string()).optional(),
