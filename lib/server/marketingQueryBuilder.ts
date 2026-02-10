@@ -1,10 +1,37 @@
 import { executeQuery } from './db';
-import { getCRMSubscriptions, getCRMOts, type CRMQueryFilters, type CRMSubscriptionRow, type CRMOtsRow } from './marketingCrmQueries';
+import { executeMariaDBQuery } from './mariadb';
+import { crmQueryBuilder } from './crmQueryBuilder';
+import { formatDateForMariaDB } from './crmMetrics';
 import { validateSortDirection } from './types';
 import { matchNetworkToSource } from './crmMetrics';
 import { FilterBuilder } from './queryBuilderUtils';
 
 type SqlParam = string | number | boolean | null | Date;
+
+// CRM row types for tracking-based queries
+interface CRMSubscriptionRow {
+  source: string | null;
+  campaign_id: string;
+  adset_id: string;
+  ad_id: string;
+  date: string;
+  subscription_count: number;
+  approved_count: number;
+  trial_count: number;
+  customer_count: number;
+  upsell_count: number;
+  upsells_approved_count: number;
+}
+
+interface CRMOtsRow {
+  source: string | null;
+  campaign_id: string;
+  adset_id: string;
+  ad_id: string;
+  date: string;
+  ots_count: number;
+  ots_approved_count: number;
+}
 
 export interface MarketingQueryParams {
   dateRange: { start: Date; end: Date };
@@ -336,16 +363,25 @@ export async function getMarketingData(
     networks: string[];
   };
 
-  const crmFilters: CRMQueryFilters = {
-    dateStart: `${formatLocalDate(dateRange.start)} 00:00:00`,
-    dateEnd: `${formatLocalDate(dateRange.end)} 23:59:59`,
+  // Build CRM queries using shared builder (tracking mode)
+  const { query: crmQuery, params: crmParams } = crmQueryBuilder.buildQuery({
+    dateRange,
+    groupBy: { type: 'tracking', dimensions: ['campaign', 'adset', 'ad', 'date'] },
+    depth: 3, // All tracking dimensions
     productFilter: effectiveProductFilter,
-  };
+  });
+
+  const { query: otsQuery, params: otsParams } = crmQueryBuilder.buildOtsQuery({
+    dateRange,
+    groupBy: { type: 'tracking', dimensions: ['campaign', 'adset', 'ad', 'date'] },
+    depth: 3,
+    productFilter: effectiveProductFilter,
+  });
 
   const [adsData, crmData, otsData] = await Promise.all([
     executeQuery<AdsRowWithMappings>(adsQuery, pgParams),
-    getCRMSubscriptions(crmFilters),
-    getCRMOts(crmFilters),
+    executeMariaDBQuery<CRMSubscriptionRow>(crmQuery, crmParams),
+    executeMariaDBQuery<CRMOtsRow>(otsQuery, otsParams),
   ]);
 
   // Build CRM subscription index: tracking ID tuple → rows

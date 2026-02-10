@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeMariaDBQuery } from '@/lib/server/mariadb';
-import { dashboardTableQueryBuilder } from '@/lib/server/dashboardTableQueryBuilder';
+import { crmQueryBuilder } from '@/lib/server/crmQueryBuilder';
 import type { DashboardRow } from '@/types/dashboard';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
@@ -60,9 +60,22 @@ async function handleDashboardQuery(
       limit: MAX_DASHBOARD_QUERY_LIMIT,
     };
 
-    // Build main subscription query and standalone OTS query
-    const { query, params } = dashboardTableQueryBuilder.buildQuery(queryOptions);
-    const { query: otsQuery, params: otsParams } = dashboardTableQueryBuilder.buildOtsQuery(queryOptions);
+    // Build main subscription query and standalone OTS query using shared builder
+    const { query, params } = crmQueryBuilder.buildQuery({
+      dateRange,
+      groupBy: { type: 'geography', dimensions: body.dimensions },
+      depth: body.depth,
+      parentFilters: body.parentFilters,
+      sortBy: body.sortBy || 'subscriptions',
+      sortDirection: (body.sortDirection || 'DESC') as 'ASC' | 'DESC',
+      limit: MAX_DASHBOARD_QUERY_LIMIT,
+    });
+    const { query: otsQuery, params: otsParams } = crmQueryBuilder.buildOtsQuery({
+      dateRange,
+      groupBy: { type: 'geography', dimensions: body.dimensions },
+      depth: body.depth,
+      parentFilters: body.parentFilters,
+    });
 
     // Execute both queries in parallel
     const [rows, otsRows] = await Promise.all([

@@ -17,10 +17,9 @@ interface ProductsClientTableProps {
   users: TrackerUser[];
 }
 
-export function ProductsClientTable({ products: initialProducts, users }: ProductsClientTableProps) {
+export function ProductsClientTable({ products, users }: ProductsClientTableProps) {
   const { message } = App.useApp();
   const router = useRouter();
-  const [products] = useState<Product[]>(initialProducts);
   const [loading, setLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);

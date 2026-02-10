@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeMariaDBQuery } from '@/lib/server/mariadb';
-import { dashboardTableQueryBuilder } from '@/lib/server/dashboardTableQueryBuilder';
+import { crmQueryBuilder } from '@/lib/server/crmQueryBuilder';
 import type { TimeSeriesDataPoint, TimeSeriesResponse } from '@/types/dashboard';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
@@ -50,9 +50,9 @@ async function handleTimeSeriesQuery(
       end: new Date(body.dateRange.end),
     };
 
-    // Build main time series query and standalone OTS time series query
-    const { query, params } = dashboardTableQueryBuilder.buildTimeSeriesQuery(dateRange);
-    const { query: otsQuery, params: otsParams } = dashboardTableQueryBuilder.buildOtsTimeSeriesQuery(dateRange);
+    // Build main time series query and standalone OTS time series query using shared builder
+    const { query, params } = crmQueryBuilder.buildTimeSeriesQuery(dateRange);
+    const { query: otsQuery, params: otsParams } = crmQueryBuilder.buildOtsTimeSeriesQuery(dateRange);
 
     // Execute both queries in parallel
     const [rows, otsRows] = await Promise.all([
