@@ -6,6 +6,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/server/db';
+import { withAdmin } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
 
 // ── Fixed UUIDs for seed data referential integrity ─────────────────
 
@@ -521,7 +523,7 @@ async function seedData(): Promise<void> {
 
 // ── POST: Run migration ─────────────────────────────────────────────
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export const POST = withAdmin(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const { searchParams } = new URL(request.url);
     const reset = searchParams.get('reset') === 'true';
@@ -587,12 +589,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 500 },
     );
   }
-}
+});
 
 
 // ── GET: Check status ───────────────────────────────────────────────
 
-export async function GET(): Promise<NextResponse> {
+export const GET = withAdmin(async (_request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const counts = await executeQuery<{
       angles: string;
@@ -617,4 +619,4 @@ export async function GET(): Promise<NextResponse> {
       details: error instanceof Error ? error.message : 'Unknown error',
     });
   }
-}
+});

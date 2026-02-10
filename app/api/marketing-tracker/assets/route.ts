@@ -7,12 +7,14 @@ import {
 } from '@/lib/marketing-tracker/db';
 import { recordCreation } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
+import { withAuth } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
 
 /**
  * GET /api/marketing-tracker/assets
  * List assets, filtered by messageId (required) and optionally by geo/type
  */
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const { searchParams } = new URL(request.url);
     const messageId = searchParams.get('messageId');
@@ -49,13 +51,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * POST /api/marketing-tracker/assets
  * Create a new asset
  */
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export const POST = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const body: CreateAssetRequest = await request.json();
     const changedBy = await getChangedBy(request);
@@ -145,4 +147,4 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 500 }
     );
   }
-}
+});

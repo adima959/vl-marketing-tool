@@ -7,7 +7,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { movePipelineMessage } from '@/lib/marketing-pipeline/db';
 import { recordUpdate } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
+import { withAuth } from '@/lib/rbac';
 import type { PipelineStage, VerdictType } from '@/types';
+import type { AppUser } from '@/types/user';
 
 const VALID_STAGES: PipelineStage[] = [
   'backlog', 'production', 'testing', 'scaling', 'retired',
@@ -17,10 +19,11 @@ interface RouteParams {
   params: Promise<{ messageId: string }>;
 }
 
-export async function PATCH(
+export const PATCH = withAuth(async (
   request: NextRequest,
+  user: AppUser,
   { params }: RouteParams,
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const { messageId } = await params;
     const body = await request.json();
@@ -66,4 +69,4 @@ export async function PATCH(
       { status: 500 },
     );
   }
-}
+});

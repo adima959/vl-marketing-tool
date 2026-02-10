@@ -6,12 +6,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createPipelineCreative } from '@/lib/marketing-pipeline/db';
 import { recordCreation } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
+import { withAuth } from '@/lib/rbac';
 import type { Geography, CreativeFormat } from '@/types';
+import type { AppUser } from '@/types/user';
 
 const VALID_GEOS: Geography[] = ['NO', 'SE', 'DK'];
 const VALID_FORMATS: CreativeFormat[] = ['ugc_video', 'static_image', 'video'];
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export const POST = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const body = await request.json();
     const changedBy = await getChangedBy(request);
@@ -48,4 +50,4 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     console.error('Error creating creative:', error);
     return NextResponse.json({ success: false, error: 'Failed to create creative' }, { status: 500 });
   }
-}
+});

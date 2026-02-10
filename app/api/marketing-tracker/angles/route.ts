@@ -7,12 +7,14 @@ import {
 } from '@/lib/marketing-tracker/db';
 import { recordCreation } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
+import { withAuth } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
 
 /**
  * GET /api/marketing-tracker/angles
  * List angles, filtered by productId (required)
  */
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const { searchParams } = new URL(request.url);
     const productId = searchParams.get('productId');
@@ -43,13 +45,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * POST /api/marketing-tracker/angles
  * Create a new angle
  */
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export const POST = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const body: CreateAngleRequest = await request.json();
     const changedBy = await getChangedBy(request);
@@ -104,4 +106,4 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 500 }
     );
   }
-}
+});

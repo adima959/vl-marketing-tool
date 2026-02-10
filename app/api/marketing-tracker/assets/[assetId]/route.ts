@@ -13,6 +13,8 @@ import {
   recordDeletion,
 } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
+import { withAuth } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
 
 interface RouteParams {
   params: Promise<{ assetId: string }>;
@@ -22,10 +24,11 @@ interface RouteParams {
  * GET /api/marketing-tracker/assets/[assetId]
  * Get a single asset with its parent context
  */
-export async function GET(
+export const GET = withAuth(async (
   request: NextRequest,
+  user: AppUser,
   { params }: RouteParams
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const { assetId } = await params;
     const asset = await getAssetById(assetId);
@@ -57,16 +60,17 @@ export async function GET(
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * PUT /api/marketing-tracker/assets/[assetId]
  * Update an asset
  */
-export async function PUT(
+export const PUT = withAuth(async (
   request: NextRequest,
+  user: AppUser,
   { params }: RouteParams
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const { assetId } = await params;
     const body = await request.json();
@@ -134,16 +138,17 @@ export async function PUT(
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * DELETE /api/marketing-tracker/assets/[assetId]
  * Delete an asset (soft delete)
  */
-export async function DELETE(
+export const DELETE = withAuth(async (
   request: NextRequest,
+  user: AppUser,
   { params }: RouteParams
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const { assetId } = await params;
     const changedBy = await getChangedBy(request);
@@ -179,4 +184,4 @@ export async function DELETE(
       { status: 500 }
     );
   }
-}
+});

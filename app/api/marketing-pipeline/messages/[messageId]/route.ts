@@ -12,15 +12,18 @@ import {
 } from '@/lib/marketing-pipeline/db';
 import { recordUpdate, recordDeletion } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
+import { withAuth } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
 
 interface RouteParams {
   params: Promise<{ messageId: string }>;
 }
 
-export async function GET(
+export const GET = withAuth(async (
   _request: NextRequest,
+  user: AppUser,
   { params }: RouteParams,
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const { messageId } = await params;
     const detail = await getPipelineMessageDetail(messageId);
@@ -40,12 +43,13 @@ export async function GET(
       { status: 500 },
     );
   }
-}
+});
 
-export async function PATCH(
+export const PATCH = withAuth(async (
   request: NextRequest,
+  user: AppUser,
   { params }: RouteParams,
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const { messageId } = await params;
     const body = await request.json();
@@ -90,12 +94,13 @@ export async function PATCH(
       { status: 500 },
     );
   }
-}
+});
 
-export async function DELETE(
+export const DELETE = withAuth(async (
   request: NextRequest,
+  user: AppUser,
   { params }: RouteParams,
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const { messageId } = await params;
     const changedBy = await getChangedBy(request);
@@ -125,4 +130,4 @@ export async function DELETE(
       { status: 500 },
     );
   }
-}
+});

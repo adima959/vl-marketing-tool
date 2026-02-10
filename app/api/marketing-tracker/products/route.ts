@@ -3,12 +3,14 @@ import type { CreateProductRequest, ProductStatus } from '@/types/marketing-trac
 import { getProducts, createProduct } from '@/lib/marketing-tracker/db';
 import { recordCreation } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
+import { withAuth } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
 
 /**
  * GET /api/marketing-tracker/products
  * List all products with stats
  */
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') as ProductStatus | null;
@@ -27,13 +29,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * POST /api/marketing-tracker/products
  * Create a new product
  */
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export const POST = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const body: CreateProductRequest = await request.json();
     const changedBy = await getChangedBy(request);
@@ -75,4 +77,4 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 500 }
     );
   }
-}
+});

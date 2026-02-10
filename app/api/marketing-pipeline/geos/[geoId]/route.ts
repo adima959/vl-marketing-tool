@@ -7,7 +7,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { updateMessageGeo, deleteMessageGeo } from '@/lib/marketing-pipeline/db';
 import { recordUpdate, recordDeletion } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
+import { withAuth } from '@/lib/rbac';
 import type { GeoStage } from '@/types';
+import type { AppUser } from '@/types/user';
 
 const VALID_GEO_STAGES: GeoStage[] = ['setup', 'production', 'testing', 'live', 'paused'];
 
@@ -15,10 +17,11 @@ interface RouteParams {
   params: Promise<{ geoId: string }>;
 }
 
-export async function PATCH(
+export const PATCH = withAuth(async (
   request: NextRequest,
+  user: AppUser,
   { params }: RouteParams,
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const { geoId } = await params;
     const body = await request.json();
@@ -54,12 +57,13 @@ export async function PATCH(
       { status: 500 },
     );
   }
-}
+});
 
-export async function DELETE(
+export const DELETE = withAuth(async (
   request: NextRequest,
+  user: AppUser,
   { params }: RouteParams,
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const { geoId } = await params;
     const changedBy = await getChangedBy(request);
@@ -81,4 +85,4 @@ export async function DELETE(
       { status: 500 },
     );
   }
-}
+});

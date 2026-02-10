@@ -7,15 +7,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { updateProductCpaTargets } from '@/lib/marketing-pipeline/db';
 import { recordUpdate } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
+import { withAuth } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
 
 interface RouteParams {
   params: Promise<{ productId: string }>;
 }
 
-export async function PATCH(
+export const PATCH = withAuth(async (
   request: NextRequest,
+  user: AppUser,
   { params }: RouteParams,
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const { productId } = await params;
     const body = await request.json();
@@ -44,4 +47,4 @@ export async function PATCH(
       { status: 500 },
     );
   }
-}
+});

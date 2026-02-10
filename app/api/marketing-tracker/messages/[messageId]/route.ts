@@ -16,6 +16,8 @@ import {
   recordDeletion,
 } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
+import { withAuth } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
 
 interface RouteParams {
   params: Promise<{ messageId: string }>;
@@ -25,10 +27,11 @@ interface RouteParams {
  * GET /api/marketing-tracker/messages/[messageId]
  * Get a single message with its assets and creatives
  */
-export async function GET(
+export const GET = withAuth(async (
   request: NextRequest,
+  user: AppUser,
   { params }: RouteParams
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const { messageId } = await params;
 
@@ -76,16 +79,17 @@ export async function GET(
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * PUT /api/marketing-tracker/messages/[messageId]
  * Update a message
  */
-export async function PUT(
+export const PUT = withAuth(async (
   request: NextRequest,
+  user: AppUser,
   { params }: RouteParams
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const { messageId } = await params;
     const body = await request.json();
@@ -141,16 +145,17 @@ export async function PUT(
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * PATCH /api/marketing-tracker/messages/[messageId]
  * Partial update of message fields (status, hypothesis fields, etc.)
  */
-export async function PATCH(
+export const PATCH = withAuth(async (
   request: NextRequest,
+  user: AppUser,
   { params }: RouteParams
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const { messageId } = await params;
     const body = await request.json();
@@ -226,7 +231,7 @@ export async function PATCH(
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * DELETE /api/marketing-tracker/messages/[messageId]
@@ -237,10 +242,11 @@ export async function PATCH(
  * - { mode: "move", targetParentId: "..." } — move assets/creatives to another message, then delete
  * - No body / default — delete message only (backward compatible)
  */
-export async function DELETE(
+export const DELETE = withAuth(async (
   request: NextRequest,
+  user: AppUser,
   { params }: RouteParams
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const { messageId } = await params;
     const changedBy = await getChangedBy(request);
@@ -306,4 +312,4 @@ export async function DELETE(
       { status: 500 }
     );
   }
-}
+});

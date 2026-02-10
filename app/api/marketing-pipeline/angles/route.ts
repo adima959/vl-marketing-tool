@@ -6,8 +6,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createPipelineAngle } from '@/lib/marketing-pipeline/db';
 import { recordCreation } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
+import { withAuth } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export const POST = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const body = await request.json();
     const changedBy = await getChangedBy(request);
@@ -40,4 +42,4 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 500 },
     );
   }
-}
+});

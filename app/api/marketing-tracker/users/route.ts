@@ -6,10 +6,12 @@
  * This is a simplified endpoint that doesn't require admin auth.
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/server/db';
+import { withAuth } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
 
-export async function GET(): Promise<NextResponse> {
+export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const users = await executeQuery<{
       id: string;
@@ -33,4 +35,4 @@ export async function GET(): Promise<NextResponse> {
       { status: 500 }
     );
   }
-}
+});

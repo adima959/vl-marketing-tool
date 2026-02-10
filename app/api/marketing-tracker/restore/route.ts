@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cascadeRestoreProduct, findDeletedProductByName } from '@/lib/marketing-tracker/db';
+import { withAuth } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
 
 /**
  * POST /api/marketing-tracker/restore
  * Restore a soft-deleted product and all its descendants.
  * Body: { name: "ProductName" } or { id: "uuid" }
  */
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export const POST = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const body = await request.json();
     let productId: string | undefined;
@@ -42,4 +44,4 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 500 }
     );
   }
-}
+});

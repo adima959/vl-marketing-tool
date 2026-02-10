@@ -8,8 +8,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/server/db';
+import { withAdmin } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export const POST = withAdmin(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     console.log('🚀 Starting Marketing Tracker migrations...');
 
@@ -391,10 +393,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 500 }
     );
   }
-}
+});
 
 // GET endpoint to check migration status
-export async function GET(): Promise<NextResponse> {
+export const GET = withAdmin(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const counts = await executeQuery<{
       products: string;
@@ -422,4 +424,4 @@ export async function GET(): Promise<NextResponse> {
       details: error instanceof Error ? error.message : 'Unknown error',
     });
   }
-}
+});

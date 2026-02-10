@@ -9,6 +9,12 @@ import { queryRequestSchema } from '@/lib/schemas/api';
 import { toTitleCase } from '@/lib/formatters';
 import { z } from 'zod';
 
+/**
+ * Maximum number of rows to return from dashboard queries.
+ * Prevents excessive memory usage and query timeouts.
+ */
+const MAX_DASHBOARD_QUERY_LIMIT = 1000;
+
 interface QueryRequest {
   dateRange: { start: string; end: string };
   dimensions: string[];
@@ -51,7 +57,7 @@ async function handleDashboardQuery(
       parentFilters: body.parentFilters,
       sortBy: body.sortBy || 'subscriptions',
       sortDirection: (body.sortDirection || 'DESC') as 'ASC' | 'DESC',
-      limit: 1000,
+      limit: MAX_DASHBOARD_QUERY_LIMIT,
     };
 
     // Build main subscription query and standalone OTS query

@@ -4,11 +4,14 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { deletePipelineAngle, getAngleMessageCount } from '@/lib/marketing-pipeline/db';
+import { withAuth } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
 
-export async function DELETE(
+export const DELETE = withAuth(async (
   _request: NextRequest,
+  user: AppUser,
   { params }: { params: Promise<{ angleId: string }> },
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const { angleId } = await params;
 
@@ -38,4 +41,4 @@ export async function DELETE(
       { status: 500 },
     );
   }
-}
+});

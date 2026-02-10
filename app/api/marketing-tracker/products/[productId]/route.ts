@@ -13,6 +13,8 @@ import {
   recordDeletion,
 } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
+import { withAuth } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
 
 interface RouteParams {
   params: Promise<{ productId: string }>;
@@ -22,10 +24,11 @@ interface RouteParams {
  * GET /api/marketing-tracker/products/[productId]
  * Get a single product with its angles
  */
-export async function GET(
+export const GET = withAuth(async (
   request: NextRequest,
+  user: AppUser,
   { params }: RouteParams
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const { productId } = await params;
 
@@ -63,16 +66,17 @@ export async function GET(
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * PUT /api/marketing-tracker/products/[productId]
  * Update a product
  */
-export async function PUT(
+export const PUT = withAuth(async (
   request: NextRequest,
+  user: AppUser,
   { params }: RouteParams
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const { productId } = await params;
     const body = await request.json();
@@ -127,16 +131,17 @@ export async function PUT(
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * PATCH /api/marketing-tracker/products/[productId]
  * Partially update product fields (name, description, notes)
  */
-export async function PATCH(
+export const PATCH = withAuth(async (
   request: NextRequest,
+  user: AppUser,
   { params }: RouteParams
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const { productId } = await params;
     const body = await request.json();
@@ -203,7 +208,7 @@ export async function PATCH(
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * DELETE /api/marketing-tracker/products/[productId]
@@ -214,10 +219,11 @@ export async function PATCH(
  * - { mode: "move", targetParentId: "..." } — move angles to another product, then delete
  * - No body / default — delete product only (backward compatible)
  */
-export async function DELETE(
+export const DELETE = withAuth(async (
   request: NextRequest,
+  user: AppUser,
   { params }: RouteParams
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const { productId } = await params;
     const changedBy = await getChangedBy(request);
@@ -283,4 +289,4 @@ export async function DELETE(
       { status: 500 }
     );
   }
-}
+});
