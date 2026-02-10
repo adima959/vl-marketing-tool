@@ -27,14 +27,14 @@ async function getUsers(): Promise<AppUser[]> {
 
 async function checkAuth(): Promise<{ isAuthenticated: boolean; isAdmin: boolean }> {
   const cookieStore = await cookies();
-  const token = cookieStore.get('auth_token');
+  const token = cookieStore.get('crm_auth_token');
 
   if (!token) {
     return { isAuthenticated: false, isAdmin: false };
   }
 
   const { valid, user: crmUser } = await validateRequest({
-    headers: new Headers({ cookie: `auth_token=${token.value}` })
+    headers: new Headers({ cookie: `crm_auth_token=${token.value}` })
   } as any);
 
   if (!valid || !crmUser) {
