@@ -133,5 +133,5 @@ export function useDragScroll(tableRef: RefObject<HTMLDivElement | null>): void 
       document.removeEventListener('mouseup', handleMouseUp);
       scrollEl.removeEventListener('mouseleave', handleMouseUp);
     };
-  });
+  }, [tableRef]);
 }

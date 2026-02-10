@@ -237,6 +237,7 @@ export function GenericDataTable<TRow extends BaseTableRow>({
                   metricId={col.id}
                   metricLabel={col.label}
                   rowKey={record.key}
+                  depth={record.depth}
                   dimensions={loadedDimensions}
                   dateRange={loadedDateRange}
                   onClick={onOnPageMetricClick}

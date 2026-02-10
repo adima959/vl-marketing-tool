@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { App, Modal, Form, Input, Select } from 'antd';
+import { Modal, Form, Input, Select } from 'antd';
 import type { Angle, AngleStatus } from '@/types';
 import { FormRichEditor } from '@/components/ui/FormRichEditor';
+import { useEntityModal } from '@/hooks/useEntityModal';
 import modalStyles from '@/styles/components/modal.module.css';
 
 interface AngleModalProps {
@@ -11,7 +11,7 @@ interface AngleModalProps {
   onClose: () => void;
   onSuccess: () => void;
   productId: string;
-  angle?: Angle | null; // If provided, edit mode
+  angle?: Angle | null;
 }
 
 interface AngleFormValues {
@@ -29,56 +29,24 @@ const statusOptions = [
 ];
 
 export function AngleModal({ open, onClose, onSuccess, productId, angle }: AngleModalProps) {
-  const [form] = Form.useForm<AngleFormValues>();
-  const { message } = App.useApp();
-  const [loading, setLoading] = useState(false);
-  const isEdit = !!angle;
-
-  useEffect(() => {
-    if (open) {
-      if (angle) {
-        form.setFieldsValue({
-          name: angle.name,
-          description: angle.description || '',
-          status: angle.status,
-        });
-      } else {
-        form.resetFields();
-        form.setFieldValue('status', 'idea');
-      }
-    }
-  }, [open, angle, form]);
-
-  const handleSubmit = async (values: AngleFormValues) => {
-    setLoading(true);
-    try {
-      const url = isEdit
-        ? `/api/marketing-tracker/angles/${angle.id}`
-        : '/api/marketing-tracker/angles';
-
-      const body = isEdit ? values : { ...values, productId };
-
-      const response = await fetch(url, {
-        method: isEdit ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to save angle');
-      }
-
-      message.success(isEdit ? 'Angle updated successfully' : 'Angle created successfully');
-      onSuccess();
-      onClose();
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : 'Failed to save angle');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { form, loading, isEdit, handleSubmit } = useEntityModal<Angle, AngleFormValues>({
+    open,
+    entity: angle,
+    onClose,
+    onSuccess,
+    getCreateUrl: () => '/api/marketing-tracker/angles',
+    getUpdateUrl: (angle) => `/api/marketing-tracker/angles/${angle.id}`,
+    entityToFormValues: (angle) => ({
+      name: angle.name,
+      description: angle.description || '',
+      status: angle.status,
+    }),
+    formValuesToRequestBody: (values, isEdit) => (isEdit ? values : { ...values, productId }),
+    getDefaultValues: () => ({ status: 'idea' as AngleStatus }),
+    createSuccessMessage: 'Angle created successfully',
+    updateSuccessMessage: 'Angle updated successfully',
+    errorMessage: 'Failed to save angle',
+  });
 
   return (
     <Modal

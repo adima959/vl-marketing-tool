@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { App, Modal, Form, Input, Select } from 'antd';
+import { Modal, Form, Input, Select } from 'antd';
 import type { Product, TrackerUser } from '@/types';
 import { FormRichEditor } from '@/components/ui/FormRichEditor';
+import { useEntityModal } from '@/hooks/useEntityModal';
 import modalStyles from '@/styles/components/modal.module.css';
 
 /** 20 curated product colors derived from the design system palette */
@@ -30,60 +31,34 @@ interface ProductFormValues {
 }
 
 export function ProductModal({ open, onClose, onSuccess, product, users }: ProductModalProps) {
-  const [form] = Form.useForm<ProductFormValues>();
-  const { message } = App.useApp();
-  const [loading, setLoading] = useState(false);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
-  const isEdit = !!product;
 
+  const { form, loading, isEdit, handleSubmit } = useEntityModal<Product, ProductFormValues>({
+    open,
+    entity: product,
+    onClose,
+    onSuccess,
+    getCreateUrl: () => '/api/marketing-tracker/products',
+    getUpdateUrl: (product) => `/api/marketing-tracker/products/${product.id}`,
+    entityToFormValues: (product) => ({
+      name: product.name,
+      description: product.description || '',
+      notes: product.notes || '',
+      ownerId: product.ownerId ?? '',
+    }),
+    formValuesToRequestBody: (values) => ({ ...values, color: selectedColor }),
+    getDefaultValues: () => (users.length > 0 ? { ownerId: users[0].id } : {}),
+    createSuccessMessage: 'Product created successfully',
+    updateSuccessMessage: 'Product updated successfully',
+    errorMessage: 'Failed to save product',
+  });
+
+  // Handle color state separately (custom UI logic)
   useEffect(() => {
     if (open) {
-      if (product) {
-        form.setFieldsValue({
-          name: product.name,
-          description: product.description || '',
-          notes: product.notes || '',
-          ownerId: product.ownerId ?? undefined,
-        });
-        setSelectedColor(product.color || null);
-      } else {
-        form.resetFields();
-        setSelectedColor(null);
-        if (users.length > 0) {
-          form.setFieldValue('ownerId', users[0].id);
-        }
-      }
+      setSelectedColor(product?.color || null);
     }
-  }, [open, product, form, users]);
-
-  const handleSubmit = async (values: ProductFormValues) => {
-    setLoading(true);
-    try {
-      const url = isEdit
-        ? `/api/marketing-tracker/products/${product.id}`
-        : '/api/marketing-tracker/products';
-
-      const response = await fetch(url, {
-        method: isEdit ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...values, color: selectedColor }),
-      });
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to save product');
-      }
-
-      message.success(isEdit ? 'Product updated successfully' : 'Product created successfully');
-      onSuccess();
-      onClose();
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : 'Failed to save product');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [open, product]);
 
   return (
     <Modal
