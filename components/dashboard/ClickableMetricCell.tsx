@@ -1,11 +1,10 @@
 'use client';
 
-import { MetricCell } from '@/components/table/MetricCell';
+import { GenericClickableMetricCell } from '@/components/shared/GenericClickableMetricCell';
 import type { MetricFormat } from '@/types';
 import type { MetricClickContext } from '@/types/dashboardDetails';
 import type { DashboardDetailMetricId } from '@/lib/server/crmMetrics';
 import type { DateRange } from '@/types/dashboard';
-import styles from './ClickableMetricCell.module.css';
 
 interface ClickableMetricCellProps {
   value: number;
@@ -21,62 +20,33 @@ interface ClickableMetricCellProps {
 }
 
 /**
- * Wrapper component that makes MetricCell clickable
- * Extracts filter context from row key and passes to onClick handler
+ * Dashboard-specific wrapper for GenericClickableMetricCell
+ * Maps row key parts to dashboard filter structure (country, productName, product, source)
  */
-export function ClickableMetricCell({
-  value,
-  format,
-  metricId,
-  metricLabel,
-  rowKey,
-  dimensions,
-  dateRange,
-  onClick,
-  hideZero = false,
-}: ClickableMetricCellProps) {
-  // Hide zero values if hideZero is true
-  if (hideZero && value === 0) {
-    return null;
-  }
-
-  const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent row expansion
-
-    // Parse row key to extract filters
-    // Row key format: "DENMARK" or "DENMARK::T-Formula" or "DENMARK::T-Formula::Google"
-    const parts = rowKey.split('::');
-
-    // Initialize filters
-    const filters: MetricClickContext['filters'] = {
-      dateRange,
-      country: undefined,
-      productName: undefined,
-      product: undefined,
-      source: undefined,
-    };
-
-    // Map row key parts to filters based on actual dimension order
-    // The row key parts correspond to the dimension order, not fixed positions
-    parts.forEach((part, index) => {
-      const dimensionName = dimensions[index];
-      if (dimensionName && part) {
-        // Map the dimension name to the filter property
-        filters[dimensionName as 'country' | 'productName' | 'product' | 'source'] = part;
-      }
-    });
-
-    onClick({
-      metricId,
-      metricLabel,
-      value,
-      filters,
-    });
-  };
-
+export function ClickableMetricCell(props: ClickableMetricCellProps) {
   return (
-    <div className={styles.clickableMetric} onClick={handleClick}>
-      <MetricCell value={value} format={format} hideZero={hideZero} />
-    </div>
+    <GenericClickableMetricCell
+      {...props}
+      buildFilters={(parts, dimensions, dateRange) => {
+        // Initialize filters
+        const filters: MetricClickContext['filters'] = {
+          dateRange,
+          country: undefined,
+          productName: undefined,
+          product: undefined,
+          source: undefined,
+        };
+
+        // Map row key parts to filters based on actual dimension order
+        parts.forEach((part, index) => {
+          const dimensionName = dimensions[index];
+          if (dimensionName && part) {
+            filters[dimensionName as 'country' | 'productName' | 'product' | 'source'] = part;
+          }
+        });
+
+        return filters;
+      }}
+    />
   );
 }
