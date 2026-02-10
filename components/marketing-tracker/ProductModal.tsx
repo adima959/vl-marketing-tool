@@ -43,7 +43,7 @@ export function ProductModal({ open, onClose, onSuccess, product, users }: Produ
           name: product.name,
           description: product.description || '',
           notes: product.notes || '',
-          ownerId: product.ownerId,
+          ownerId: product.ownerId ?? undefined,
         });
         setSelectedColor(product.color || null);
       } else {
@@ -115,7 +115,7 @@ export function ProductModal({ open, onClose, onSuccess, product, users }: Produ
           <Form.Item
             name="ownerId"
             label="Owner"
-            rules={[{ required: true, message: 'Please select an owner' }]}
+            rules={[]}
           >
             <Select
               placeholder="Select owner"

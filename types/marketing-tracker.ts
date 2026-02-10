@@ -104,7 +104,7 @@ export interface Product extends BaseEntity {
   notes?: string;
   color?: string;
   status: ProductStatus;
-  ownerId: string;
+  ownerId?: string | null;
   owner?: TrackerUser;
   angleCount?: number;
   activeAngleCount?: number;
@@ -210,7 +210,7 @@ export interface CreateProductRequest {
   notes?: string;
   color?: string;
   status?: ProductStatus;
-  ownerId: string;
+  ownerId?: string | null;
 }
 
 export interface CreateAngleRequest {

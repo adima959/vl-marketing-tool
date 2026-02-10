@@ -191,7 +191,7 @@ export async function createProduct(data: CreateProductData): Promise<Product> {
     data.notes || null,
     data.color || null,
     data.status || 'active',
-    data.ownerId,
+    data.ownerId || null,
   ]);
 
   const product = toCamelCase<Product>(rows[0]);

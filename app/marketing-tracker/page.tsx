@@ -20,7 +20,7 @@ interface ProductRow {
   name: string;
   description?: string;
   status: ProductStatus;
-  ownerId: string;
+  ownerId?: string | null;
   ownerName: string;
   ownerInitials: string;
   angleCount: number;
@@ -118,7 +118,7 @@ export default function MarketingTrackerDashboard() {
             {record.ownerInitials}
           </Avatar>
           <EditableSelect
-            value={record.ownerId}
+            value={record.ownerId ?? undefined}
             options={userOptions}
             onChange={(value) => handleOwnerChange(record.id, value)}
             displayLabel={`${record.ownerName.split(' ')[0]} ${record.ownerName.split(' ')[1]?.[0] || ''}.`}

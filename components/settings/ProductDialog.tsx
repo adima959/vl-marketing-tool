@@ -16,6 +16,7 @@ const PRODUCT_COLORS = [
   '#8a6b9a', '#7b70a0', '#9a80a8', // berry, soft violet, lavender
   '#b88099', '#c49898', '#a88090', // dusty rose, blush, mauve
   '#5a6570', '#788580', '#8a94a8', // slate, sage gray, periwinkle
+  '#3a5a40', // dark pastel green
 ];
 
 interface ProductDialogProps {
@@ -30,7 +31,7 @@ interface ProductFormValues {
   name: string;
   sku?: string;
   description?: string;
-  ownerId: string;
+  ownerId?: string;
 }
 
 export function ProductDialog({ product, users, open, onClose, onSuccess }: ProductDialogProps) {
@@ -57,7 +58,7 @@ export function ProductDialog({ product, users, open, onClose, onSuccess }: Prod
           sku: values.sku || null,
           description: values.description || null,
           color: selectedColor,
-          ownerId: values.ownerId,
+          ownerId: values.ownerId || null,
         }),
         credentials: 'same-origin',
       });
@@ -91,7 +92,7 @@ export function ProductDialog({ product, users, open, onClose, onSuccess }: Prod
           name: product.name,
           sku: product.sku || undefined,
           description: product.description || undefined,
-          ownerId: product.ownerId,
+          ownerId: product.ownerId ?? undefined,
         });
         setSelectedColor(product.color || null);
       } else {
@@ -143,7 +144,7 @@ export function ProductDialog({ product, users, open, onClose, onSuccess }: Prod
           <Form.Item
             label={<span className={modalStyles.formLabel}>Product owner</span>}
             name="ownerId"
-            rules={[{ required: true, message: 'Product owner is required' }]}
+            rules={[]}
           >
             <Select placeholder="Select owner">
               {users.map((user) => (

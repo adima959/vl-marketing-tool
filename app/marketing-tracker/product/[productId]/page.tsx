@@ -192,7 +192,7 @@ export default function ProductPage() {
               <span className={`${styles.metaItem} ${styles.ownerMeta}`}>
                 <UserOutlined /> Owner:{' '}
                 <EditableSelect
-                  value={currentProduct.ownerId}
+                  value={currentProduct.ownerId ?? undefined}
                   options={userOptions}
                   onChange={(value) => updateProductField(currentProduct.id, 'ownerId', value)}
                   placeholder="Select owner"

@@ -45,13 +45,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    if (!body.ownerId) {
-      return NextResponse.json(
-        { success: false, error: 'Owner ID is required' },
-        { status: 400 }
-      );
-    }
-
     // Create the product in the database
     const newProduct = await createProduct({
       name: body.name,
