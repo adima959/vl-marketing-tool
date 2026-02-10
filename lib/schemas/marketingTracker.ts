@@ -3,12 +3,12 @@ import { z } from 'zod';
 // Product schemas
 export const createProductSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255),
-  sku: z.string().max(100).optional(),
-  description: z.string().optional(),
-  notes: z.string().optional(),
-  color: z.string().regex(/^#[0-9A-F]{6}$/i, 'Invalid color format').optional(),
+  sku: z.string().max(100).nullish(),
+  description: z.string().nullish(),
+  notes: z.string().nullish(),
+  color: z.string().regex(/^#[0-9A-F]{6}$/i, 'Invalid color format').nullish(),
   status: z.enum(['active', 'inactive']).optional(),
-  ownerId: z.string().uuid('Invalid owner ID').nullable().optional(),
+  ownerId: z.string().uuid('Invalid owner ID').nullish(),
 });
 
 export const updateProductSchema = createProductSchema.partial();
@@ -17,40 +17,40 @@ export const updateProductSchema = createProductSchema.partial();
 export const createAngleSchema = z.object({
   productId: z.string().uuid('Invalid product ID'),
   name: z.string().min(1, 'Name is required').max(255),
-  description: z.string().optional(),
+  description: z.string().nullish(),
   status: z.enum(['idea', 'in_production', 'live', 'paused', 'retired']).optional(),
 });
 
 export const updateAngleSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255).optional(),
-  description: z.string().optional(),
+  description: z.string().nullish(),
   status: z.enum(['idea', 'in_production', 'live', 'paused', 'retired']).optional(),
-  launchedAt: z.string().optional(),
+  launchedAt: z.string().nullish(),
 });
 
 // Message schemas
 export const createMessageSchema = z.object({
   angleId: z.string().uuid('Invalid angle ID'),
   name: z.string().min(1, 'Name is required').max(255),
-  description: z.string().optional(),
-  specificPainPoint: z.string().optional(),
-  corePromise: z.string().optional(),
-  keyIdea: z.string().optional(),
-  primaryHookDirection: z.string().optional(),
+  description: z.string().nullish(),
+  specificPainPoint: z.string().nullish(),
+  corePromise: z.string().nullish(),
+  keyIdea: z.string().nullish(),
+  primaryHookDirection: z.string().nullish(),
   headlines: z.array(z.string()).optional(),
   status: z.enum(['idea', 'in_production', 'live', 'paused', 'retired']).optional(),
 });
 
 export const updateMessageSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255).optional(),
-  description: z.string().optional(),
+  description: z.string().nullish(),
   status: z.enum(['idea', 'in_production', 'live', 'paused', 'retired']).optional(),
-  specificPainPoint: z.string().optional(),
-  corePromise: z.string().optional(),
-  keyIdea: z.string().optional(),
-  primaryHookDirection: z.string().optional(),
+  specificPainPoint: z.string().nullish(),
+  corePromise: z.string().nullish(),
+  keyIdea: z.string().nullish(),
+  primaryHookDirection: z.string().nullish(),
   headlines: z.array(z.string()).optional(),
-  launchedAt: z.string().optional(),
+  launchedAt: z.string().nullish(),
 });
 
 // Asset schemas
@@ -59,18 +59,18 @@ export const createAssetSchema = z.object({
   geo: z.enum(['NO', 'SE', 'DK']),
   type: z.enum(['landing_page', 'text_ad', 'brief', 'research']),
   name: z.string().min(1, 'Name is required').max(255),
-  url: z.string().url('Invalid URL').optional(),
-  content: z.string().optional(),
-  notes: z.string().optional(),
+  url: z.string().url('Invalid URL').nullish(),
+  content: z.string().nullish(),
+  notes: z.string().nullish(),
 });
 
 export const updateAssetSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255).optional(),
   geo: z.enum(['NO', 'SE', 'DK']).optional(),
   type: z.enum(['landing_page', 'text_ad', 'brief', 'research']).optional(),
-  url: z.string().url('Invalid URL').optional(),
-  content: z.string().optional(),
-  notes: z.string().optional(),
+  url: z.string().url('Invalid URL').nullish(),
+  content: z.string().nullish(),
+  notes: z.string().nullish(),
 });
 
 // Creative schemas
@@ -79,18 +79,18 @@ export const createCreativeSchema = z.object({
   geo: z.enum(['NO', 'SE', 'DK']),
   format: z.enum(['ugc_video', 'static_image', 'video']),
   name: z.string().min(1, 'Name is required').max(255),
-  cta: z.string().optional(),
-  url: z.string().url('Invalid URL').optional(),
-  notes: z.string().optional(),
+  cta: z.string().nullish(),
+  url: z.string().url('Invalid URL').nullish(),
+  notes: z.string().nullish(),
 });
 
 export const updateCreativeSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255).optional(),
   geo: z.enum(['NO', 'SE', 'DK']).optional(),
   format: z.enum(['ugc_video', 'static_image', 'video']).optional(),
-  cta: z.string().optional(),
-  url: z.string().url('Invalid URL').optional(),
-  notes: z.string().optional(),
+  cta: z.string().nullish(),
+  url: z.string().url('Invalid URL').nullish(),
+  notes: z.string().nullish(),
 });
 
 // Restore schema
