@@ -137,7 +137,7 @@ export class MarketingDetailQueryBuilder {
         c.date_registered as customerDateRegistered
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
-      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
+      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0
       LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
       LEFT JOIN product p ON p.id = ip.product_id
       LEFT JOIN source sr ON sr.id = s.source_id
@@ -162,7 +162,7 @@ export class MarketingDetailQueryBuilder {
       SELECT COUNT(DISTINCT s.id) as total
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
-      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
+      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0
       LEFT JOIN source sr ON sr.id = s.source_id
       WHERE s.date_create BETWEEN ? AND ?
         AND s.deleted = 0

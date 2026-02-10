@@ -13,10 +13,12 @@ export interface DashboardRow extends BaseTableRow {
   metrics: {
     customers: number;        // COUNT DISTINCT new customers (registration date = subscription date)
     subscriptions: number;    // COUNT of subscription IDs
-    trials: number;           // COUNT of trial_order_id
+    trials: number;           // COUNT of trial invoices (type = 1)
+    ots: number;              // COUNT of one-time sale invoices (type = 3)
+    otsApproved: number;      // COUNT of approved OTS (type = 3, is_marked = 1)
     trialsApproved: number;   // COUNT of approved trials (is_marked = 1)
-    approvalRate: number;     // trialsApproved / trials (decimal ratio for formatPercentage)
-    upsells: number;          // COUNT of upsells where upsell_type = 'ots'
+    approvalRate: number;     // (trialsApproved + otsApproved) / (trials + ots)
+    upsells: number;          // COUNT of upsells (tag-based parent-sub-id matching)
     upsellsApproved: number;  // COUNT of approved upsells (is_marked = 1)
     upsellApprovalRate: number; // upsellsApproved / upsells (decimal ratio for formatPercentage)
   };
@@ -38,6 +40,8 @@ export interface TimeSeriesDataPoint {
   date: string;           // Format: 'YYYY-MM-DD'
   subscriptions: number;
   trials: number;
+  ots: number;
+  otsApproved: number;
   trialsApproved: number;
   customers: number;
   upsells: number;

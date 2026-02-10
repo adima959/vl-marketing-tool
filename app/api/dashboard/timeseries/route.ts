@@ -25,6 +25,8 @@ interface RawTimeSeriesRow {
   customers: number | string;
   subscriptions: number | string;
   trials: number | string;
+  ots: number | string;
+  otsApproved: number | string;
   trialsApproved: number | string;
   upsells: number | string;
   upsellsApproved: number | string;
@@ -74,6 +76,8 @@ async function handleTimeSeriesQuery(
         customers: Number(row.customers) || 0,
         subscriptions: Number(row.subscriptions) || 0,
         trials: Number(row.trials) || 0,
+        ots: Number(row.ots) || 0,
+        otsApproved: Number(row.otsApproved) || 0,
         trialsApproved: Number(row.trialsApproved) || 0,
         upsells: Number(row.upsells) || 0,
         upsellsApproved: Number(row.upsellsApproved) || 0,

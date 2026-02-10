@@ -303,6 +303,7 @@ export function CampaignMapPanel(): React.ReactNode {
                         onChange={(val) => handleDraftChange(campaign.campaignId, 'productId', val)}
                         style={{ width: '100%' }}
                         popupMatchSelectWidth={false}
+                        virtual={false}
                       />
                     </div>
                     <Button

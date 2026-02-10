@@ -1,22 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeMariaDBQuery } from '@/lib/server/mariadb';
 import { executeQuery } from '@/lib/server/db';
+import { CRM_DIMENSION_MAP } from '@/lib/server/onPageCrmQueries';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import type { DetailRecord } from '@/types/dashboardDetails';
 import { maskErrorForClient } from '@/lib/types/errors';
 
-/**
- * Source normalization: expands on-page utm_source values to CRM source variants.
- */
-const SOURCE_VARIANTS: Record<string, string[]> = {
-  google: ['google', 'adwords'],
-  facebook: ['facebook', 'meta'],
-};
-
-/**
- * Maps on-page dimension IDs to PostgreSQL column names in event_page_view_enriched_v2.
- */
+/** Maps dimension IDs to PG column names for filtering */
 const PG_DIMENSION_MAP: Record<string, string> = {
   urlPath: 'url_path',
   pageType: 'page_type',
@@ -39,48 +30,51 @@ const PG_DIMENSION_MAP: Record<string, string> = {
   date: 'created_at::date',
 };
 
-interface TrackingIdCombo {
-  utm_source: string | null;
-  utm_campaign: string | null;
-  adset_id: string | null;
-  ad_id: string | null;
+/**
+ * Normalized source expression for PG queries.
+ * Mirrors crm_subscription_enriched.source_normalized.
+ */
+const PG_NORMALIZED_SOURCE = `
+  CASE
+    WHEN LOWER(utm_source) IN ('google', 'adwords') THEN 'google'
+    WHEN LOWER(utm_source) IN ('facebook', 'meta') THEN 'facebook'
+    ELSE LOWER(COALESCE(utm_source, ''))
+  END`;
+
+/** Max ff_visitor_ids to send in MariaDB IN clause */
+const MAX_VISITOR_IDS = 20000;
+
+interface TrackingCombo {
+  source: string;
+  campaign_id: string;
+  adset_id: string;
+  ad_id: string;
 }
 
 /**
- * Query PostgreSQL page views to extract unique tracking ID combinations
- * matching ALL dimension filters (including non-CRM dimensions like urlPath).
- *
- * Tracking ID mapping (page views → CRM):
- * - utm_source → sr.source
- * - utm_campaign → s.tracking_id_4 (campaign)
- * - utm_content → s.tracking_id_2 (adset)
- * - utm_medium → s.tracking_id (ad)
+ * PG: Get normalized tracking combos from page views matching dimension filters.
  */
-async function getTrackingIdCombinations(
+async function getTrackingCombos(
   dateRange: { start: string; end: string },
   dimensionFilters: Record<string, string>
-): Promise<TrackingIdCombo[]> {
-  const conditions: string[] = [
-    'created_at BETWEEN $1 AND $2',
-  ];
-  const params: any[] = [
+): Promise<TrackingCombo[]> {
+  const params: (string | number)[] = [
     `${dateRange.start} 00:00:00`,
     `${dateRange.end} 23:59:59`,
   ];
+  const conditions: string[] = ['created_at BETWEEN $1 AND $2'];
 
-  // Build WHERE conditions for all dimension filters
   for (const [dimId, value] of Object.entries(dimensionFilters)) {
-    const pgColumn = PG_DIMENSION_MAP[dimId];
-    if (!pgColumn) continue; // Skip unknown dimensions
-
+    const pgCol = PG_DIMENSION_MAP[dimId];
+    if (!pgCol) continue;
     params.push(value);
-    conditions.push(`${pgColumn}::text = $${params.length}`);
+    conditions.push(`${pgCol}::text = $${params.length}`);
   }
 
   const query = `
     SELECT DISTINCT
-      LOWER(utm_source) as utm_source,
-      COALESCE(utm_campaign, '') as utm_campaign,
+      ${PG_NORMALIZED_SOURCE} as source,
+      COALESCE(utm_campaign, '') as campaign_id,
       COALESCE(utm_content, '') as adset_id,
       COALESCE(utm_medium, '') as ad_id
     FROM remote_session_tracker.event_page_view_enriched_v2
@@ -88,248 +82,149 @@ async function getTrackingIdCombinations(
       AND utm_source IS NOT NULL
   `;
 
-  return executeQuery<TrackingIdCombo>(query, params);
+  return executeQuery<TrackingCombo>(query, params);
 }
 
 /**
- * Format date for MariaDB BETWEEN queries using UTC methods.
- * Input dates are parsed from YYYY-MM-DD strings (UTC midnight).
+ * PG: Get distinct ff_visitor_ids from page views matching dimension filters.
+ * Limited to MAX_VISITOR_IDS for practical IN-clause sizes.
  */
-function formatDateForMariaDB(dateStr: string, endOfDay: boolean): string {
-  const time = endOfDay ? '23:59:59' : '00:00:00';
-  return `${dateStr} ${time}`;
-}
-
-/**
- * Maps country codes to possible CRM country values.
- * CRM database may contain uppercase codes, lowercase codes, or full country names.
- */
-const COUNTRY_CODE_VARIANTS: Record<string, string[]> = {
-  DK: ['DK', 'dk', 'Denmark', 'denmark', 'DNK', 'dnk'],
-  SE: ['SE', 'se', 'Sweden', 'sweden', 'SWE', 'swe'],
-  NO: ['NO', 'no', 'Norway', 'norway', 'NOR', 'nor'],
-  FI: ['FI', 'fi', 'Finland', 'finland', 'FIN', 'fin'],
-};
-
-/**
- * Maps on-page dimension IDs to CRM fields that can be filtered directly.
- */
-const CRM_DIRECT_FILTER_MAP: Record<string, string> = {
-  countryCode: 'c.country',
-  utmSource: 'sr.source',
-  webmasterId: 's.tracking_id',
-};
-
-/**
- * Build tracking ID filter conditions for MariaDB query.
- * Matches subscriptions that have ANY of the tracking ID combinations.
- */
-function buildTrackingIdFilters(
-  trackingCombos: TrackingIdCombo[]
-): { conditions: string[]; params: (string | number)[] } {
-  if (trackingCombos.length === 0) {
-    // No matching page views with tracking IDs - don't add tracking filter
-    return { conditions: [], params: [] };
-  }
-
-  const conditions: string[] = [];
-  const params: (string | number)[] = [];
-
-  // Build OR condition for each tracking ID combination
-  const orConditions: string[] = [];
-  for (const combo of trackingCombos) {
-    const subConditions: string[] = [];
-
-    // Match source (with variants)
-    if (combo.utm_source) {
-      const variants = SOURCE_VARIANTS[combo.utm_source.toLowerCase()];
-      if (variants) {
-        const placeholders = variants.map(() => '?').join(', ');
-        subConditions.push(`LOWER(sr.source) IN (${placeholders})`);
-        params.push(...variants);
-      } else {
-        subConditions.push('LOWER(sr.source) = ?');
-        params.push(combo.utm_source.toLowerCase());
-      }
-    }
-
-    // Match campaign, adset, ad (only if non-empty)
-    if (combo.utm_campaign) {
-      subConditions.push('s.tracking_id_4 = ?');
-      params.push(combo.utm_campaign);
-    }
-    if (combo.adset_id) {
-      subConditions.push('s.tracking_id_2 = ?');
-      params.push(combo.adset_id);
-    }
-    if (combo.ad_id) {
-      subConditions.push('s.tracking_id = ?');
-      params.push(combo.ad_id);
-    }
-
-    if (subConditions.length > 0) {
-      orConditions.push(`(${subConditions.join(' AND ')})`);
-    }
-  }
-
-  if (orConditions.length > 0) {
-    conditions.push(`(${orConditions.join(' OR ')})`);
-  }
-
-  return { conditions, params };
-}
-
-/**
- * Build direct CRM dimension filter conditions for dimensions that have CRM equivalents.
- * Used in addition to tracking ID matching for sources without complete tracking data.
- */
-function buildDirectCrmFilters(
-  dimensionFilters: Record<string, string>
-): { conditions: string[]; params: (string | number)[] } {
-  const conditions: string[] = [];
-  const params: (string | number)[] = [];
-
-  for (const [dimId, value] of Object.entries(dimensionFilters)) {
-    const crmField = CRM_DIRECT_FILTER_MAP[dimId];
-    if (!crmField) continue;
-
-    // Special handling for country code - match against all possible variants
-    if (dimId === 'countryCode') {
-      const variants = COUNTRY_CODE_VARIANTS[value.toUpperCase()];
-      if (variants) {
-        const placeholders = variants.map(() => '?').join(', ');
-        conditions.push(`${crmField} IN (${placeholders})`);
-        params.push(...variants);
-      } else {
-        // Fallback: if unknown country code, try exact match
-        conditions.push(`${crmField} = ?`);
-        params.push(value);
-      }
-    }
-    // Special handling for utm source - match against source variants
-    else if (dimId === 'utmSource') {
-      const variants = SOURCE_VARIANTS[value.toLowerCase()];
-      if (variants) {
-        const placeholders = variants.map(() => '?').join(', ');
-        conditions.push(`LOWER(${crmField}) IN (${placeholders})`);
-        params.push(...variants);
-      } else {
-        conditions.push(`LOWER(${crmField}) = ?`);
-        params.push(value.toLowerCase());
-      }
-    }
-    else {
-      conditions.push(`${crmField} = ?`);
-      params.push(value);
-    }
-  }
-
-  return { conditions, params };
-}
-
-/**
- * Build the detail query for CRM subscriptions matching tracking ID combinations
- * and direct CRM dimension filters.
- */
-function buildDetailQuery(
-  metricId: 'crmTrials' | 'crmApproved',
+async function getVisitorIds(
   dateRange: { start: string; end: string },
-  trackingCombos: TrackingIdCombo[],
-  dimensionFilters: Record<string, string>,
-  pagination: { page: number; pageSize: number }
-): { query: string; params: any[]; countQuery: string; countParams: any[] } {
-  const startDate = formatDateForMariaDB(dateRange.start, false);
-  const endDate = formatDateForMariaDB(dateRange.end, true);
-
-  // Build tracking ID filters (for page view matching)
-  const { conditions: trackingConditions, params: trackingParams } = buildTrackingIdFilters(trackingCombos);
-
-  // Build direct CRM dimension filters (for dimensions like country that exist in CRM)
-  const { conditions: directConditions, params: directParams } = buildDirectCrmFilters(dimensionFilters);
-
-  const approvedJoin = metricId === 'crmApproved'
-    ? 'INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.is_marked = 1 AND i.deleted = 0'
-    : 'LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1';
-
-  const baseConditions = [
-    's.date_create BETWEEN ? AND ?',
-    's.deleted = 0',
-    "(i.tag IS NULL OR i.tag NOT LIKE '%parent-sub-id=%')",
-    // Note: Do NOT require tracking IDs to be non-null
-    // Sources like Leadbit/Orionmedia may not have campaign/adset/ad tracking
-    ...trackingConditions,
-    ...directConditions,
+  dimensionFilters: Record<string, string>
+): Promise<string[]> {
+  const params: (string | number)[] = [
+    `${dateRange.start} 00:00:00`,
+    `${dateRange.end} 23:59:59`,
+  ];
+  const conditions: string[] = [
+    'created_at BETWEEN $1 AND $2',
+    'ff_visitor_id IS NOT NULL',
   ];
 
-  const whereClause = baseConditions.join(' AND ');
-  const baseParams = [startDate, endDate, ...trackingParams, ...directParams];
-
-  const offset = (pagination.page - 1) * pagination.pageSize;
+  for (const [dimId, value] of Object.entries(dimensionFilters)) {
+    const pgCol = PG_DIMENSION_MAP[dimId];
+    if (!pgCol) continue;
+    params.push(value);
+    conditions.push(`${pgCol}::text = $${params.length}`);
+  }
 
   const query = `
-    SELECT
-      s.id as id,
-      s.id as subscriptionId,
-      CONCAT(c.first_name, ' ', c.last_name) as customerName,
-      c.email as customerEmail,
-      c.id as customerId,
-      COALESCE(sr.source, '(not set)') as source,
-      s.tracking_id as trackingId1,
-      s.tracking_id_2 as trackingId2,
-      s.tracking_id_3 as trackingId3,
-      s.tracking_id_4 as trackingId4,
-      s.tracking_id_5 as trackingId5,
-      COALESCE(i.total, s.trial_price, 0) as amount,
-      s.date_create as date,
-      COALESCE(p.product_name, '(not set)') as productName,
-      c.country,
-      IF(i.is_marked = 1, TRUE, FALSE) as isApproved,
-      s.status as subscriptionStatus,
-      cr.caption as cancelReason,
-      s.canceled_reason_about as cancelReasonAbout,
-      c.date_registered as customerDateRegistered
-    FROM subscription s
-    INNER JOIN customer c ON s.customer_id = c.id
-    ${approvedJoin}
-    LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
-    LEFT JOIN product p ON p.id = ip.product_id
-    LEFT JOIN source sr ON sr.id = s.source_id
-    LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
-    LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
-    WHERE ${whereClause}
-    ORDER BY s.date_create DESC
-    LIMIT ? OFFSET ?
+    SELECT DISTINCT ff_visitor_id
+    FROM remote_session_tracker.event_page_view_enriched_v2
+    WHERE ${conditions.join(' AND ')}
+    LIMIT ${String(MAX_VISITOR_IDS)}
   `;
 
-  const countQuery = `
-    SELECT COUNT(DISTINCT s.id) as total
-    FROM subscription s
-    INNER JOIN customer c ON s.customer_id = c.id
-    ${approvedJoin}
-    LEFT JOIN source sr ON sr.id = s.source_id
-    WHERE ${whereClause}
+  const rows = await executeQuery<{ ff_visitor_id: string }>(query, params);
+  return rows.map(r => r.ff_visitor_id);
+}
+
+/**
+ * MariaDB: Find subscription IDs from crm_subscription_enriched matching
+ * ff_visitor_ids (exact) or tracking combos (approximate).
+ * Applies CRM-matchable parent filters using pre-normalized columns.
+ */
+async function findMatchingSubscriptions(
+  dateRange: { start: string; end: string },
+  metricId: 'crmTrials' | 'crmApproved',
+  trackingCombos: TrackingCombo[],
+  visitorIds: string[],
+  dimensionFilters: Record<string, string>
+): Promise<number[]> {
+  const conditions: string[] = ['date_create BETWEEN ? AND ?'];
+  const params: (string | number)[] = [
+    `${dateRange.start} 00:00:00`,
+    `${dateRange.end} 23:59:59`,
+  ];
+
+  if (metricId === 'crmApproved') {
+    conditions.push('is_approved = 1');
+  }
+
+  // Apply CRM-matchable parent filters using enriched table columns
+  for (const [dimId, value] of Object.entries(dimensionFilters)) {
+    const mapping = CRM_DIMENSION_MAP[dimId];
+    if (!mapping) continue;
+
+    if (value === 'Unknown' && mapping.nullValue !== undefined) {
+      conditions.push(`${mapping.filterField} = ?`);
+      params.push(mapping.nullValue);
+    } else {
+      const normalized = mapping.normalizeValue
+        ? mapping.normalizeValue(value)
+        : value;
+      conditions.push(`${mapping.filterField} = ?`);
+      params.push(normalized);
+    }
+  }
+
+  // Build matching: ff_vid OR tracking combos
+  const matchParts: string[] = [];
+
+  if (visitorIds.length > 0) {
+    matchParts.push(`ff_vid IN (${visitorIds.map(() => '?').join(', ')})`);
+    params.push(...visitorIds);
+  }
+
+  if (trackingCombos.length > 0) {
+    const comboConds: string[] = [];
+    for (const combo of trackingCombos) {
+      const parts: string[] = [];
+      if (combo.source) {
+        parts.push('source_normalized = ?');
+        params.push(combo.source);
+      }
+      if (combo.campaign_id) {
+        parts.push('tracking_id_4 = ?');
+        params.push(combo.campaign_id);
+      }
+      if (combo.adset_id) {
+        parts.push('tracking_id_2 = ?');
+        params.push(combo.adset_id);
+      }
+      if (combo.ad_id) {
+        parts.push('tracking_id = ?');
+        params.push(combo.ad_id);
+      }
+      if (parts.length > 0) {
+        comboConds.push(`(${parts.join(' AND ')})`);
+      }
+    }
+    if (comboConds.length > 0) {
+      matchParts.push(`(${comboConds.join(' OR ')})`);
+    }
+  }
+
+  if (matchParts.length === 0) {
+    return [];
+  }
+
+  conditions.push(`(${matchParts.join(' OR ')})`);
+
+  const query = `
+    SELECT subscription_id
+    FROM crm_subscription_enriched
+    WHERE ${conditions.join(' AND ')}
   `;
 
-  return {
-    query,
-    params: [...baseParams, pagination.pageSize, offset],
-    countQuery,
-    countParams: baseParams,
-  };
+  const rows = await executeMariaDBQuery<{ subscription_id: number }>(query, params);
+  return rows.map(r => r.subscription_id);
 }
 
 /**
  * POST /api/on-page-analysis/crm-details
  *
  * Fetch individual CRM detail records for a clicked CRM metric in On-Page Analysis.
- * Two-step process:
- * 1. Query PostgreSQL page views filtered by ALL dimensions (including urlPath, countryCode)
- * 2. Extract tracking ID combinations and query MariaDB CRM for matching subscriptions
+ * Three-step process:
+ * 1. Query PG page views for tracking combos + visitor IDs (parallel)
+ * 2. Find matching subscription IDs from enriched table (ff_vid + tracking combo)
+ * 3. Fetch full detail records for matched subscription IDs
  */
 async function handleOnPageCrmDetails(
   request: NextRequest,
   _user: AppUser
-) {
+): Promise<NextResponse> {
   try {
     const body = await request.json();
 
@@ -350,24 +245,81 @@ async function handleOnPageCrmDetails(
     const pagination = body.pagination || { page: 1, pageSize: 100 };
     const dimensionFilters: Record<string, string> = body.dimensionFilters || {};
 
-    // Step 1: Get tracking ID combinations from page views matching ALL dimension filters
-    const trackingCombos = await getTrackingIdCombinations(
+    // Step 1: PG — get tracking combos + visitor IDs in parallel
+    const [trackingCombos, visitorIds] = await Promise.all([
+      getTrackingCombos(body.dateRange, dimensionFilters),
+      getVisitorIds(body.dateRange, dimensionFilters),
+    ]);
+
+    // Step 2: MariaDB — find matching subscription IDs from enriched table
+    const subscriptionIds = await findMatchingSubscriptions(
       body.dateRange,
+      body.metricId,
+      trackingCombos,
+      visitorIds,
       dimensionFilters
     );
 
-    // Step 2: Query CRM subscriptions matching those tracking ID combinations
-    const { query, params, countQuery, countParams } = buildDetailQuery(
-      body.metricId,
-      body.dateRange,
-      trackingCombos,
-      dimensionFilters,
-      pagination
-    );
+    if (subscriptionIds.length === 0) {
+      return NextResponse.json({
+        success: true,
+        data: { records: [], total: 0, page: pagination.page, pageSize: pagination.pageSize },
+      });
+    }
+
+    // Step 3: MariaDB — fetch full detail records for matched subscription IDs
+    const offset = (pagination.page - 1) * pagination.pageSize;
+    const idPlaceholders = subscriptionIds.map(() => '?').join(', ');
+
+    const approvedJoin = body.metricId === 'crmApproved'
+      ? 'INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.is_marked = 1 AND i.deleted = 0'
+      : 'LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0';
+
+    const detailQuery = `
+      SELECT
+        s.id as id,
+        s.id as subscriptionId,
+        CONCAT(c.first_name, ' ', c.last_name) as customerName,
+        c.email as customerEmail,
+        c.id as customerId,
+        COALESCE(sr.source, '(not set)') as source,
+        s.tracking_id as trackingId1,
+        s.tracking_id_2 as trackingId2,
+        s.tracking_id_3 as trackingId3,
+        s.tracking_id_4 as trackingId4,
+        s.tracking_id_5 as trackingId5,
+        COALESCE(i.total, s.trial_price, 0) as amount,
+        s.date_create as date,
+        COALESCE(p.product_name, '(not set)') as productName,
+        c.country,
+        IF(i.is_marked = 1, TRUE, FALSE) as isApproved,
+        s.status as subscriptionStatus,
+        cr.caption as cancelReason,
+        s.canceled_reason_about as cancelReasonAbout,
+        c.date_registered as customerDateRegistered
+      FROM subscription s
+      INNER JOIN customer c ON s.customer_id = c.id
+      ${approvedJoin}
+      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
+      LEFT JOIN product p ON p.id = ip.product_id
+      LEFT JOIN source sr ON sr.id = s.source_id
+      LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
+      LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
+      WHERE s.id IN (${idPlaceholders})
+      ORDER BY s.date_create DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    const countQuery = `
+      SELECT COUNT(DISTINCT s.id) as total
+      FROM subscription s
+      ${approvedJoin}
+      WHERE s.id IN (${idPlaceholders})
+    `;
 
     const [records, countResult] = await Promise.all([
-      executeMariaDBQuery<DetailRecord>(query, params),
-      executeMariaDBQuery<{ total: number }>(countQuery, countParams),
+      executeMariaDBQuery<DetailRecord>(detailQuery, [...subscriptionIds, pagination.pageSize, offset]),
+      executeMariaDBQuery<{ total: number }>(countQuery, [...subscriptionIds]),
     ]);
 
     const total = countResult[0]?.total || 0;

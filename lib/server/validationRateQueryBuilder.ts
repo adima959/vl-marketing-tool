@@ -320,7 +320,7 @@ function buildValidationRateQuery(
       ${periodSelects}
     FROM subscription s
     LEFT JOIN customer c ON s.customer_id = c.id
-    INNER JOIN invoice i ON i.subscription_id = s.id
+    INNER JOIN invoice i ON i.subscription_id = s.id AND i.deleted = 0
     LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
     LEFT JOIN product p ON p.id = ip.product_id
     LEFT JOIN source sr ON sr.id = s.source_id

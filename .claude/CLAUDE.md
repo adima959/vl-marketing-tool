@@ -38,7 +38,9 @@ POTENTIAL CONCERNS:
 
 **Stack**: Next.js 16 + React 19 + TypeScript + Ant Design + Tailwind + Zustand + Neon DB + MariaDB
 
-**Commands**: `npm run dev` | `npm run build` (+ type-check) | `npm run lint`
+**Commands**: `npm run dev` | `npm run build` (+ type-check) | `npm run lint` | `npm run script -- scripts/foo.ts`
+
+**Running Scripts**: ALWAYS use `npx tsx scripts/foo.ts` (or `npm run script -- scripts/foo.ts`). NEVER use bare `node` on `.ts` files — it causes MODULE_TYPELESS_PACKAGE_JSON warnings.
 
 ## Critical Warnings
 

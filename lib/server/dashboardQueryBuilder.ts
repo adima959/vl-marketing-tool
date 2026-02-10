@@ -35,6 +35,7 @@ export class DashboardQueryBuilder {
     customers: 'customer_count',
     subscriptions: 'subscription_count',
     trials: 'trial_count',
+    ots: 'ots_count',
     trialsApproved: 'trials_approved_count',
     upsells: 'upsell_count',
     upsellsApproved: 'upsells_approved_count',
@@ -159,12 +160,15 @@ export class DashboardQueryBuilder {
         COUNT(DISTINCT CASE WHEN DATE(c.date_registered) = DATE(s.date_create) THEN s.customer_id END) AS customer_count,
         COUNT(DISTINCT s.id) AS subscription_count,
         COUNT(DISTINCT CASE WHEN i.type = 1 THEN i.id END) AS trial_count,
+        COUNT(DISTINCT i_ots.id) AS ots_count,
+        COUNT(DISTINCT CASE WHEN i_ots.is_marked = 1 THEN i_ots.id END) AS ots_approved_count,
         COUNT(DISTINCT CASE WHEN i.type = 1 AND i.is_marked = 1 THEN i.id END) AS trials_approved_count,
         COUNT(DISTINCT uo.id) AS upsell_count,
         COUNT(DISTINCT CASE WHEN uo.is_marked = 1 THEN uo.id END) AS upsells_approved_count
       FROM subscription s
       LEFT JOIN customer c ON s.customer_id = c.id
-      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
+      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0
+      LEFT JOIN invoice i_ots ON i_ots.subscription_id = s.id AND i_ots.type = 3 AND i_ots.deleted = 0
       LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
       LEFT JOIN product p ON p.id = ip.product_id
       LEFT JOIN source sr ON sr.id = i.source_id
@@ -196,12 +200,15 @@ export class DashboardQueryBuilder {
         COUNT(DISTINCT CASE WHEN DATE(c.date_registered) = DATE(s.date_create) THEN s.customer_id END) AS customers,
         COUNT(DISTINCT s.id) AS subscriptions,
         COUNT(DISTINCT CASE WHEN i.type = 1 THEN i.id END) AS trials,
+        COUNT(DISTINCT i_ots.id) AS ots,
+        COUNT(DISTINCT CASE WHEN i_ots.is_marked = 1 THEN i_ots.id END) AS otsApproved,
         COUNT(DISTINCT CASE WHEN i.type = 1 AND i.is_marked = 1 THEN i.id END) AS trialsApproved,
         COUNT(DISTINCT uo.id) AS upsells,
         COUNT(DISTINCT CASE WHEN uo.is_marked = 1 THEN uo.id END) AS upsellsApproved
       FROM subscription s
       LEFT JOIN customer c ON s.customer_id = c.id
-      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
+      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0
+      LEFT JOIN invoice i_ots ON i_ots.subscription_id = s.id AND i_ots.type = 3 AND i_ots.deleted = 0
       LEFT JOIN invoice uo ON uo.customer_id = s.customer_id
         AND uo.tag LIKE CONCAT('%parent-sub-id=', s.id, '%')
       WHERE s.date_create BETWEEN ? AND ?

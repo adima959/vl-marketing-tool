@@ -435,8 +435,9 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     }
   },
 
-  loadChildData: async (parentKey: string, parentValue: string, parentDepth: number) => {
+  loadChildData: async (parentKey: string, _parentValue: string, parentDepth: number) => {
     const state = get();
+    set({ isLoadingSubLevels: true });
 
     try {
       const keyParts = parentKey.split('::');
@@ -470,8 +471,9 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         });
       };
 
-      set({ reportData: updateTree(state.reportData) });
+      set({ reportData: updateTree(state.reportData), isLoadingSubLevels: false });
     } catch (error: unknown) {
+      set({ isLoadingSubLevels: false });
       const appError = normalizeError(error);
       console.error('Failed to load child data:', {
         code: appError.code,

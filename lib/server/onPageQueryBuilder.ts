@@ -612,6 +612,78 @@ export class OnPageQueryBuilder {
   }
 
   /**
+   * Builds a query that returns (dimension_value, ff_visitor_id) pairs.
+   * Used for ff_vid matching: application code matches these visitor IDs
+   * against CRM ff_vid values from the enriched table.
+   */
+  public buildVisitorMatchQuery(options: QueryOptions): { query: string; params: any[] } {
+    const { dateRange, dimensions, depth, parentFilters, filters } = options;
+
+    const currentDimension = dimensions[depth];
+    const rawColumn = this.detailFilterMap[currentDimension];
+    if (!rawColumn) {
+      throw new Error(`Unknown dimension for visitor match: ${currentDimension}`);
+    }
+
+    const params: any[] = [
+      formatLocalDate(dateRange.start),
+      formatLocalDate(dateRange.end),
+    ];
+    const conditions: string[] = [];
+
+    if (parentFilters) {
+      for (const [dimId, value] of Object.entries(parentFilters)) {
+        const col = this.detailFilterMap[dimId];
+        if (!col) continue;
+        if (value === 'Unknown') {
+          conditions.push(`${col} IS NULL`);
+        } else {
+          params.push(value);
+          conditions.push(`${col}::text = $${params.length}`);
+        }
+      }
+    }
+
+    if (filters) {
+      const fieldGroups = new Map<string, { col: string; textExpr: string; items: Array<{ operator: string; value: string }> }>();
+      for (const filter of filters) {
+        if (!filter.value && filter.operator !== 'equals' && filter.operator !== 'not_equals') continue;
+        const col = this.detailFilterMap[filter.field];
+        if (!col) continue;
+        const group = fieldGroups.get(filter.field);
+        if (group) {
+          group.items.push({ operator: filter.operator, value: filter.value });
+        } else {
+          fieldGroups.set(filter.field, { col, textExpr: `${col}::text`, items: [{ operator: filter.operator, value: filter.value }] });
+        }
+      }
+      for (const [, g] of fieldGroups) {
+        const subs: string[] = [];
+        for (const f of g.items) {
+          const cond = this.buildFilterCondition(f, g.col, g.textExpr, params, 0);
+          if (cond) subs.push(cond);
+        }
+        if (subs.length === 1) conditions.push(subs[0]);
+        else if (subs.length > 1) conditions.push(`(${subs.join(' OR ')})`);
+      }
+    }
+
+    const extraWhere = conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '';
+
+    const query = `
+      SELECT DISTINCT
+        ${rawColumn} AS dimension_value,
+        ff_visitor_id
+      FROM remote_session_tracker.event_page_view_enriched_v2
+      WHERE created_at >= $1::date AND created_at < ($2::date + interval '1 day')
+        AND ff_visitor_id IS NOT NULL
+        ${extraWhere}
+    `;
+
+    return { query, params };
+  }
+
+  /**
    * Maps dimension IDs to raw column names for detail queries (no JOINs needed).
    * Enriched dimensions map to their raw utm_ columns instead of mas.* columns.
    * url_path is already normalized in the materialized view (no # or ? params)

@@ -87,6 +87,7 @@ export async function getCRMSubscriptions(
     FROM subscription s
     INNER JOIN invoice i ON i.subscription_id = s.id
       AND i.type = 1
+      AND i.deleted = 0
     LEFT JOIN source sr ON sr.id = s.source_id
     WHERE ${whereClauses.join(' AND ')}
     GROUP BY sr.source, s.tracking_id_4, s.tracking_id_2, s.tracking_id, DATE(s.date_create)

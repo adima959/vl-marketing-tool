@@ -22,6 +22,7 @@ interface OnPageState {
   sortColumn: string | null;
   sortDirection: 'ascend' | 'descend' | null;
   isLoading: boolean;
+  isLoadingSubLevels: boolean;
   hasUnsavedChanges: boolean;
   hasLoadedOnce: boolean;
   error: string | null;
@@ -62,6 +63,7 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
   sortColumn: 'pageViews',
   sortDirection: 'descend',
   isLoading: false,
+  isLoadingSubLevels: false,
   hasUnsavedChanges: false,
   hasLoadedOnce: false,
   error: null,
@@ -325,8 +327,9 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
     }
   },
 
-  loadChildData: async (parentKey: string, parentValue: string, parentDepth: number) => {
+  loadChildData: async (parentKey: string, _parentValue: string, parentDepth: number) => {
     const state = get();
+    set({ isLoadingSubLevels: true });
 
     try {
       const keyParts = parentKey.split('::');
@@ -363,8 +366,9 @@ export const useOnPageStore = create<OnPageState>((set, get) => ({
         });
       };
 
-      set({ reportData: updateTree(state.reportData) });
+      set({ reportData: updateTree(state.reportData), isLoadingSubLevels: false });
     } catch (error: unknown) {
+      set({ isLoadingSubLevels: false });
       const appError = normalizeError(error);
       console.error('Failed to load child data:', {
         code: appError.code,

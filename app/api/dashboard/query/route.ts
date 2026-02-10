@@ -92,7 +92,10 @@ async function handleDashboardQuery(
       const displayValue = toTitleCase(rawValue);
 
       const trials = Number(row.trial_count) || 0;
+      const ots = Number(row.ots_count) || 0;
+      const otsApproved = Number(row.ots_approved_count) || 0;
       const trialsApproved = Number(row.trials_approved_count) || 0;
+      const approvalDenominator = trials + ots;
 
       return {
         key: `${keyPrefix}${displayValue}`,
@@ -103,8 +106,10 @@ async function handleDashboardQuery(
           customers: Number(row.customer_count) || 0,
           subscriptions: Number(row.subscription_count) || 0,
           trials,
+          ots,
+          otsApproved,
           trialsApproved,
-          approvalRate: trials > 0 ? trialsApproved / trials : 0,
+          approvalRate: approvalDenominator > 0 ? (trialsApproved + otsApproved) / approvalDenominator : 0,
           upsells: Number(row.upsell_count) || 0,
           upsellsApproved: Number(row.upsells_approved_count) || 0,
           upsellApprovalRate: (Number(row.upsell_count) || 0) > 0

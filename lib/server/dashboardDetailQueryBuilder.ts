@@ -179,7 +179,7 @@ export class DashboardDetailQueryBuilder {
         c.date_registered as customerDateRegistered
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
-      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
+      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0
       LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
       LEFT JOIN product p ON p.id = ip.product_id
       LEFT JOIN source sr ON sr.id = i.source_id
@@ -202,7 +202,7 @@ export class DashboardDetailQueryBuilder {
       SELECT COUNT(DISTINCT s.id) as total
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
-      ${needsInvoiceJoin ? 'LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1' : ''}
+      ${needsInvoiceJoin ? 'LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0' : ''}
       ${needsProductJoin ? 'LEFT JOIN invoice_product ip ON ip.invoice_id = i.id LEFT JOIN product p ON p.id = ip.product_id' : ''}
       ${needsSourceJoin ? 'LEFT JOIN source sr ON sr.id = i.source_id' : ''}
       WHERE s.date_create BETWEEN ? AND ?
@@ -254,7 +254,7 @@ export class DashboardDetailQueryBuilder {
         c.date_registered as customerDateRegistered
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
-      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
+      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0
       LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
       LEFT JOIN product p ON p.id = ip.product_id
       LEFT JOIN source sr ON sr.id = i.source_id
@@ -276,7 +276,7 @@ export class DashboardDetailQueryBuilder {
       SELECT COUNT(DISTINCT s.id) as total
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
-      ${needsInvoiceJoin ? 'LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1' : ''}
+      ${needsInvoiceJoin ? 'LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0' : ''}
       ${needsProductJoin ? 'LEFT JOIN invoice_product ip ON ip.invoice_id = i.id LEFT JOIN product p ON p.id = ip.product_id' : ''}
       ${needsSourceJoin ? 'LEFT JOIN source sr ON sr.id = i.source_id' : ''}
       WHERE s.date_create BETWEEN ? AND ?
@@ -333,7 +333,7 @@ export class DashboardDetailQueryBuilder {
         c.date_registered as customerDateRegistered
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
-      INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
+      INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0
       LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
       LEFT JOIN product p ON p.id = ip.product_id
       LEFT JOIN source sr ON sr.id = i.source_id
@@ -356,7 +356,7 @@ export class DashboardDetailQueryBuilder {
       SELECT COUNT(DISTINCT i.id) as total
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
-      INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1
+      INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0
       ${needsProductJoin ? 'LEFT JOIN invoice_product ip ON ip.invoice_id = i.id LEFT JOIN product p ON p.id = ip.product_id' : ''}
       ${needsSourceJoin ? 'LEFT JOIN source sr ON sr.id = i.source_id' : ''}
       WHERE s.date_create BETWEEN ? AND ?
@@ -415,7 +415,7 @@ export class DashboardDetailQueryBuilder {
         c.date_registered as customerDateRegistered
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
-      INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.is_marked = 1
+      INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.is_marked = 1 AND i.deleted = 0
       LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
       LEFT JOIN product p ON p.id = ip.product_id
       LEFT JOIN source sr ON sr.id = i.source_id
@@ -438,12 +438,84 @@ export class DashboardDetailQueryBuilder {
       SELECT COUNT(DISTINCT i.id) as total
       FROM subscription s
       INNER JOIN customer c ON s.customer_id = c.id
-      INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.is_marked = 1
+      INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.is_marked = 1 AND i.deleted = 0
       ${needsProductJoin ? 'LEFT JOIN invoice_product ip ON ip.invoice_id = i.id LEFT JOIN product p ON p.id = ip.product_id' : ''}
       ${needsSourceJoin ? 'LEFT JOIN source sr ON sr.id = i.source_id' : ''}
       WHERE s.date_create BETWEEN ? AND ?
         ${deletedFilter}
         ${tagFilter}
+        ${whereClause}
+    `;
+
+    return {
+      query,
+      params: [...baseParams, ...paginationParams],
+      countQuery,
+      countParams: baseParams,
+    };
+  }
+
+  /**
+   * Build query for OTS metric (one-time sale invoices where type = 3)
+   */
+  private buildOtsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
+    const startDate = this.formatDateForMariaDB(filters.dateRange.start, false);
+    const endDate = this.formatDateForMariaDB(filters.dateRange.end, true);
+    const { whereClause, params: filterParams } = this.buildFilterClause(filters);
+    const { limitClause, params: paginationParams } = this.buildPaginationClause(pagination);
+
+    const baseParams = [startDate, endDate, ...filterParams];
+
+    const query = `
+      SELECT
+        i_ots.id as id,
+        i_ots.id as invoiceId,
+        s.id as subscriptionId,
+        CONCAT(c.first_name, ' ', c.last_name) as customerName,
+        c.email as customerEmail,
+        c.id as customerId,
+        COALESCE(sr.source, '(not set)') as source,
+        i_ots.tracking_id as trackingId1,
+        i_ots.tracking_id_2 as trackingId2,
+        i_ots.tracking_id_3 as trackingId3,
+        i_ots.tracking_id_4 as trackingId4,
+        i_ots.tracking_id_5 as trackingId5,
+        COALESCE(i_ots.total, 0) as amount,
+        i_ots.order_date as date,
+        GROUP_CONCAT(DISTINCT COALESCE(p.product_name, '(not set)') SEPARATOR ', ') as productName,
+        c.country,
+        MAX(IF(i_ots.is_marked = 1, TRUE, FALSE)) as isApproved,
+        IF(i_ots.on_hold_date IS NOT NULL, 1, 0) as isOnHold,
+        s.status as subscriptionStatus,
+        MAX(cr.caption) as cancelReason,
+        s.canceled_reason_about as cancelReasonAbout,
+        c.date_registered as customerDateRegistered
+      FROM subscription s
+      INNER JOIN customer c ON s.customer_id = c.id
+      INNER JOIN invoice i_ots ON i_ots.subscription_id = s.id AND i_ots.type = 3 AND i_ots.deleted = 0
+      LEFT JOIN invoice_product ip ON ip.invoice_id = i_ots.id
+      LEFT JOIN product p ON p.id = ip.product_id
+      LEFT JOIN source sr ON sr.id = i_ots.source_id
+      LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
+      LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
+      WHERE s.date_create BETWEEN ? AND ?
+        ${whereClause}
+      GROUP BY i_ots.id
+      ORDER BY i_ots.order_date DESC
+      ${limitClause}
+    `;
+
+    const needsProductJoin = !!filters.product;
+    const needsSourceJoin = !!filters.source;
+
+    const countQuery = `
+      SELECT COUNT(DISTINCT i_ots.id) as total
+      FROM subscription s
+      INNER JOIN customer c ON s.customer_id = c.id
+      INNER JOIN invoice i_ots ON i_ots.subscription_id = s.id AND i_ots.type = 3 AND i_ots.deleted = 0
+      ${needsProductJoin ? 'LEFT JOIN invoice_product ip ON ip.invoice_id = i_ots.id LEFT JOIN product p ON p.id = ip.product_id' : ''}
+      ${needsSourceJoin ? 'LEFT JOIN source sr ON sr.id = i_ots.source_id' : ''}
+      WHERE s.date_create BETWEEN ? AND ?
         ${whereClause}
     `;
 
@@ -712,6 +784,8 @@ export class DashboardDetailQueryBuilder {
         return this.buildSubscriptionsQuery(filters, pagination);
       case 'trials':
         return this.buildTrialsQuery(filters, pagination);
+      case 'ots':
+        return this.buildOtsQuery(filters, pagination);
       case 'trialsApproved':
         return this.buildTrialsApprovedQuery(filters, pagination);
       case 'upsells':

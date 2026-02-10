@@ -290,6 +290,7 @@ export function UrlMapPanel(): React.ReactNode {
                         onChange={(val) => handleDraftChange(urlPath, 'productId', val)}
                         style={{ width: '100%' }}
                         popupMatchSelectWidth={false}
+                        virtual={false}
                       />
                     </div>
                     <Button

@@ -7,6 +7,10 @@
       "Edit",
       "Write",
       "Task",
+      "Bash",
+      "Grep",
+      "Find",
+      "FIND *",
       "WebFetch",
       "Bash(npm *)",
       "Bash(npx *)",
@@ -37,15 +41,10 @@
       "mcp__browsermcp__browser_select_option",
       "mcp__browsermcp__browser_go_back",
       "mcp__browsermcp__browser_go_forward",
-      "mcp__playwright__browser_navigate",
-      "mcp__playwright__browser_take_screenshot",
-      "mcp__playwright__browser_click",
-      "mcp__playwright__browser_evaluate",
-      "mcp__playwright__browser_wait_for",
-      "mcp__playwright__browser_install",
-      "mcp__playwright__browser_snapshot",
-      "mcp__playwright__browser_run_code",
-      "mcp__playwright__browser_press_key"
+      "mcp__browsermcp__browser_refresh",
+      "mcp__browsermcp__browser_upload_file",
+      "mcp__browsermcp__browser_download_file",
+      "mcp__browsermcp__browser_close"      
     ]
   },
   "hooks": {
@@ -82,16 +81,6 @@
       }
     ],
     "PostToolUse": [
-      {
-        "matcher": "Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node -e \"const fs=require('fs');let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const i=JSON.parse(d);const p=i.tool_input?.file_path||'';if(!/\\.(ts|tsx|js|jsx)$/.test(p))process.exit(0);if(!fs.existsSync(p))process.exit(0);const c=fs.readFileSync(p,'utf8');const lines=c.split('\\n');const matches=[];lines.forEach((l,idx)=>{if(/console\\.log/.test(l))matches.push((idx+1)+': '+l.trim())});if(matches.length){console.error('[Hook] console.log found in '+p);matches.slice(0,5).forEach(m=>console.error('  '+m));console.error('[Hook] Remove before committing');process.exit(2)}})\"",
-            "timeout": 5
-          }
-        ]
-      },
       {
         "matcher": "Edit",
         "hooks": [

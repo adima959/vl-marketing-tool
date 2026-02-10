@@ -14,7 +14,7 @@ import { maskErrorForClient } from '@/lib/types/errors';
  *
  * Request body:
  * {
- *   metricId: 'customers' | 'subscriptions' | 'trials' | 'trialsApproved' | 'upsells',
+ *   metricId: 'customers' | 'subscriptions' | 'trials' | 'ots' | 'trialsApproved' | 'upsells',
  *   filters: {
  *     dateRange: { start: string, end: string },
  *     country?: string,
