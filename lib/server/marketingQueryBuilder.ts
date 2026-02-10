@@ -1,37 +1,12 @@
 import { executeQuery } from './db';
 import { executeMariaDBQuery } from './mariadb';
-import { crmQueryBuilder } from './crmQueryBuilder';
+import { crmQueryBuilder, type CRMSubscriptionRow, type CRMOtsRow } from './crmQueryBuilder';
 import { formatDateForMariaDB } from './crmMetrics';
 import { validateSortDirection } from './types';
 import { matchNetworkToSource } from './crmMetrics';
 import { FilterBuilder } from './queryBuilderUtils';
 
 type SqlParam = string | number | boolean | null | Date;
-
-// CRM row types for tracking-based queries
-interface CRMSubscriptionRow {
-  source: string | null;
-  campaign_id: string;
-  adset_id: string;
-  ad_id: string;
-  date: string;
-  subscription_count: number;
-  approved_count: number;
-  trial_count: number;
-  customer_count: number;
-  upsell_count: number;
-  upsells_approved_count: number;
-}
-
-interface CRMOtsRow {
-  source: string | null;
-  campaign_id: string;
-  adset_id: string;
-  ad_id: string;
-  date: string;
-  ots_count: number;
-  ots_approved_count: number;
-}
 
 export interface MarketingQueryParams {
   dateRange: { start: Date; end: Date };
@@ -433,7 +408,7 @@ export async function getMarketingData(
               const sourceMatched = networkList.some(n => matchNetworkToSource(n, crm.source));
               if (sourceMatched) {
                 subscriptions += Number(crm.subscription_count || 0);
-                trials_approved += Number(crm.approved_count || 0);
+                trials_approved += Number(crm.trials_approved_count || 0);
                 trials += Number(crm.trial_count || 0);
                 customers += Number(crm.customer_count || 0);
                 upsells += Number(crm.upsell_count || 0);

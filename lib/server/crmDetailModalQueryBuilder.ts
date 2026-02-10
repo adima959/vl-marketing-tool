@@ -311,7 +311,7 @@ export class CrmDetailModalQueryBuilder {
 
     // Optimized count query - only include JOINs needed for filters
     const needsProductJoin = !!filters.product || !!filters.productName;
-    const needsSourceJoin = !!filters.source;
+    const needsSourceJoin = !!filters.source || !!filters.network;
     const needsInvoiceJoin = needsProductJoin || needsSourceJoin;
 
     const countQuery = `
@@ -391,7 +391,7 @@ export class CrmDetailModalQueryBuilder {
 
     // Optimized count query - only include JOINs needed for filters
     const needsProductJoin = !!filters.product || !!filters.productName;
-    const needsSourceJoin = !!filters.source;
+    const needsSourceJoin = !!filters.source || !!filters.network;
     const needsInvoiceJoin = needsProductJoin || needsSourceJoin;
 
     const countQuery = `
@@ -478,7 +478,7 @@ export class CrmDetailModalQueryBuilder {
 
     // Optimized count query - only include JOINs needed for filters
     const needsProductJoin = !!filters.product || !!filters.productName;
-    const needsSourceJoin = !!filters.source;
+    const needsSourceJoin = !!filters.source || !!filters.network;
 
     const countQuery = `
       SELECT COUNT(DISTINCT i.id) as total
@@ -566,7 +566,7 @@ export class CrmDetailModalQueryBuilder {
 
     // Optimized count query - only include JOINs needed for filters
     const needsProductJoin = !!filters.product || !!filters.productName;
-    const needsSourceJoin = !!filters.source;
+    const needsSourceJoin = !!filters.source || !!filters.network;
 
     const countQuery = `
       SELECT COUNT(DISTINCT i.id) as total
@@ -641,7 +641,7 @@ export class CrmDetailModalQueryBuilder {
     `;
 
     const needsProductJoin = !!filters.product || !!filters.productName;
-    const needsSourceJoin = !!filters.source;
+    const needsSourceJoin = !!filters.source || !!filters.network;
 
     const countQuery = `
       SELECT COUNT(DISTINCT i.id) as total
@@ -759,7 +759,7 @@ export class CrmDetailModalQueryBuilder {
 
     // Build optimized count query - only include JOINs needed for filters
     const needsProductJoin = !!filters.product;
-    const needsSourceJoin = !!filters.source;
+    const needsSourceJoin = !!filters.source || !!filters.network;
 
     const query = `
       SELECT
@@ -843,7 +843,7 @@ export class CrmDetailModalQueryBuilder {
 
     // Build optimized count query - only include JOINs needed for filters
     const needsProductJoin = !!filters.product;
-    const needsSourceJoin = !!filters.source;
+    const needsSourceJoin = !!filters.source || !!filters.network;
 
     const query = `
       SELECT

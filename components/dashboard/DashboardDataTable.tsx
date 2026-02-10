@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { GenericDataTable } from '@/components/table/GenericDataTable';
 import { CrmDetailModal } from '@/components/modals/CrmDetailModal';
 import { useDashboardStore } from '@/stores/dashboardStore';
-import { useDashboardColumnStore } from '@/stores/dashboardColumnStore';
+import { useColumnStore } from '@/stores/columnStore';
 import { METRIC_COLUMNS, CRM_METRIC_IDS } from '@/config/columns';
 import type { DashboardRow } from '@/types/dashboard';
 import type { MetricClickContext } from '@/types/dashboardDetails';
@@ -44,7 +44,7 @@ export function DashboardDataTable() {
     <div className={styles.tableSection}>
       <GenericDataTable<DashboardRow>
         useStore={useDashboardStore}
-        useColumnStore={useDashboardColumnStore}
+        useColumnStore={useColumnStore}
         metricColumns={DASHBOARD_METRIC_COLUMNS}
         columnGroups={COLUMN_GROUPS}
         colorClassName={styles.tableTheme}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revokeUserSessions } from '@/lib/auth';
+import { timingSafeCompare } from '@/lib/security/timing-safe-compare';
 
 const USER_MANAGEMENT_API_KEY = process.env.USER_MANAGEMENT_API_KEY || '';
 
@@ -36,7 +37,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  if (apiKey !== USER_MANAGEMENT_API_KEY) {
+  // Use timing-safe comparison to prevent timing attacks
+  if (!timingSafeCompare(apiKey, USER_MANAGEMENT_API_KEY)) {
     return NextResponse.json(
       { error: 'Invalid API key' },
       { status: 403 }

@@ -2,21 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from '@neondatabase/serverless';
 import { withAdmin } from '@/lib/rbac';
 import { UserRole, type UpdateUserRoleDTO } from '@/types/user';
+import { timingSafeCompare } from '@/lib/security/timing-safe-compare';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const USER_MANAGEMENT_API_KEY = process.env.USER_MANAGEMENT_API_KEY || '';
 
 /**
- * Checks if request has valid API key
+ * Checks if request has valid API key using timing-safe comparison
+ * to prevent timing attacks on API key extraction
  */
 function hasValidApiKey(request: NextRequest): boolean {
   const apiKey = request.headers.get('X-API-Key');
-
-  if (!apiKey || !USER_MANAGEMENT_API_KEY) {
-    return false;
-  }
-
-  return apiKey === USER_MANAGEMENT_API_KEY;
+  return timingSafeCompare(apiKey, USER_MANAGEMENT_API_KEY);
 }
 
 /**

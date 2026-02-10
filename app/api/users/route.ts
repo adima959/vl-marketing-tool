@@ -3,6 +3,7 @@ import { Pool } from '@neondatabase/serverless';
 import { withAdmin, getUserByExternalId, getUserByEmail } from '@/lib/rbac';
 import { UserRole, type CreateUserDTO } from '@/types/user';
 import { randomUUID } from 'crypto';
+import { timingSafeCompare } from '@/lib/security/timing-safe-compare';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const USER_MANAGEMENT_API_KEY = process.env.USER_MANAGEMENT_API_KEY || '';
@@ -67,7 +68,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  if (apiKey !== USER_MANAGEMENT_API_KEY) {
+  // Use timing-safe comparison to prevent timing attacks
+  if (!timingSafeCompare(apiKey, USER_MANAGEMENT_API_KEY)) {
     return NextResponse.json(
       { error: 'Invalid API key' },
       { status: 403 }

@@ -10,6 +10,7 @@ import type { OnPageViewClickContext } from '@/types/onPageDetails';
 import { fetchDashboardDetails } from '@/lib/api/dashboardDetailsClient';
 import { fetchMarketingDetails } from '@/lib/api/marketingDetailsClient';
 import { fetchOnPageCrmDetails } from '@/lib/api/onPageCrmDetailsClient';
+import { TableSkeleton } from '@/components/skeletons/TableSkeleton';
 import modalStyles from '@/styles/components/modal.module.css';
 import styles from './CrmDetailModal.module.css';
 
@@ -207,10 +208,50 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
       const link = document.createElement('a');
       link.href = url;
 
-      const filename =
+      // Build filename with metric + date range + all dimensions for clarity
+      const metricLabel =
         variant === 'onPage'
           ? ON_PAGE_METRIC_LABELS[context.metricId] || 'crm_details'
           : context.metricLabel || 'details';
+
+      // Add date range (always included)
+      const { start, end } = context.filters.dateRange;
+      const dateRangeStr = `${start.toLocaleDateString('en-GB').replace(/\//g, '-')}_${end.toLocaleDateString('en-GB').replace(/\//g, '-')}`;
+
+      // Extract dimension values for filename
+      const dimensionParts: string[] = [];
+      if (variant === 'dashboard') {
+        const ctx = context as MetricClickContext;
+        if (ctx.filters.country) dimensionParts.push(ctx.filters.country);
+        if (ctx.filters.productName) dimensionParts.push(ctx.filters.productName);
+        if (ctx.filters.product) dimensionParts.push(ctx.filters.product);
+        if (ctx.filters.source) dimensionParts.push(ctx.filters.source);
+      } else if (variant === 'marketing') {
+        const ctx = context as MarketingMetricClickContext;
+        if (ctx.filters.network) dimensionParts.push(ctx.filters.network);
+        if (ctx.filters.campaign) dimensionParts.push(ctx.filters.campaign);
+        if (ctx.filters.adset) dimensionParts.push(ctx.filters.adset);
+        if (ctx.filters.ad) dimensionParts.push(ctx.filters.ad);
+        if (ctx.filters.date) dimensionParts.push(ctx.filters.date);
+        if (ctx.filters.classifiedProduct) dimensionParts.push(ctx.filters.classifiedProduct);
+        if (ctx.filters.classifiedCountry) dimensionParts.push(ctx.filters.classifiedCountry);
+      } else {
+        const ctx = context as OnPageViewClickContext;
+        for (const value of Object.values(ctx.filters.dimensionFilters)) {
+          if (value) dimensionParts.push(value);
+        }
+      }
+
+      // Sanitize parts for filename (remove special chars, limit length)
+      const sanitize = (str: string) =>
+        str
+          .replace(/[^a-zA-Z0-9-_]/g, '-')
+          .replace(/-+/g, '-')
+          .substring(0, 50);
+
+      const parts = [metricLabel, dateRangeStr, ...dimensionParts.map(sanitize)].filter(Boolean);
+      const filename = parts.join('_');
+
       link.download = `${filename}_export.csv`;
 
       document.body.appendChild(link);
@@ -448,26 +489,34 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
       )}
 
       <div className={styles.tableWrap}>
-        <Table
-          columns={columns}
-          dataSource={data?.records || []}
-          loading={loading}
-          pagination={{
-            current: currentPage,
-            pageSize,
-            total: data?.total || 0,
-            onChange: setCurrentPage,
-            showSizeChanger: false,
-            showTotal: (total) => (
-              <span style={{ fontSize: 12, color: 'var(--color-gray-500)' }}>
-                {total} total
-              </span>
-            ),
-          }}
-          rowKey="id"
-          scroll={{ x: scrollX }}
-          size="small"
-        />
+        {loading && !data ? (
+          <TableSkeleton
+            rows={10}
+            columns={columns.length}
+            columnWidths={columns.map(col => typeof col.width === 'number' ? col.width : 150)}
+          />
+        ) : (
+          <Table
+            columns={columns}
+            dataSource={data?.records || []}
+            loading={false}
+            pagination={{
+              current: currentPage,
+              pageSize,
+              total: data?.total || 0,
+              onChange: setCurrentPage,
+              showSizeChanger: false,
+              showTotal: (total) => (
+                <span style={{ fontSize: 12, color: 'var(--color-gray-500)' }}>
+                  {total} total
+                </span>
+              ),
+            }}
+            rowKey="id"
+            scroll={{ x: scrollX }}
+            size="small"
+          />
+        )}
       </div>
     </Modal>
   );

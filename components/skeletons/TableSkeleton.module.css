@@ -1,0 +1,67 @@
+.tableSkeleton {
+  width: 100%;
+  overflow: hidden;
+  background: var(--color-background-primary);
+}
+
+.headerRow,
+.dataRow {
+  display: flex;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-4);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.headerRow {
+  background: var(--color-gray-50);
+  font-weight: 600;
+}
+
+.dataRow {
+  background: var(--color-background-primary);
+}
+
+.dataRow:hover {
+  background: var(--color-gray-50);
+}
+
+.headerCell,
+.dataCell {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* Override Ant Design skeleton to match our design */
+.tableSkeleton :global(.ant-skeleton-input) {
+  height: 20px;
+  min-width: 40px;
+  border-radius: 4px;
+}
+
+.headerRow :global(.ant-skeleton-input) {
+  height: 16px;
+}
+
+/* Shimmer animation for skeleton */
+.tableSkeleton :global(.ant-skeleton-element .ant-skeleton-input-lg),
+.tableSkeleton :global(.ant-skeleton-element .ant-skeleton-input-sm),
+.tableSkeleton :global(.ant-skeleton-element .ant-skeleton-input) {
+  background: linear-gradient(
+    90deg,
+    var(--color-gray-200) 0%,
+    var(--color-gray-100) 50%,
+    var(--color-gray-200) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

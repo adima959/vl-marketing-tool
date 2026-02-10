@@ -6,6 +6,49 @@ import { FilterBuilder } from './queryBuilderUtils';
 type SqlParam = string | number | boolean | null | Date;
 
 /**
+ * CRM query result types - shared between Dashboard and Marketing Report
+ * These match the aliases defined in crmMetrics.ts
+ *
+ * ⚠️ IMPORTANT: These types are the single source of truth for CRM query results.
+ * Both Dashboard and Marketing Report import these types. If field names change,
+ * TypeScript will catch mismatches at compile time.
+ *
+ * Business rules for what counts as a trial/subscription are defined in:
+ * - SQL level: crmMetrics.ts (WHERE clauses like notDeletedInvoice, notUpsellTagged)
+ * - JS level: crmFilters.ts (validation functions like isEligibleForTrialCount)
+ * - Documentation: docs/crm-business-rules.md
+ *
+ * When updating business logic (e.g., "exclude deleted invoices"), update ALL three places
+ * to maintain consistency between Dashboard and Marketing Report.
+ *
+ * Note: Fields like source, campaign_id, etc. are only present in tracking mode queries.
+ * Use these types with Partial<> for geography mode or check for existence before access.
+ */
+export interface CRMSubscriptionRow {
+  source: string | null;
+  campaign_id: string;
+  adset_id: string;
+  ad_id: string;
+  date: string;
+  customer_count: number;
+  subscription_count: number;
+  trial_count: number;
+  trials_approved_count: number;
+  upsell_count: number;
+  upsells_approved_count: number;
+}
+
+export interface CRMOtsRow {
+  source: string | null;
+  campaign_id: string;
+  adset_id: string;
+  ad_id: string;
+  date: string;
+  ots_count: number;
+  ots_approved_count: number;
+}
+
+/**
  * Grouping strategy for CRM queries
  * - geography: Groups by country/product/source (Dashboard)
  * - tracking: Groups by campaign/adset/ad via tracking IDs (Marketing)
@@ -334,6 +377,9 @@ export class CRMQueryBuilder {
 
     const productFilterParams = isTracking && productFilter ? [productFilter] : [];
 
+    // Include source column in SELECT for tracking mode (needed for JS-side source matching)
+    const sourceColumn = isTracking ? ',\n        sr.source AS source' : '';
+
     const query = `
       SELECT
         ${selectColumns},
@@ -342,7 +388,7 @@ export class CRMQueryBuilder {
         ${trialCountExpr} AS ${CRM_METRICS.trialCount.alias},
         ${trialsApprovedExpr} AS ${CRM_METRICS.trialsApprovedCount.alias},
         ${CRM_METRICS.upsellCount.expr} AS ${CRM_METRICS.upsellCount.alias},
-        ${CRM_METRICS.upsellsApprovedCount.expr} AS ${CRM_METRICS.upsellsApprovedCount.alias}
+        ${CRM_METRICS.upsellsApprovedCount.expr} AS ${CRM_METRICS.upsellsApprovedCount.alias}${sourceColumn}
       FROM subscription s
       ${CRM_JOINS.customer}
       ${invoiceJoin}
@@ -428,11 +474,14 @@ export class CRMQueryBuilder {
         .replace(/DATE\(i\.date_create\)/g, 'DATE(i.order_date)') :
       groupByClause;
 
+    // Include source column in SELECT for tracking mode (needed for JS-side source matching)
+    const sourceColumn = isTracking ? ',\n        sr.source AS source' : '';
+
     const query = `
       SELECT
         ${isTracking ? trackingSelectColumns : selectColumns},
         ${OTS_METRICS.otsCount.expr} AS ${OTS_METRICS.otsCount.alias},
-        ${OTS_METRICS.otsApprovedCount.expr} AS ${OTS_METRICS.otsApprovedCount.alias}
+        ${OTS_METRICS.otsApprovedCount.expr} AS ${OTS_METRICS.otsApprovedCount.alias}${sourceColumn}
       FROM invoice i
       ${geographyJoins}
       WHERE ${CRM_WHERE.otsBase}
