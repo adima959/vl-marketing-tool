@@ -74,12 +74,12 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
     const newMessage = await createMessage({
       angleId: body.angleId,
       name: body.name,
-      description: body.description,
+      description: body.description ?? undefined,
       status: body.status,
-      specificPainPoint: body.specificPainPoint,
-      corePromise: body.corePromise,
-      keyIdea: body.keyIdea,
-      primaryHookDirection: body.primaryHookDirection,
+      specificPainPoint: body.specificPainPoint ?? undefined,
+      corePromise: body.corePromise ?? undefined,
+      keyIdea: body.keyIdea ?? undefined,
+      primaryHookDirection: body.primaryHookDirection ?? undefined,
       headlines: body.headlines,
     });
 

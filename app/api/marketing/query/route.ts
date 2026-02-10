@@ -25,8 +25,11 @@ async function handleMarketingQuery(
     const rawBody = await request.json();
     const body = marketingQueryRequestSchema.parse(rawBody);
 
-    // Parse and build query parameters
-    const queryParams = parseQueryRequest(body);
+    // Parse and build query parameters (convert null to undefined for parseQueryRequest)
+    const queryParams = parseQueryRequest({
+      ...body,
+      sortBy: body.sortBy ?? undefined,
+    });
 
     // Build marketing query params with two-database approach
     const marketingParams: MarketingQueryParams = {
@@ -35,9 +38,9 @@ async function handleMarketingQuery(
       depth: queryParams.depth,
       parentFilters: queryParams.parentFilters,
       filters: queryParams.filters,
-      sortBy: queryParams.sortBy,
+      sortBy: queryParams.sortBy ?? undefined,
       sortDirection: queryParams.sortDirection,
-      productFilter: body.productFilter,
+      productFilter: body.productFilter ?? undefined,
     };
 
     // Execute query with two-database approach

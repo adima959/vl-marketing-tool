@@ -187,13 +187,13 @@ async function handleMarketingDetails(
     const trackingIdTuples = await resolveTrackingIdTuples(
       dateRange,
       {
-        network: filters.network,
-        campaign: filters.campaign,
-        adset: filters.adset,
-        ad: filters.ad,
+        network: filters.network ?? undefined,
+        campaign: filters.campaign ?? undefined,
+        adset: filters.adset ?? undefined,
+        ad: filters.ad ?? undefined,
         date: filters.date,
-        classifiedProduct: filters.classifiedProduct,
-        classifiedCountry: filters.classifiedCountry,
+        classifiedProduct: filters.classifiedProduct ?? undefined,
+        classifiedCountry: filters.classifiedCountry ?? undefined,
       }
     );
 
@@ -217,7 +217,7 @@ async function handleMarketingDetails(
         dateRange,
         trackingIdTuples,
         date: filters.date,
-        network: filters.network,
+        network: filters.network || undefined,
       },
       pagination
     );

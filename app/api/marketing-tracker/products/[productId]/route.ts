@@ -100,12 +100,12 @@ export const PUT = withAuth(async (
     // Update the product in the database
     const updatedProductBase = await updateProduct(productId, {
       name: body.name,
-      sku: body.sku,
-      description: body.description,
-      notes: body.notes,
-      color: body.color,
+      sku: body.sku ?? undefined,
+      description: body.description ?? undefined,
+      notes: body.notes ?? undefined,
+      color: body.color ?? undefined,
       status: body.status,
-      ownerId: body.ownerId,
+      ownerId: body.ownerId ?? undefined,
     });
 
     // Merge counts and owner from old product (they don't change on field updates)
@@ -175,10 +175,10 @@ export const PATCH = withAuth(async (
     // Build update object with only provided fields
     const updateData: Partial<{ name: string; sku: string; description: string; notes: string; color: string; status: ProductStatus; ownerId: string | null }> = {};
     if (body.name !== undefined) updateData.name = body.name;
-    if (body.sku !== undefined) updateData.sku = body.sku;
-    if (body.description !== undefined) updateData.description = body.description;
-    if (body.notes !== undefined) updateData.notes = body.notes;
-    if (body.color !== undefined) updateData.color = body.color;
+    if (body.sku !== undefined && body.sku !== null) updateData.sku = body.sku;
+    if (body.description !== undefined && body.description !== null) updateData.description = body.description;
+    if (body.notes !== undefined && body.notes !== null) updateData.notes = body.notes;
+    if (body.color !== undefined && body.color !== null) updateData.color = body.color;
     if (body.status !== undefined) updateData.status = body.status;
     if (body.ownerId !== undefined) updateData.ownerId = body.ownerId;
 

@@ -48,12 +48,12 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
     // Create the product in the database
     const newProduct = await createProduct({
       name: body.name,
-      sku: body.sku,
-      description: body.description,
-      notes: body.notes,
-      color: body.color,
+      sku: body.sku ?? undefined,
+      description: body.description ?? undefined,
+      notes: body.notes ?? undefined,
+      color: body.color ?? undefined,
       status: body.status,
-      ownerId: body.ownerId,
+      ownerId: body.ownerId ?? undefined,
     });
 
     // Record creation history

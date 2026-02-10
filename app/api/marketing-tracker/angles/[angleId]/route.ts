@@ -104,9 +104,9 @@ export const PUT = withAuth(async (
     // Update the angle in the database
     const updatedAngleBase = await updateAngle(angleId, {
       name: body.name,
-      description: body.description,
+      description: body.description ?? undefined,
       status: body.status,
-      launchedAt: body.launchedAt,
+      launchedAt: body.launchedAt ?? undefined,
     });
 
     // Merge counts from old angle (they don't change on field updates)
@@ -174,7 +174,7 @@ export const PATCH = withAuth(async (
     // Build update object with only provided fields
     const updateData: Partial<{ name: string; description: string; status: AngleStatus }> = {};
     if (body.name !== undefined) updateData.name = body.name;
-    if (body.description !== undefined) updateData.description = body.description;
+    if (body.description !== undefined && body.description !== null) updateData.description = body.description;
     if (body.status !== undefined) updateData.status = body.status;
 
     // Ensure at least one field is being updated

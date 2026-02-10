@@ -82,9 +82,9 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
       geo: body.geo,
       type: body.type,
       name: body.name,
-      url: body.url,
-      content: body.content,
-      notes: body.notes,
+      url: body.url ?? undefined,
+      content: body.content ?? undefined,
+      notes: body.notes ?? undefined,
     });
 
     // Record creation history

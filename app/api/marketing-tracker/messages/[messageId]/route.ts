@@ -113,14 +113,14 @@ export const PUT = withAuth(async (
     // Update the message in the database
     const updatedMessageBase = await updateMessage(messageId, {
       name: body.name,
-      description: body.description,
+      description: body.description ?? undefined,
       status: body.status,
-      specificPainPoint: body.specificPainPoint,
-      corePromise: body.corePromise,
-      keyIdea: body.keyIdea,
-      primaryHookDirection: body.primaryHookDirection,
+      specificPainPoint: body.specificPainPoint ?? undefined,
+      corePromise: body.corePromise ?? undefined,
+      keyIdea: body.keyIdea ?? undefined,
+      primaryHookDirection: body.primaryHookDirection ?? undefined,
       headlines: body.headlines,
-      launchedAt: body.launchedAt,
+      launchedAt: body.launchedAt ?? undefined,
     });
 
     // Merge counts from old message (they don't change on field updates)

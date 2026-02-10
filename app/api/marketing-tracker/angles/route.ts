@@ -74,7 +74,7 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
     const newAngle = await createAngle({
       productId: body.productId,
       name: body.name,
-      description: body.description,
+      description: body.description ?? undefined,
       status: body.status,
     });
 

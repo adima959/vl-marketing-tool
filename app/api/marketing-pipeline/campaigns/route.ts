@@ -7,45 +7,23 @@ import { createPipelineCampaign } from '@/lib/marketing-pipeline/db';
 import { recordCreation } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 import { withAuth } from '@/lib/rbac';
-import type { Channel, Geography } from '@/types';
+import { createCampaignSchema } from '@/lib/schemas/marketingPipeline';
 import type { AppUser } from '@/types/user';
-
-const VALID_CHANNELS: Channel[] = ['meta', 'google', 'taboola', 'other'];
-const VALID_GEOS: Geography[] = ['NO', 'SE', 'DK'];
 
 export const POST = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
-    const body = await request.json();
+    const rawBody = await request.json();
     const changedBy = await getChangedBy(request);
 
-    // Validate required fields
-    if (!body.messageId || !body.channel || !body.geo) {
-      return NextResponse.json(
-        { success: false, error: 'messageId, channel, and geo are required' },
-        { status: 400 },
-      );
-    }
-
-    if (!VALID_CHANNELS.includes(body.channel)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid channel' },
-        { status: 400 },
-      );
-    }
-
-    if (!VALID_GEOS.includes(body.geo)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid geo' },
-        { status: 400 },
-      );
-    }
+    // Validate with Zod schema
+    const body = createCampaignSchema.parse(rawBody);
 
     const campaign = await createPipelineCampaign({
       messageId: body.messageId,
       channel: body.channel,
       geo: body.geo,
-      externalId: body.externalId,
-      externalUrl: body.externalUrl,
+      externalId: body.externalId || undefined,
+      externalUrl: body.externalUrl || undefined,
     });
 
     // Record history (non-blocking)
@@ -59,6 +37,15 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
     return NextResponse.json({ success: true, data: campaign });
   } catch (error) {
     console.error('Error creating campaign:', error);
+
+    // Handle Zod validation errors
+    if (error && typeof error === 'object' && 'issues' in error) {
+      return NextResponse.json(
+        { success: false, error: 'Validation error', issues: (error as any).issues },
+        { status: 400 },
+      );
+    }
+
     return NextResponse.json(
       { success: false, error: 'Failed to create campaign' },
       { status: 500 },

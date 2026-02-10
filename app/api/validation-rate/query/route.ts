@@ -35,7 +35,7 @@ async function handleValidationRateQuery(
       depth: body.depth,
       parentFilters: body.parentFilters,
       timePeriod: body.timePeriod,
-      sortBy: body.sortBy,
+      sortBy: body.sortBy ?? undefined,
       sortDirection: body.sortDirection,
     };
 

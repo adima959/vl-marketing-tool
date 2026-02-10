@@ -96,9 +96,9 @@ export const PUT = withAuth(async (
       name: body.name,
       geo: body.geo,
       type: body.type,
-      url: body.url,
-      content: body.content,
-      notes: body.notes,
+      url: body.url ?? undefined,
+      content: body.content ?? undefined,
+      notes: body.notes ?? undefined,
     });
 
     // Record update history
