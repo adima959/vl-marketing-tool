@@ -1,5 +1,5 @@
 import { Pool } from '@neondatabase/serverless';
-import { validateRequest } from '@/lib/auth';
+import { validateTokenFromDatabase } from '@/lib/auth';
 import { getUserByExternalId } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { UsersClientTable } from '@/components/settings/UsersClientTable';
@@ -33,9 +33,7 @@ async function checkAuth(): Promise<{ isAuthenticated: boolean; isAdmin: boolean
     return { isAuthenticated: false, isAdmin: false };
   }
 
-  const { valid, user: crmUser } = await validateRequest({
-    headers: new Headers({ cookie: `crm_auth_token=${token.value}` })
-  } as any);
+  const { valid, user: crmUser } = await validateTokenFromDatabase(token.value);
 
   if (!valid || !crmUser) {
     return { isAuthenticated: false, isAdmin: false };

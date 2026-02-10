@@ -34,7 +34,7 @@ export async function saveSessionToDatabase(token: string, userId: string): Prom
  * Validates token by checking database
  * Never calls CRM - tokens are validated once in callback, then stored in DB
  */
-async function validateTokenFromDatabase(token: string): Promise<{ valid: boolean; user?: CRMUser }> {
+export async function validateTokenFromDatabase(token: string): Promise<{ valid: boolean; user?: CRMUser }> {
   const client = await pool.connect();
   try {
     const result = await client.query<AppUser>(

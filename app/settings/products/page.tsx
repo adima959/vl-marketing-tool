@@ -1,4 +1,4 @@
-import { validateRequest } from '@/lib/auth';
+import { validateTokenFromDatabase } from '@/lib/auth';
 import { getUserByExternalId } from '@/lib/rbac';
 import { getProducts } from '@/lib/marketing-tracker/db';
 import { Pool } from '@neondatabase/serverless';
@@ -40,9 +40,7 @@ async function checkAuth(): Promise<{ isAuthenticated: boolean }> {
     return { isAuthenticated: false };
   }
 
-  const { valid, user: crmUser } = await validateRequest({
-    headers: new Headers({ cookie: `crm_auth_token=${token.value}` })
-  } as any);
+  const { valid, user: crmUser } = await validateTokenFromDatabase(token.value);
 
   if (!valid || !crmUser) {
     return { isAuthenticated: false };
