@@ -3,16 +3,16 @@ import { useDashboardStore } from '@/stores/dashboardStore';
 import { fetchDashboardData } from '@/lib/api/dashboardClient';
 
 /**
- * Dashboard-specific URL sync with fixed dimensions
+ * Dashboard-specific URL sync
  *
- * Dashboard has a fixed 4-level hierarchy that doesn't change,
- * so dimensions are not synced to/from URL (skipDimensions: true)
+ * Uses generic URL sync with dashboard-specific defaults.
+ * Dimensions are synced to/from URL and can be changed by the user.
  */
 export function useDashboardUrlSync() {
   return useGenericUrlSync({
     useStore: useDashboardStore,
     fetchData: fetchDashboardData,
     defaultSortColumn: 'subscriptions',
-    skipDimensions: true, // Dashboard dimensions are fixed
+    // skipDimensions removed - dimensions are now dynamic and URL-synced
   });
 }

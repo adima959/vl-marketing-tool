@@ -328,5 +328,6 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
     sortDirection,
     setUrlState,
     defaultSortColumn,
+    skipDimensions,
   ]);
 }
