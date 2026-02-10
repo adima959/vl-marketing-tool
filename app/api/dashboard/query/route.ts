@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeMariaDBQuery } from '@/lib/server/mariadb';
-import { dashboardQueryBuilder } from '@/lib/server/dashboardQueryBuilder';
+import { dashboardTableQueryBuilder } from '@/lib/server/dashboardTableQueryBuilder';
 import type { DashboardRow } from '@/types/dashboard';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
@@ -44,19 +44,25 @@ async function handleDashboardQuery(
       end: new Date(body.dateRange.end),
     };
 
-    // Build SQL query using MariaDB query builder
-    const { query, params } = dashboardQueryBuilder.buildQuery({
+    const queryOptions = {
       dateRange,
       dimensions: body.dimensions,
       depth: body.depth,
       parentFilters: body.parentFilters,
       sortBy: body.sortBy || 'subscriptions',
-      sortDirection: body.sortDirection || 'DESC',
+      sortDirection: (body.sortDirection || 'DESC') as 'ASC' | 'DESC',
       limit: 1000,
-    });
+    };
 
-    // Execute query against MariaDB
-    const rows = await executeMariaDBQuery<any>(query, params);
+    // Build main subscription query and standalone OTS query
+    const { query, params } = dashboardTableQueryBuilder.buildQuery(queryOptions);
+    const { query: otsQuery, params: otsParams } = dashboardTableQueryBuilder.buildOtsQuery(queryOptions);
+
+    // Execute both queries in parallel
+    const [rows, otsRows] = await Promise.all([
+      executeMariaDBQuery<any>(query, params),
+      executeMariaDBQuery<any>(otsQuery, otsParams),
+    ]);
 
     // Check if there are more dimensions (children available)
     const hasMoreDimensions = body.depth < body.dimensions.length - 1;
@@ -73,6 +79,7 @@ async function handleDashboardQuery(
     // Map dimension IDs to database column names (must match query builder)
     const dimensionColumnMap: Record<string, string> = {
       country: 'country',
+      productName: 'product_group_name',
       product: 'product_name',
       source: 'source',
     };
@@ -85,20 +92,33 @@ async function handleDashboardQuery(
       throw new Error(`Invalid dimension at depth ${body.depth}: ${currentDimension}`);
     }
 
-    // Transform database rows to frontend format (dynamic based on dimension order)
+    // Build OTS lookup map keyed by display value (after toTitleCase)
+    const otsMap = new Map<string, { ots: number; otsApproved: number }>();
+    for (const otsRow of otsRows) {
+      const rawValue = otsRow[columnName] || 'Unknown';
+      const displayValue = toTitleCase(rawValue);
+      const key = `${keyPrefix}${displayValue}`;
+      otsMap.set(key, {
+        ots: Number(otsRow.ots_count) || 0,
+        otsApproved: Number(otsRow.ots_approved_count) || 0,
+      });
+    }
+
+    // Transform database rows to frontend format, merging OTS data
     const data: DashboardRow[] = rows.map((row) => {
       const rawValue = row[columnName] || 'Unknown';
-      // Apply title case for proper capitalization (e.g., "denmark" -> "Denmark")
       const displayValue = toTitleCase(rawValue);
+      const rowKey = `${keyPrefix}${displayValue}`;
 
       const trials = Number(row.trial_count) || 0;
-      const ots = Number(row.ots_count) || 0;
-      const otsApproved = Number(row.ots_approved_count) || 0;
       const trialsApproved = Number(row.trials_approved_count) || 0;
-      const approvalDenominator = trials + ots;
+
+      // Merge OTS from standalone query
+      const otsData = otsMap.get(rowKey) || { ots: 0, otsApproved: 0 };
+      const approvalDenominator = trials + otsData.ots;
 
       return {
-        key: `${keyPrefix}${displayValue}`,
+        key: rowKey,
         attribute: displayValue,
         depth: body.depth,
         hasChildren: hasMoreDimensions,
@@ -106,10 +126,11 @@ async function handleDashboardQuery(
           customers: Number(row.customer_count) || 0,
           subscriptions: Number(row.subscription_count) || 0,
           trials,
-          ots,
-          otsApproved,
+          ots: otsData.ots,
+          otsApproved: otsData.otsApproved,
           trialsApproved,
-          approvalRate: approvalDenominator > 0 ? (trialsApproved + otsApproved) / approvalDenominator : 0,
+          approvalRate: approvalDenominator > 0 ? (trialsApproved + otsData.otsApproved) / approvalDenominator : 0,
+          otsApprovalRate: otsData.ots > 0 ? otsData.otsApproved / otsData.ots : 0,
           upsells: Number(row.upsell_count) || 0,
           upsellsApproved: Number(row.upsells_approved_count) || 0,
           upsellApprovalRate: (Number(row.upsell_count) || 0) > 0

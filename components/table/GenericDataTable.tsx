@@ -243,13 +243,13 @@ export function GenericDataTable<TRow extends BaseTableRow>({
               );
             }
             // Conditionally use ClickableMetricCell when onMetricClick is provided (for Dashboard)
-            const clickableMetricIds = ['customers', 'subscriptions', 'trials', 'trialsApproved', 'upsells'];
+            const clickableMetricIds = ['customers', 'subscriptions', 'trials', 'trialsApproved', 'ots', 'upsells'];
             if (onMetricClick && loadedDateRange && clickableMetricIds.includes(col.id)) {
               return (
                 <ClickableMetricCell
                   value={value ?? 0}
                   format={col.format}
-                  metricId={col.id as 'customers' | 'subscriptions' | 'trials' | 'trialsApproved' | 'upsells'}
+                  metricId={col.id as 'customers' | 'subscriptions' | 'trials' | 'trialsApproved' | 'ots' | 'upsells'}
                   metricLabel={col.label}
                   rowKey={record.key}
                   depth={record.depth}

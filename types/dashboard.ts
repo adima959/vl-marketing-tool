@@ -20,6 +20,7 @@ export interface DashboardRow extends BaseTableRow {
     approvalRate: number;     // (trialsApproved + otsApproved) / (trials + ots)
     upsells: number;          // COUNT of upsells (tag-based parent-sub-id matching)
     upsellsApproved: number;  // COUNT of approved upsells (is_marked = 1)
+    otsApprovalRate: number;    // otsApproved / ots (decimal ratio for formatPercentage)
     upsellApprovalRate: number; // upsellsApproved / upsells (decimal ratio for formatPercentage)
   };
 }

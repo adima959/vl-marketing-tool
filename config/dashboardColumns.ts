@@ -36,17 +36,6 @@ export const DASHBOARD_METRIC_COLUMNS: MetricColumn[] = [
     align: 'right',
   },
   {
-    id: 'ots',
-    label: 'OTS',
-    shortLabel: 'OTS',
-    description: 'One-time sale invoices (invoice type 3)',
-    format: 'number',
-    category: 'basic',
-    defaultVisible: true,
-    width: 120,
-    align: 'right',
-  },
-  {
     id: 'trialsApproved',
     label: 'Trials - Approved',
     shortLabel: 'Approved',
@@ -62,6 +51,28 @@ export const DASHBOARD_METRIC_COLUMNS: MetricColumn[] = [
     label: 'Approval %',
     shortLabel: 'Appr. %',
     description: 'Percentage of trials + OTS approved ((trialsApproved + otsApproved) / (trials + ots))',
+    format: 'percentage',
+    category: 'calculated',
+    defaultVisible: true,
+    width: 120,
+    align: 'right',
+  },
+  {
+    id: 'ots',
+    label: 'OTS',
+    shortLabel: 'OTS',
+    description: 'One-time sale invoices (invoice type 3)',
+    format: 'number',
+    category: 'basic',
+    defaultVisible: true,
+    width: 120,
+    align: 'right',
+  },
+  {
+    id: 'otsApprovalRate',
+    label: 'OTS Appr. %',
+    shortLabel: 'OTS Appr. %',
+    description: 'Percentage of OTS approved (otsApproved / ots)',
     format: 'percentage',
     category: 'calculated',
     defaultVisible: true,
@@ -95,7 +106,7 @@ export const DASHBOARD_METRIC_COLUMNS: MetricColumn[] = [
 export const DASHBOARD_COLUMN_GROUPS: ColumnGroup[] = [
   {
     title: 'Order Metrics',
-    metricIds: ['customers', 'subscriptions', 'trials', 'ots', 'trialsApproved', 'approvalRate', 'upsells', 'upsellApprovalRate']
+    metricIds: ['customers', 'subscriptions', 'trials', 'trialsApproved', 'approvalRate', 'ots', 'otsApprovalRate', 'upsells', 'upsellApprovalRate']
   },
 ];
 

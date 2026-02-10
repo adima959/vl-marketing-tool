@@ -26,6 +26,7 @@ export async function fetchDashboardDetails(
         end: formatLocalDate(context.filters.dateRange.end),
       },
       country: context.filters.country,
+      productName: context.filters.productName,
       product: context.filters.product,
       source: context.filters.source,
       excludeDeleted: context.filters.excludeDeleted,

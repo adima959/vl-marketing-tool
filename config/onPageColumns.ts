@@ -143,7 +143,7 @@ export const ON_PAGE_METRIC_COLUMNS: MetricColumn[] = [
     id: 'crmApproved',
     label: 'Approved Sales',
     shortLabel: 'Approved',
-    description: 'Approved CRM subscriptions (is_marked = 1)',
+    description: 'Approved CRM trials (is_marked = 1)',
     format: 'number',
     category: 'crm',
     defaultVisible: true,

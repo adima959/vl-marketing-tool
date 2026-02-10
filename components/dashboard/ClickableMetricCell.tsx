@@ -9,7 +9,7 @@ import styles from './ClickableMetricCell.module.css';
 interface ClickableMetricCellProps {
   value: number;
   format: MetricFormat;
-  metricId: 'customers' | 'subscriptions' | 'trials' | 'trialsApproved' | 'upsells';
+  metricId: 'customers' | 'subscriptions' | 'trials' | 'trialsApproved' | 'ots' | 'upsells';
   metricLabel: string;
   rowKey: string;
   depth: number;
@@ -50,6 +50,7 @@ export function ClickableMetricCell({
     const filters: MetricClickContext['filters'] = {
       dateRange,
       country: undefined,
+      productName: undefined,
       product: undefined,
       source: undefined,
     };
@@ -60,7 +61,7 @@ export function ClickableMetricCell({
       const dimensionName = dimensions[index];
       if (dimensionName && part) {
         // Map the dimension name to the filter property
-        filters[dimensionName as 'country' | 'product' | 'source'] = part;
+        filters[dimensionName as 'country' | 'productName' | 'product' | 'source'] = part;
       }
     });
 

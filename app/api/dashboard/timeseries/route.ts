@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeMariaDBQuery } from '@/lib/server/mariadb';
-import { dashboardQueryBuilder } from '@/lib/server/dashboardQueryBuilder';
+import { dashboardTableQueryBuilder } from '@/lib/server/dashboardTableQueryBuilder';
 import type { TimeSeriesDataPoint, TimeSeriesResponse } from '@/types/dashboard';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
@@ -18,15 +18,13 @@ const timeSeriesRequestSchema = z.object({
 });
 
 /**
- * Raw database row type
+ * Raw database row type (main subscription query — OTS is queried separately)
  */
 interface RawTimeSeriesRow {
   date: string | Date;
   customers: number | string;
   subscriptions: number | string;
   trials: number | string;
-  ots: number | string;
-  otsApproved: number | string;
   trialsApproved: number | string;
   upsells: number | string;
   upsellsApproved: number | string;
@@ -52,13 +50,35 @@ async function handleTimeSeriesQuery(
       end: new Date(body.dateRange.end),
     };
 
-    // Build SQL query for time series
-    const { query, params } = dashboardQueryBuilder.buildTimeSeriesQuery(dateRange);
+    // Build main time series query and standalone OTS time series query
+    const { query, params } = dashboardTableQueryBuilder.buildTimeSeriesQuery(dateRange);
+    const { query: otsQuery, params: otsParams } = dashboardTableQueryBuilder.buildOtsTimeSeriesQuery(dateRange);
 
-    // Execute query against MariaDB
-    const rows = await executeMariaDBQuery<RawTimeSeriesRow>(query, params);
+    // Execute both queries in parallel
+    const [rows, otsRows] = await Promise.all([
+      executeMariaDBQuery<RawTimeSeriesRow>(query, params),
+      executeMariaDBQuery<{ date: string | Date; ots: number | string; otsApproved: number | string }>(otsQuery, otsParams),
+    ]);
 
-    // Transform to frontend format
+    // Build OTS lookup by date string
+    const otsMap = new Map<string, { ots: number; otsApproved: number }>();
+    for (const otsRow of otsRows) {
+      let dateKey: string;
+      if (otsRow.date instanceof Date) {
+        const y = otsRow.date.getFullYear();
+        const m = String(otsRow.date.getMonth() + 1).padStart(2, '0');
+        const d = String(otsRow.date.getDate()).padStart(2, '0');
+        dateKey = `${y}-${m}-${d}`;
+      } else {
+        dateKey = String(otsRow.date).split('T')[0];
+      }
+      otsMap.set(dateKey, {
+        ots: Number(otsRow.ots) || 0,
+        otsApproved: Number(otsRow.otsApproved) || 0,
+      });
+    }
+
+    // Transform to frontend format, merging OTS data
     const data: TimeSeriesDataPoint[] = rows.map((row) => {
       // Format date as YYYY-MM-DD string (use local methods to avoid UTC shift)
       let dateValue: string;
@@ -71,13 +91,15 @@ async function handleTimeSeriesQuery(
         dateValue = String(row.date).split('T')[0];
       }
 
+      const otsData = otsMap.get(dateValue) || { ots: 0, otsApproved: 0 };
+
       return {
         date: dateValue,
         customers: Number(row.customers) || 0,
         subscriptions: Number(row.subscriptions) || 0,
         trials: Number(row.trials) || 0,
-        ots: Number(row.ots) || 0,
-        otsApproved: Number(row.otsApproved) || 0,
+        ots: otsData.ots,
+        otsApproved: otsData.otsApproved,
         trialsApproved: Number(row.trialsApproved) || 0,
         upsells: Number(row.upsells) || 0,
         upsellsApproved: Number(row.upsellsApproved) || 0,

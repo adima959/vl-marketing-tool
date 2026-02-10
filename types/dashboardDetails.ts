@@ -5,14 +5,15 @@ import type { DateRange } from '@/types/dashboard';
  * Contains all information needed to query for detail records
  */
 export interface MetricClickContext {
-  metricId: 'customers' | 'subscriptions' | 'trials' | 'trialsApproved' | 'upsells';
+  metricId: 'customers' | 'subscriptions' | 'trials' | 'trialsApproved' | 'ots' | 'upsells';
   metricLabel: string;       // Human-readable name for modal title
   value: number;             // Aggregated count that was clicked
   filters: {
     dateRange: DateRange;
     country?: string;        // Depth 0 filter (always present if depth >= 0)
-    product?: string;        // Depth 1 filter (present if depth >= 1)
-    source?: string;         // Depth 2 filter (present if depth >= 2)
+    productName?: string;    // Product group name filter (e.g., "FlexRepair")
+    product?: string;        // Full product name filter (e.g., "Flex_Repair-DNK-x3-[166/996]")
+    source?: string;         // Source filter (present at deepest depth)
     excludeDeleted?: boolean;     // If true, exclude deleted subscriptions (s.deleted = 0)
     excludeUpsellTags?: boolean;  // If true, exclude upsell invoices (i.tag NOT LIKE '%parent-sub-id=%')
     rateType?: 'approval' | 'pay' | 'buy';  // Rate type for validation rate pages (affects query logic)

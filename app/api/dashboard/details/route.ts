@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeMariaDBQuery } from '@/lib/server/mariadb';
-import { dashboardDetailQueryBuilder } from '@/lib/server/dashboardDetailQueryBuilder';
+import { dashboardDrilldownQueryBuilder } from '@/lib/server/dashboardDrilldownQueryBuilder';
 import type { DetailRecord, DetailQueryResponse } from '@/types/dashboardDetails';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
@@ -73,11 +73,12 @@ async function handleDashboardDetails(
     const pagination = body.pagination || { page: 1, pageSize: 50 };
 
     // Build queries
-    const { query, params, countQuery, countParams} = dashboardDetailQueryBuilder.buildDetailQuery(
+    const { query, params, countQuery, countParams} = dashboardDrilldownQueryBuilder.buildDetailQuery(
       body.metricId,
       {
         dateRange,
         country: body.filters.country,
+        productName: body.filters.productName,
         product: body.filters.product,
         source: body.filters.source,
         excludeDeleted: body.filters.excludeDeleted,
