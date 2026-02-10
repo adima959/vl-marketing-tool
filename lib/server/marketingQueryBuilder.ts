@@ -2,6 +2,7 @@ import { executeQuery } from './db';
 import { getCRMSubscriptions, getCRMOts, type CRMQueryFilters, type CRMSubscriptionRow, type CRMOtsRow } from './marketingCrmQueries';
 import { validateSortDirection } from './types';
 import { matchNetworkToSource } from './crmMetrics';
+import { FilterBuilder } from './queryBuilderUtils';
 
 export interface MarketingQueryParams {
   dateRange: { start: Date; end: Date };
@@ -79,6 +80,24 @@ function isClassificationDim(dim: string): boolean {
   return dim in classificationDimMap;
 }
 
+/**
+ * Filter builder for marketing queries (PostgreSQL with standard + classification dimensions)
+ */
+const marketingFilterBuilder = new FilterBuilder({
+  dbType: 'postgres',
+  dimensionMap: {
+    // Standard ad dimensions
+    network: 'network',
+    campaign: 'campaign_name',
+    adset: 'adset_name',
+    ad: 'ad_name',
+    date: 'date',
+    // Classification dimensions
+    classifiedProduct: classificationDimMap.classifiedProduct.filterExpr,
+    classifiedCountry: classificationDimMap.classifiedCountry.filterExpr,
+  },
+});
+
 /** Check if any dimension in the hierarchy or table filters needs classification JOINs */
 function needsClassificationJoins(
   currentDim: string,
@@ -147,51 +166,14 @@ function formatLocalDate(date: Date): string {
 }
 
 /**
- * Builds parent filter WHERE clause
+ * Builds parent filter WHERE clause using FilterBuilder utility
  * Handles "Unknown" values by converting them to IS NULL conditions
  */
 function buildParentFilters(
   parentFilters: Record<string, string> | undefined,
   paramOffset: number
 ): { whereClause: string; params: any[] } {
-  if (!parentFilters || Object.keys(parentFilters).length === 0) {
-    return { whereClause: '', params: [] };
-  }
-
-  const params: any[] = [];
-  const conditions: string[] = [];
-
-  Object.entries(parentFilters).forEach(([dimId, value]) => {
-    // Check classification dimensions first
-    const classConfig = classificationDimMap[dimId];
-    if (classConfig) {
-      if (value === 'Unknown') {
-        conditions.push(`${classConfig.filterExpr} IS NULL`);
-      } else {
-        params.push(value);
-        conditions.push(`${classConfig.filterExpr} = $${paramOffset + params.length}`);
-      }
-      return;
-    }
-
-    const sqlColumn = dimensionMap[dimId];
-    if (!sqlColumn) {
-      throw new Error(`Unknown dimension in parent filter: ${dimId}`);
-    }
-
-    // Handle "Unknown" values as NULL
-    if (value === 'Unknown') {
-      conditions.push(`${sqlColumn} IS NULL`);
-    } else {
-      params.push(value);
-      conditions.push(`${sqlColumn} = $${paramOffset + params.length}`);
-    }
-  });
-
-  return {
-    whereClause: `AND ${conditions.join(' AND ')}`,
-    params,
-  };
+  return marketingFilterBuilder.buildParentFilters(parentFilters, { paramOffset });
 }
 
 

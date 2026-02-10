@@ -1,9 +1,8 @@
 'use client';
 
-import { Button } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
 import { DateRangePicker } from '@/components/filters/DateRangePicker';
 import { DimensionPills } from '@/components/filters/DimensionPills';
+import { LoadDataButton } from '@/components/shared/LoadDataButton';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { getDashboardDimensionLabel } from '@/config/dashboardDimensions';
 import styles from './dashboard.module.css';
@@ -24,18 +23,13 @@ export function DashboardFilterToolbar() {
       </div>
       <div className={styles.filterRight}>
         <DateRangePicker dateRange={dateRange} setDateRange={setDateRange} />
-        <Button
-          type={!hasLoadedOnce || hasUnsavedChanges ? 'primary' : 'default'}
-          icon={<ReloadOutlined />}
+        <LoadDataButton
+          isLoading={isLoading}
+          hasLoadedOnce={hasLoadedOnce}
+          hasUnsavedChanges={hasUnsavedChanges}
           onClick={loadData}
-          loading={isLoading}
-          disabled={hasLoadedOnce && !hasUnsavedChanges}
           size="middle"
-        >
-          <span className={styles.buttonText}>
-            {!hasLoadedOnce ? 'Load Data' : hasUnsavedChanges ? 'Update' : 'Loaded'}
-          </span>
-        </Button>
+        />
       </div>
     </div>
   );

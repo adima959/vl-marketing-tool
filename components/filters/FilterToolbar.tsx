@@ -1,11 +1,10 @@
 'use client';
 
-import { Button } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
 import { DateRangePicker } from './DateRangePicker';
 import { DimensionPicker } from './DimensionPicker';
 import { DimensionPills } from './DimensionPills';
 import { FilterPanel } from './FilterPanel';
+import { LoadDataButton } from '@/components/shared/LoadDataButton';
 import { useReportStore } from '@/stores/reportStore';
 import { getDimensionLabel } from '@/config/dimensions';
 import type { TableFilter } from '@/types/filters';
@@ -61,15 +60,12 @@ export function FilterToolbar({ filters, onFiltersChange, dimensionGroups }: Fil
           <DateRangePicker dateRange={dateRange} setDateRange={setDateRange} />
 
           <div className={styles.loadButtonWrapper}>
-            <Button
-              type={!hasLoadedOnce || hasUnsavedChanges ? 'primary' : 'default'}
-              icon={<ReloadOutlined />}
+            <LoadDataButton
+              isLoading={isLoading}
+              hasLoadedOnce={hasLoadedOnce}
+              hasUnsavedChanges={hasUnsavedChanges}
               onClick={loadData}
-              loading={isLoading}
-              disabled={hasLoadedOnce && !hasUnsavedChanges}
-            >
-              Load Data
-            </Button>
+            />
             {hasUnsavedChanges && (
               <span className={styles.unsavedDot} title="Unsaved filter changes" />
             )}

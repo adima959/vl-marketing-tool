@@ -1,6 +1,7 @@
 import type { DateRange } from '@/types/dashboard';
 import { validateSortDirection } from './types';
 import { CRM_METRICS, OTS_METRICS, CRM_JOINS, OTS_JOINS, CRM_WHERE, formatDateForMariaDB } from './crmMetrics';
+import { FilterBuilder, type DimensionConfig } from './queryBuilderUtils';
 
 interface QueryOptions {
   dateRange: DateRange;
@@ -56,60 +57,35 @@ export class DashboardTableQueryBuilder {
   };
 
   /**
-   * Builds parent filter WHERE clause
+   * Filter builder for subscription-based dimensions (with COALESCE for alternative paths)
+   */
+  private readonly filterBuilder = new FilterBuilder({
+    dbType: 'mariadb',
+    dimensionMap: {
+      country: {
+        column: 'c.country',
+        nullCheck: "(c.country IS NULL OR c.country = '')",
+      },
+      productName: {
+        column: 'COALESCE(pg.group_name, pg_sub.group_name)',
+      },
+      product: {
+        column: 'COALESCE(p.product_name, p_sub.product_name)',
+      },
+      source: {
+        column: 'COALESCE(sr.source, sr_sub.source)',
+      },
+    },
+  });
+
+  /**
+   * Builds parent filter WHERE clause using FilterBuilder utility
    * Handles "Unknown" values by converting them to IS NULL conditions
    */
   private buildParentFilters(
     parentFilters: Record<string, string> | undefined
   ): { whereClause: string; params: (string | number | boolean | null | Date)[] } {
-    if (!parentFilters || Object.keys(parentFilters).length === 0) {
-      return { whereClause: '', params: [] };
-    }
-
-    const params: (string | number | boolean | null | Date)[] = [];
-    const conditions: string[] = [];
-
-    // IMPORTANT: Use dimension order, not alphabetical
-    if (parentFilters.country !== undefined) {
-      if (parentFilters.country === 'Unknown') {
-        conditions.push("(c.country IS NULL OR c.country = '')");
-      } else {
-        conditions.push('c.country = ?');
-        params.push(parentFilters.country);
-      }
-    }
-
-    if (parentFilters.productName !== undefined) {
-      if (parentFilters.productName === 'Unknown') {
-        conditions.push('COALESCE(pg.group_name, pg_sub.group_name) IS NULL');
-      } else {
-        conditions.push('COALESCE(pg.group_name, pg_sub.group_name) = ?');
-        params.push(parentFilters.productName);
-      }
-    }
-
-    if (parentFilters.product !== undefined) {
-      if (parentFilters.product === 'Unknown') {
-        conditions.push('COALESCE(p.product_name, p_sub.product_name) IS NULL');
-      } else {
-        conditions.push('COALESCE(p.product_name, p_sub.product_name) = ?');
-        params.push(parentFilters.product);
-      }
-    }
-
-    if (parentFilters.source !== undefined) {
-      if (parentFilters.source === 'Unknown') {
-        conditions.push('COALESCE(sr.source, sr_sub.source) IS NULL');
-      } else {
-        conditions.push('COALESCE(sr.source, sr_sub.source) = ?');
-        params.push(parentFilters.source);
-      }
-    }
-
-    return {
-      whereClause: conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '',
-      params,
-    };
+    return this.filterBuilder.buildParentFilters(parentFilters);
   }
 
   /**
@@ -250,59 +226,29 @@ export class DashboardTableQueryBuilder {
   };
 
   /**
-   * Build parent filter WHERE clause for OTS queries.
+   * Filter builder for OTS dimensions (simpler - no COALESCE needed)
+   */
+  private readonly otsFilterBuilder = new FilterBuilder({
+    dbType: 'mariadb',
+    dimensionMap: {
+      country: {
+        column: 'c.country',
+        nullCheck: "(c.country IS NULL OR c.country = '')",
+      },
+      productName: 'pg.group_name',
+      product: 'p.product_name',
+      source: 'sr.source',
+    },
+  });
+
+  /**
+   * Build parent filter WHERE clause for OTS queries using FilterBuilder utility
    * Simpler than subscription filters — no COALESCE, direct column references.
    */
   private buildOtsParentFilters(
     parentFilters: Record<string, string> | undefined
   ): { whereClause: string; params: (string | number | boolean | null | Date)[] } {
-    if (!parentFilters || Object.keys(parentFilters).length === 0) {
-      return { whereClause: '', params: [] };
-    }
-
-    const params: (string | number | boolean | null | Date)[] = [];
-    const conditions: string[] = [];
-
-    if (parentFilters.country !== undefined) {
-      if (parentFilters.country === 'Unknown') {
-        conditions.push("(c.country IS NULL OR c.country = '')");
-      } else {
-        conditions.push('c.country = ?');
-        params.push(parentFilters.country);
-      }
-    }
-
-    if (parentFilters.productName !== undefined) {
-      if (parentFilters.productName === 'Unknown') {
-        conditions.push('pg.group_name IS NULL');
-      } else {
-        conditions.push('pg.group_name = ?');
-        params.push(parentFilters.productName);
-      }
-    }
-
-    if (parentFilters.product !== undefined) {
-      if (parentFilters.product === 'Unknown') {
-        conditions.push('p.product_name IS NULL');
-      } else {
-        conditions.push('p.product_name = ?');
-        params.push(parentFilters.product);
-      }
-    }
-
-    if (parentFilters.source !== undefined) {
-      if (parentFilters.source === 'Unknown') {
-        conditions.push('sr.source IS NULL');
-      } else {
-        conditions.push('sr.source = ?');
-        params.push(parentFilters.source);
-      }
-    }
-
-    return {
-      whereClause: conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '',
-      params,
-    };
+    return this.otsFilterBuilder.buildParentFilters(parentFilters);
   }
 
   /**
