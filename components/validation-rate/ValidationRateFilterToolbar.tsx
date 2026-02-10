@@ -1,12 +1,13 @@
 'use client';
 
-import { Button, DatePicker } from 'antd';
-import { ReloadOutlined, SwapRightOutlined } from '@ant-design/icons';
+import { DatePicker } from 'antd';
+import { SwapRightOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { ValidationRateDimensionPicker } from './ValidationRateDimensionPicker';
 import { DimensionPills } from '@/components/filters/DimensionPills';
 import { TimePeriodToggle } from './TimePeriodToggle';
+import { LoadDataButton } from '@/components/shared/LoadDataButton';
 import { getValidationRateDimensionLabel } from '@/config/validationRateDimensions';
 import type { ValidationRateStore } from '@/types';
 import type { UseBoundStore, StoreApi } from 'zustand';
@@ -111,15 +112,12 @@ export function ValidationRateFilterToolbar({ useStore }: ValidationRateFilterTo
             </div>
 
             <div className={styles.loadButtonWrapper}>
-              <Button
-                type={!hasLoadedOnce || hasUnsavedChanges ? 'primary' : 'default'}
-                icon={<ReloadOutlined />}
+              <LoadDataButton
+                isLoading={isLoading}
+                hasLoadedOnce={hasLoadedOnce}
+                hasUnsavedChanges={hasUnsavedChanges}
                 onClick={loadData}
-                loading={isLoading}
-                disabled={hasLoadedOnce && !hasUnsavedChanges}
-              >
-                Load Data
-              </Button>
+              />
               {hasUnsavedChanges && (
                 <span className={styles.unsavedDot} title="Unsaved filter changes" />
               )}
