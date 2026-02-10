@@ -9,6 +9,8 @@ import { recordCreation } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
+import { createMessageSchema } from '@/lib/schemas/marketingTracker';
+import { z } from 'zod';
 
 /**
  * GET /api/marketing-tracker/messages
@@ -53,22 +55,11 @@ export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise
  */
 export const POST = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
-    const body: CreateMessageRequest = await request.json();
+    const rawBody = await request.json();
     const changedBy = await getChangedBy(request);
 
-    if (!body.name) {
-      return NextResponse.json(
-        { success: false, error: 'Message name is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!body.angleId) {
-      return NextResponse.json(
-        { success: false, error: 'Angle ID is required' },
-        { status: 400 }
-      );
-    }
+    // Validate request body
+    const body = createMessageSchema.parse(rawBody);
 
     // Verify angle exists
     const angle = await getAngleById(body.angleId);
@@ -105,6 +96,13 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
       data: newMessage,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error('Validation error:', error.issues);
+      return NextResponse.json(
+        { success: false, error: 'Invalid request data' },
+        { status: 400 }
+      );
+    }
     console.error('Error creating message:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to create message' },

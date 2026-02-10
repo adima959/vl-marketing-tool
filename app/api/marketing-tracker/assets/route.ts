@@ -9,6 +9,8 @@ import { recordCreation } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
+import { createAssetSchema } from '@/lib/schemas/marketingTracker';
+import { z } from 'zod';
 
 /**
  * GET /api/marketing-tracker/assets
@@ -59,54 +61,11 @@ export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise
  */
 export const POST = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
-    const body: CreateAssetRequest = await request.json();
+    const rawBody = await request.json();
     const changedBy = await getChangedBy(request);
 
-    if (!body.name) {
-      return NextResponse.json(
-        { success: false, error: 'Asset name is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!body.messageId) {
-      return NextResponse.json(
-        { success: false, error: 'Message ID is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!body.geo) {
-      return NextResponse.json(
-        { success: false, error: 'Geography is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!body.type) {
-      return NextResponse.json(
-        { success: false, error: 'Asset type is required' },
-        { status: 400 }
-      );
-    }
-
-    // Validate geo
-    const validGeos: Geography[] = ['NO', 'SE', 'DK'];
-    if (!validGeos.includes(body.geo)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid geography value' },
-        { status: 400 }
-      );
-    }
-
-    // Validate type
-    const validTypes: AssetType[] = ['landing_page', 'text_ad', 'brief', 'research'];
-    if (!validTypes.includes(body.type)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid asset type' },
-        { status: 400 }
-      );
-    }
+    // Validate request body
+    const body = createAssetSchema.parse(rawBody);
 
     // Verify message exists
     const message = await getMessageById(body.messageId);
@@ -141,6 +100,13 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
       data: newAsset,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error('Validation error:', error.issues);
+      return NextResponse.json(
+        { success: false, error: 'Invalid request data' },
+        { status: 400 }
+      );
+    }
     console.error('Error creating asset:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to create asset' },

@@ -1,3 +1,17 @@
+/**
+ * Data Maps Page - Remains Client Component
+ *
+ * Architecture Decision: This page uses Client Component pattern
+ *
+ * Reasons for remaining client-side:
+ * - Tab switching state requires client-side interactivity
+ * - Three lazy-loaded panels (Campaign, URL, Affiliate) with independent data
+ * - Each panel has complex table interactions and inline editing
+ * - Tab state coordination with panel rendering
+ *
+ * Current pattern is appropriate - tabs provide good UX organization
+ * and lazy loading already optimizes bundle size.
+ */
 'use client';
 
 import { useState, lazy, Suspense } from 'react';

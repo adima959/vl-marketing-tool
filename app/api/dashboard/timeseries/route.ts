@@ -113,11 +113,12 @@ async function handleTimeSeriesQuery(
   } catch (error: unknown) {
     // Handle Zod validation errors
     if (error instanceof z.ZodError) {
+      console.error('Validation error:', error.issues);
       return NextResponse.json(
         {
           success: false,
           data: [],
-          error: `Validation error: ${error.message}`,
+          error: 'Invalid request data',
         },
         { status: 400 }
       );

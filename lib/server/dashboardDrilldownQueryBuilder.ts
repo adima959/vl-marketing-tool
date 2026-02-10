@@ -2,6 +2,8 @@ import type { DateRange } from '@/types/dashboard';
 import { CRM_JOINS, CRM_WHERE, OTS_JOINS, formatDateForMariaDB, buildPaginationClause, type DashboardDetailMetricId } from './crmMetrics';
 import { FilterBuilder } from './queryBuilderUtils';
 
+type SqlParam = string | number | boolean | null | Date;
+
 interface DetailQueryOptions {
   dateRange: DateRange;
   country?: string;
@@ -23,7 +25,7 @@ interface PaginationOptions {
 
 interface QueryResult {
   query: string;
-  params: any[];
+  params: SqlParam[];
   countQuery: string;
   countParams: any[];
 }
@@ -69,7 +71,7 @@ export class DashboardDrilldownQueryBuilder {
    * Build WHERE clause from optional filters (country, product, source)
    * Handles "Unknown" values by converting them to IS NULL OR empty string conditions
    */
-  private buildFilterClause(filters: DetailQueryOptions): { whereClause: string; params: any[] } {
+  private buildFilterClause(filters: DetailQueryOptions): { whereClause: string; params: SqlParam[] } {
     const parentFilters: Record<string, string> = {};
     if (filters.country) parentFilters.country = filters.country;
     if (filters.productName) parentFilters.productName = filters.productName;
@@ -82,9 +84,9 @@ export class DashboardDrilldownQueryBuilder {
    * Build WHERE clause with case-insensitive country matching
    * Used by pay rate and buy rate pages to match CRM behavior
    */
-  private buildFilterClauseCaseInsensitive(filters: DetailQueryOptions): { whereClause: string; params: any[] } {
+  private buildFilterClauseCaseInsensitive(filters: DetailQueryOptions): { whereClause: string; params: SqlParam[] } {
     // For case-insensitive matching, we override country with LOWER()
-    const params: any[] = [];
+    const params: SqlParam[] = [];
     const conditions: string[] = [];
 
     if (filters.country) {
@@ -120,7 +122,7 @@ export class DashboardDrilldownQueryBuilder {
    * Build WHERE clause for standalone OTS queries.
    * OTS invoices don't go through subscription, so no COALESCE — direct column references.
    */
-  private buildOtsFilterClause(filters: DetailQueryOptions): { whereClause: string; params: any[] } {
+  private buildOtsFilterClause(filters: DetailQueryOptions): { whereClause: string; params: SqlParam[] } {
     const parentFilters: Record<string, string> = {};
     if (filters.country) parentFilters.country = filters.country;
     if (filters.productName) parentFilters.productName = filters.productName;

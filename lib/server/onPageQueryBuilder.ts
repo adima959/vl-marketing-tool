@@ -1,6 +1,8 @@
 import type { QueryOptions } from './types';
 import { validateSortDirection } from './types';
 
+type SqlParam = string | number | boolean | null | Date;
+
 /**
  * Format a Date as 'YYYY-MM-DD' using local timezone
  * Avoids the timezone bug where toISOString().split('T')[0] returns
@@ -150,12 +152,12 @@ export class OnPageQueryBuilder {
     parentFilters: Record<string, string> | undefined,
     paramOffset: number,
     columnPrefix: string = ''
-  ): { whereClause: string; params: (string | number | boolean | null | Date)[] } {
+  ): { whereClause: string; params: SqlParam[] } {
     if (!parentFilters || Object.keys(parentFilters).length === 0) {
       return { whereClause: '', params: [] };
     }
 
-    const params: (string | number | boolean | null | Date)[] = [];
+    const params: SqlParam[] = [];
     const conditions: string[] = [];
 
     Object.entries(parentFilters).forEach(([dimId, value]) => {
@@ -232,7 +234,7 @@ export class OnPageQueryBuilder {
     filter: { operator: string; value: string },
     colExpr: string,
     textExpr: string,
-    params: any[],
+    params: SqlParam[],
     paramOffset: number
   ): string | null {
     switch (filter.operator) {
@@ -264,12 +266,12 @@ export class OnPageQueryBuilder {
     filters: QueryOptions['filters'],
     paramOffset: number,
     columnPrefix: string = ''
-  ): { whereClause: string; params: any[] } {
+  ): { whereClause: string; params: SqlParam[] } {
     if (!filters || filters.length === 0) {
       return { whereClause: '', params: [] };
     }
 
-    const params: any[] = [];
+    const params: SqlParam[] = [];
 
     // Group filters by field, preserving resolution info
     const fieldGroups = new Map<string, { colExpr: string; textExpr: string; filters: Array<{ operator: string; value: string }> }>();
@@ -315,7 +317,7 @@ export class OnPageQueryBuilder {
   /**
    * Builds the complete query for a given depth and filters
    */
-  public buildQuery(options: QueryOptions): { query: string; params: any[] } {
+  public buildQuery(options: QueryOptions): { query: string; params: SqlParam[] } {
     const {
       dateRange,
       dimensions,
@@ -388,7 +390,7 @@ export class OnPageQueryBuilder {
     const finalSortDirection = currentDimension === 'date' ? 'DESC' : validateSortDirection(sortDirection);
 
     // Build parameters
-    const params: any[] = [
+    const params: SqlParam[] = [
       formatLocalDate(dateRange.start), // $1
       formatLocalDate(dateRange.end),   // $2
     ];
@@ -533,7 +535,7 @@ export class OnPageQueryBuilder {
    *
    * Uses detailFilterMap (raw columns, no JOINs) for simplicity and performance.
    */
-  public buildTrackingMatchQuery(options: QueryOptions): { query: string; params: any[] } {
+  public buildTrackingMatchQuery(options: QueryOptions): { query: string; params: SqlParam[] } {
     const { dateRange, dimensions, depth, parentFilters, filters } = options;
 
     const currentDimension = dimensions[depth];
@@ -542,7 +544,7 @@ export class OnPageQueryBuilder {
       throw new Error(`Unknown dimension for tracking match: ${currentDimension}`);
     }
 
-    const params: any[] = [
+    const params: SqlParam[] = [
       formatLocalDate(dateRange.start),
       formatLocalDate(dateRange.end),
     ];
@@ -616,7 +618,7 @@ export class OnPageQueryBuilder {
    * Used for ff_vid matching: application code matches these visitor IDs
    * against CRM ff_vid values from the enriched table.
    */
-  public buildVisitorMatchQuery(options: QueryOptions): { query: string; params: any[] } {
+  public buildVisitorMatchQuery(options: QueryOptions): { query: string; params: SqlParam[] } {
     const { dateRange, dimensions, depth, parentFilters, filters } = options;
 
     const currentDimension = dimensions[depth];
@@ -625,7 +627,7 @@ export class OnPageQueryBuilder {
       throw new Error(`Unknown dimension for visitor match: ${currentDimension}`);
     }
 
-    const params: any[] = [
+    const params: SqlParam[] = [
       formatLocalDate(dateRange.start),
       formatLocalDate(dateRange.end),
     ];
@@ -727,7 +729,7 @@ export class OnPageQueryBuilder {
     metricId?: string;
     page: number;
     pageSize: number;
-  }): { query: string; countQuery: string; params: any[] } {
+  }): { query: string; countQuery: string; params: SqlParam[] } {
     const { dateRange, dimensionFilters, metricId, page, pageSize } = options;
 
     // Base params shared by all queries (date range + dimension filters)

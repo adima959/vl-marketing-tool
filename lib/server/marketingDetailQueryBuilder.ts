@@ -1,6 +1,8 @@
 import type { DateRange } from '@/types';
 import { buildSourceFilterParams, CRM_JOINS, CRM_WHERE, OTS_JOINS, formatDateForMariaDB, buildPaginationClause, type MarketingDetailMetricId } from './crmMetrics';
 
+type SqlParam = string | number | boolean | null | Date;
+
 interface TrackingIdTuple {
   campaign_id: string;
   adset_id: string;
@@ -21,7 +23,7 @@ interface PaginationOptions {
 
 interface QueryResult {
   query: string;
-  params: any[];
+  params: SqlParam[];
   countQuery: string;
   countParams: any[];
 }
@@ -39,8 +41,8 @@ export class MarketingDetailQueryBuilder {
    * Build WHERE clause from tracking ID tuples
    * Uses MariaDB row-value constructor for precise tuple matching
    */
-  private buildFilterClause(filters: DetailQueryOptions): { whereClause: string; params: any[] } {
-    const params: any[] = [];
+  private buildFilterClause(filters: DetailQueryOptions): { whereClause: string; params: SqlParam[] } {
+    const params: SqlParam[] = [];
     const conditions: string[] = [];
 
     // Filter by tracking ID tuples from PostgreSQL
@@ -225,8 +227,8 @@ export class MarketingDetailQueryBuilder {
    * Build WHERE clause for OTS detail queries.
    * OTS uses invoice-level tracking IDs (i.tracking_id_*), not subscription-level.
    */
-  private buildOtsFilterClause(filters: DetailQueryOptions): { whereClause: string; params: any[] } {
-    const params: any[] = [];
+  private buildOtsFilterClause(filters: DetailQueryOptions): { whereClause: string; params: SqlParam[] } {
+    const params: SqlParam[] = [];
     const conditions: string[] = [];
 
     if (filters.trackingIdTuples.length > 0) {

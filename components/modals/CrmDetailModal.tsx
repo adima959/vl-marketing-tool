@@ -93,14 +93,7 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 100;
 
-  useEffect(() => {
-    if (open && context) {
-      loadData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, context, currentPage]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!context) return;
 
     setLoading(true);
@@ -117,7 +110,13 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
     } finally {
       setLoading(false);
     }
-  };
+  }, [variant, context, currentPage]);
+
+  useEffect(() => {
+    if (open && context) {
+      loadData();
+    }
+  }, [open, context, currentPage, loadData]);
 
   useEffect(() => {
     if (open) {
@@ -227,85 +226,85 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
 
   const filterTags = context ? getFilterTags(variant, context) : [];
 
-  // --- Status column (shared by all variants) ---
-  const statusColumn: ColumnsType<DetailRecord>[number] = {
-    title: 'Status',
-    key: 'status',
-    width: 56,
-    align: 'center',
-    fixed: 'left',
-    render: (_: unknown, record: DetailRecord) => {
-      if (record.subscriptionStatus === 4 || record.subscriptionStatus === 5) {
-        return (
-          <Tooltip
-            title={
-              <div>
-                <div style={{ fontWeight: 600 }}>
-                  {record.subscriptionStatus === 4 ? 'Soft Cancel' : 'Cancel Forever'}
-                </div>
-                {record.cancelReason && <div style={{ marginTop: 4 }}>{record.cancelReason}</div>}
-                {record.cancelReasonAbout && <div style={{ marginTop: 2, opacity: 0.85 }}>{record.cancelReasonAbout}</div>}
-              </div>
-            }
-          >
-            <span className={styles.badgeCancelled}>✕</span>
-          </Tooltip>
-        );
-      }
-      if (record.isOnHold) {
-        return (
-          <Tooltip title="On Hold">
-            <span className={styles.badgeOnHold}>●</span>
-          </Tooltip>
-        );
-      }
-      if (record.isApproved) {
-        return (
-          <Tooltip title="Approved">
-            <span className={styles.badgeApproved}>✓</span>
-          </Tooltip>
-        );
-      }
-      return null;
-    },
-  };
-
-  // --- Customer column (shared by all variants) ---
-  const customerColumn: ColumnsType<DetailRecord>[number] = {
-    title: 'Customer',
-    dataIndex: 'customerName',
-    width: 190,
-    fixed: 'left',
-    ellipsis: { showTitle: false },
-    render: (name: string, record: DetailRecord) => (
-      <div className={styles.customerCell}>
-        <Tooltip title={name} placement="topLeft">
-          <a
-            href={`https://vitaliv.no/admin/customers/${record.customerId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.customerLink}
-          >
-            {name}
-          </a>
-        </Tooltip>
-        {record.customerDateRegistered &&
-         new Date(record.customerDateRegistered).toDateString() === new Date(record.date).toDateString() && (
-          <span className={styles.badgeNew}>NEW</span>
-        )}
-      </div>
-    ),
-  };
-
-  // --- Shared cell renderers ---
-  const monoRender = (val: string | null) => (
-    <Tooltip title={val || '–'}><span className={styles.monoCell}>{val || '–'}</span></Tooltip>
-  );
-  const sourceRender = (val: string | null) => (
-    <Tooltip title={val || '–'}><span className={styles.sourceCell}>{val || '–'}</span></Tooltip>
-  );
-
   const columns: ColumnsType<DetailRecord> = useMemo(() => {
+    // --- Status column (shared by all variants) ---
+    const statusColumn: ColumnsType<DetailRecord>[number] = {
+      title: 'Status',
+      key: 'status',
+      width: 56,
+      align: 'center',
+      fixed: 'left',
+      render: (_: unknown, record: DetailRecord) => {
+        if (record.subscriptionStatus === 4 || record.subscriptionStatus === 5) {
+          return (
+            <Tooltip
+              title={
+                <div>
+                  <div style={{ fontWeight: 600 }}>
+                    {record.subscriptionStatus === 4 ? 'Soft Cancel' : 'Cancel Forever'}
+                  </div>
+                  {record.cancelReason && <div style={{ marginTop: 4 }}>{record.cancelReason}</div>}
+                  {record.cancelReasonAbout && <div style={{ marginTop: 2, opacity: 0.85 }}>{record.cancelReasonAbout}</div>}
+                </div>
+              }
+            >
+              <span className={styles.badgeCancelled}>✕</span>
+            </Tooltip>
+          );
+        }
+        if (record.isOnHold) {
+          return (
+            <Tooltip title="On Hold">
+              <span className={styles.badgeOnHold}>●</span>
+            </Tooltip>
+          );
+        }
+        if (record.isApproved) {
+          return (
+            <Tooltip title="Approved">
+              <span className={styles.badgeApproved}>✓</span>
+            </Tooltip>
+          );
+        }
+        return null;
+      },
+    };
+
+    // --- Customer column (shared by all variants) ---
+    const customerColumn: ColumnsType<DetailRecord>[number] = {
+      title: 'Customer',
+      dataIndex: 'customerName',
+      width: 190,
+      fixed: 'left',
+      ellipsis: { showTitle: false },
+      render: (name: string, record: DetailRecord) => (
+        <div className={styles.customerCell}>
+          <Tooltip title={name} placement="topLeft">
+            <a
+              href={`https://vitaliv.no/admin/customers/${record.customerId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.customerLink}
+            >
+              {name}
+            </a>
+          </Tooltip>
+          {record.customerDateRegistered &&
+           new Date(record.customerDateRegistered).toDateString() === new Date(record.date).toDateString() && (
+            <span className={styles.badgeNew}>NEW</span>
+          )}
+        </div>
+      ),
+    };
+
+    // --- Shared cell renderers ---
+    const monoRender = (val: string | null) => (
+      <Tooltip title={val || '–'}><span className={styles.monoCell}>{val || '–'}</span></Tooltip>
+    );
+    const sourceRender = (val: string | null) => (
+      <Tooltip title={val || '–'}><span className={styles.sourceCell}>{val || '–'}</span></Tooltip>
+    );
+
     const cols: ColumnsType<DetailRecord> = [statusColumn, customerColumn];
 
     // Source (all variants)
@@ -389,7 +388,6 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
     }
 
     return cols;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variant, isBuyOrPayRate]);
 
   // Scroll width: status(56) + customer(190) + source(100) + variant columns + amount(90) + date(90)

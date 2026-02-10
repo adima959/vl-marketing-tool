@@ -15,6 +15,8 @@ import {
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
+import { updateAssetSchema } from '@/lib/schemas/marketingTracker';
+import { z } from 'zod';
 
 interface RouteParams {
   params: Promise<{ assetId: string }>;
@@ -73,8 +75,11 @@ export const PUT = withAuth(async (
 ): Promise<NextResponse> => {
   try {
     const { assetId } = await params;
-    const body = await request.json();
+    const rawBody = await request.json();
     const changedBy = await getChangedBy(request);
+
+    // Validate request body
+    const body = updateAssetSchema.parse(rawBody);
 
     // Get old asset for history diff
     const oldAsset = await getAssetById(assetId);
@@ -84,28 +89,6 @@ export const PUT = withAuth(async (
         { success: false, error: 'Asset not found' },
         { status: 404 }
       );
-    }
-
-    // Validate geo if provided
-    if (body.geo) {
-      const validGeos: Geography[] = ['NO', 'SE', 'DK'];
-      if (!validGeos.includes(body.geo)) {
-        return NextResponse.json(
-          { success: false, error: 'Invalid geography value' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Validate type if provided
-    if (body.type) {
-      const validTypes: AssetType[] = ['landing_page', 'text_ad', 'brief', 'research'];
-      if (!validTypes.includes(body.type)) {
-        return NextResponse.json(
-          { success: false, error: 'Invalid asset type' },
-          { status: 400 }
-        );
-      }
     }
 
     // Update the asset in the database
@@ -132,6 +115,13 @@ export const PUT = withAuth(async (
       data: updatedAsset,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error('Validation error:', error.issues);
+      return NextResponse.json(
+        { success: false, error: 'Invalid request data' },
+        { status: 400 }
+      );
+    }
     console.error('Error updating asset:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update asset' },

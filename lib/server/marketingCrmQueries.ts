@@ -1,6 +1,8 @@
 import { executeMariaDBQuery } from './mariadb';
 import { CRM_METRICS, OTS_METRICS, CRM_JOINS, OTS_JOINS, CRM_WHERE } from './crmMetrics';
 
+type SqlParam = string | number | boolean | null | Date;
+
 export interface CRMSubscriptionRow {
   source: string | null; // Can be null in MariaDB data
   campaign_id: string;
@@ -58,7 +60,7 @@ export async function getCRMSubscriptions(
     ...CRM_WHERE.trackingIdValidation,
   ];
 
-  const params: any[] = [filters.dateStart, filters.dateEnd];
+  const params: SqlParam[] = [filters.dateStart, filters.dateEnd];
 
   // Add optional filters
   if (filters.campaign_id) {
@@ -127,7 +129,7 @@ export async function getCRMOts(
     ...CRM_WHERE.otsTrackingIdValidation,
   ];
 
-  const params: any[] = [filters.dateStart, filters.dateEnd];
+  const params: SqlParam[] = [filters.dateStart, filters.dateEnd];
 
   if (filters.campaign_id) {
     whereClauses.push('i.tracking_id_4 = ?');

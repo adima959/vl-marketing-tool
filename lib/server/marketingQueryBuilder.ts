@@ -4,6 +4,8 @@ import { validateSortDirection } from './types';
 import { matchNetworkToSource } from './crmMetrics';
 import { FilterBuilder } from './queryBuilderUtils';
 
+type SqlParam = string | number | boolean | null | Date;
+
 export interface MarketingQueryParams {
   dateRange: { start: Date; end: Date };
   dimensions: string[];
@@ -172,7 +174,7 @@ function formatLocalDate(date: Date): string {
 function buildParentFilters(
   parentFilters: Record<string, string> | undefined,
   paramOffset: number
-): { whereClause: string; params: any[] } {
+): { whereClause: string; params: SqlParam[] } {
   return marketingFilterBuilder.buildParentFilters(parentFilters, { paramOffset });
 }
 
@@ -183,12 +185,12 @@ function buildParentFilters(
 function buildTableFilters(
   filters: MarketingQueryParams['filters'],
   paramOffset: number
-): { whereClause: string; params: any[] } {
+): { whereClause: string; params: SqlParam[] } {
   if (!filters || filters.length === 0) {
     return { whereClause: '', params: [] };
   }
 
-  const params: any[] = [];
+  const params: SqlParam[] = [];
   const conditions: string[] = [];
 
   for (const filter of filters) {

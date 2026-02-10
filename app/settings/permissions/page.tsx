@@ -1,3 +1,22 @@
+/**
+ * Permissions Page - Remains Client Component
+ *
+ * Architecture Decision: This page uses Client Component pattern
+ *
+ * Reasons for remaining client-side:
+ * - 575 lines of complex state management (roles, permissions grid, dialogs)
+ * - Heavy inline editing with permission checkboxes requiring real-time updates
+ * - Multiple dialogs with form state (create/edit role)
+ * - Role selection with dependent permission grid loading
+ * - Extensive local state synchronization before save
+ *
+ * Conversion to Server Component would require:
+ * - Splitting into 5+ separate client components
+ * - Complex state lifting and coordination
+ * - Significant refactoring effort with minimal benefit
+ *
+ * Current pattern is appropriate for this admin-only configuration page.
+ */
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';

@@ -15,6 +15,8 @@ import {
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
+import { updateProductSchema } from '@/lib/schemas/marketingTracker';
+import { z } from 'zod';
 
 interface RouteParams {
   params: Promise<{ productId: string }>;
@@ -79,8 +81,11 @@ export const PUT = withAuth(async (
 ): Promise<NextResponse> => {
   try {
     const { productId } = await params;
-    const body = await request.json();
+    const rawBody = await request.json();
     const changedBy = await getChangedBy(request);
+
+    // Validate request body
+    const body = updateProductSchema.parse(rawBody);
 
     // Get the old product for history diff
     const oldProduct = await getProductById(productId);
@@ -125,6 +130,13 @@ export const PUT = withAuth(async (
       data: updatedProduct,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error('Validation error:', error.issues);
+      return NextResponse.json(
+        { success: false, error: 'Invalid request data' },
+        { status: 400 }
+      );
+    }
     console.error('Error updating product:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update product' },
@@ -144,8 +156,11 @@ export const PATCH = withAuth(async (
 ): Promise<NextResponse> => {
   try {
     const { productId } = await params;
-    const body = await request.json();
+    const rawBody = await request.json();
     const changedBy = await getChangedBy(request);
+
+    // Validate request body
+    const body = updateProductSchema.parse(rawBody);
 
     // Get the old product for history diff
     const oldProduct = await getProductById(productId);
@@ -158,7 +173,7 @@ export const PATCH = withAuth(async (
     }
 
     // Build update object with only provided fields
-    const updateData: Partial<{ name: string; sku: string; description: string; notes: string; color: string; status: ProductStatus; ownerId: string }> = {};
+    const updateData: Partial<{ name: string; sku: string; description: string; notes: string; color: string; status: ProductStatus; ownerId: string | null }> = {};
     if (body.name !== undefined) updateData.name = body.name;
     if (body.sku !== undefined) updateData.sku = body.sku;
     if (body.description !== undefined) updateData.description = body.description;
@@ -202,6 +217,13 @@ export const PATCH = withAuth(async (
       data: updatedProduct,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error('Validation error:', error.issues);
+      return NextResponse.json(
+        { success: false, error: 'Invalid request data' },
+        { status: 400 }
+      );
+    }
     console.error('Error updating product:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update product' },

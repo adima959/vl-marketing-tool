@@ -15,6 +15,8 @@ import {
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
+import { updateCreativeSchema } from '@/lib/schemas/marketingTracker';
+import { z } from 'zod';
 
 interface RouteParams {
   params: Promise<{ creativeId: string }>;
@@ -73,8 +75,11 @@ export const PUT = withAuth(async (
 ): Promise<NextResponse> => {
   try {
     const { creativeId } = await params;
-    const body = await request.json();
+    const rawBody = await request.json();
     const changedBy = await getChangedBy(request);
+
+    // Validate request body
+    const body = updateCreativeSchema.parse(rawBody);
 
     // Get old creative for history diff
     const oldCreative = await getCreativeById(creativeId);
@@ -84,28 +89,6 @@ export const PUT = withAuth(async (
         { success: false, error: 'Creative not found' },
         { status: 404 }
       );
-    }
-
-    // Validate geo if provided
-    if (body.geo) {
-      const validGeos: Geography[] = ['NO', 'SE', 'DK'];
-      if (!validGeos.includes(body.geo)) {
-        return NextResponse.json(
-          { success: false, error: 'Invalid geography value' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Validate format if provided
-    if (body.format) {
-      const validFormats: CreativeFormat[] = ['ugc_video', 'static_image', 'video'];
-      if (!validFormats.includes(body.format)) {
-        return NextResponse.json(
-          { success: false, error: 'Invalid creative format' },
-          { status: 400 }
-        );
-      }
     }
 
     // Update the creative in the database
@@ -132,6 +115,13 @@ export const PUT = withAuth(async (
       data: updatedCreative,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error('Validation error:', error.issues);
+      return NextResponse.json(
+        { success: false, error: 'Invalid request data' },
+        { status: 400 }
+      );
+    }
     console.error('Error updating creative:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update creative' },

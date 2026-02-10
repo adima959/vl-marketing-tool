@@ -153,10 +153,11 @@ async function handleDashboardQuery(
   } catch (error: unknown) {
     // Handle Zod validation errors specifically
     if (error instanceof z.ZodError) {
+      console.error('Validation error:', error.issues);
       return NextResponse.json(
         {
           success: false,
-          error: `Validation error: ${error.message}`,
+          error: 'Invalid request data',
         },
         { status: 400 }
       );

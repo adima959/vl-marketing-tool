@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback } from 'react';
+import { useCallback } from 'react';
 import { Button } from 'antd';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ValidationRateFilterToolbar } from '@/components/validation-rate/ValidationRateFilterToolbar';
@@ -8,20 +8,39 @@ import { ValidationRateDataTable } from '@/components/validation-rate/Validation
 import { SavedViewsDropdown } from '@/components/saved-views/SavedViewsDropdown';
 import { useValidationRateUrlSync } from '@/hooks/useValidationRateUrlSync';
 import { useApplyViewFromUrl } from '@/hooks/useApplyViewFromUrl';
-import { usePayRateStore } from '@/stores/payRateStore';
-import { CreditCard } from 'lucide-react';
 import pageStyles from '@/components/dashboard/dashboard.module.css';
 import type { ResolvedViewParams } from '@/types/savedViews';
+import type { LucideIcon } from 'lucide-react';
+import type { UseBoundStore, StoreApi } from 'zustand';
+import type { ValidationRateStore } from '@/types/validationRate';
 
-function PayRateContent() {
-  const { hasUnsavedChanges, resetFilters } = usePayRateStore();
+type RateType = 'approval' | 'buy' | 'pay';
+
+interface ValidationConfig {
+  title: string;
+  Icon: LucideIcon;
+  useStore: UseBoundStore<StoreApi<ValidationRateStore>>;
+  urlParam: RateType;
+  promptTitle: string;
+  rateType?: RateType;
+  modalRecordLabel?: string;
+}
+
+interface ValidationReportClientProps {
+  type: string;
+  config: ValidationConfig;
+}
+
+export function ValidationReportClient({ type, config }: ValidationReportClientProps) {
+  const { title, Icon, useStore, urlParam, promptTitle, rateType, modalRecordLabel } = config;
+  const { hasUnsavedChanges, resetFilters } = useStore();
 
   // Sync store state with URL parameters and auto-load data
-  useValidationRateUrlSync(usePayRateStore, 'pay');
+  useValidationRateUrlSync(useStore, urlParam);
 
   const handleApplyView = useCallback((params: ResolvedViewParams) => {
-    const store = usePayRateStore.getState();
-    usePayRateStore.setState({
+    const store = useStore.getState();
+    useStore.setState({
       dateRange: { start: params.start, end: params.end },
       ...(params.dimensions && { dimensions: params.dimensions }),
       ...(params.period && { timePeriod: params.period }),
@@ -32,14 +51,14 @@ function PayRateContent() {
     } else {
       store.loadData();
     }
-  }, []);
+  }, [useStore]);
 
   useApplyViewFromUrl(handleApplyView);
 
   const getCurrentState = useCallback(() => {
-    const { dateRange, dimensions, sortColumn, sortDirection, timePeriod } = usePayRateStore.getState();
+    const { dateRange, dimensions, sortColumn, sortDirection, timePeriod } = useStore.getState();
     return { dateRange, dimensions, sortBy: sortColumn, sortDir: sortDirection, period: timePeriod };
-  }, []);
+  }, [useStore]);
 
   const headerActions = (
     <>
@@ -54,35 +73,27 @@ function PayRateContent() {
   return (
     <div className={pageStyles.page}>
       <PageHeader
-        title="Pay Rate"
-        icon={<CreditCard className="h-5 w-5" />}
+        title={title}
+        icon={<Icon className="h-5 w-5" />}
         actions={headerActions}
         titleExtra={
           <SavedViewsDropdown
-            pagePath="/validation-reports/pay-rate"
+            pagePath={`/validation-reports/${type}`}
             onApplyView={handleApplyView}
             getCurrentState={getCurrentState}
           />
         }
       />
       <div className={pageStyles.content}>
-        <ValidationRateFilterToolbar useStore={usePayRateStore} />
+        <ValidationRateFilterToolbar useStore={useStore} />
         <ValidationRateDataTable
-          useStore={usePayRateStore}
-          promptTitle="Ready to analyze pay rates?"
+          useStore={useStore}
+          promptTitle={promptTitle}
           promptText="Select your dimensions, time period, and date range above, then click &quot;Load Data&quot; to get started."
-          rateType="pay"
-          modalRecordLabel="Invoices"
+          rateType={rateType}
+          modalRecordLabel={modalRecordLabel}
         />
       </div>
     </div>
-  );
-}
-
-export default function PayRatePage() {
-  return (
-    <Suspense fallback={<div />}>
-      <PayRateContent />
-    </Suspense>
   );
 }

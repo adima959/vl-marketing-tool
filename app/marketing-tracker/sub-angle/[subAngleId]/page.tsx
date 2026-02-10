@@ -1,23 +1,19 @@
-'use client';
+import type { Metadata } from 'next';
+import SubAngleRedirectClientPage from './SubAngleRedirectClientPage';
 
-import { useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+export async function generateMetadata({ params }: { params: Promise<{ subAngleId: string }> }): Promise<Metadata> {
+  const { subAngleId } = await params;
+  return {
+    title: `Redirecting... | Vitaliv Analytics`,
+    description: 'Redirecting to message page',
+  };
+}
 
 /**
  * @deprecated This route has been renamed to /marketing-tracker/message/[messageId]
  * This page redirects to the new route for backwards compatibility.
  */
-export default function SubAngleRedirectPage() {
-  const params = useParams<{ subAngleId: string }>();
-  const router = useRouter();
-  const subAngleId = params.subAngleId;
-
-  useEffect(() => {
-    if (subAngleId) {
-      // Redirect to the new message route
-      router.replace(`/marketing-tracker/message/${subAngleId}`);
-    }
-  }, [subAngleId, router]);
-
-  return null;
+export default async function SubAngleRedirectPage({ params }: { params: Promise<{ subAngleId: string }> }) {
+  const { subAngleId } = await params;
+  return <SubAngleRedirectClientPage subAngleId={subAngleId} />;
 }

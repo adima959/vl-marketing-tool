@@ -3,6 +3,8 @@
  * Consolidates common filter building patterns across query builders
  */
 
+type SqlParam = string | number | boolean | null | Date;
+
 export type DbType = 'mariadb' | 'postgres';
 
 export interface DimensionConfig {
@@ -23,7 +25,7 @@ export interface FilterBuilderConfig {
 
 export interface FilterResult {
   whereClause: string;
-  params: any[];
+  params: SqlParam[];
 }
 
 /**
@@ -63,7 +65,7 @@ export class FilterBuilder {
       return { whereClause: '', params: [] };
     }
 
-    const params: any[] = [];
+    const params: SqlParam[] = [];
     const conditions: string[] = [];
     const paramOffset = options?.paramOffset ?? this.config.paramOffset ?? 0;
 
@@ -109,7 +111,7 @@ export class FilterBuilder {
       return { whereClause: '', params: [] };
     }
 
-    const params: any[] = [];
+    const params: SqlParam[] = [];
     const conditions: string[] = [];
     const paramOffset = options?.paramOffset ?? this.config.paramOffset ?? 0;
     const caseInsensitive = options?.caseInsensitive ?? false;

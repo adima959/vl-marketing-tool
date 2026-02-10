@@ -46,12 +46,13 @@ async function handleValidationRateQuery(
   } catch (error: unknown) {
     // Handle Zod validation errors specifically
     if (error instanceof z.ZodError) {
+      console.error('Validation error:', error.issues);
       return NextResponse.json(
         {
           success: false,
           data: [],
           periodColumns: [],
-          error: `Validation error: ${error.message}`,
+          error: 'Invalid request data',
         },
         { status: 400 }
       );

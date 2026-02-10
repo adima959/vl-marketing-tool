@@ -18,6 +18,8 @@ import {
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
+import { updateMessageSchema } from '@/lib/schemas/marketingTracker';
+import { z } from 'zod';
 
 interface RouteParams {
   params: Promise<{ messageId: string }>;
@@ -92,8 +94,11 @@ export const PUT = withAuth(async (
 ): Promise<NextResponse> => {
   try {
     const { messageId } = await params;
-    const body = await request.json();
+    const rawBody = await request.json();
     const changedBy = await getChangedBy(request);
+
+    // Validate request body
+    const body = updateMessageSchema.parse(rawBody);
 
     // Get the old message for history diff
     const oldMessage = await getMessageById(messageId);
@@ -139,6 +144,13 @@ export const PUT = withAuth(async (
       data: updatedMessage,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error('Validation error:', error.issues);
+      return NextResponse.json(
+        { success: false, error: 'Invalid request data' },
+        { status: 400 }
+      );
+    }
     console.error('Error updating message:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update message' },
@@ -158,8 +170,11 @@ export const PATCH = withAuth(async (
 ): Promise<NextResponse> => {
   try {
     const { messageId } = await params;
-    const body = await request.json();
+    const rawBody = await request.json();
     const changedBy = await getChangedBy(request);
+
+    // Validate request body
+    const body = updateMessageSchema.parse(rawBody);
 
     // Get the old message for history diff
     const oldMessage = await getMessageById(messageId);
@@ -169,17 +184,6 @@ export const PATCH = withAuth(async (
         { success: false, error: 'Message not found' },
         { status: 404 }
       );
-    }
-
-    // Validate status if provided
-    if (body.status !== undefined) {
-      const validStatuses: AngleStatus[] = ['idea', 'in_production', 'live', 'paused', 'retired'];
-      if (!validStatuses.includes(body.status)) {
-        return NextResponse.json(
-          { success: false, error: 'Invalid status value' },
-          { status: 400 }
-        );
-      }
     }
 
     // Build update object with only provided fields
@@ -225,6 +229,13 @@ export const PATCH = withAuth(async (
       data: updatedMessage,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error('Validation error:', error.issues);
+      return NextResponse.json(
+        { success: false, error: 'Invalid request data' },
+        { status: 400 }
+      );
+    }
     console.error('Error updating message status:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update message status' },

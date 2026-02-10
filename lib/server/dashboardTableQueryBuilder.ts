@@ -3,6 +3,8 @@ import { validateSortDirection } from './types';
 import { CRM_METRICS, OTS_METRICS, CRM_JOINS, OTS_JOINS, CRM_WHERE, formatDateForMariaDB } from './crmMetrics';
 import { FilterBuilder, type DimensionConfig } from './queryBuilderUtils';
 
+type SqlParam = string | number | boolean | null | Date;
+
 interface QueryOptions {
   dateRange: DateRange;
   dimensions: string[]; // ['country', 'productName', 'product', 'source']
@@ -85,7 +87,7 @@ export class DashboardTableQueryBuilder {
    */
   private buildParentFilters(
     parentFilters: Record<string, string> | undefined
-  ): { whereClause: string; params: (string | number | boolean | null | Date)[] } {
+  ): { whereClause: string; params: SqlParam[] } {
     return this.filterBuilder.buildParentFilters(parentFilters);
   }
 
@@ -118,7 +120,7 @@ export class DashboardTableQueryBuilder {
    * Build query for any depth level (consolidated from depth0/1/2)
    * Dynamically builds SELECT, GROUP BY, WHERE based on depth and parent filters
    */
-  private buildDepthQuery(options: QueryOptions): { query: string; params: any[] } {
+  private buildDepthQuery(options: QueryOptions): { query: string; params: SqlParam[] } {
     const {
       dateRange,
       dimensions,
@@ -176,7 +178,7 @@ export class DashboardTableQueryBuilder {
    * Build query for time series chart (daily aggregation)
    * Groups metrics by date for line chart visualization
    */
-  public buildTimeSeriesQuery(dateRange: DateRange): { query: string; params: any[] } {
+  public buildTimeSeriesQuery(dateRange: DateRange): { query: string; params: SqlParam[] } {
     const startDate = formatDateForMariaDB(dateRange.start, false);
     const endDate = formatDateForMariaDB(dateRange.end, true);
 
@@ -248,7 +250,7 @@ export class DashboardTableQueryBuilder {
    */
   private buildOtsParentFilters(
     parentFilters: Record<string, string> | undefined
-  ): { whereClause: string; params: (string | number | boolean | null | Date)[] } {
+  ): { whereClause: string; params: SqlParam[] } {
     return this.otsFilterBuilder.buildParentFilters(parentFilters);
   }
 
@@ -257,7 +259,7 @@ export class DashboardTableQueryBuilder {
    * OTS invoices (type=3) are standalone — they link to customers via customer_id
    * and to products via invoice_product, not via subscription.
    */
-  public buildOtsQuery(options: QueryOptions): { query: string; params: any[] } {
+  public buildOtsQuery(options: QueryOptions): { query: string; params: SqlParam[] } {
     const { dateRange, dimensions, depth, parentFilters } = options;
 
     const startDate = formatDateForMariaDB(dateRange.start, false);
@@ -299,7 +301,7 @@ export class DashboardTableQueryBuilder {
   /**
    * Build standalone OTS time series query (daily aggregation by order_date).
    */
-  public buildOtsTimeSeriesQuery(dateRange: DateRange): { query: string; params: any[] } {
+  public buildOtsTimeSeriesQuery(dateRange: DateRange): { query: string; params: SqlParam[] } {
     const startDate = formatDateForMariaDB(dateRange.start, false);
     const endDate = formatDateForMariaDB(dateRange.end, true);
 
@@ -323,7 +325,7 @@ export class DashboardTableQueryBuilder {
   /**
    * Main entry point - builds query for any valid depth
    */
-  public buildQuery(options: QueryOptions): { query: string; params: any[] } {
+  public buildQuery(options: QueryOptions): { query: string; params: SqlParam[] } {
     const { depth, dimensions } = options;
 
     // Validate depth

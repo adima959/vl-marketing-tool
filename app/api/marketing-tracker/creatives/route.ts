@@ -9,6 +9,8 @@ import { recordCreation } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
+import { createCreativeSchema } from '@/lib/schemas/marketingTracker';
+import { z } from 'zod';
 
 /**
  * GET /api/marketing-tracker/creatives
@@ -59,54 +61,11 @@ export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise
  */
 export const POST = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
-    const body: CreateCreativeRequest = await request.json();
+    const rawBody = await request.json();
     const changedBy = await getChangedBy(request);
 
-    if (!body.name) {
-      return NextResponse.json(
-        { success: false, error: 'Creative name is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!body.messageId) {
-      return NextResponse.json(
-        { success: false, error: 'Message ID is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!body.geo) {
-      return NextResponse.json(
-        { success: false, error: 'Geography is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!body.format) {
-      return NextResponse.json(
-        { success: false, error: 'Creative format is required' },
-        { status: 400 }
-      );
-    }
-
-    // Validate geo
-    const validGeos: Geography[] = ['NO', 'SE', 'DK'];
-    if (!validGeos.includes(body.geo)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid geography value' },
-        { status: 400 }
-      );
-    }
-
-    // Validate format
-    const validFormats: CreativeFormat[] = ['ugc_video', 'static_image', 'video'];
-    if (!validFormats.includes(body.format)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid creative format' },
-        { status: 400 }
-      );
-    }
+    // Validate request body
+    const body = createCreativeSchema.parse(rawBody);
 
     // Verify message exists
     const message = await getMessageById(body.messageId);
@@ -141,6 +100,13 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
       data: newCreative,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error('Validation error:', error.issues);
+      return NextResponse.json(
+        { success: false, error: 'Invalid request data' },
+        { status: 400 }
+      );
+    }
     console.error('Error creating creative:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to create creative' },

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cascadeRestoreProduct, findDeletedProductByName } from '@/lib/marketing-tracker/db';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
+import { restoreProductSchema } from '@/lib/schemas/marketingTracker';
+import { z } from 'zod';
 
 /**
  * POST /api/marketing-tracker/restore
@@ -10,7 +12,10 @@ import type { AppUser } from '@/types/user';
  */
 export const POST = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
-    const body = await request.json();
+    const rawBody = await request.json();
+
+    // Validate request body
+    const body = restoreProductSchema.parse(rawBody);
     let productId: string | undefined;
 
     if (body.id) {
@@ -24,11 +29,6 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
         );
       }
       productId = found.id;
-    } else {
-      return NextResponse.json(
-        { success: false, error: 'Provide either "id" or "name" in request body' },
-        { status: 400 }
-      );
     }
 
     await cascadeRestoreProduct(productId!);
@@ -38,6 +38,13 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
       message: `Product ${productId} and all descendants restored`,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error('Validation error:', error.issues);
+      return NextResponse.json(
+        { success: false, error: 'Invalid request data' },
+        { status: 400 }
+      );
+    }
     console.error('Error restoring product:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to restore product' },
