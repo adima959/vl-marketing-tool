@@ -1,4 +1,5 @@
 import type { DateRange } from '@/types';
+import { buildSourceFilterSQL, CRM_JOINS, CRM_WHERE, OTS_JOINS, formatDateForMariaDB, buildPaginationClause, type MarketingDetailMetricId } from './crmMetrics';
 
 interface TrackingIdTuple {
   campaign_id: string;
@@ -35,17 +36,6 @@ interface QueryResult {
  */
 export class MarketingDetailQueryBuilder {
   /**
-   * Format date for MariaDB BETWEEN queries
-   */
-  private formatDateForMariaDB(date: Date, endOfDay: boolean): string {
-    const year = date.getUTCFullYear();
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(date.getUTCDate()).padStart(2, '0');
-    const time = endOfDay ? '23:59:59' : '00:00:00';
-    return `${year}-${month}-${day} ${time}`;
-  }
-
-  /**
    * Build WHERE clause from tracking ID tuples
    * Uses MariaDB row-value constructor for precise tuple matching
    */
@@ -64,13 +54,11 @@ export class MarketingDetailQueryBuilder {
       }
     }
 
-    // Source/network filter — mirrors matchSource() from marketingQueryBuilder
+    // Source/network filter — uses shared source matching from crmMetrics
     if (filters.network) {
-      const networkLower = filters.network.toLowerCase();
-      if (networkLower === 'google ads') {
-        conditions.push("LOWER(sr.source) IN ('adwords', 'google')");
-      } else if (networkLower === 'facebook') {
-        conditions.push("LOWER(sr.source) IN ('facebook', 'meta', 'fb')");
+      const sourceFilter = buildSourceFilterSQL(filters.network);
+      if (sourceFilter) {
+        conditions.push(sourceFilter);
       }
     }
 
@@ -87,29 +75,14 @@ export class MarketingDetailQueryBuilder {
   }
 
   /**
-   * Build LIMIT and OFFSET clause for pagination
-   */
-  private buildPaginationClause(pagination?: PaginationOptions): { limitClause: string; params: any[] } {
-    if (!pagination) {
-      return { limitClause: 'LIMIT 50', params: [50] };
-    }
-
-    const offset = (pagination.page - 1) * pagination.pageSize;
-    return {
-      limitClause: 'LIMIT ? OFFSET ?',
-      params: [pagination.pageSize, offset],
-    };
-  }
-
-  /**
    * Build query for CRM Subscriptions metric (all subscriptions with tracking IDs)
    * This corresponds to subscription_count in marketingCrmQueries
    */
   private buildCrmSubscriptionsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
-    const startDate = this.formatDateForMariaDB(filters.dateRange.start, false);
-    const endDate = this.formatDateForMariaDB(filters.dateRange.end, true);
+    const startDate = formatDateForMariaDB(filters.dateRange.start, false);
+    const endDate = formatDateForMariaDB(filters.dateRange.end, true);
     const { whereClause, params: filterParams } = this.buildFilterClause(filters);
-    const { limitClause, params: paginationParams } = this.buildPaginationClause(pagination);
+    const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
 
     const baseParams = [startDate, endDate, ...filterParams];
 
@@ -131,27 +104,22 @@ export class MarketingDetailQueryBuilder {
         COALESCE(p.product_name, '(not set)') as productName,
         c.country,
         IF(i.is_marked = 1, TRUE, FALSE) as isApproved,
+        MAX(IF(i.on_hold_date IS NOT NULL, 1, 0)) as isOnHold,
         s.status as subscriptionStatus,
         cr.caption as cancelReason,
         s.canceled_reason_about as cancelReasonAbout,
         c.date_registered as customerDateRegistered
       FROM subscription s
-      INNER JOIN customer c ON s.customer_id = c.id
-      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0
-      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
-      LEFT JOIN product p ON p.id = ip.product_id
-      LEFT JOIN source sr ON sr.id = s.source_id
-      LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
-      LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
+      ${CRM_JOINS.customerInner}
+      ${CRM_JOINS.invoiceTrialLeft}
+      ${CRM_JOINS.invoiceProduct}
+      ${CRM_JOINS.product}
+      ${CRM_JOINS.sourceFromSub}
+      ${CRM_JOINS.cancelReason}
       WHERE s.date_create BETWEEN ? AND ?
-        AND s.deleted = 0
-        AND (i.tag IS NULL OR i.tag NOT LIKE '%parent-sub-id=%')
-        AND s.tracking_id_4 IS NOT NULL
-        AND s.tracking_id_4 != 'null'
-        AND s.tracking_id_2 IS NOT NULL
-        AND s.tracking_id_2 != 'null'
-        AND s.tracking_id IS NOT NULL
-        AND s.tracking_id != 'null'
+        AND ${CRM_WHERE.deletedSubExclusion}
+        AND ${CRM_WHERE.upsellExclusion}
+        AND ${CRM_WHERE.trackingIdValidation.join(' AND ')}
         ${whereClause}
       GROUP BY s.id
       ORDER BY s.date_create DESC
@@ -161,18 +129,13 @@ export class MarketingDetailQueryBuilder {
     const countQuery = `
       SELECT COUNT(DISTINCT s.id) as total
       FROM subscription s
-      INNER JOIN customer c ON s.customer_id = c.id
-      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0
-      LEFT JOIN source sr ON sr.id = s.source_id
+      ${CRM_JOINS.customerInner}
+      ${CRM_JOINS.invoiceTrialLeft}
+      ${CRM_JOINS.sourceFromSub}
       WHERE s.date_create BETWEEN ? AND ?
-        AND s.deleted = 0
-        AND (i.tag IS NULL OR i.tag NOT LIKE '%parent-sub-id=%')
-        AND s.tracking_id_4 IS NOT NULL
-        AND s.tracking_id_4 != 'null'
-        AND s.tracking_id_2 IS NOT NULL
-        AND s.tracking_id_2 != 'null'
-        AND s.tracking_id IS NOT NULL
-        AND s.tracking_id != 'null'
+        AND ${CRM_WHERE.deletedSubExclusion}
+        AND ${CRM_WHERE.upsellExclusion}
+        AND ${CRM_WHERE.trackingIdValidation.join(' AND ')}
         ${whereClause}
     `;
 
@@ -189,10 +152,10 @@ export class MarketingDetailQueryBuilder {
    * This corresponds to approved_count in marketingCrmQueries
    */
   private buildApprovedSalesQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
-    const startDate = this.formatDateForMariaDB(filters.dateRange.start, false);
-    const endDate = this.formatDateForMariaDB(filters.dateRange.end, true);
+    const startDate = formatDateForMariaDB(filters.dateRange.start, false);
+    const endDate = formatDateForMariaDB(filters.dateRange.end, true);
     const { whereClause, params: filterParams } = this.buildFilterClause(filters);
-    const { limitClause, params: paginationParams } = this.buildPaginationClause(pagination);
+    const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
 
     const baseParams = [startDate, endDate, ...filterParams];
 
@@ -214,27 +177,22 @@ export class MarketingDetailQueryBuilder {
         COALESCE(p.product_name, '(not set)') as productName,
         c.country,
         IF(i.is_marked = 1, TRUE, FALSE) as isApproved,
+        IF(i.on_hold_date IS NOT NULL, 1, 0) as isOnHold,
         s.status as subscriptionStatus,
         cr.caption as cancelReason,
         s.canceled_reason_about as cancelReasonAbout,
         c.date_registered as customerDateRegistered
       FROM subscription s
-      INNER JOIN customer c ON s.customer_id = c.id
-      INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.is_marked = 1 AND i.deleted = 0
-      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
-      LEFT JOIN product p ON p.id = ip.product_id
-      LEFT JOIN source sr ON sr.id = s.source_id
-      LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
-      LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
+      ${CRM_JOINS.customerInner}
+      ${CRM_JOINS.invoiceTrialInner} AND i.is_marked = 1
+      ${CRM_JOINS.invoiceProduct}
+      ${CRM_JOINS.product}
+      ${CRM_JOINS.sourceFromSub}
+      ${CRM_JOINS.cancelReason}
       WHERE s.date_create BETWEEN ? AND ?
-        AND s.deleted = 0
-        AND (i.tag IS NULL OR i.tag NOT LIKE '%parent-sub-id=%')
-        AND s.tracking_id_4 IS NOT NULL
-        AND s.tracking_id_4 != 'null'
-        AND s.tracking_id_2 IS NOT NULL
-        AND s.tracking_id_2 != 'null'
-        AND s.tracking_id IS NOT NULL
-        AND s.tracking_id != 'null'
+        AND ${CRM_WHERE.deletedSubExclusion}
+        AND ${CRM_WHERE.upsellExclusion}
+        AND ${CRM_WHERE.trackingIdValidation.join(' AND ')}
         ${whereClause}
       GROUP BY s.id
       ORDER BY s.date_create DESC
@@ -244,18 +202,259 @@ export class MarketingDetailQueryBuilder {
     const countQuery = `
       SELECT COUNT(DISTINCT s.id) as total
       FROM subscription s
-      INNER JOIN customer c ON s.customer_id = c.id
-      INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.is_marked = 1 AND i.deleted = 0
-      LEFT JOIN source sr ON sr.id = s.source_id
+      ${CRM_JOINS.customerInner}
+      ${CRM_JOINS.invoiceTrialInner} AND i.is_marked = 1
+      ${CRM_JOINS.sourceFromSub}
       WHERE s.date_create BETWEEN ? AND ?
-        AND s.deleted = 0
-        AND (i.tag IS NULL OR i.tag NOT LIKE '%parent-sub-id=%')
-        AND s.tracking_id_4 IS NOT NULL
-        AND s.tracking_id_4 != 'null'
-        AND s.tracking_id_2 IS NOT NULL
-        AND s.tracking_id_2 != 'null'
-        AND s.tracking_id IS NOT NULL
-        AND s.tracking_id != 'null'
+        AND ${CRM_WHERE.deletedSubExclusion}
+        AND ${CRM_WHERE.upsellExclusion}
+        AND ${CRM_WHERE.trackingIdValidation.join(' AND ')}
+        ${whereClause}
+    `;
+
+    return {
+      query,
+      params: [...baseParams, ...paginationParams],
+      countQuery,
+      countParams: baseParams,
+    };
+  }
+
+  /**
+   * Build WHERE clause for OTS detail queries.
+   * OTS uses invoice-level tracking IDs (i.tracking_id_*), not subscription-level.
+   */
+  private buildOtsFilterClause(filters: DetailQueryOptions): { whereClause: string; params: any[] } {
+    const params: any[] = [];
+    const conditions: string[] = [];
+
+    if (filters.trackingIdTuples.length > 0) {
+      const tuplePlaceholders = filters.trackingIdTuples.map(() => '(?, ?, ?)').join(', ');
+      conditions.push(
+        `(i.tracking_id_4, i.tracking_id_2, i.tracking_id) IN (${tuplePlaceholders})`
+      );
+      for (const tuple of filters.trackingIdTuples) {
+        params.push(tuple.campaign_id, tuple.adset_id, tuple.ad_id);
+      }
+    }
+
+    if (filters.network) {
+      const sourceFilter = buildSourceFilterSQL(filters.network);
+      if (sourceFilter) {
+        conditions.push(sourceFilter);
+      }
+    }
+
+    if (filters.date) {
+      conditions.push('DATE(i.order_date) = DATE(?)');
+      params.push(filters.date);
+    }
+
+    return {
+      whereClause: conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '',
+      params,
+    };
+  }
+
+  /**
+   * Build query for Customers metric (new customers where registration date = subscription date)
+   */
+  private buildCustomersQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
+    const startDate = formatDateForMariaDB(filters.dateRange.start, false);
+    const endDate = formatDateForMariaDB(filters.dateRange.end, true);
+    const { whereClause, params: filterParams } = this.buildFilterClause(filters);
+    const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
+
+    const baseParams = [startDate, endDate, ...filterParams];
+
+    const query = `
+      SELECT
+        s.id as id,
+        s.id as subscriptionId,
+        CONCAT(c.first_name, ' ', c.last_name) as customerName,
+        c.email as customerEmail,
+        c.id as customerId,
+        COALESCE(sr.source, '(not set)') as source,
+        s.tracking_id as trackingId1,
+        s.tracking_id_2 as trackingId2,
+        s.tracking_id_3 as trackingId3,
+        s.tracking_id_4 as trackingId4,
+        s.tracking_id_5 as trackingId5,
+        COALESCE(i.total, s.trial_price, 0) as amount,
+        s.date_create as date,
+        COALESCE(p.product_name, '(not set)') as productName,
+        c.country,
+        IF(i.is_marked = 1, TRUE, FALSE) as isApproved,
+        MAX(IF(i.on_hold_date IS NOT NULL, 1, 0)) as isOnHold,
+        s.status as subscriptionStatus,
+        cr.caption as cancelReason,
+        s.canceled_reason_about as cancelReasonAbout,
+        c.date_registered as customerDateRegistered
+      FROM subscription s
+      ${CRM_JOINS.customerInner}
+      ${CRM_JOINS.invoiceTrialLeft}
+      ${CRM_JOINS.invoiceProduct}
+      ${CRM_JOINS.product}
+      ${CRM_JOINS.sourceFromSub}
+      ${CRM_JOINS.cancelReason}
+      WHERE s.date_create BETWEEN ? AND ?
+        AND ${CRM_WHERE.deletedSubExclusion}
+        AND ${CRM_WHERE.upsellExclusion}
+        AND DATE(c.date_registered) = DATE(s.date_create)
+        AND ${CRM_WHERE.trackingIdValidation.join(' AND ')}
+        ${whereClause}
+      GROUP BY s.id
+      ORDER BY s.date_create DESC
+      ${limitClause}
+    `;
+
+    const countQuery = `
+      SELECT COUNT(DISTINCT s.id) as total
+      FROM subscription s
+      ${CRM_JOINS.customerInner}
+      ${CRM_JOINS.invoiceTrialLeft}
+      ${CRM_JOINS.sourceFromSub}
+      WHERE s.date_create BETWEEN ? AND ?
+        AND ${CRM_WHERE.deletedSubExclusion}
+        AND ${CRM_WHERE.upsellExclusion}
+        AND DATE(c.date_registered) = DATE(s.date_create)
+        AND ${CRM_WHERE.trackingIdValidation.join(' AND ')}
+        ${whereClause}
+    `;
+
+    return {
+      query,
+      params: [...baseParams, ...paginationParams],
+      countQuery,
+      countParams: baseParams,
+    };
+  }
+
+  /**
+   * Build query for OTS metric (one-time sale invoices, type=3)
+   * OTS invoices have their own tracking IDs on the invoice, not via subscription.
+   */
+  private buildOtsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
+    const startDate = formatDateForMariaDB(filters.dateRange.start, false);
+    const endDate = formatDateForMariaDB(filters.dateRange.end, true);
+    const { whereClause, params: filterParams } = this.buildOtsFilterClause(filters);
+    const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
+
+    const baseParams = [startDate, endDate, ...filterParams];
+
+    const query = `
+      SELECT
+        i.id as id,
+        NULL as subscriptionId,
+        CONCAT(c.first_name, ' ', c.last_name) as customerName,
+        c.email as customerEmail,
+        c.id as customerId,
+        COALESCE(sr.source, '(not set)') as source,
+        i.tracking_id as trackingId1,
+        i.tracking_id_2 as trackingId2,
+        i.tracking_id_3 as trackingId3,
+        i.tracking_id_4 as trackingId4,
+        i.tracking_id_5 as trackingId5,
+        i.total as amount,
+        i.order_date as date,
+        COALESCE(p.product_name, '(not set)') as productName,
+        c.country,
+        IF(i.is_marked = 1, TRUE, FALSE) as isApproved,
+        IF(i.on_hold_date IS NOT NULL, 1, 0) as isOnHold,
+        NULL as subscriptionStatus,
+        NULL as cancelReason,
+        NULL as cancelReasonAbout,
+        c.date_registered as customerDateRegistered
+      FROM invoice i
+      ${OTS_JOINS.customer}
+      ${OTS_JOINS.invoiceProduct}
+      ${OTS_JOINS.product}
+      ${OTS_JOINS.source}
+      WHERE ${CRM_WHERE.otsBase}
+        AND i.order_date BETWEEN ? AND ?
+        AND ${CRM_WHERE.otsTrackingIdValidation.join(' AND ')}
+        ${whereClause}
+      GROUP BY i.id
+      ORDER BY i.order_date DESC
+      ${limitClause}
+    `;
+
+    const countQuery = `
+      SELECT COUNT(DISTINCT i.id) as total
+      FROM invoice i
+      ${OTS_JOINS.source}
+      WHERE ${CRM_WHERE.otsBase}
+        AND i.order_date BETWEEN ? AND ?
+        AND ${CRM_WHERE.otsTrackingIdValidation.join(' AND ')}
+        ${whereClause}
+    `;
+
+    return {
+      query,
+      params: [...baseParams, ...paginationParams],
+      countQuery,
+      countParams: baseParams,
+    };
+  }
+
+  /**
+   * Build query for Upsells metric (upsell invoices linked via tag pattern)
+   */
+  private buildUpsellsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
+    const startDate = formatDateForMariaDB(filters.dateRange.start, false);
+    const endDate = formatDateForMariaDB(filters.dateRange.end, true);
+    const { whereClause, params: filterParams } = this.buildFilterClause(filters);
+    const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
+
+    const baseParams = [startDate, endDate, ...filterParams];
+
+    const query = `
+      SELECT
+        uo.id as id,
+        s.id as subscriptionId,
+        CONCAT(c.first_name, ' ', c.last_name) as customerName,
+        c.email as customerEmail,
+        c.id as customerId,
+        COALESCE(sr.source, '(not set)') as source,
+        s.tracking_id as trackingId1,
+        s.tracking_id_2 as trackingId2,
+        s.tracking_id_3 as trackingId3,
+        s.tracking_id_4 as trackingId4,
+        s.tracking_id_5 as trackingId5,
+        uo.total as amount,
+        uo.order_date as date,
+        COALESCE(p.product_name, '(not set)') as productName,
+        c.country,
+        IF(uo.is_marked = 1, TRUE, FALSE) as isApproved,
+        IF(uo.on_hold_date IS NOT NULL, 1, 0) as isOnHold,
+        s.status as subscriptionStatus,
+        NULL as cancelReason,
+        NULL as cancelReasonAbout,
+        c.date_registered as customerDateRegistered
+      FROM subscription s
+      ${CRM_JOINS.customerInner}
+      ${CRM_JOINS.upsellInner}
+      LEFT JOIN invoice_product ip ON ip.invoice_id = uo.id
+      ${CRM_JOINS.product}
+      ${CRM_JOINS.sourceFromSub}
+      WHERE s.date_create BETWEEN ? AND ?
+        AND ${CRM_WHERE.deletedSubExclusion}
+        AND ${CRM_WHERE.trackingIdValidation.join(' AND ')}
+        ${whereClause}
+      GROUP BY uo.id
+      ORDER BY uo.order_date DESC
+      ${limitClause}
+    `;
+
+    const countQuery = `
+      SELECT COUNT(DISTINCT uo.id) as total
+      FROM subscription s
+      ${CRM_JOINS.customerInner}
+      ${CRM_JOINS.upsellInner}
+      ${CRM_JOINS.sourceFromSub}
+      WHERE s.date_create BETWEEN ? AND ?
+        AND ${CRM_WHERE.deletedSubExclusion}
+        AND ${CRM_WHERE.trackingIdValidation.join(' AND ')}
         ${whereClause}
     `;
 
@@ -271,7 +470,7 @@ export class MarketingDetailQueryBuilder {
    * Main entry point: routes to appropriate query builder based on metricId
    */
   public buildDetailQuery(
-    metricId: string,
+    metricId: MarketingDetailMetricId,
     filters: DetailQueryOptions,
     pagination?: PaginationOptions
   ): QueryResult {
@@ -281,6 +480,12 @@ export class MarketingDetailQueryBuilder {
         return this.buildCrmSubscriptionsQuery(filters, pagination);
       case 'approvedSales':
         return this.buildApprovedSalesQuery(filters, pagination);
+      case 'customers':
+        return this.buildCustomersQuery(filters, pagination);
+      case 'ots':
+        return this.buildOtsQuery(filters, pagination);
+      case 'upsells':
+        return this.buildUpsellsQuery(filters, pagination);
       default:
         throw new Error(`Unknown metricId: ${metricId}`);
     }

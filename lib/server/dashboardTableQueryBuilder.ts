@@ -1,5 +1,6 @@
 import type { DateRange } from '@/types/dashboard';
 import { validateSortDirection } from './types';
+import { CRM_METRICS, OTS_METRICS, CRM_JOINS, OTS_JOINS, CRM_WHERE, formatDateForMariaDB } from './crmMetrics';
 
 interface QueryOptions {
   dateRange: DateRange;
@@ -112,20 +113,6 @@ export class DashboardTableQueryBuilder {
   }
 
   /**
-   * Format date for MariaDB DATETIME (YYYY-MM-DD HH:MM:SS)
-   */
-  private formatDateForMariaDB(date: Date, endOfDay: boolean = false): string {
-    const year = date.getUTCFullYear();
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(date.getUTCDate()).padStart(2, '0');
-
-    if (endOfDay) {
-      return `${year}-${month}-${day} 23:59:59`;
-    }
-    return `${year}-${month}-${day} 00:00:00`;
-  }
-
-  /**
    * Build SELECT columns based on dimensions and depth
    * Returns columns for the current depth level
    */
@@ -168,8 +155,8 @@ export class DashboardTableQueryBuilder {
     const sortColumn = this.metricMap[sortBy] || 'subscription_count';
     const safeLimit = Math.max(1, Math.min(10000, Math.floor(limit)));
 
-    const startDate = this.formatDateForMariaDB(dateRange.start, false);
-    const endDate = this.formatDateForMariaDB(dateRange.end, true);
+    const startDate = formatDateForMariaDB(dateRange.start, false);
+    const endDate = formatDateForMariaDB(dateRange.end, true);
 
     const { whereClause, params: filterParams } = this.buildParentFilters(parentFilters);
 
@@ -179,26 +166,25 @@ export class DashboardTableQueryBuilder {
     const query = `
       SELECT
         ${selectColumns},
-        COUNT(DISTINCT CASE WHEN DATE(c.date_registered) = DATE(s.date_create) THEN s.customer_id END) AS customer_count,
-        COUNT(DISTINCT s.id) AS subscription_count,
-        COUNT(DISTINCT CASE WHEN i.type = 1 THEN i.id END) AS trial_count,
-        COUNT(DISTINCT CASE WHEN i.type = 1 AND i.is_marked = 1 THEN i.id END) AS trials_approved_count,
-        COUNT(DISTINCT uo.id) AS upsell_count,
-        COUNT(DISTINCT CASE WHEN uo.is_marked = 1 THEN uo.id END) AS upsells_approved_count
+        ${CRM_METRICS.customerCount.expr} AS ${CRM_METRICS.customerCount.alias},
+        ${CRM_METRICS.subscriptionCount.expr} AS ${CRM_METRICS.subscriptionCount.alias},
+        ${CRM_METRICS.trialCount.leftJoinExpr} AS ${CRM_METRICS.trialCount.alias},
+        ${CRM_METRICS.trialsApprovedCount.leftJoinExpr} AS ${CRM_METRICS.trialsApprovedCount.alias},
+        ${CRM_METRICS.upsellCount.expr} AS ${CRM_METRICS.upsellCount.alias},
+        ${CRM_METRICS.upsellsApprovedCount.expr} AS ${CRM_METRICS.upsellsApprovedCount.alias}
       FROM subscription s
-      LEFT JOIN customer c ON s.customer_id = c.id
-      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0
-      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
-      LEFT JOIN product p ON p.id = ip.product_id
-      LEFT JOIN product p_sub ON p_sub.id = s.product_id
-      LEFT JOIN product_group pg ON pg.id = p.product_group_id
-      LEFT JOIN product_group pg_sub ON pg_sub.id = p_sub.product_group_id
-      LEFT JOIN source sr ON sr.id = i.source_id
-      LEFT JOIN source sr_sub ON sr_sub.id = s.source_id
-      LEFT JOIN invoice uo ON uo.customer_id = s.customer_id
-        AND uo.tag LIKE CONCAT('%parent-sub-id=', s.id, '%')
+      ${CRM_JOINS.customer}
+      ${CRM_JOINS.invoiceTrialLeft}
+      ${CRM_JOINS.invoiceProduct}
+      ${CRM_JOINS.product}
+      ${CRM_JOINS.productSub}
+      ${CRM_JOINS.productGroup}
+      ${CRM_JOINS.productGroupSub}
+      ${CRM_JOINS.sourceFromInvoice}
+      ${CRM_JOINS.sourceFromSubAlt}
+      ${CRM_JOINS.upsell}
       WHERE s.date_create BETWEEN ? AND ?
-        AND (i.tag IS NULL OR i.tag NOT LIKE '%parent-sub-id=%')
+        AND ${CRM_WHERE.upsellExclusion}
         ${whereClause}
       GROUP BY ${groupByClause}
       ORDER BY ${sortColumn} ${validateSortDirection(sortDirection)}
@@ -214,25 +200,24 @@ export class DashboardTableQueryBuilder {
    * Groups metrics by date for line chart visualization
    */
   public buildTimeSeriesQuery(dateRange: DateRange): { query: string; params: any[] } {
-    const startDate = this.formatDateForMariaDB(dateRange.start, false);
-    const endDate = this.formatDateForMariaDB(dateRange.end, true);
+    const startDate = formatDateForMariaDB(dateRange.start, false);
+    const endDate = formatDateForMariaDB(dateRange.end, true);
 
     const query = `
       SELECT
         DATE(s.date_create) AS date,
-        COUNT(DISTINCT CASE WHEN DATE(c.date_registered) = DATE(s.date_create) THEN s.customer_id END) AS customers,
-        COUNT(DISTINCT s.id) AS subscriptions,
-        COUNT(DISTINCT CASE WHEN i.type = 1 THEN i.id END) AS trials,
-        COUNT(DISTINCT CASE WHEN i.type = 1 AND i.is_marked = 1 THEN i.id END) AS trialsApproved,
-        COUNT(DISTINCT uo.id) AS upsells,
-        COUNT(DISTINCT CASE WHEN uo.is_marked = 1 THEN uo.id END) AS upsellsApproved
+        ${CRM_METRICS.customerCount.expr} AS customers,
+        ${CRM_METRICS.subscriptionCount.expr} AS subscriptions,
+        ${CRM_METRICS.trialCount.leftJoinExpr} AS trials,
+        ${CRM_METRICS.trialsApprovedCount.leftJoinExpr} AS trialsApproved,
+        ${CRM_METRICS.upsellCount.expr} AS upsells,
+        ${CRM_METRICS.upsellsApprovedCount.expr} AS upsellsApproved
       FROM subscription s
-      LEFT JOIN customer c ON s.customer_id = c.id
-      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0
-      LEFT JOIN invoice uo ON uo.customer_id = s.customer_id
-        AND uo.tag LIKE CONCAT('%parent-sub-id=', s.id, '%')
+      ${CRM_JOINS.customer}
+      ${CRM_JOINS.invoiceTrialLeft}
+      ${CRM_JOINS.upsell}
       WHERE s.date_create BETWEEN ? AND ?
-        AND (i.tag IS NULL OR i.tag NOT LIKE '%parent-sub-id=%')
+        AND ${CRM_WHERE.upsellExclusion}
       GROUP BY DATE(s.date_create)
       ORDER BY date ASC
     `;
@@ -328,8 +313,8 @@ export class DashboardTableQueryBuilder {
   public buildOtsQuery(options: QueryOptions): { query: string; params: any[] } {
     const { dateRange, dimensions, depth, parentFilters } = options;
 
-    const startDate = this.formatDateForMariaDB(dateRange.start, false);
-    const endDate = this.formatDateForMariaDB(dateRange.end, true);
+    const startDate = formatDateForMariaDB(dateRange.start, false);
+    const endDate = formatDateForMariaDB(dateRange.end, true);
 
     const { whereClause, params: filterParams } = this.buildOtsParentFilters(parentFilters);
 
@@ -345,15 +330,15 @@ export class DashboardTableQueryBuilder {
     const query = `
       SELECT
         ${selectCols.join(',\n        ')},
-        COUNT(DISTINCT i.id) AS ots_count,
-        COUNT(DISTINCT CASE WHEN i.is_marked = 1 THEN i.id END) AS ots_approved_count
+        ${OTS_METRICS.otsCount.expr} AS ${OTS_METRICS.otsCount.alias},
+        ${OTS_METRICS.otsApprovedCount.expr} AS ${OTS_METRICS.otsApprovedCount.alias}
       FROM invoice i
-      LEFT JOIN customer c ON c.id = i.customer_id
-      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
-      LEFT JOIN product p ON p.id = ip.product_id
-      LEFT JOIN product_group pg ON pg.id = p.product_group_id
-      LEFT JOIN source sr ON sr.id = i.source_id
-      WHERE i.type = 3 AND i.deleted = 0
+      ${OTS_JOINS.customer}
+      ${OTS_JOINS.invoiceProduct}
+      ${OTS_JOINS.product}
+      ${OTS_JOINS.productGroup}
+      ${OTS_JOINS.source}
+      WHERE ${CRM_WHERE.otsBase}
         AND i.order_date BETWEEN ? AND ?
         ${whereClause}
       GROUP BY ${groupByCols.join(', ')}
@@ -366,16 +351,16 @@ export class DashboardTableQueryBuilder {
    * Build standalone OTS time series query (daily aggregation by order_date).
    */
   public buildOtsTimeSeriesQuery(dateRange: DateRange): { query: string; params: any[] } {
-    const startDate = this.formatDateForMariaDB(dateRange.start, false);
-    const endDate = this.formatDateForMariaDB(dateRange.end, true);
+    const startDate = formatDateForMariaDB(dateRange.start, false);
+    const endDate = formatDateForMariaDB(dateRange.end, true);
 
     const query = `
       SELECT
         DATE(i.order_date) AS date,
-        COUNT(DISTINCT i.id) AS ots,
-        COUNT(DISTINCT CASE WHEN i.is_marked = 1 THEN i.id END) AS otsApproved
+        ${OTS_METRICS.otsCount.expr} AS ots,
+        ${OTS_METRICS.otsApprovedCount.expr} AS otsApproved
       FROM invoice i
-      WHERE i.type = 3 AND i.deleted = 0
+      WHERE ${CRM_WHERE.otsBase}
         AND i.order_date BETWEEN ? AND ?
       GROUP BY DATE(i.order_date)
       ORDER BY date ASC

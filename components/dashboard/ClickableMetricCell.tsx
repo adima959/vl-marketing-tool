@@ -3,13 +3,14 @@
 import { MetricCell } from '@/components/table/MetricCell';
 import type { MetricFormat } from '@/types';
 import type { MetricClickContext } from '@/types/dashboardDetails';
+import type { DashboardDetailMetricId } from '@/lib/server/crmMetrics';
 import type { DateRange } from '@/types/dashboard';
 import styles from './ClickableMetricCell.module.css';
 
 interface ClickableMetricCellProps {
   value: number;
   format: MetricFormat;
-  metricId: 'customers' | 'subscriptions' | 'trials' | 'trialsApproved' | 'ots' | 'upsells';
+  metricId: DashboardDetailMetricId;
   metricLabel: string;
   rowKey: string;
   depth: number;

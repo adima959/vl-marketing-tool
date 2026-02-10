@@ -1,11 +1,12 @@
 import type { DateRange } from '@/types/dashboard';
+import type { DashboardDetailMetricId } from '@/lib/server/crmMetrics';
 
 /**
  * Context passed when a metric cell is clicked
  * Contains all information needed to query for detail records
  */
 export interface MetricClickContext {
-  metricId: 'customers' | 'subscriptions' | 'trials' | 'trialsApproved' | 'ots' | 'upsells';
+  metricId: DashboardDetailMetricId;
   metricLabel: string;       // Human-readable name for modal title
   value: number;             // Aggregated count that was clicked
   filters: {

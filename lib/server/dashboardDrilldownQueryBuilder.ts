@@ -1,4 +1,5 @@
 import type { DateRange } from '@/types/dashboard';
+import { CRM_JOINS, CRM_WHERE, OTS_JOINS, formatDateForMariaDB, buildPaginationClause, type DashboardDetailMetricId } from './crmMetrics';
 
 interface DetailQueryOptions {
   dateRange: DateRange;
@@ -31,18 +32,6 @@ interface QueryResult {
  * Used when user clicks on a metric cell to see underlying data
  */
 export class DashboardDrilldownQueryBuilder {
-  /**
-   * Format date for MariaDB BETWEEN queries
-   * Reuses pattern from dashboardQueryBuilder
-   */
-  private formatDateForMariaDB(date: Date, endOfDay: boolean): string {
-    const year = date.getUTCFullYear();
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(date.getUTCDate()).padStart(2, '0');
-    const time = endOfDay ? '23:59:59' : '00:00:00';
-    return `${year}-${month}-${day} ${time}`;
-  }
-
   /**
    * Build WHERE clause from optional filters (country, product, source)
    * Handles "Unknown" values by converting them to IS NULL OR empty string conditions
@@ -196,28 +185,13 @@ export class DashboardDrilldownQueryBuilder {
   }
 
   /**
-   * Build LIMIT and OFFSET clause for pagination
-   */
-  private buildPaginationClause(pagination?: PaginationOptions): { limitClause: string; params: any[] } {
-    if (!pagination) {
-      return { limitClause: 'LIMIT 50', params: [50] };
-    }
-
-    const offset = (pagination.page - 1) * pagination.pageSize;
-    return {
-      limitClause: 'LIMIT ? OFFSET ?',
-      params: [pagination.pageSize, offset],
-    };
-  }
-
-  /**
    * Build query for Customers metric (new customers where registration date = subscription date)
    */
   private buildCustomersQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
-    const startDate = this.formatDateForMariaDB(filters.dateRange.start, false);
-    const endDate = this.formatDateForMariaDB(filters.dateRange.end, true);
+    const startDate = formatDateForMariaDB(filters.dateRange.start, false);
+    const endDate = formatDateForMariaDB(filters.dateRange.end, true);
     const { whereClause, params: filterParams } = this.buildFilterClause(filters);
-    const { limitClause, params: paginationParams } = this.buildPaginationClause(pagination);
+    const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
 
     const baseParams = [startDate, endDate, ...filterParams];
 
@@ -245,17 +219,16 @@ export class DashboardDrilldownQueryBuilder {
         s.canceled_reason_about as cancelReasonAbout,
         c.date_registered as customerDateRegistered
       FROM subscription s
-      INNER JOIN customer c ON s.customer_id = c.id
-      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0
-      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
-      LEFT JOIN product p ON p.id = ip.product_id
-      LEFT JOIN product p_sub ON p_sub.id = s.product_id
-      LEFT JOIN product_group pg ON pg.id = p.product_group_id
-      LEFT JOIN product_group pg_sub ON pg_sub.id = p_sub.product_group_id
-      LEFT JOIN source sr ON sr.id = i.source_id
-      LEFT JOIN source sr_sub ON sr_sub.id = s.source_id
-      LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
-      LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
+      ${CRM_JOINS.customerInner}
+      ${CRM_JOINS.invoiceTrialLeft}
+      ${CRM_JOINS.invoiceProduct}
+      ${CRM_JOINS.product}
+      ${CRM_JOINS.productSub}
+      ${CRM_JOINS.productGroup}
+      ${CRM_JOINS.productGroupSub}
+      ${CRM_JOINS.sourceFromInvoice}
+      ${CRM_JOINS.sourceFromSubAlt}
+      ${CRM_JOINS.cancelReason}
       WHERE s.date_create BETWEEN ? AND ?
         AND DATE(c.date_registered) = DATE(s.date_create)
         ${whereClause}
@@ -272,10 +245,10 @@ export class DashboardDrilldownQueryBuilder {
     const countQuery = `
       SELECT COUNT(DISTINCT s.id) as total
       FROM subscription s
-      INNER JOIN customer c ON s.customer_id = c.id
-      ${needsInvoiceJoin ? 'LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0' : ''}
-      ${needsProductJoin ? 'LEFT JOIN invoice_product ip ON ip.invoice_id = i.id LEFT JOIN product p ON p.id = ip.product_id LEFT JOIN product p_sub ON p_sub.id = s.product_id LEFT JOIN product_group pg ON pg.id = p.product_group_id LEFT JOIN product_group pg_sub ON pg_sub.id = p_sub.product_group_id' : ''}
-      ${needsSourceJoin ? 'LEFT JOIN source sr ON sr.id = i.source_id LEFT JOIN source sr_sub ON sr_sub.id = s.source_id' : ''}
+      ${CRM_JOINS.customerInner}
+      ${needsInvoiceJoin ? CRM_JOINS.invoiceTrialLeft : ''}
+      ${needsProductJoin ? `${CRM_JOINS.invoiceProduct} ${CRM_JOINS.product} ${CRM_JOINS.productSub} ${CRM_JOINS.productGroup} ${CRM_JOINS.productGroupSub}` : ''}
+      ${needsSourceJoin ? `${CRM_JOINS.sourceFromInvoice} ${CRM_JOINS.sourceFromSubAlt}` : ''}
       WHERE s.date_create BETWEEN ? AND ?
         AND DATE(c.date_registered) = DATE(s.date_create)
         ${whereClause}
@@ -293,10 +266,10 @@ export class DashboardDrilldownQueryBuilder {
    * Build query for Subscriptions metric (all subscriptions)
    */
   private buildSubscriptionsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
-    const startDate = this.formatDateForMariaDB(filters.dateRange.start, false);
-    const endDate = this.formatDateForMariaDB(filters.dateRange.end, true);
+    const startDate = formatDateForMariaDB(filters.dateRange.start, false);
+    const endDate = formatDateForMariaDB(filters.dateRange.end, true);
     const { whereClause, params: filterParams } = this.buildFilterClause(filters);
-    const { limitClause, params: paginationParams } = this.buildPaginationClause(pagination);
+    const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
 
     const baseParams = [startDate, endDate, ...filterParams];
 
@@ -324,17 +297,16 @@ export class DashboardDrilldownQueryBuilder {
         s.canceled_reason_about as cancelReasonAbout,
         c.date_registered as customerDateRegistered
       FROM subscription s
-      INNER JOIN customer c ON s.customer_id = c.id
-      LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0
-      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
-      LEFT JOIN product p ON p.id = ip.product_id
-      LEFT JOIN product p_sub ON p_sub.id = s.product_id
-      LEFT JOIN product_group pg ON pg.id = p.product_group_id
-      LEFT JOIN product_group pg_sub ON pg_sub.id = p_sub.product_group_id
-      LEFT JOIN source sr ON sr.id = i.source_id
-      LEFT JOIN source sr_sub ON sr_sub.id = s.source_id
-      LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
-      LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
+      ${CRM_JOINS.customerInner}
+      ${CRM_JOINS.invoiceTrialLeft}
+      ${CRM_JOINS.invoiceProduct}
+      ${CRM_JOINS.product}
+      ${CRM_JOINS.productSub}
+      ${CRM_JOINS.productGroup}
+      ${CRM_JOINS.productGroupSub}
+      ${CRM_JOINS.sourceFromInvoice}
+      ${CRM_JOINS.sourceFromSubAlt}
+      ${CRM_JOINS.cancelReason}
       WHERE s.date_create BETWEEN ? AND ?
         ${whereClause}
       GROUP BY s.id
@@ -350,10 +322,10 @@ export class DashboardDrilldownQueryBuilder {
     const countQuery = `
       SELECT COUNT(DISTINCT s.id) as total
       FROM subscription s
-      INNER JOIN customer c ON s.customer_id = c.id
-      ${needsInvoiceJoin ? 'LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0' : ''}
-      ${needsProductJoin ? 'LEFT JOIN invoice_product ip ON ip.invoice_id = i.id LEFT JOIN product p ON p.id = ip.product_id LEFT JOIN product p_sub ON p_sub.id = s.product_id LEFT JOIN product_group pg ON pg.id = p.product_group_id LEFT JOIN product_group pg_sub ON pg_sub.id = p_sub.product_group_id' : ''}
-      ${needsSourceJoin ? 'LEFT JOIN source sr ON sr.id = i.source_id LEFT JOIN source sr_sub ON sr_sub.id = s.source_id' : ''}
+      ${CRM_JOINS.customerInner}
+      ${needsInvoiceJoin ? CRM_JOINS.invoiceTrialLeft : ''}
+      ${needsProductJoin ? `${CRM_JOINS.invoiceProduct} ${CRM_JOINS.product} ${CRM_JOINS.productSub} ${CRM_JOINS.productGroup} ${CRM_JOINS.productGroupSub}` : ''}
+      ${needsSourceJoin ? `${CRM_JOINS.sourceFromInvoice} ${CRM_JOINS.sourceFromSubAlt}` : ''}
       WHERE s.date_create BETWEEN ? AND ?
         ${whereClause}
     `;
@@ -371,14 +343,14 @@ export class DashboardDrilldownQueryBuilder {
    * Optional filters: excludeDeleted, excludeUpsellTags (used by approval rate page)
    */
   private buildTrialsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
-    const startDate = this.formatDateForMariaDB(filters.dateRange.start, false);
-    const endDate = this.formatDateForMariaDB(filters.dateRange.end, true);
+    const startDate = formatDateForMariaDB(filters.dateRange.start, false);
+    const endDate = formatDateForMariaDB(filters.dateRange.end, true);
     const { whereClause, params: filterParams } = this.buildFilterClause(filters);
-    const { limitClause, params: paginationParams } = this.buildPaginationClause(pagination);
+    const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
 
     // Build optional filter conditions
-    const deletedFilter = filters.excludeDeleted ? 'AND s.deleted = 0' : '';
-    const tagFilter = filters.excludeUpsellTags ? "AND (i.tag IS NULL OR i.tag NOT LIKE '%parent-sub-id=%')" : '';
+    const deletedFilter = filters.excludeDeleted ? `AND ${CRM_WHERE.deletedSubExclusion}` : '';
+    const tagFilter = filters.excludeUpsellTags ? `AND ${CRM_WHERE.upsellExclusion}` : '';
 
     const baseParams = [startDate, endDate, ...filterParams];
 
@@ -407,17 +379,16 @@ export class DashboardDrilldownQueryBuilder {
         s.canceled_reason_about as cancelReasonAbout,
         c.date_registered as customerDateRegistered
       FROM subscription s
-      INNER JOIN customer c ON s.customer_id = c.id
-      INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0
-      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
-      LEFT JOIN product p ON p.id = ip.product_id
-      LEFT JOIN product p_sub ON p_sub.id = s.product_id
-      LEFT JOIN product_group pg ON pg.id = p.product_group_id
-      LEFT JOIN product_group pg_sub ON pg_sub.id = p_sub.product_group_id
-      LEFT JOIN source sr ON sr.id = i.source_id
-      LEFT JOIN source sr_sub ON sr_sub.id = s.source_id
-      LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
-      LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
+      ${CRM_JOINS.customerInner}
+      ${CRM_JOINS.invoiceTrialInner}
+      ${CRM_JOINS.invoiceProduct}
+      ${CRM_JOINS.product}
+      ${CRM_JOINS.productSub}
+      ${CRM_JOINS.productGroup}
+      ${CRM_JOINS.productGroupSub}
+      ${CRM_JOINS.sourceFromInvoice}
+      ${CRM_JOINS.sourceFromSubAlt}
+      ${CRM_JOINS.cancelReason}
       WHERE s.date_create BETWEEN ? AND ?
         ${deletedFilter}
         ${tagFilter}
@@ -434,10 +405,10 @@ export class DashboardDrilldownQueryBuilder {
     const countQuery = `
       SELECT COUNT(DISTINCT i.id) as total
       FROM subscription s
-      INNER JOIN customer c ON s.customer_id = c.id
-      INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0
-      ${needsProductJoin ? 'LEFT JOIN invoice_product ip ON ip.invoice_id = i.id LEFT JOIN product p ON p.id = ip.product_id LEFT JOIN product p_sub ON p_sub.id = s.product_id LEFT JOIN product_group pg ON pg.id = p.product_group_id LEFT JOIN product_group pg_sub ON pg_sub.id = p_sub.product_group_id' : ''}
-      ${needsSourceJoin ? 'LEFT JOIN source sr ON sr.id = i.source_id LEFT JOIN source sr_sub ON sr_sub.id = s.source_id' : ''}
+      ${CRM_JOINS.customerInner}
+      ${CRM_JOINS.invoiceTrialInner}
+      ${needsProductJoin ? `${CRM_JOINS.invoiceProduct} ${CRM_JOINS.product} ${CRM_JOINS.productSub} ${CRM_JOINS.productGroup} ${CRM_JOINS.productGroupSub}` : ''}
+      ${needsSourceJoin ? `${CRM_JOINS.sourceFromInvoice} ${CRM_JOINS.sourceFromSubAlt}` : ''}
       WHERE s.date_create BETWEEN ? AND ?
         ${deletedFilter}
         ${tagFilter}
@@ -457,14 +428,14 @@ export class DashboardDrilldownQueryBuilder {
    * Optional filters: excludeDeleted, excludeUpsellTags (used by approval rate page)
    */
   private buildTrialsApprovedQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
-    const startDate = this.formatDateForMariaDB(filters.dateRange.start, false);
-    const endDate = this.formatDateForMariaDB(filters.dateRange.end, true);
+    const startDate = formatDateForMariaDB(filters.dateRange.start, false);
+    const endDate = formatDateForMariaDB(filters.dateRange.end, true);
     const { whereClause, params: filterParams } = this.buildFilterClause(filters);
-    const { limitClause, params: paginationParams } = this.buildPaginationClause(pagination);
+    const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
 
     // Build optional filter conditions
-    const deletedFilter = filters.excludeDeleted ? 'AND s.deleted = 0' : '';
-    const tagFilter = filters.excludeUpsellTags ? "AND (i.tag IS NULL OR i.tag NOT LIKE '%parent-sub-id=%')" : '';
+    const deletedFilter = filters.excludeDeleted ? `AND ${CRM_WHERE.deletedSubExclusion}` : '';
+    const tagFilter = filters.excludeUpsellTags ? `AND ${CRM_WHERE.upsellExclusion}` : '';
 
     const baseParams = [startDate, endDate, ...filterParams];
 
@@ -493,17 +464,16 @@ export class DashboardDrilldownQueryBuilder {
         s.canceled_reason_about as cancelReasonAbout,
         c.date_registered as customerDateRegistered
       FROM subscription s
-      INNER JOIN customer c ON s.customer_id = c.id
-      INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.is_marked = 1 AND i.deleted = 0
-      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
-      LEFT JOIN product p ON p.id = ip.product_id
-      LEFT JOIN product p_sub ON p_sub.id = s.product_id
-      LEFT JOIN product_group pg ON pg.id = p.product_group_id
-      LEFT JOIN product_group pg_sub ON pg_sub.id = p_sub.product_group_id
-      LEFT JOIN source sr ON sr.id = i.source_id
-      LEFT JOIN source sr_sub ON sr_sub.id = s.source_id
-      LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
-      LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
+      ${CRM_JOINS.customerInner}
+      ${CRM_JOINS.invoiceTrialInner} AND i.is_marked = 1
+      ${CRM_JOINS.invoiceProduct}
+      ${CRM_JOINS.product}
+      ${CRM_JOINS.productSub}
+      ${CRM_JOINS.productGroup}
+      ${CRM_JOINS.productGroupSub}
+      ${CRM_JOINS.sourceFromInvoice}
+      ${CRM_JOINS.sourceFromSubAlt}
+      ${CRM_JOINS.cancelReason}
       WHERE s.date_create BETWEEN ? AND ?
         ${deletedFilter}
         ${tagFilter}
@@ -520,10 +490,10 @@ export class DashboardDrilldownQueryBuilder {
     const countQuery = `
       SELECT COUNT(DISTINCT i.id) as total
       FROM subscription s
-      INNER JOIN customer c ON s.customer_id = c.id
-      INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.is_marked = 1 AND i.deleted = 0
-      ${needsProductJoin ? 'LEFT JOIN invoice_product ip ON ip.invoice_id = i.id LEFT JOIN product p ON p.id = ip.product_id LEFT JOIN product p_sub ON p_sub.id = s.product_id LEFT JOIN product_group pg ON pg.id = p.product_group_id LEFT JOIN product_group pg_sub ON pg_sub.id = p_sub.product_group_id' : ''}
-      ${needsSourceJoin ? 'LEFT JOIN source sr ON sr.id = i.source_id LEFT JOIN source sr_sub ON sr_sub.id = s.source_id' : ''}
+      ${CRM_JOINS.customerInner}
+      ${CRM_JOINS.invoiceTrialInner} AND i.is_marked = 1
+      ${needsProductJoin ? `${CRM_JOINS.invoiceProduct} ${CRM_JOINS.product} ${CRM_JOINS.productSub} ${CRM_JOINS.productGroup} ${CRM_JOINS.productGroupSub}` : ''}
+      ${needsSourceJoin ? `${CRM_JOINS.sourceFromInvoice} ${CRM_JOINS.sourceFromSubAlt}` : ''}
       WHERE s.date_create BETWEEN ? AND ?
         ${deletedFilter}
         ${tagFilter}
@@ -542,10 +512,10 @@ export class DashboardDrilldownQueryBuilder {
    * Build query for OTS metric (one-time sale invoices where type = 3)
    */
   private buildOtsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
-    const startDate = this.formatDateForMariaDB(filters.dateRange.start, false);
-    const endDate = this.formatDateForMariaDB(filters.dateRange.end, true);
+    const startDate = formatDateForMariaDB(filters.dateRange.start, false);
+    const endDate = formatDateForMariaDB(filters.dateRange.end, true);
     const { whereClause, params: filterParams } = this.buildOtsFilterClause(filters);
-    const { limitClause, params: paginationParams } = this.buildPaginationClause(pagination);
+    const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
 
     const baseParams = [startDate, endDate, ...filterParams];
 
@@ -576,11 +546,11 @@ export class DashboardDrilldownQueryBuilder {
         c.date_registered as customerDateRegistered
       FROM invoice i
       INNER JOIN customer c ON c.id = i.customer_id
-      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
-      LEFT JOIN product p ON p.id = ip.product_id
-      LEFT JOIN product_group pg ON pg.id = p.product_group_id
-      LEFT JOIN source sr ON sr.id = i.source_id
-      WHERE i.type = 3 AND i.deleted = 0
+      ${OTS_JOINS.invoiceProduct}
+      ${OTS_JOINS.product}
+      ${OTS_JOINS.productGroup}
+      ${OTS_JOINS.source}
+      WHERE ${CRM_WHERE.otsBase}
         AND i.order_date BETWEEN ? AND ?
         ${whereClause}
       GROUP BY i.id
@@ -595,9 +565,9 @@ export class DashboardDrilldownQueryBuilder {
       SELECT COUNT(DISTINCT i.id) as total
       FROM invoice i
       INNER JOIN customer c ON c.id = i.customer_id
-      ${needsProductJoin ? 'LEFT JOIN invoice_product ip ON ip.invoice_id = i.id LEFT JOIN product p ON p.id = ip.product_id LEFT JOIN product_group pg ON pg.id = p.product_group_id' : ''}
-      ${needsSourceJoin ? 'LEFT JOIN source sr ON sr.id = i.source_id' : ''}
-      WHERE i.type = 3 AND i.deleted = 0
+      ${needsProductJoin ? `${OTS_JOINS.invoiceProduct} ${OTS_JOINS.product} ${OTS_JOINS.productGroup}` : ''}
+      ${needsSourceJoin ? OTS_JOINS.source : ''}
+      WHERE ${CRM_WHERE.otsBase}
         AND i.order_date BETWEEN ? AND ?
         ${whereClause}
     `;
@@ -614,10 +584,10 @@ export class DashboardDrilldownQueryBuilder {
    * Build query for Upsells metric (invoices where type = 3 linked to parent subscription)
    */
   private buildUpsellsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
-    const startDate = this.formatDateForMariaDB(filters.dateRange.start, false);
-    const endDate = this.formatDateForMariaDB(filters.dateRange.end, true);
+    const startDate = formatDateForMariaDB(filters.dateRange.start, false);
+    const endDate = formatDateForMariaDB(filters.dateRange.end, true);
     const { whereClause, params: filterParams } = this.buildFilterClause(filters);
-    const { limitClause, params: paginationParams } = this.buildPaginationClause(pagination);
+    const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
 
     const baseParams = [startDate, endDate, ...filterParams];
 
@@ -646,18 +616,16 @@ export class DashboardDrilldownQueryBuilder {
         s.canceled_reason_about as cancelReasonAbout,
         c.date_registered as customerDateRegistered
       FROM subscription s
-      INNER JOIN customer c ON s.customer_id = c.id
-      INNER JOIN invoice uo ON uo.customer_id = s.customer_id
-        AND uo.tag LIKE CONCAT('%parent-sub-id=', s.id, '%')
+      ${CRM_JOINS.customerInner}
+      ${CRM_JOINS.upsellInner}
       LEFT JOIN invoice_product ip ON ip.invoice_id = uo.id
-      LEFT JOIN product p ON p.id = ip.product_id
-      LEFT JOIN product p_sub ON p_sub.id = s.product_id
-      LEFT JOIN product_group pg ON pg.id = p.product_group_id
-      LEFT JOIN product_group pg_sub ON pg_sub.id = p_sub.product_group_id
+      ${CRM_JOINS.product}
+      ${CRM_JOINS.productSub}
+      ${CRM_JOINS.productGroup}
+      ${CRM_JOINS.productGroupSub}
       LEFT JOIN source sr ON sr.id = uo.source_id
-      LEFT JOIN source sr_sub ON sr_sub.id = s.source_id
-      LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
-      LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
+      ${CRM_JOINS.sourceFromSubAlt}
+      ${CRM_JOINS.cancelReason}
       WHERE s.date_create BETWEEN ? AND ?
         ${whereClause}
       GROUP BY uo.id
@@ -668,16 +636,15 @@ export class DashboardDrilldownQueryBuilder {
     const countQuery = `
       SELECT COUNT(uo.id) as total
       FROM subscription s
-      INNER JOIN customer c ON s.customer_id = c.id
-      INNER JOIN invoice uo ON uo.customer_id = s.customer_id
-        AND uo.tag LIKE CONCAT('%parent-sub-id=', s.id, '%')
+      ${CRM_JOINS.customerInner}
+      ${CRM_JOINS.upsellInner}
       LEFT JOIN invoice_product ip ON ip.invoice_id = uo.id
-      LEFT JOIN product p ON p.id = ip.product_id
-      LEFT JOIN product p_sub ON p_sub.id = s.product_id
-      LEFT JOIN product_group pg ON pg.id = p.product_group_id
-      LEFT JOIN product_group pg_sub ON pg_sub.id = p_sub.product_group_id
+      ${CRM_JOINS.product}
+      ${CRM_JOINS.productSub}
+      ${CRM_JOINS.productGroup}
+      ${CRM_JOINS.productGroupSub}
       LEFT JOIN source sr ON sr.id = uo.source_id
-      LEFT JOIN source sr_sub ON sr_sub.id = s.source_id
+      ${CRM_JOINS.sourceFromSubAlt}
       WHERE s.date_create BETWEEN ? AND ?
         ${whereClause}
     `;
@@ -695,10 +662,10 @@ export class DashboardDrilldownQueryBuilder {
    * Uses invoice_date, INNER JOIN invoice_proccessed, excludes refunds (type != 4)
    */
   private buildPayRateTrialsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
-    const startDate = this.formatDateForMariaDB(filters.dateRange.start, false);
-    const endDate = this.formatDateForMariaDB(filters.dateRange.end, true);
+    const startDate = formatDateForMariaDB(filters.dateRange.start, false);
+    const endDate = formatDateForMariaDB(filters.dateRange.end, true);
     const { whereClause, params: filterParams } = this.buildFilterClauseCaseInsensitive(filters);
-    const { limitClause, params: paginationParams } = this.buildPaginationClause(pagination);
+    const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
 
     const baseParams = [startDate, endDate, ...filterParams];
 
@@ -735,16 +702,15 @@ export class DashboardDrilldownQueryBuilder {
       FROM invoice i
       INNER JOIN invoice_proccessed ipr ON ipr.invoice_id = i.id
       INNER JOIN subscription s ON i.subscription_id = s.id
-      INNER JOIN customer c ON s.customer_id = c.id
-      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
-      LEFT JOIN product p ON p.id = ip.product_id
-      LEFT JOIN product p_sub ON p_sub.id = s.product_id
-      LEFT JOIN product_group pg ON pg.id = p.product_group_id
-      LEFT JOIN product_group pg_sub ON pg_sub.id = p_sub.product_group_id
-      LEFT JOIN source sr ON s.source_id = sr.id
-      LEFT JOIN source sr_sub ON sr_sub.id = s.source_id
-      LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
-      LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
+      ${CRM_JOINS.customerInner}
+      ${CRM_JOINS.invoiceProduct}
+      ${CRM_JOINS.product}
+      ${CRM_JOINS.productSub}
+      ${CRM_JOINS.productGroup}
+      ${CRM_JOINS.productGroupSub}
+      ${CRM_JOINS.sourceFromSub}
+      ${CRM_JOINS.sourceFromSubAlt}
+      ${CRM_JOINS.cancelReason}
       WHERE i.invoice_date >= ? AND i.invoice_date <= ?
         AND i.type != 4
         ${whereClause}
@@ -759,9 +725,9 @@ export class DashboardDrilldownQueryBuilder {
       FROM invoice i
       INNER JOIN invoice_proccessed ipr ON ipr.invoice_id = i.id
       INNER JOIN subscription s ON i.subscription_id = s.id
-      INNER JOIN customer c ON s.customer_id = c.id
-      ${needsProductJoin ? 'LEFT JOIN invoice_product ip ON ip.invoice_id = i.id LEFT JOIN product p ON p.id = ip.product_id LEFT JOIN product p_sub ON p_sub.id = s.product_id LEFT JOIN product_group pg ON pg.id = p.product_group_id LEFT JOIN product_group pg_sub ON pg_sub.id = p_sub.product_group_id' : ''}
-      ${needsSourceJoin ? 'LEFT JOIN source sr ON s.source_id = sr.id LEFT JOIN source sr_sub ON sr_sub.id = s.source_id' : ''}
+      ${CRM_JOINS.customerInner}
+      ${needsProductJoin ? `${CRM_JOINS.invoiceProduct} ${CRM_JOINS.product} ${CRM_JOINS.productSub} ${CRM_JOINS.productGroup} ${CRM_JOINS.productGroupSub}` : ''}
+      ${needsSourceJoin ? `${CRM_JOINS.sourceFromSub} ${CRM_JOINS.sourceFromSubAlt}` : ''}
       WHERE i.invoice_date >= ? AND i.invoice_date <= ?
         AND i.type != 4
         ${whereClause}
@@ -780,10 +746,10 @@ export class DashboardDrilldownQueryBuilder {
    * Uses invoice_date, INNER JOIN invoice_proccessed, excludes refunds (type != 4)
    */
   private buildBuyRateTrialsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
-    const startDate = this.formatDateForMariaDB(filters.dateRange.start, false);
-    const endDate = this.formatDateForMariaDB(filters.dateRange.end, true);
+    const startDate = formatDateForMariaDB(filters.dateRange.start, false);
+    const endDate = formatDateForMariaDB(filters.dateRange.end, true);
     const { whereClause, params: filterParams } = this.buildFilterClauseCaseInsensitive(filters);
-    const { limitClause, params: paginationParams } = this.buildPaginationClause(pagination);
+    const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
 
     const baseParams = [startDate, endDate, ...filterParams];
 
@@ -820,16 +786,15 @@ export class DashboardDrilldownQueryBuilder {
       FROM invoice i
       INNER JOIN invoice_proccessed ipr ON ipr.invoice_id = i.id
       INNER JOIN subscription s ON i.subscription_id = s.id
-      INNER JOIN customer c ON s.customer_id = c.id
-      LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
-      LEFT JOIN product p ON p.id = ip.product_id
-      LEFT JOIN product p_sub ON p_sub.id = s.product_id
-      LEFT JOIN product_group pg ON pg.id = p.product_group_id
-      LEFT JOIN product_group pg_sub ON pg_sub.id = p_sub.product_group_id
-      LEFT JOIN source sr ON s.source_id = sr.id
-      LEFT JOIN source sr_sub ON sr_sub.id = s.source_id
-      LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id
-      LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id
+      ${CRM_JOINS.customerInner}
+      ${CRM_JOINS.invoiceProduct}
+      ${CRM_JOINS.product}
+      ${CRM_JOINS.productSub}
+      ${CRM_JOINS.productGroup}
+      ${CRM_JOINS.productGroupSub}
+      ${CRM_JOINS.sourceFromSub}
+      ${CRM_JOINS.sourceFromSubAlt}
+      ${CRM_JOINS.cancelReason}
       WHERE i.invoice_date >= ? AND i.invoice_date <= ?
         AND i.type != 4
         ${whereClause}
@@ -844,9 +809,9 @@ export class DashboardDrilldownQueryBuilder {
       FROM invoice i
       INNER JOIN invoice_proccessed ipr ON ipr.invoice_id = i.id
       INNER JOIN subscription s ON i.subscription_id = s.id
-      INNER JOIN customer c ON s.customer_id = c.id
-      ${needsProductJoin ? 'LEFT JOIN invoice_product ip ON ip.invoice_id = i.id LEFT JOIN product p ON p.id = ip.product_id LEFT JOIN product p_sub ON p_sub.id = s.product_id LEFT JOIN product_group pg ON pg.id = p.product_group_id LEFT JOIN product_group pg_sub ON pg_sub.id = p_sub.product_group_id' : ''}
-      ${needsSourceJoin ? 'LEFT JOIN source sr ON s.source_id = sr.id LEFT JOIN source sr_sub ON sr_sub.id = s.source_id' : ''}
+      ${CRM_JOINS.customerInner}
+      ${needsProductJoin ? `${CRM_JOINS.invoiceProduct} ${CRM_JOINS.product} ${CRM_JOINS.productSub} ${CRM_JOINS.productGroup} ${CRM_JOINS.productGroupSub}` : ''}
+      ${needsSourceJoin ? `${CRM_JOINS.sourceFromSub} ${CRM_JOINS.sourceFromSubAlt}` : ''}
       WHERE i.invoice_date >= ? AND i.invoice_date <= ?
         AND i.type != 4
         ${whereClause}
@@ -864,7 +829,7 @@ export class DashboardDrilldownQueryBuilder {
    * Main entry point: routes to appropriate query builder based on metricId
    */
   public buildDetailQuery(
-    metricId: string,
+    metricId: DashboardDetailMetricId,
     filters: DetailQueryOptions,
     pagination?: PaginationOptions
   ): QueryResult {

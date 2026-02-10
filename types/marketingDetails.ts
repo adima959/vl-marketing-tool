@@ -1,11 +1,12 @@
 import type { DateRange } from '@/types';
+import type { MarketingDetailMetricId } from '@/lib/server/crmMetrics';
 
 /**
  * Context passed when a CRM metric cell is clicked in Marketing Report
  * Contains all information needed to query for detail records
  */
 export interface MarketingMetricClickContext {
-  metricId: 'crmSubscriptions' | 'approvedSales';
+  metricId: MarketingDetailMetricId;
   metricLabel: string;       // Human-readable name for modal title
   value: number;             // Aggregated count that was clicked
   filters: {
@@ -24,7 +25,7 @@ export interface MarketingMetricClickContext {
  * API request body for marketing details endpoint
  */
 export interface MarketingDetailRequest {
-  metricId: 'crmSubscriptions' | 'approvedSales';
+  metricId: MarketingDetailMetricId;
   filters: {
     dateRange: { start: string; end: string };
     network?: string;

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DASHBOARD_DETAIL_METRIC_IDS, MARKETING_DETAIL_METRIC_IDS } from '@/lib/server/crmMetrics';
 
 /**
  * Zod schemas for API request validation
@@ -85,21 +86,49 @@ export const validationRateQueryRequestSchema = queryRequestSchema.extend({
 });
 
 /**
+ * Shared pagination schema — reused by all detail request schemas
+ */
+const paginationSchema = z.object({
+  page: z.number().int().min(1, 'page must be at least 1').default(1),
+  pageSize: z.number().int().min(1).max(100, 'pageSize must be between 1 and 100').default(50),
+}).optional();
+
+/**
  * Dashboard details request schema
- * For fetching individual detail records
+ * For fetching individual detail records from dashboard drilldown
  */
 export const dashboardDetailsRequestSchema = z.object({
-  metricId: z.enum(['customers', 'subscriptions', 'trials', 'trialsApproved', 'upsells']),
+  metricId: z.enum([...DASHBOARD_DETAIL_METRIC_IDS]),
   filters: z.object({
     dateRange: dateRangeSchema,
     country: z.string().optional(),
     product: z.string().optional(),
+    productName: z.string().optional(),
     source: z.string().optional(),
+    excludeDeleted: z.boolean().optional(),
+    excludeUpsellTags: z.boolean().optional(),
+    rateType: validationRateTypeSchema.optional(),
   }),
-  pagination: z.object({
-    page: z.number().int().min(1, 'page must be at least 1').default(1),
-    pageSize: z.number().int().min(1).max(100, 'pageSize must be between 1 and 100').default(50),
-  }).optional(),
+  pagination: paginationSchema,
+});
+
+/**
+ * Marketing details request schema
+ * For fetching individual detail records from marketing report drilldown
+ */
+export const marketingDetailsRequestSchema = z.object({
+  metricId: z.enum([...MARKETING_DETAIL_METRIC_IDS]),
+  filters: z.object({
+    dateRange: dateRangeSchema,
+    network: z.string().optional(),
+    campaign: z.string().optional(),
+    adset: z.string().optional(),
+    ad: z.string().optional(),
+    date: z.string().date().optional(),
+    classifiedProduct: z.string().optional(),
+    classifiedCountry: z.string().optional(),
+  }),
+  pagination: paginationSchema,
 });
 
 /**
@@ -156,6 +185,7 @@ export type MarketingQueryRequest = z.infer<typeof marketingQueryRequestSchema>;
 export type ApprovalRateQueryRequest = z.infer<typeof approvalRateQueryRequestSchema>;
 export type ValidationRateQueryRequest = z.infer<typeof validationRateQueryRequestSchema>;
 export type DashboardDetailsRequest = z.infer<typeof dashboardDetailsRequestSchema>;
+export type MarketingDetailsRequest = z.infer<typeof marketingDetailsRequestSchema>;
 export type SavedViewCreateRequest = z.infer<typeof savedViewCreateSchema>;
 export type SavedViewRenameRequest = z.infer<typeof savedViewRenameSchema>;
 export type SavedViewToggleFavoriteRequest = z.infer<typeof savedViewToggleFavoriteSchema>;

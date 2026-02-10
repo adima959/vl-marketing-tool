@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeMariaDBQuery } from '@/lib/server/mariadb';
 import { executeQuery } from '@/lib/server/db';
 import { marketingDetailQueryBuilder } from '@/lib/server/marketingDetailQueryBuilder';
+import { safeValidateRequest, marketingDetailsRequestSchema } from '@/lib/schemas/api';
 import type { DetailRecord } from '@/types/dashboardDetails';
 import type { MarketingDetailResponse } from '@/types/marketingDetails';
 import { withAuth } from '@/lib/rbac';
@@ -167,58 +168,32 @@ async function handleMarketingDetails(
   try {
     const body = await request.json();
 
-    // Validate required fields
-    if (!body.metricId) {
+    // Validate request with Zod schema
+    const result = safeValidateRequest(marketingDetailsRequestSchema, body);
+    if (!result.success) {
       return NextResponse.json(
-        { success: false, error: 'Missing required field: metricId' },
+        { success: false, error: result.error.issues[0]?.message || 'Invalid request' },
         { status: 400 }
       );
     }
 
-    if (!['crmSubscriptions', 'approvedSales', 'trials'].includes(body.metricId)) {
-      return NextResponse.json(
-        { success: false, error: `Invalid metricId: ${body.metricId}. Must be 'crmSubscriptions', 'approvedSales', or 'trials'` },
-        { status: 400 }
-      );
-    }
-
-    if (!body.filters?.dateRange?.start || !body.filters?.dateRange?.end) {
-      return NextResponse.json(
-        { success: false, error: 'Missing required field: filters.dateRange' },
-        { status: 400 }
-      );
-    }
-
-    // Parse date range
+    const { metricId, filters, pagination = { page: 1, pageSize: 50 } } = result.data;
     const dateRange = {
-      start: new Date(body.filters.dateRange.start),
-      end: new Date(body.filters.dateRange.end),
+      start: new Date(filters.dateRange.start),
+      end: new Date(filters.dateRange.end),
     };
 
-    // Validate dates
-    if (isNaN(dateRange.start.getTime()) || isNaN(dateRange.end.getTime())) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid date format in dateRange' },
-        { status: 400 }
-      );
-    }
-
-    // Default pagination
-    const pagination = body.pagination || { page: 1, pageSize: 50 };
-
     // Resolve tracking ID tuples from PostgreSQL
-    // Always resolve all matching (campaign_id, adset_id, ad_id) tuples
-    // regardless of which dimension filters are provided
     const trackingIdTuples = await resolveTrackingIdTuples(
       dateRange,
       {
-        network: body.filters.network,
-        campaign: body.filters.campaign,
-        adset: body.filters.adset,
-        ad: body.filters.ad,
-        date: body.filters.date,
-        classifiedProduct: body.filters.classifiedProduct,
-        classifiedCountry: body.filters.classifiedCountry,
+        network: filters.network,
+        campaign: filters.campaign,
+        adset: filters.adset,
+        ad: filters.ad,
+        date: filters.date,
+        classifiedProduct: filters.classifiedProduct,
+        classifiedCountry: filters.classifiedCountry,
       }
     );
 
@@ -237,23 +212,34 @@ async function handleMarketingDetails(
 
     // Build queries with resolved ID tuples
     const { query, params, countQuery, countParams } = marketingDetailQueryBuilder.buildDetailQuery(
-      body.metricId,
+      metricId,
       {
         dateRange,
         trackingIdTuples,
-        date: body.filters.date,
-        network: body.filters.network,
+        date: filters.date,
+        network: filters.network,
       },
       pagination
     );
 
     // Execute queries in parallel
-    const [records, countResult] = await Promise.all([
-      executeMariaDBQuery<DetailRecord>(query, params),
+    // Normalize numeric fields — mysql2 binary protocol can return
+    // computed columns (MAX, IF, etc.) as unexpected types (Buffer, string, BigInt)
+    const [rawRecords, countResult] = await Promise.all([
+      executeMariaDBQuery<Record<string, unknown>>(query, params),
       executeMariaDBQuery<{ total: number }>(countQuery, countParams),
     ]);
 
-    const total = countResult[0]?.total || 0;
+    const total = Number(countResult[0]?.total) || 0;
+
+    const records: DetailRecord[] = rawRecords.map((row) => ({
+      ...row,
+      isApproved: Number(row.isApproved) || 0,
+      isOnHold: Number(row.isOnHold) || 0,
+      subscriptionStatus: Number(row.subscriptionStatus) || 0,
+      amount: Number(row.amount) || 0,
+      customerId: Number(row.customerId) || 0,
+    })) as DetailRecord[];
 
     const response: MarketingDetailResponse = {
       success: true,

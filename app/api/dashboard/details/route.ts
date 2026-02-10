@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeMariaDBQuery } from '@/lib/server/mariadb';
 import { dashboardDrilldownQueryBuilder } from '@/lib/server/dashboardDrilldownQueryBuilder';
+import { safeValidateRequest, dashboardDetailsRequestSchema } from '@/lib/schemas/api';
 import type { DetailRecord, DetailQueryResponse } from '@/types/dashboardDetails';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
@@ -40,50 +41,33 @@ async function handleDashboardDetails(
   try {
     const body = await request.json();
 
-    // Validate required fields
-    if (!body.metricId) {
+    // Validate request with Zod schema
+    const result = safeValidateRequest(dashboardDetailsRequestSchema, body);
+    if (!result.success) {
       return NextResponse.json(
-        { success: false, error: 'Missing required field: metricId' },
+        { success: false, error: result.error.issues[0]?.message || 'Invalid request' },
         { status: 400 }
       );
     }
 
-    if (!body.filters?.dateRange?.start || !body.filters?.dateRange?.end) {
-      return NextResponse.json(
-        { success: false, error: 'Missing required field: filters.dateRange' },
-        { status: 400 }
-      );
-    }
-
-    // Parse date range
+    const { metricId, filters, pagination = { page: 1, pageSize: 50 } } = result.data;
     const dateRange = {
-      start: new Date(body.filters.dateRange.start),
-      end: new Date(body.filters.dateRange.end),
+      start: new Date(filters.dateRange.start),
+      end: new Date(filters.dateRange.end),
     };
 
-    // Validate dates
-    if (isNaN(dateRange.start.getTime()) || isNaN(dateRange.end.getTime())) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid date format in dateRange' },
-        { status: 400 }
-      );
-    }
-
-    // Default pagination
-    const pagination = body.pagination || { page: 1, pageSize: 50 };
-
     // Build queries
-    const { query, params, countQuery, countParams} = dashboardDrilldownQueryBuilder.buildDetailQuery(
-      body.metricId,
+    const { query, params, countQuery, countParams } = dashboardDrilldownQueryBuilder.buildDetailQuery(
+      metricId,
       {
         dateRange,
-        country: body.filters.country,
-        productName: body.filters.productName,
-        product: body.filters.product,
-        source: body.filters.source,
-        excludeDeleted: body.filters.excludeDeleted,
-        excludeUpsellTags: body.filters.excludeUpsellTags,
-        rateType: body.filters.rateType,
+        country: filters.country,
+        productName: filters.productName,
+        product: filters.product,
+        source: filters.source,
+        excludeDeleted: filters.excludeDeleted,
+        excludeUpsellTags: filters.excludeUpsellTags,
+        rateType: filters.rateType,
       },
       pagination
     );

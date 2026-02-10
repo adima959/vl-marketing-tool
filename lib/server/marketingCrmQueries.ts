@@ -1,4 +1,5 @@
 import { executeMariaDBQuery } from './mariadb';
+import { CRM_METRICS, OTS_METRICS, CRM_JOINS, OTS_JOINS, CRM_WHERE } from './crmMetrics';
 
 export interface CRMSubscriptionRow {
   source: string | null; // Can be null in MariaDB data
@@ -9,6 +10,19 @@ export interface CRMSubscriptionRow {
   subscription_count: number;
   approved_count: number;
   trial_count: number;
+  customer_count: number;
+  upsell_count: number;
+  upsells_approved_count: number;
+}
+
+export interface CRMOtsRow {
+  source: string | null;
+  campaign_id: string;
+  adset_id: string;
+  ad_id: string;
+  date: string;
+  ots_count: number;
+  ots_approved_count: number;
 }
 
 export interface CRMQueryFilters {
@@ -36,17 +50,12 @@ export interface CRMQueryFilters {
 export async function getCRMSubscriptions(
   filters: CRMQueryFilters
 ): Promise<CRMSubscriptionRow[]> {
-  // Build dynamic WHERE clauses
+  // Build dynamic WHERE clauses (shared constants from crmMetrics.ts)
   const whereClauses: string[] = [
     's.date_create BETWEEN ? AND ?',
-    's.deleted = 0',
-    '(i.tag IS NULL OR i.tag NOT LIKE \'%parent-sub-id=%\')',
-    's.tracking_id_4 IS NOT NULL',
-    's.tracking_id_4 != \'null\'',
-    's.tracking_id_2 IS NOT NULL',
-    's.tracking_id_2 != \'null\'',
-    's.tracking_id IS NOT NULL',
-    's.tracking_id != \'null\''
+    CRM_WHERE.deletedSubExclusion,
+    CRM_WHERE.upsellExclusion,
+    ...CRM_WHERE.trackingIdValidation,
   ];
 
   const params: any[] = [filters.dateStart, filters.dateEnd];
@@ -81,18 +90,73 @@ export async function getCRMSubscriptions(
       s.tracking_id_2 as adset_id,
       s.tracking_id as ad_id,
       DATE(s.date_create) as date,
-      COUNT(DISTINCT s.id) as subscription_count,
-      COUNT(DISTINCT CASE WHEN i.is_marked = 1 AND i.deleted = 0 THEN i.id END) as approved_count,
-      COUNT(DISTINCT i.id) as trial_count
+      ${CRM_METRICS.subscriptionCount.expr} as subscription_count,
+      ${CRM_METRICS.trialsApprovedCount.innerJoinExpr} as approved_count,
+      ${CRM_METRICS.trialCount.innerJoinExpr} as trial_count,
+      ${CRM_METRICS.customerCount.expr} as customer_count,
+      ${CRM_METRICS.upsellCount.expr} as upsell_count,
+      ${CRM_METRICS.upsellsApprovedCount.expr} as upsells_approved_count
     FROM subscription s
-    INNER JOIN invoice i ON i.subscription_id = s.id
-      AND i.type = 1
-      AND i.deleted = 0
-    LEFT JOIN source sr ON sr.id = s.source_id
+    ${CRM_JOINS.invoiceTrialInner}
+    ${CRM_JOINS.customer}
+    ${CRM_JOINS.sourceFromSub}
+    ${CRM_JOINS.upsell}
     WHERE ${whereClauses.join(' AND ')}
     GROUP BY sr.source, s.tracking_id_4, s.tracking_id_2, s.tracking_id, DATE(s.date_create)
   `;
 
   return executeMariaDBQuery<CRMSubscriptionRow>(query, params);
+}
+
+/**
+ * Get OTS (one-time sale) invoices from MariaDB with tracking ID attribution.
+ *
+ * OTS invoices (type=3) are standalone — not linked to subscriptions.
+ * They have their own tracking IDs directly on the invoice, so attribution
+ * works the same way as subscriptions: match via (tracking_id_4, tracking_id_2, tracking_id).
+ *
+ * @param filters - Date range (uses order_date, not date_create)
+ * @returns CRM OTS rows grouped by source, campaign, adset, ad, date
+ */
+export async function getCRMOts(
+  filters: CRMQueryFilters
+): Promise<CRMOtsRow[]> {
+  const whereClauses: string[] = [
+    CRM_WHERE.otsBase,
+    'i.order_date BETWEEN ? AND ?',
+    ...CRM_WHERE.otsTrackingIdValidation,
+  ];
+
+  const params: any[] = [filters.dateStart, filters.dateEnd];
+
+  if (filters.campaign_id) {
+    whereClauses.push('i.tracking_id_4 = ?');
+    params.push(filters.campaign_id);
+  }
+  if (filters.adset_id) {
+    whereClauses.push('i.tracking_id_2 = ?');
+    params.push(filters.adset_id);
+  }
+  if (filters.ad_id) {
+    whereClauses.push('i.tracking_id = ?');
+    params.push(filters.ad_id);
+  }
+
+  const query = `
+    SELECT
+      sr.source,
+      i.tracking_id_4 as campaign_id,
+      i.tracking_id_2 as adset_id,
+      i.tracking_id as ad_id,
+      DATE(i.order_date) as date,
+      ${OTS_METRICS.otsCount.expr} as ${OTS_METRICS.otsCount.alias},
+      ${OTS_METRICS.otsApprovedCount.expr} as ${OTS_METRICS.otsApprovedCount.alias}
+    FROM invoice i
+    ${OTS_JOINS.source}
+    WHERE ${whereClauses.join(' AND ')}
+    GROUP BY sr.source, i.tracking_id_4, i.tracking_id_2, i.tracking_id, DATE(i.order_date)
+  `;
+
+  return executeMariaDBQuery<CRMOtsRow>(query, params);
 }
 
