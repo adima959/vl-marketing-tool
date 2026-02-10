@@ -53,7 +53,7 @@ export interface UseGenericUrlSyncConfig<TRow extends BaseReportRow> {
   useStore: StoreHook<TRow>;
   fetchData: (params: any) => Promise<TRow[]>;
   defaultSortColumn: string;
-  skipDimensions?: boolean; // Don't sync dimensions to/from URL (dashboard has fixed dimensions)
+  skipDimensions?: boolean; // Don't sync dimensions to/from URL (optional for tables with fixed dimensions)
 }
 
 /**
