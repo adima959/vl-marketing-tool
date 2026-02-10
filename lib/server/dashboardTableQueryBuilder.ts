@@ -5,9 +5,9 @@ import { FilterBuilder, type DimensionConfig } from './queryBuilderUtils';
 
 interface QueryOptions {
   dateRange: DateRange;
-  dimensions: string[]; // ['country', 'product', 'source']
-  depth: number;        // 0, 1, or 2
-  parentFilters?: Record<string, string>; // { country: 'DENMARK' } or { country: 'DENMARK', product: 'T-Formula' } or { country: 'DENMARK', product: 'T-Formula', source: 'Google' }
+  dimensions: string[]; // ['country', 'productName', 'product', 'source']
+  depth: number;        // 0, 1, 2, or 3
+  parentFilters?: Record<string, string>; // { country: 'DENMARK' } or { country: 'DENMARK', productName: 'Men' } or { country: 'DENMARK', productName: 'Men', product: 'T-Formula' } etc.
   sortBy?: string;
   sortDirection?: 'ASC' | 'DESC';
   limit?: number;
@@ -17,8 +17,9 @@ interface QueryOptions {
  * Builds dynamic SQL queries for Dashboard hierarchical reporting
  *
  * Depth 0: Group by country
- * Depth 1: Group by country + product (filtered by parent country)
- * Depth 2: Group by country + product + source (filtered by parent country + product)
+ * Depth 1: Group by country + product group name (filtered by parent country)
+ * Depth 2: Group by country + product group name + product (filtered by parent country + product group)
+ * Depth 3: Group by country + product group name + product + source (filtered by parent country + product group + product)
  */
 export class DashboardTableQueryBuilder {
   /**
@@ -285,6 +286,8 @@ export class DashboardTableQueryBuilder {
       ${OTS_JOINS.productGroup}
       ${OTS_JOINS.source}
       WHERE ${CRM_WHERE.otsBase}
+        -- OTS invoices don't have subscriptions, so we filter by invoice order_date
+        -- instead of subscription date_create
         AND i.order_date BETWEEN ? AND ?
         ${whereClause}
       GROUP BY ${groupByCols.join(', ')}
@@ -307,6 +310,8 @@ export class DashboardTableQueryBuilder {
         ${OTS_METRICS.otsApprovedCount.expr} AS otsApproved
       FROM invoice i
       WHERE ${CRM_WHERE.otsBase}
+        -- OTS invoices don't have subscriptions, so we filter by invoice order_date
+        -- instead of subscription date_create
         AND i.order_date BETWEEN ? AND ?
       GROUP BY DATE(i.order_date)
       ORDER BY date ASC

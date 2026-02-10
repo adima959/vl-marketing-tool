@@ -188,19 +188,25 @@ export function matchNetworkToSource(network: string, source: string | null): bo
 }
 
 /**
- * Build a SQL WHERE clause fragment for source/network filtering in MariaDB.
+ * Build a parameterized SQL WHERE clause fragment for source/network filtering in MariaDB.
  * Used by marketing detail query builder for SQL-side source matching.
  *
  * @param network - Ad network name (e.g., 'Google Ads', 'Facebook')
- * @returns SQL condition string or null if network is not recognized
+ * @returns Object with whereClause (with ? placeholders) and params array, or null if network is not recognized
  */
-export function buildSourceFilterSQL(network: string): string | null {
+export function buildSourceFilterParams(network: string): {
+  whereClause: string;
+  params: string[];
+} | null {
   const networkLower = network.toLowerCase();
   const validSources = SOURCE_MAPPING[networkLower];
   if (!validSources) return null;
 
-  const quoted = validSources.map(s => `'${s}'`).join(', ');
-  return `LOWER(sr.source) IN (${quoted})`;
+  const placeholders = validSources.map(() => '?').join(', ');
+  return {
+    whereClause: `LOWER(sr.source) IN (${placeholders})`,
+    params: validSources.map(s => s.toLowerCase()),
+  };
 }
 
 // ---------------------------------------------------------------------------

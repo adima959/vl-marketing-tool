@@ -1,5 +1,5 @@
 import type { DateRange } from '@/types';
-import { buildSourceFilterSQL, CRM_JOINS, CRM_WHERE, OTS_JOINS, formatDateForMariaDB, buildPaginationClause, type MarketingDetailMetricId } from './crmMetrics';
+import { buildSourceFilterParams, CRM_JOINS, CRM_WHERE, OTS_JOINS, formatDateForMariaDB, buildPaginationClause, type MarketingDetailMetricId } from './crmMetrics';
 
 interface TrackingIdTuple {
   campaign_id: string;
@@ -56,9 +56,10 @@ export class MarketingDetailQueryBuilder {
 
     // Source/network filter — uses shared source matching from crmMetrics
     if (filters.network) {
-      const sourceFilter = buildSourceFilterSQL(filters.network);
+      const sourceFilter = buildSourceFilterParams(filters.network);
       if (sourceFilter) {
-        conditions.push(sourceFilter);
+        conditions.push(sourceFilter.whereClause);
+        params.push(...sourceFilter.params);
       }
     }
 
@@ -239,9 +240,10 @@ export class MarketingDetailQueryBuilder {
     }
 
     if (filters.network) {
-      const sourceFilter = buildSourceFilterSQL(filters.network);
+      const sourceFilter = buildSourceFilterParams(filters.network);
       if (sourceFilter) {
-        conditions.push(sourceFilter);
+        conditions.push(sourceFilter.whereClause);
+        params.push(...sourceFilter.params);
       }
     }
 
