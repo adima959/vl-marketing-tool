@@ -101,7 +101,7 @@ export function DimensionPicker(): React.ReactElement {
         }
       }}
       placement="bottomLeft"
-      overlayClassName={styles.popover}
+      classNames={{ root: styles.popover }}
     >
       <button
         type="button"

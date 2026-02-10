@@ -53,7 +53,7 @@ export function RouteGuard({ children }: RouteGuardProps) {
         height: '100vh',
         width: '100vw'
       }}>
-        <Spin size="large" tip={isLoggingOut ? "Logging out..." : "Loading..."}>
+        <Spin size="large" description={isLoggingOut ? "Logging out..." : "Loading..."}>
           <div style={{ padding: '50px' }} />
         </Spin>
       </div>
