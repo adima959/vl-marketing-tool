@@ -3,6 +3,7 @@ import { executeQuery } from '@/lib/server/db';
 import { unstable_rethrow } from 'next/navigation';
 import { withAdmin } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
+import { maskErrorForClient } from '@/lib/types/errors';
 
 interface AdsRow {
   network: string;
@@ -58,13 +59,10 @@ export const POST = withAdmin(async (request: Request, user: AppUser) => {
     });
   } catch (error) {
     unstable_rethrow(error);
-    console.error('PostgreSQL verification query error:', error);
-
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
+    const { message, statusCode } = maskErrorForClient(error, 'PostgreSQL verification');
     return NextResponse.json(
-      { success: false, error: errorMessage },
-      { status: 500 }
+      { success: false, error: message },
+      { status: statusCode }
     );
   }
 });

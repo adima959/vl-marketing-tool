@@ -10,6 +10,7 @@ const RICH_TEXT_CONFIG: Config = {
     'span', 'div', 'sub', 'sup',
   ],
   ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style'],
+  ALLOWED_URI_REGEXP: /^(?:(?:f|ht)tps?|mailto|tel):/i,
 };
 
 /**

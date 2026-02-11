@@ -18,7 +18,7 @@ export const GET = withAdmin(async (request, user) => {
   
   try {
     const result = await client.query(
-      `SELECT id, external_id, name, email, role, role_id, is_product_owner, created_at, updated_at
+      `SELECT id, name, email, role, role_id, is_product_owner, created_at, updated_at
        FROM app_users
        WHERE deleted_at IS NULL
        ORDER BY created_at DESC`

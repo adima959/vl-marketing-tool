@@ -12,24 +12,24 @@ import { timingSafeEqual } from 'crypto';
  * @returns true if strings are equal, false otherwise
  */
 export function timingSafeCompare(a: string | null | undefined, b: string | null | undefined): boolean {
-  // Handle null/undefined cases
+  // Handle null/undefined — perform dummy comparison to avoid timing leak
   if (!a || !b) {
+    const dummy = Buffer.alloc(32);
+    timingSafeEqual(dummy, dummy);
     return false;
   }
 
-  // Ensure both strings are same length to prevent timing leaks
-  // timingSafeEqual requires buffers of equal length
-  if (a.length !== b.length) {
-    return false;
-  }
+  // Pad both to equal length to prevent length-based timing leaks
+  const maxLen = Math.max(a.length, b.length);
+  const bufA = Buffer.alloc(maxLen);
+  const bufB = Buffer.alloc(maxLen);
+  bufA.write(a, 'utf8');
+  bufB.write(b, 'utf8');
 
   try {
-    return timingSafeEqual(
-      Buffer.from(a, 'utf8'),
-      Buffer.from(b, 'utf8')
-    );
+    // Constant-time comparison, then verify actual lengths match
+    return timingSafeEqual(bufA, bufB) && a.length === b.length;
   } catch (error) {
-    // If buffer creation fails for any reason, safely return false
     console.error('[timingSafeCompare] Error:', error);
     return false;
   }

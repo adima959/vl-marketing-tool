@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+/** URL schema that only allows http(s) protocols — blocks javascript:, data:, etc. */
+const safeUrlSchema = z.string().url('Invalid URL').refine(
+  (url: string) => { try { return ['http:', 'https:'].includes(new URL(url).protocol); } catch { return false; } },
+  { message: 'Only HTTP(S) URLs are allowed' }
+);
+
 // Product schemas
 export const createProductSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255),
@@ -59,7 +65,7 @@ export const createAssetSchema = z.object({
   geo: z.enum(['NO', 'SE', 'DK']),
   type: z.enum(['landing_page', 'text_ad', 'brief', 'research']),
   name: z.string().min(1, 'Name is required').max(255),
-  url: z.string().url('Invalid URL').nullish(),
+  url: safeUrlSchema.nullish(),
   content: z.string().nullish(),
   notes: z.string().nullish(),
 });
@@ -68,7 +74,7 @@ export const updateAssetSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255).optional(),
   geo: z.enum(['NO', 'SE', 'DK']).optional(),
   type: z.enum(['landing_page', 'text_ad', 'brief', 'research']).optional(),
-  url: z.string().url('Invalid URL').nullish(),
+  url: safeUrlSchema.nullish(),
   content: z.string().nullish(),
   notes: z.string().nullish(),
 });
@@ -80,7 +86,7 @@ export const createCreativeSchema = z.object({
   format: z.enum(['ugc_video', 'static_image', 'video']),
   name: z.string().min(1, 'Name is required').max(255),
   cta: z.string().nullish(),
-  url: z.string().url('Invalid URL').nullish(),
+  url: safeUrlSchema.nullish(),
   notes: z.string().nullish(),
 });
 
@@ -89,7 +95,7 @@ export const updateCreativeSchema = z.object({
   geo: z.enum(['NO', 'SE', 'DK']).optional(),
   format: z.enum(['ugc_video', 'static_image', 'video']).optional(),
   cta: z.string().nullish(),
-  url: z.string().url('Invalid URL').nullish(),
+  url: safeUrlSchema.nullish(),
   notes: z.string().nullish(),
 });
 

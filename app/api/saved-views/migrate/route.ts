@@ -1,12 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/server/db';
 import { unstable_rethrow } from 'next/navigation';
+import { withAdmin } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
 
 /**
  * POST /api/saved-views/migrate
- * One-time migration to create the app_saved_views table
+ * One-time migration to create the app_saved_views table (admin only)
  */
-export async function POST(): Promise<NextResponse> {
+export const POST = withAdmin(async (_request: NextRequest, _user: AppUser): Promise<NextResponse> => {
   try {
     await executeQuery(`
       CREATE TABLE IF NOT EXISTS app_saved_views (
@@ -70,4 +72,4 @@ export async function POST(): Promise<NextResponse> {
       { status: 500 }
     );
   }
-}
+});

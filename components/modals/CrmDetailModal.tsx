@@ -322,7 +322,7 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
         <div className={styles.customerCell}>
           <Tooltip title={name} placement="topLeft">
             <a
-              href={`https://vitaliv.no/admin/customers/${record.customerId}`}
+              href={`https://vitaliv.no/admin/customers/${encodeURIComponent(record.customerId)}`}
               target="_blank"
               rel="noopener noreferrer"
               className={styles.customerLink}

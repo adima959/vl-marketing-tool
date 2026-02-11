@@ -43,6 +43,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const response = NextResponse.redirect(redirectUrl);
   setAuthCookie(token, response);
+  // Prevent token leakage via Referer header
+  response.headers.set('Referrer-Policy', 'no-referrer');
 
   return response;
 }

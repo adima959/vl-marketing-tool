@@ -67,7 +67,10 @@ function Toolbar({ editor }: { editor: Editor | null }) {
   const addLink = () => {
     const url = window.prompt('Enter URL:');
     if (url) {
-      editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+      const trimmed = url.trim();
+      // Block dangerous protocols (javascript:, data:, vbscript:)
+      if (/^(javascript|data|vbscript):/i.test(trimmed)) return;
+      editor.chain().focus().extendMarkRange('link').setLink({ href: trimmed }).run();
     }
   };
 

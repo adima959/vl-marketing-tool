@@ -15,11 +15,13 @@ function getPool(): Pool {
     // Check if it's still the dummy build-time value
     if (dbUrl.includes('dummy') || dbUrl.includes('localhost')) {
       console.error('DATABASE_URL is not configured properly!');
-      console.error('Current value:', dbUrl);
       throw new Error('DATABASE_URL is set to dummy/localhost value. Please configure real database URL in environment variables.');
     }
 
-    pool = new Pool({ connectionString: dbUrl });
+    pool = new Pool({
+      connectionString: dbUrl,
+      connectionTimeoutMillis: 10000, // 10s to establish connection (matches MariaDB)
+    });
   }
   return pool;
 }
@@ -56,7 +58,7 @@ export async function executeQuery<T = unknown>(
       code: normalized.code,
       pgCode: pgCode,
       query: query.substring(0, 200),
-      params,
+      paramCount: params.length,
     });
 
     // Connection errors

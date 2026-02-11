@@ -7,12 +7,14 @@
  * Idempotent — safe to run multiple times.
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/server/db';
 import { FEATURES } from '@/types/roles';
 import { unstable_rethrow } from 'next/navigation';
+import { withAdmin } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
 
-export async function POST(): Promise<NextResponse> {
+export const POST = withAdmin(async (_request: NextRequest, _user: AppUser): Promise<NextResponse> => {
   try {
     // Step 1: Create app_roles table
     await executeQuery(`
@@ -191,10 +193,10 @@ export async function POST(): Promise<NextResponse> {
       { status: 500 }
     );
   }
-}
+});
 
 // GET endpoint to check migration status
-export async function GET(): Promise<NextResponse> {
+export const GET = withAdmin(async (_request: NextRequest, _user: AppUser): Promise<NextResponse> => {
   try {
     const counts = await executeQuery<{
       roles: string;
@@ -218,7 +220,6 @@ export async function GET(): Promise<NextResponse> {
     return NextResponse.json({
       success: false,
       error: 'Tables may not exist yet. Run POST to migrate.',
-      details: error instanceof Error ? error.message : 'Unknown error',
     });
   }
-}
+});

@@ -2,6 +2,19 @@ import { saveSessionToDatabase, setAuthCookie, validateTokenWithCRM } from '@/li
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
+ * Validates returnUrl is same-origin to prevent open redirect attacks.
+ * Only allows relative paths (starting with /) or same-origin absolute URLs.
+ */
+function isValidReturnUrl(url: string, baseUrl: string): boolean {
+  if (url.startsWith('/') && !url.startsWith('//')) return true;
+  try {
+    return new URL(url, baseUrl).origin === new URL(baseUrl).origin;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Auth callback route handler
  * Receives session token from CRM redirect, validates it, saves to database, sets cookie, and redirects
  *
@@ -12,7 +25,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const searchParams = request.nextUrl.searchParams;
   const token = searchParams.get('token');
-  const returnUrl = searchParams.get('returnUrl') || '/';
+  const rawReturnUrl = searchParams.get('returnUrl') || '/';
 
   // Validate required parameters
   if (!token) {
@@ -49,21 +62,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Get the base URL from APP_CALLBACK_URL environment variable
   // This is needed for nginx proxy - request.url would be localhost
   const appCallbackUrl = process.env.APP_CALLBACK_URL;
+  const baseUrl = appCallbackUrl
+    ? appCallbackUrl.replace('/api/auth/callback', '')
+    : new URL(request.url).origin;
 
-  let redirectUrl: URL;
-
-  if (appCallbackUrl) {
-    // Extract base URL from callback URL (remove /api/auth/callback)
-    const baseUrl = appCallbackUrl.replace('/api/auth/callback', '');
-    // Use returnUrl parameter to redirect back to original page
-    redirectUrl = new URL(returnUrl, baseUrl);
-  } else {
-    // Fallback to request.url (will be localhost behind proxy)
+  if (!appCallbackUrl) {
     console.warn('[Callback] APP_CALLBACK_URL not set - using request.url (may be localhost behind proxy)');
-    redirectUrl = new URL(returnUrl, request.url);
   }
 
-  // Create redirect response with returnUrl
+  // Validate returnUrl to prevent open redirect attacks
+  const returnUrl = isValidReturnUrl(rawReturnUrl, baseUrl) ? rawReturnUrl : '/';
+  if (returnUrl !== rawReturnUrl) {
+    console.warn('[Callback] Rejected invalid returnUrl:', rawReturnUrl);
+  }
+
+  const redirectUrl = new URL(returnUrl, baseUrl);
+
   const response = NextResponse.redirect(redirectUrl);
 
   // Set HTTP-only auth cookie with the session token

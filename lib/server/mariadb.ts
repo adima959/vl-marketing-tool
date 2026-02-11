@@ -263,8 +263,6 @@ export async function testMariaDBConnection(): Promise<boolean> {
   } catch (error) {
     console.error('MariaDB connection test failed:', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      host: process.env.MARIADB_HOST,
-      database: process.env.MARIADB_DATABASE,
     });
     return false;
   }

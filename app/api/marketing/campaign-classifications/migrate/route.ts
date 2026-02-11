@@ -1,12 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/server/db';
 import { unstable_rethrow } from 'next/navigation';
+import { withAdmin } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
 
 /**
  * POST /api/marketing/campaign-classifications/migrate
- * Migrations for app_campaign_classifications table
+ * Migrations for app_campaign_classifications table (admin only)
  */
-export async function POST(): Promise<NextResponse> {
+export const POST = withAdmin(async (_request: NextRequest, _user: AppUser): Promise<NextResponse> => {
   try {
     // v1: Create table
     await executeQuery(`
@@ -39,4 +41,4 @@ export async function POST(): Promise<NextResponse> {
       { status: 500 }
     );
   }
-}
+});

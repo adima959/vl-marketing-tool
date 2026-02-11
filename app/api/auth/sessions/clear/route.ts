@@ -55,13 +55,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
  * Also requires API key for security
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  // Check for API key
   const apiKey = request.headers.get('X-API-Key');
 
-  if (!apiKey || !timingSafeCompare(apiKey, SESSION_WIPE_API_KEY)) {
+  if (!apiKey) {
     return NextResponse.json(
-      { error: 'Unauthorized' },
+      { error: 'Missing X-API-Key header' },
       { status: 401 }
+    );
+  }
+
+  if (!SESSION_WIPE_API_KEY) {
+    console.error('SESSION_WIPE_API_KEY not configured in environment');
+    return NextResponse.json(
+      { error: 'Server configuration error' },
+      { status: 500 }
+    );
+  }
+
+  if (!timingSafeCompare(apiKey, SESSION_WIPE_API_KEY)) {
+    return NextResponse.json(
+      { error: 'Invalid API key' },
+      { status: 403 }
     );
   }
 
