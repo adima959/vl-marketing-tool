@@ -4,6 +4,8 @@ import { Pool } from '@neondatabase/serverless';
 import type { TrackerUser } from '@/types/marketing-tracker';
 import { ProductsClientTable } from '@/components/settings/ProductsClientTable';
 
+export const dynamic = 'force-dynamic';
+
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 async function getProductOwners(): Promise<TrackerUser[]> {

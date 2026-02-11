@@ -3,6 +3,8 @@ import { SettingsPageWrapper } from '@/components/settings/SettingsPageWrapper';
 import type { AppUser } from '@/types/user';
 import { UsersClientTable } from '@/components/settings/UsersClientTable';
 
+export const dynamic = 'force-dynamic';
+
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 async function getUsers(): Promise<AppUser[]> {
