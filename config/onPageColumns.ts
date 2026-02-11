@@ -122,12 +122,12 @@ export const ON_PAGE_METRIC_COLUMNS: MetricColumn[] = [
     description: 'CRM trials / unique visitors',
     format: 'percentage',
     category: 'crm',
-    defaultVisible: true,
+    defaultVisible: false, // Temporarily hidden
     width: 90,
     align: 'right',
   },
 
-  // CRM Metrics
+  // CRM Metrics (temporarily hidden)
   {
     id: 'crmTrials',
     label: 'CRM Trials',
@@ -135,7 +135,7 @@ export const ON_PAGE_METRIC_COLUMNS: MetricColumn[] = [
     description: 'CRM subscriptions matched by tracking IDs',
     format: 'number',
     category: 'crm',
-    defaultVisible: true,
+    defaultVisible: false, // Temporarily hidden
     width: 90,
     align: 'right',
   },
@@ -146,7 +146,7 @@ export const ON_PAGE_METRIC_COLUMNS: MetricColumn[] = [
     description: 'Approved CRM trials (is_marked = 1)',
     format: 'number',
     category: 'crm',
-    defaultVisible: true,
+    defaultVisible: false, // Temporarily hidden
     width: 90,
     align: 'right',
   },
@@ -157,7 +157,7 @@ export const ON_PAGE_METRIC_COLUMNS: MetricColumn[] = [
     description: 'Approved sales / total trials',
     format: 'percentage',
     category: 'crm',
-    defaultVisible: true,
+    defaultVisible: false, // Temporarily hidden
     width: 90,
     align: 'right',
   },
