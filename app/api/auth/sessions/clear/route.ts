@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { clearExpiredSessions } from '@/lib/auth';
+import { timingSafeCompare } from '@/lib/security/timing-safe-compare';
 
 const SESSION_WIPE_API_KEY = process.env.SESSION_WIPE_API_KEY || '';
 
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  if (apiKey !== SESSION_WIPE_API_KEY) {
+  if (!timingSafeCompare(apiKey, SESSION_WIPE_API_KEY)) {
     return NextResponse.json(
       { error: 'Invalid API key' },
       { status: 403 }
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Check for API key
   const apiKey = request.headers.get('X-API-Key');
 
-  if (!apiKey || apiKey !== SESSION_WIPE_API_KEY) {
+  if (!apiKey || !timingSafeCompare(apiKey, SESSION_WIPE_API_KEY)) {
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401 }

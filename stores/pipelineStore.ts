@@ -14,6 +14,8 @@ import type {
   MessageDetail,
 } from '@/types';
 import { groupByStage } from '@/lib/marketing-pipeline/cpaUtils';
+import { triggerError, checkAuthError } from '@/lib/api/errorHandler';
+import { normalizeError } from '@/lib/types/errors';
 
 export interface HistoryEntry {
   id: string;
@@ -53,7 +55,6 @@ interface PipelineState {
 
   // UI
   isLoading: boolean;
-  error: string | null;
 
   // Actions
   loadPipeline: () => void;
@@ -118,27 +119,27 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   isPanelOpen: false,
 
   isLoading: false,
-  error: null,
 
   loadPipeline: async () => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true });
     try {
       const url = buildBoardUrl(get());
       const res = await fetch(url);
       const json = await res.json();
 
       if (!json.success) {
-        set({ error: json.error || 'Failed to load pipeline', isLoading: false });
-        return;
+        throw new Error(json.error || 'Failed to load pipeline');
       }
 
       const { cards, summary, users, products, angles } = json.data;
       const stages = groupByStage(cards);
 
       set({ stages, summary, users, products, angles, isLoading: false });
-    } catch (err) {
-      console.error('Failed to load pipeline:', err);
-      set({ error: 'Failed to load pipeline', isLoading: false });
+    } catch (error) {
+      const appError = normalizeError(error);
+      console.error('Failed to load pipeline:', appError);
+      triggerError(appError);
+      set({ isLoading: false });
     }
   },
 
@@ -170,6 +171,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetStage, verdictType, verdictNotes }),
       });
+      checkAuthError(res);
       const json = await res.json();
       if (!json.success) {
         console.error('Move failed:', json.error);
@@ -191,8 +193,10 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
           get().selectMessage(messageId);
         }
       }
-    } catch (err) {
-      console.error('Failed to move message:', err);
+    } catch (error) {
+      const appError = normalizeError(error);
+      console.error('Failed to move message:', appError);
+      triggerError(appError);
       if (isSimpleMove) set({ stages: prevStages });
     }
   },
@@ -203,6 +207,8 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         fetch(`/api/marketing-pipeline/messages/${messageId}`),
         fetch(`/api/marketing-pipeline/history?entityType=pipeline_message&entityId=${messageId}`),
       ]);
+      checkAuthError(detailRes);
+      checkAuthError(historyRes);
       const detailJson = await detailRes.json();
       const historyJson = await historyRes.json();
 
@@ -217,8 +223,10 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         messageHistory: historyJson.success ? historyJson.data : [],
         isPanelOpen: true,
       });
-    } catch (err) {
-      console.error('Failed to select message:', err);
+    } catch (error) {
+      const appError = normalizeError(error);
+      console.error('Failed to select message:', appError);
+      triggerError(appError);
     }
   },
 
@@ -233,6 +241,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: value }),
       });
+      checkAuthError(res);
       const json = await res.json();
       if (!json.success) {
         console.error('Update failed:', json.error);
@@ -246,8 +255,10 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
 
       // Refresh board (name changes affect cards)
       get().loadPipeline();
-    } catch (err) {
-      console.error('Failed to update message field:', err);
+    } catch (error) {
+      const appError = normalizeError(error);
+      console.error('Failed to update message field:', appError);
+      triggerError(appError);
     }
   },
 
@@ -258,14 +269,17 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
+      checkAuthError(res);
       const json = await res.json();
       if (!json.success) {
         console.error('Create message failed:', json.error);
         return;
       }
       get().loadPipeline();
-    } catch (err) {
-      console.error('Failed to create message:', err);
+    } catch (error) {
+      const appError = normalizeError(error);
+      console.error('Failed to create message:', appError);
+      triggerError(appError);
     }
   },
 
@@ -274,6 +288,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       const res = await fetch(`/api/marketing-pipeline/messages/${messageId}`, {
         method: 'DELETE',
       });
+      checkAuthError(res);
       const json = await res.json();
       if (!json.success) {
         console.error('Delete message failed:', json.error);
@@ -284,8 +299,10 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         get().closePanel();
       }
       get().loadPipeline();
-    } catch (err) {
-      console.error('Failed to delete message:', err);
+    } catch (error) {
+      const appError = normalizeError(error);
+      console.error('Failed to delete message:', appError);
+      triggerError(appError);
     }
   },
 
@@ -296,14 +313,17 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
+      checkAuthError(res);
       const json = await res.json();
       if (!json.success) {
         console.error('Create angle failed:', json.error);
         return null;
       }
       return { id: json.data.id };
-    } catch (err) {
-      console.error('Failed to create angle:', err);
+    } catch (error) {
+      const appError = normalizeError(error);
+      console.error('Failed to create angle:', appError);
+      triggerError(appError);
       return null;
     }
   },
@@ -313,6 +333,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       const res = await fetch(`/api/marketing-pipeline/angles/${angleId}`, {
         method: 'DELETE',
       });
+      checkAuthError(res);
       const json = await res.json();
       if (!json.success) {
         return { success: false, error: json.error };
@@ -321,8 +342,10 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       const angles = get().angles.filter(a => a.id !== angleId);
       set({ angles });
       return { success: true };
-    } catch (err) {
-      console.error('Failed to delete angle:', err);
+    } catch (error) {
+      const appError = normalizeError(error);
+      console.error('Failed to delete angle:', appError);
+      triggerError(appError);
       return { success: false, error: 'Failed to delete angle' };
     }
   },
@@ -334,6 +357,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messageId, ...data }),
       });
+      checkAuthError(res);
       const json = await res.json();
       if (!json.success) {
         console.error('Add campaign failed:', json.error);
@@ -345,8 +369,10 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         get().selectMessage(messageId);
       }
       get().loadPipeline();
-    } catch (err) {
-      console.error('Failed to add campaign:', err);
+    } catch (error) {
+      const appError = normalizeError(error);
+      console.error('Failed to add campaign:', appError);
+      triggerError(appError);
     }
   },
 
@@ -357,6 +383,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
+      checkAuthError(res);
       const json = await res.json();
       if (!json.success) {
         console.error('Update campaign failed:', json.error);
@@ -369,8 +396,10 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         get().selectMessage(selectedMessageId);
       }
       get().loadPipeline();
-    } catch (err) {
-      console.error('Failed to update campaign:', err);
+    } catch (error) {
+      const appError = normalizeError(error);
+      console.error('Failed to update campaign:', appError);
+      triggerError(appError);
     }
   },
 
@@ -379,6 +408,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       const res = await fetch(`/api/marketing-pipeline/campaigns/${campaignId}`, {
         method: 'DELETE',
       });
+      checkAuthError(res);
       const json = await res.json();
       if (!json.success) {
         console.error('Delete campaign failed:', json.error);
@@ -391,8 +421,10 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         get().selectMessage(selectedMessageId);
       }
       get().loadPipeline();
-    } catch (err) {
-      console.error('Failed to delete campaign:', err);
+    } catch (error) {
+      const appError = normalizeError(error);
+      console.error('Failed to delete campaign:', appError);
+      triggerError(appError);
     }
   },
 
@@ -403,20 +435,30 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messageId, ...data }),
       });
+      checkAuthError(res);
       const json = await res.json();
       if (!json.success) { console.error('Add asset failed:', json.error); return; }
       if (get().selectedMessageId === messageId) get().selectMessage(messageId);
-    } catch (err) { console.error('Failed to add asset:', err); }
+    } catch (error) {
+      const appError = normalizeError(error);
+      console.error('Failed to add asset:', appError);
+      triggerError(appError);
+    }
   },
 
   deleteAsset: async (assetId) => {
     try {
       const res = await fetch(`/api/marketing-pipeline/assets/${assetId}`, { method: 'DELETE' });
+      checkAuthError(res);
       const json = await res.json();
       if (!json.success) { console.error('Delete asset failed:', json.error); return; }
       const { selectedMessageId } = get();
       if (selectedMessageId) get().selectMessage(selectedMessageId);
-    } catch (err) { console.error('Failed to delete asset:', err); }
+    } catch (error) {
+      const appError = normalizeError(error);
+      console.error('Failed to delete asset:', appError);
+      triggerError(appError);
+    }
   },
 
   addCreative: async (messageId, data) => {
@@ -426,20 +468,30 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messageId, ...data }),
       });
+      checkAuthError(res);
       const json = await res.json();
       if (!json.success) { console.error('Add creative failed:', json.error); return; }
       if (get().selectedMessageId === messageId) get().selectMessage(messageId);
-    } catch (err) { console.error('Failed to add creative:', err); }
+    } catch (error) {
+      const appError = normalizeError(error);
+      console.error('Failed to add creative:', appError);
+      triggerError(appError);
+    }
   },
 
   deleteCreative: async (creativeId) => {
     try {
       const res = await fetch(`/api/marketing-pipeline/creatives/${creativeId}`, { method: 'DELETE' });
+      checkAuthError(res);
       const json = await res.json();
       if (!json.success) { console.error('Delete creative failed:', json.error); return; }
       const { selectedMessageId } = get();
       if (selectedMessageId) get().selectMessage(selectedMessageId);
-    } catch (err) { console.error('Failed to delete creative:', err); }
+    } catch (error) {
+      const appError = normalizeError(error);
+      console.error('Failed to delete creative:', appError);
+      triggerError(appError);
+    }
   },
 
   addGeo: async (messageId, data) => {
@@ -449,11 +501,16 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messageId, ...data }),
       });
+      checkAuthError(res);
       const json = await res.json();
       if (!json.success) { console.error('Add geo failed:', json.error); return; }
       if (get().selectedMessageId === messageId) get().selectMessage(messageId);
       get().loadPipeline();
-    } catch (err) { console.error('Failed to add geo:', err); }
+    } catch (error) {
+      const appError = normalizeError(error);
+      console.error('Failed to add geo:', appError);
+      triggerError(appError);
+    }
   },
 
   updateGeoStage: async (geoId, data) => {
@@ -463,23 +520,33 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
+      checkAuthError(res);
       const json = await res.json();
       if (!json.success) { console.error('Update geo failed:', json.error); return; }
       const { selectedMessageId } = get();
       if (selectedMessageId) get().selectMessage(selectedMessageId);
       get().loadPipeline();
-    } catch (err) { console.error('Failed to update geo:', err); }
+    } catch (error) {
+      const appError = normalizeError(error);
+      console.error('Failed to update geo:', appError);
+      triggerError(appError);
+    }
   },
 
   removeGeo: async (geoId) => {
     try {
       const res = await fetch(`/api/marketing-pipeline/geos/${geoId}`, { method: 'DELETE' });
+      checkAuthError(res);
       const json = await res.json();
       if (!json.success) { console.error('Remove geo failed:', json.error); return; }
       const { selectedMessageId } = get();
       if (selectedMessageId) get().selectMessage(selectedMessageId);
       get().loadPipeline();
-    } catch (err) { console.error('Failed to remove geo:', err); }
+    } catch (error) {
+      const appError = normalizeError(error);
+      console.error('Failed to remove geo:', appError);
+      triggerError(appError);
+    }
   },
 
   setOwnerFilter: (value) => { set({ ownerFilter: value, productFilter: 'all', angleFilter: 'all' }); get().loadPipeline(); },
@@ -505,6 +572,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: value }),
       });
+      checkAuthError(res);
       const json = await res.json();
       if (!json.success) {
         console.error('Update product failed:', json.error);
@@ -519,8 +587,10 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
 
       // Refresh pipeline (CPA targets affect card colors)
       get().loadPipeline();
-    } catch (err) {
-      console.error('Failed to update product field:', err);
+    } catch (error) {
+      const appError = normalizeError(error);
+      console.error('Failed to update product field:', appError);
+      triggerError(appError);
     }
   },
 }));

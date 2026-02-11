@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/server/db';
 import { unstable_rethrow } from 'next/navigation';
+import { withAdmin } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
 
 interface AdsRow {
   network: string;
@@ -19,7 +21,7 @@ interface AdsRow {
   cpm: number;
 }
 
-export async function POST(request: Request) {
+export const POST = withAdmin(async (request: Request, user: AppUser) => {
   try {
     const { date, campaignName } = await request.json();
 
@@ -65,4 +67,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
+});

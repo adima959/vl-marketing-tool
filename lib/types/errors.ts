@@ -135,6 +135,21 @@ export function createTimeoutError(
 }
 
 /**
+ * Create an authentication error
+ */
+export function createAuthError(includeContext: boolean = false): AppError {
+  const message = includeContext
+    ? 'Your session has expired or is invalid. Please refresh your session to continue using the dashboard.'
+    : 'Your session has expired or is invalid. Please refresh your session to continue.';
+
+  const error = new Error(message) as AppError;
+  error.name = 'AuthError';
+  error.code = ErrorCode.AUTH_ERROR;
+  error.statusCode = 401;
+  return error;
+}
+
+/**
  * Mask error details for client responses
  * Returns generic error messages to prevent information disclosure
  *
@@ -177,30 +192,3 @@ export function maskErrorForClient(
   };
 }
 
-/**
- * Log error with full details (server-side only)
- * Never expose these details to clients
- *
- * @param error - The error to log
- * @param context - Context/location where error occurred
- * @param additionalInfo - Additional debugging information
- */
-export function logErrorDetails(
-  error: unknown,
-  context: string,
-  additionalInfo?: Record<string, unknown>
-): void {
-  const normalized = normalizeError(error);
-
-  console.error(`[${context}] Error occurred:`, {
-    timestamp: new Date().toISOString(),
-    message: normalized.message,
-    code: normalized.code,
-    statusCode: normalized.statusCode,
-    details: normalized.details,
-    stack: normalized.stack,
-    ...additionalInfo,
-  });
-
-  // In production, this could also send to error tracking service (Sentry, DataDog, etc.)
-}

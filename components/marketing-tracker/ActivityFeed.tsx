@@ -5,6 +5,7 @@ import { Spin } from 'antd';
 import { Clock, ChevronDown } from 'lucide-react';
 import type { ActivityRecord } from '@/stores/marketingTrackerStore';
 import styles from './ActivityFeed.module.css';
+import { checkAuthError } from '@/lib/api/errorHandler';
 
 const ENTITY_LABELS: Record<string, string> = {
   product: 'product',
@@ -103,6 +104,7 @@ export function ActivityFeed({ refreshKey = 0 }: ActivityFeedProps) {
     async function fetchActivity() {
       try {
         const response = await fetch('/api/marketing-tracker/history?limit=15');
+        checkAuthError(response);
         const data = await response.json();
         if (data.success) {
           setActivity(data.data);

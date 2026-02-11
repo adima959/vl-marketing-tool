@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { executeMariaDBQuery } from '@/lib/server/mariadb';
 import { unstable_rethrow } from 'next/navigation';
+import { withAdmin } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
 
-export async function POST(request: Request) {
+export const POST = withAdmin(async (request: Request, user: AppUser) => {
   try {
     const { date, campaignId } = await request.json();
 
@@ -53,4 +55,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
+});

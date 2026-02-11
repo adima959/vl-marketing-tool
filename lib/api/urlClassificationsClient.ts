@@ -1,3 +1,5 @@
+import { throwAuthError, isAuthError } from '@/lib/api/errorHandler';
+
 export interface ClassifiedUrl {
   id: string;
   urlPath: string;
@@ -27,6 +29,11 @@ export interface UrlClassificationsData {
 
 export async function fetchUrlClassifications(): Promise<UrlClassificationsData> {
   const res = await fetch('/api/on-page-analysis/url-classifications');
+
+  if (isAuthError(res.status)) {
+    throwAuthError();
+  }
+
   const json = await res.json();
   if (!json.success) throw new Error(json.error || 'Failed to fetch URL classifications');
   return json.data;
@@ -42,6 +49,11 @@ export async function classifyUrl(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ urlPath, productId, countryCode }),
   });
+
+  if (isAuthError(res.status)) {
+    throwAuthError();
+  }
+
   const json = await res.json();
   if (!json.success) throw new Error(json.error || 'Failed to classify URL');
   return json.data;
@@ -53,6 +65,11 @@ export async function ignoreUrl(urlPath: string): Promise<IgnoredUrl> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ urlPath, action: 'ignore' }),
   });
+
+  if (isAuthError(res.status)) {
+    throwAuthError();
+  }
+
   const json = await res.json();
   if (!json.success) throw new Error(json.error || 'Failed to ignore URL');
   return json.data;
@@ -67,6 +84,11 @@ export async function autoMatchUrls(): Promise<AutoMatchResult> {
   const res = await fetch('/api/on-page-analysis/url-classifications', {
     method: 'PUT',
   });
+
+  if (isAuthError(res.status)) {
+    throwAuthError();
+  }
+
   const json = await res.json();
   if (!json.success) throw new Error(json.error || 'Failed to auto-match URLs');
   return json.data;
@@ -78,6 +100,11 @@ export async function unclassifyUrl(id: string): Promise<string> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id }),
   });
+
+  if (isAuthError(res.status)) {
+    throwAuthError();
+  }
+
   const json = await res.json();
   if (!json.success) throw new Error(json.error || 'Failed to unclassify URL');
   return json.data.urlPath;
@@ -86,6 +113,11 @@ export async function unclassifyUrl(id: string): Promise<string> {
 /** Lightweight count-only fetch */
 export async function fetchUnclassifiedCount(): Promise<number> {
   const res = await fetch('/api/on-page-analysis/url-classifications');
+
+  if (isAuthError(res.status)) {
+    throwAuthError();
+  }
+
   const json = await res.json();
   if (!json.success) return 0;
   return json.data.unclassified.length;

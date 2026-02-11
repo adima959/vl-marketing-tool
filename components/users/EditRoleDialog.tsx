@@ -5,6 +5,7 @@ import { App, Modal, Form, Select, Switch } from 'antd';
 import type { AppUser } from '@/types/user';
 import type { Role } from '@/types/roles';
 import modalStyles from '@/styles/components/modal.module.css';
+import { checkAuthError } from '@/lib/api/errorHandler';
 
 interface EditRoleDialogProps {
   user: AppUser | null;
@@ -23,14 +24,22 @@ export function EditRoleDialog({ user, open, onClose, onSuccess }: EditRoleDialo
   // Fetch roles when dialog opens
   useEffect(() => {
     if (open) {
-      setRolesLoading(true);
-      fetch('/api/roles', { credentials: 'same-origin' })
-        .then(res => res.json())
-        .then(data => setRoles(data.data || []))
-        .catch(() => message.error('Failed to load roles'))
-        .finally(() => setRolesLoading(false));
+      const loadRoles = async () => {
+        setRolesLoading(true);
+        try {
+          const res = await fetch('/api/roles', { credentials: 'same-origin' });
+          checkAuthError(res);
+          const data = await res.json();
+          setRoles(data.data || []);
+        } catch {
+          message.error('Failed to load roles');
+        } finally {
+          setRolesLoading(false);
+        }
+      };
+      loadRoles();
     }
-  }, [open]);
+  }, [open, message]);
 
   // Set initial value when user/roles load
   useEffect(() => {
@@ -51,6 +60,8 @@ export function EditRoleDialog({ user, open, onClose, onSuccess }: EditRoleDialo
         body: JSON.stringify({ role_id: values.role_id, is_product_owner: values.is_product_owner }),
         credentials: 'same-origin',
       });
+
+      checkAuthError(response);
 
       if (!response.ok) {
         const error = await response.json();

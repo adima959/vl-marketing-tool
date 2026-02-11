@@ -6,17 +6,27 @@ import { SettingsPageWrapper } from '@/components/settings/SettingsPageWrapper';
 import { UsersClientTable } from '@/components/settings/UsersClientTable';
 import type { AppUser } from '@/types/user';
 import styles from '@/styles/components/settings.module.css';
+import { checkAuthError } from '@/lib/api/errorHandler';
 
 export default function UsersPage() {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/users')
-      .then(r => r.json())
-      .then(data => setUsers(data.data || []))
-      .catch(err => console.error('Failed to load users:', err))
-      .finally(() => setLoading(false));
+    const loadData = async () => {
+      try {
+        const res = await fetch('/api/users');
+        checkAuthError(res);
+        const data = await res.json();
+        setUsers(data.data || []);
+      } catch (err) {
+        console.error('Failed to load users:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
 
   return (

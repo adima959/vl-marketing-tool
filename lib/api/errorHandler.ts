@@ -47,3 +47,24 @@ export function clearError(): void {
 export function isAuthError(statusCode: number): boolean {
   return statusCode === 401;
 }
+
+/**
+ * Throw an auth error with global error triggering
+ * Consolidates auth error creation + trigger + throw pattern
+ */
+export function throwAuthError(includeContext: boolean = false): never {
+  const { createAuthError } = require('@/lib/types/errors');
+  const error = createAuthError(includeContext);
+  triggerError(error);
+  throw error;
+}
+
+/**
+ * Check response for auth error and throw if found
+ * Helper to check auth errors before parsing JSON
+ */
+export function checkAuthError(res: Response): void {
+  if (isAuthError(res.status)) {
+    throwAuthError();
+  }
+}

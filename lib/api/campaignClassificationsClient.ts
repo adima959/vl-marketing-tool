@@ -1,3 +1,5 @@
+import { throwAuthError, isAuthError } from '@/lib/api/errorHandler';
+
 export interface ClassifiedCampaign {
   id: string;
   campaignId: string;
@@ -34,6 +36,11 @@ export interface CampaignClassificationsData {
 
 export async function fetchCampaignClassifications(): Promise<CampaignClassificationsData> {
   const res = await fetch('/api/marketing/campaign-classifications');
+
+  if (isAuthError(res.status)) {
+    throwAuthError();
+  }
+
   const json = await res.json();
   if (!json.success) throw new Error(json.error || 'Failed to fetch campaign classifications');
   return json.data;
@@ -49,6 +56,11 @@ export async function classifyCampaign(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ campaignId, productId, countryCode }),
   });
+
+  if (isAuthError(res.status)) {
+    throwAuthError();
+  }
+
   const json = await res.json();
   if (!json.success) throw new Error(json.error || 'Failed to classify campaign');
   return json.data;
@@ -60,6 +72,11 @@ export async function ignoreCampaign(campaignId: string): Promise<IgnoredCampaig
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ campaignId, action: 'ignore' }),
   });
+
+  if (isAuthError(res.status)) {
+    throwAuthError();
+  }
+
   const json = await res.json();
   if (!json.success) throw new Error(json.error || 'Failed to ignore campaign');
   return json.data;
@@ -74,6 +91,11 @@ export async function autoMatchCampaigns(): Promise<AutoMatchResult> {
   const res = await fetch('/api/marketing/campaign-classifications', {
     method: 'PUT',
   });
+
+  if (isAuthError(res.status)) {
+    throwAuthError();
+  }
+
   const json = await res.json();
   if (!json.success) throw new Error(json.error || 'Failed to auto-match campaigns');
   return json.data;
@@ -82,6 +104,11 @@ export async function autoMatchCampaigns(): Promise<AutoMatchResult> {
 /** Lightweight count-only fetch — avoids loading the full modal component */
 export async function fetchUnclassifiedCount(): Promise<number> {
   const res = await fetch('/api/marketing/campaign-classifications');
+
+  if (isAuthError(res.status)) {
+    throwAuthError();
+  }
+
   const json = await res.json();
   if (!json.success) return 0;
   return json.data.unclassified.length;
@@ -93,6 +120,11 @@ export async function unclassifyCampaign(id: string): Promise<string> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id }),
   });
+
+  if (isAuthError(res.status)) {
+    throwAuthError();
+  }
+
   const json = await res.json();
   if (!json.success) throw new Error(json.error || 'Failed to unclassify campaign');
   return json.data.campaignId;
