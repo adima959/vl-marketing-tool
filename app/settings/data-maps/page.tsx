@@ -19,6 +19,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Spin } from 'antd';
 import { Megaphone, Globe, Link2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { AuthErrorPage } from '@/components/auth/AuthErrorPage';
 import settingsStyles from '@/styles/components/settings.module.css';
 import styles from '@/components/settings/data-maps.module.css';
 
@@ -49,7 +50,7 @@ const TABS: Tab[] = [
 ];
 
 export default function DataMapsPage(): React.ReactNode {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, authError } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey>('campaign');
@@ -72,8 +73,8 @@ export default function DataMapsPage(): React.ReactNode {
     return <div className={settingsStyles.centeredState}><Spin size="small" /></div>;
   }
 
-  if (!isAuthenticated) {
-    return <div className={settingsStyles.authMessage}>Please log in to access this page.</div>;
+  if (!isAuthenticated || authError) {
+    return <AuthErrorPage />;
   }
 
   return (

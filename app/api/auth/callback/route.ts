@@ -55,14 +55,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (appCallbackUrl) {
     // Extract base URL from callback URL (remove /api/auth/callback)
     const baseUrl = appCallbackUrl.replace('/api/auth/callback', '');
-    redirectUrl = new URL('/', baseUrl);
+    // Use returnUrl parameter to redirect back to original page
+    redirectUrl = new URL(returnUrl, baseUrl);
   } else {
     // Fallback to request.url (will be localhost behind proxy)
     console.warn('[Callback] APP_CALLBACK_URL not set - using request.url (may be localhost behind proxy)');
-    redirectUrl = new URL('/', request.url);
+    redirectUrl = new URL(returnUrl, request.url);
   }
 
-  // Create redirect response to home page
+  // Create redirect response with returnUrl
   const response = NextResponse.redirect(redirectUrl);
 
   // Set HTTP-only auth cookie with the session token

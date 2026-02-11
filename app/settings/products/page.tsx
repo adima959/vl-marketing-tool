@@ -1,45 +1,40 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Spin } from 'antd';
 import { SettingsPageWrapper } from '@/components/settings/SettingsPageWrapper';
-import { getProducts } from '@/lib/marketing-tracker/db';
-import { Pool } from '@neondatabase/serverless';
-import type { TrackerUser } from '@/types/marketing-tracker';
 import { ProductsClientTable } from '@/components/settings/ProductsClientTable';
+import type { Product } from '@/types';
+import type { TrackerUser } from '@/types/marketing-tracker';
+import styles from '@/styles/components/settings.module.css';
 
-export const dynamic = 'force-dynamic';
+export default function ProductsPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [users, setUsers] = useState<TrackerUser[]>([]);
+  const [loading, setLoading] = useState(true);
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-
-async function getProductOwners(): Promise<TrackerUser[]> {
-  const client = await pool.connect();
-
-  try {
-    const result = await client.query<{ id: string; name: string; email: string; created_at: string; updated_at: string }>(
-      `SELECT id, name, email, created_at, updated_at
-       FROM app_users
-       WHERE deleted_at IS NULL AND is_product_owner = true
-       ORDER BY name ASC`
-    );
-
-    return result.rows.map(row => ({
-      id: row.id,
-      name: row.name,
-      email: row.email,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
-    }));
-  } finally {
-    client.release();
-  }
-}
-
-export default async function ProductsPage() {
-  const [products, users] = await Promise.all([
-    getProducts(),
-    getProductOwners()
-  ]);
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/marketing-tracker/products').then(r => r.json()),
+      fetch('/api/marketing-tracker/users').then(r => r.json()),
+    ])
+      .then(([productsData, usersData]) => {
+        setProducts(productsData.data || []);
+        setUsers(usersData.data || []);
+      })
+      .catch(err => console.error('Failed to load data:', err))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <SettingsPageWrapper>
-      <ProductsClientTable products={products} users={users} />
+      {loading ? (
+        <div className={styles.centeredState}>
+          <Spin size="small" />
+        </div>
+      ) : (
+        <ProductsClientTable products={products} users={users} />
+      )}
     </SettingsPageWrapper>
   );
 }

@@ -1,16 +1,20 @@
-import { checkSettingsAuth } from '@/lib/server/settingsAuth';
+'use client';
+
+import { useAuth } from '@/contexts/AuthContext';
+import { AuthErrorPage } from '@/components/auth/AuthErrorPage';
+import { Spin } from 'antd';
 import styles from '@/styles/components/settings.module.css';
 
 /**
  * Settings Page Wrapper
  *
- * Handles authentication and authorization for settings pages.
- * Wraps page content and displays auth error messages when needed.
+ * Handles authentication for settings pages.
+ * Wraps page content and displays auth error UI when session is invalid.
  *
  * Usage:
- *   export default async function MySettingsPage() {
+ *   export default function MySettingsPage() {
  *     return (
- *       <SettingsPageWrapper requireAdmin>
+ *       <SettingsPageWrapper>
  *         <MyPageContent />
  *       </SettingsPageWrapper>
  *     );
@@ -18,20 +22,23 @@ import styles from '@/styles/components/settings.module.css';
  */
 
 interface SettingsPageWrapperProps {
-  /** If true, requires user to have admin role */
-  requireAdmin?: boolean;
   /** Page content to render if authenticated */
   children: React.ReactNode;
 }
 
-export async function SettingsPageWrapper({
-  requireAdmin,
-  children,
-}: SettingsPageWrapperProps) {
-  const { isAuthenticated, message } = await checkSettingsAuth({ requireAdmin });
+export function SettingsPageWrapper({ children }: SettingsPageWrapperProps) {
+  const { isAuthenticated, isLoading, authError } = useAuth();
 
-  if (!isAuthenticated || message) {
-    return <div className={styles.authMessage}>{message}</div>;
+  if (isLoading) {
+    return (
+      <div className={styles.centeredState}>
+        <Spin size="small" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || authError) {
+    return <AuthErrorPage />;
   }
 
   return <>{children}</>;

@@ -23,6 +23,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { App, Table, Button, Checkbox, Tag, Modal, Input, Select, Spin } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { AuthErrorPage } from '@/components/auth/AuthErrorPage';
 import { FEATURES } from '@/types/roles';
 import modalStyles from '@/styles/components/modal.module.css';
 import settingsStyles from '@/styles/components/settings.module.css';
@@ -108,7 +109,7 @@ function buildGridRows(permissions: RolePermission[], isDisabled: boolean): Perm
 // ============================================================================
 
 export default function PermissionsPage() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, authError } = useAuth();
   const { message, modal } = App.useApp();
 
   // Roles state
@@ -408,8 +409,8 @@ export default function PermissionsPage() {
     return <div className={settingsStyles.centeredState}><Spin size="small" /></div>;
   }
 
-  if (!isAuthenticated) {
-    return <div className={settingsStyles.authMessage}>Please log in to access this page.</div>;
+  if (!isAuthenticated || authError) {
+    return <AuthErrorPage />;
   }
 
   return (
