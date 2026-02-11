@@ -375,7 +375,7 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
       },
     };
 
-    const cols: ColumnsType<DetailRecord> = [statusColumn, dateColumn, customerColumn];
+    const cols: ColumnsType<DetailRecord> = [dateColumn, statusColumn, customerColumn];
 
     // Source (all variants)
     cols.push({
