@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - "main"
-    #tags:
-    #  - "v*"
 
 jobs:
   deploy:
@@ -14,3 +12,20 @@ jobs:
       - name: Trigger Portainer stack redeploy
         run: |
           curl -sS -X POST "${{ secrets.PORTAINER_MARKETING_WEBHOOK_URL }}"
+
+      - name: Wait for deployment and health check
+        run: |
+          echo "Waiting 60s for container to rebuild..."
+          sleep 60
+          for i in 1 2 3 4 5; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" https://marketing.vitaliv.no/api/health)
+            echo "Attempt $i: HTTP $status"
+            if [ "$status" = "200" ]; then
+              echo "Health check passed!"
+              exit 0
+            fi
+            echo "Retrying in 15s..."
+            sleep 15
+          done
+          echo "Health check failed after 5 attempts"
+          exit 1

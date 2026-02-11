@@ -1,6 +1,7 @@
 'use client';
 
 import { GenericFilterToolbar } from '@/components/filters/GenericFilterToolbar';
+import { DashboardDimensionPicker } from './DashboardDimensionPicker';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { getCrmDimensionLabel } from '@/config/crmDimensions';
 import styles from './dashboard.module.css';
@@ -14,7 +15,8 @@ export function DashboardFilterToolbar() {
     <GenericFilterToolbar
       useStore={useDashboardStore}
       getLabel={getCrmDimensionLabel}
-      canRemoveDimensions={false}
+      dimensionPicker={<DashboardDimensionPicker />}
+      canRemoveDimensions={true}
       styleModule={{
         filterBar: styles.filterBar,
         filterLeft: styles.filterLeft,
