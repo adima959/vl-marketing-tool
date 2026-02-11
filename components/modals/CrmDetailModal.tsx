@@ -10,7 +10,7 @@ import type { OnPageViewClickContext } from '@/types/onPageDetails';
 import { fetchDashboardDetails } from '@/lib/api/dashboardDetailsClient';
 import { fetchMarketingDetails } from '@/lib/api/marketingDetailsClient';
 import { fetchOnPageCrmDetails } from '@/lib/api/onPageCrmDetailsClient';
-import { TableSkeleton } from '@/components/skeletons/TableSkeleton';
+import { TableSkeleton } from '@/components/loading/TableSkeleton';
 import modalStyles from '@/styles/components/modal.module.css';
 import styles from './CrmDetailModal.module.css';
 

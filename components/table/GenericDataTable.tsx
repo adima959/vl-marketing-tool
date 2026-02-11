@@ -12,6 +12,7 @@ import { ErrorMessage } from '@/components/ErrorMessage';
 import { EmptyState } from '@/components/EmptyState';
 import { TableSkeleton } from '@/components/loading/TableSkeleton';
 import type { BaseTableRow, GenericDataTableConfig } from '@/types/table';
+import { calculateTableWidth, injectSkeletonRows, isSkeletonRow } from '@/lib/utils/tableUtils';
 import styles from '@/styles/tables/base.module.css';
 
 export function GenericDataTable<TRow extends BaseTableRow>({
@@ -59,35 +60,7 @@ export function GenericDataTable<TRow extends BaseTableRow>({
   // Process data to inject skeleton rows for expanded parents that are loading
   const processedData = useMemo(() => {
     if (!isLoadingSubLevels) return reportData;
-
-    const injectSkeletons = (rows: TRow[]): TRow[] => {
-      return rows.map((row) => {
-        const isExpanded = expandedRowKeys.includes(row.key);
-        const needsSkeleton = isExpanded && row.hasChildren && (!row.children || row.children.length === 0);
-
-        if (needsSkeleton) {
-          // Create 2 skeleton placeholder children
-          const skeletonChildren = [1, 2].map((i) => ({
-            key: `${row.key}::skeleton-${i}`,
-            attribute: '',
-            depth: row.depth + 1,
-            hasChildren: false,
-            metrics: {},
-            _isSkeleton: true,
-          })) as unknown as TRow[];
-          return { ...row, children: skeletonChildren };
-        }
-
-        // Recursively process children
-        if (row.children && row.children.length > 0) {
-          return { ...row, children: injectSkeletons(row.children as TRow[]) };
-        }
-
-        return row;
-      });
-    };
-
-    return injectSkeletons(reportData);
+    return injectSkeletonRows(reportData, expandedRowKeys, 2);
   }, [reportData, expandedRowKeys, isLoadingSubLevels]);
 
   // Build columns from config
@@ -105,7 +78,7 @@ export function GenericDataTable<TRow extends BaseTableRow>({
       render: (value: string, record: TRow) => {
         const indent = record.depth * 20; // 20px per level
         const isExpanded = expandedRowKeys.includes(record.key);
-        const isSkeleton = (record as TRow & { _isSkeleton?: boolean })._isSkeleton;
+        const isSkeleton = isSkeletonRow(record);
 
         // Render skeleton row
         if (isSkeleton) {
@@ -201,7 +174,7 @@ export function GenericDataTable<TRow extends BaseTableRow>({
           showSorterTooltip: false,
           render: (value: number | null, record: TRow) => {
             // Render skeleton for loading rows
-            const isSkeleton = (record as TRow & { _isSkeleton?: boolean })._isSkeleton;
+            const isSkeleton = isSkeletonRow(record);
             if (isSkeleton) {
               return <div className={styles.skeletonMetric} />;
             }

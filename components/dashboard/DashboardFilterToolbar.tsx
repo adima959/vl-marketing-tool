@@ -1,36 +1,26 @@
 'use client';
 
-import { DateRangePicker } from '@/components/filters/DateRangePicker';
-import { DimensionPills } from '@/components/filters/DimensionPills';
-import { LoadDataButton } from '@/components/shared/LoadDataButton';
+import { GenericFilterToolbar } from '@/components/filters/GenericFilterToolbar';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { getCrmDimensionLabel } from '@/config/crmDimensions';
 import styles from './dashboard.module.css';
 
+/**
+ * Dashboard filter toolbar
+ * Thin wrapper around GenericFilterToolbar with dashboard-specific configuration
+ */
 export function DashboardFilterToolbar() {
-  const { dimensions, reorderDimensions, dateRange, setDateRange, loadData, isLoading, hasUnsavedChanges, hasLoadedOnce } = useDashboardStore();
-
   return (
-    <div className={styles.filterBar}>
-      <div className={styles.filterLeft}>
-        <span className={styles.filterLabel}>Dimensions</span>
-        <DimensionPills
-          dimensions={dimensions}
-          reorderDimensions={reorderDimensions}
-          getLabel={getCrmDimensionLabel}
-          canRemove={false}
-        />
-      </div>
-      <div className={styles.filterRight}>
-        <DateRangePicker dateRange={dateRange} setDateRange={setDateRange} />
-        <LoadDataButton
-          isLoading={isLoading}
-          hasLoadedOnce={hasLoadedOnce}
-          hasUnsavedChanges={hasUnsavedChanges}
-          onClick={loadData}
-          size="middle"
-        />
-      </div>
-    </div>
+    <GenericFilterToolbar
+      useStore={useDashboardStore}
+      getLabel={getCrmDimensionLabel}
+      canRemoveDimensions={false}
+      styleModule={{
+        filterBar: styles.filterBar,
+        filterLeft: styles.filterLeft,
+        filterRight: styles.filterRight,
+        filterLabel: styles.filterLabel,
+      }}
+    />
   );
 }

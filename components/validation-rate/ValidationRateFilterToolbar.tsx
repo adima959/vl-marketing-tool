@@ -4,14 +4,12 @@ import { DatePicker } from 'antd';
 import { SwapRightOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
+import { GenericFilterToolbar } from '@/components/filters/GenericFilterToolbar';
 import { ValidationRateDimensionPicker } from './ValidationRateDimensionPicker';
-import { DimensionPills } from '@/components/filters/DimensionPills';
 import { TimePeriodToggle } from './TimePeriodToggle';
-import { LoadDataButton } from '@/components/shared/LoadDataButton';
 import { getValidationRateDimensionLabel } from '@/config/validationRateDimensions';
 import type { ValidationRateStore } from '@/types';
 import type { UseBoundStore, StoreApi } from 'zustand';
-import styles from '@/components/filters/FilterToolbar.module.css';
 import datePickerStyles from '@/components/filters/DateRangePicker.module.css';
 
 dayjs.extend(utc);
@@ -53,22 +51,14 @@ interface ValidationRateFilterToolbarProps {
   useStore: UseBoundStore<StoreApi<ValidationRateStore>>;
 }
 
+/**
+ * Validation Rate filter toolbar
+ * Thin wrapper around GenericFilterToolbar with custom date picker and TimePeriodToggle
+ */
 export function ValidationRateFilterToolbar({ useStore }: ValidationRateFilterToolbarProps) {
-  const {
-    dimensions,
-    removeDimension,
-    reorderDimensions,
-    dateRange,
-    setDateRange,
-    loadData,
-    isLoading,
-    hasUnsavedChanges,
-    hasLoadedOnce,
-  } = useStore();
+  const { dateRange, setDateRange } = useStore();
 
-  const handleDateChange = (
-    dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null
-  ) => {
+  const handleDateChange = (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
     if (dates && dates[0] && dates[1]) {
       setDateRange({
         start: dates[0].toDate(),
@@ -77,59 +67,39 @@ export function ValidationRateFilterToolbar({ useStore }: ValidationRateFilterTo
     }
   };
 
-  return (
-    <div className={styles.toolbar}>
-      <div className={styles.mainRow} style={{ alignItems: 'flex-start' }}>
-        {/* Left: Dimensions with label above */}
-        <div className={styles.leftSection} style={{ flex: 2, flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
-          <span className={styles.dimensionsLabel}>DIMENSIONS</span>
-          <div className={styles.dimensionsContent}>
-            <DimensionPills
-              dimensions={dimensions}
-              reorderDimensions={reorderDimensions}
-              removeDimension={removeDimension}
-              getLabel={getValidationRateDimensionLabel}
-            />
-            <ValidationRateDimensionPicker useStore={useStore} />
-          </div>
-        </div>
-
-        {/* Right: Date range, period, and controls */}
-        <div className={styles.rightSection} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div className={datePickerStyles.datePickerWrapper}>
-              <RangePicker
-                className={datePickerStyles.rangePicker}
-                classNames={{ popup: { root: datePickerStyles.datePickerPopup } }}
-                value={[dayjs(dateRange.start), dayjs(dateRange.end)]}
-                onChange={handleDateChange}
-                presets={presets}
-                format="DD/MM/YYYY"
-                allowClear={false}
-                size="middle"
-                separator={<SwapRightOutlined className={datePickerStyles.separator} />}
-              />
-            </div>
-
-            <div className={styles.loadButtonWrapper}>
-              <LoadDataButton
-                isLoading={isLoading}
-                hasLoadedOnce={hasLoadedOnce}
-                hasUnsavedChanges={hasUnsavedChanges}
-                onClick={loadData}
-              />
-              {hasUnsavedChanges && (
-                <span className={styles.unsavedDot} title="Unsaved filter changes" />
-              )}
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '11px', color: '#999', fontWeight: 600, letterSpacing: '0.06em' }}>PERIOD:</span>
-            <TimePeriodToggle useStore={useStore} />
-          </div>
-        </div>
-      </div>
+  // Custom date picker with presets
+  const customDatePicker = (
+    <div className={datePickerStyles.datePickerWrapper}>
+      <RangePicker
+        className={datePickerStyles.rangePicker}
+        classNames={{ popup: { root: datePickerStyles.datePickerPopup } }}
+        value={[dayjs(dateRange.start), dayjs(dateRange.end)]}
+        onChange={handleDateChange}
+        presets={presets}
+        format="DD/MM/YYYY"
+        allowClear={false}
+        size="middle"
+        separator={<SwapRightOutlined className={datePickerStyles.separator} />}
+      />
     </div>
+  );
+
+  // Additional controls (TimePeriodToggle)
+  const additionalControls = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <span style={{ fontSize: '11px', color: '#999', fontWeight: 600, letterSpacing: '0.06em' }}>PERIOD:</span>
+      <TimePeriodToggle useStore={useStore} />
+    </div>
+  );
+
+  return (
+    <GenericFilterToolbar
+      useStore={useStore}
+      getLabel={getValidationRateDimensionLabel}
+      dimensionPicker={<ValidationRateDimensionPicker useStore={useStore} />}
+      customDatePicker={customDatePicker}
+      additionalControls={additionalControls}
+      showUnsavedDot
+    />
   );
 }

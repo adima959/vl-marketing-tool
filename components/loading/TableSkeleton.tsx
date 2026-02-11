@@ -3,15 +3,38 @@
 import styles from './TableSkeleton.module.css';
 
 interface TableSkeletonProps {
+  /**
+   * Number of rows to show in skeleton
+   * @default 10
+   */
   rows?: number;
+
+  /**
+   * Number of columns to show in skeleton
+   * @default 8
+   */
   columns?: number;
+
+  /**
+   * Column widths (supports px numbers or % strings)
+   * If not provided, uses default pattern: first column 400px, others 110-135px
+   */
+  columnWidths?: (number | string)[];
 }
 
-export function TableSkeleton({ rows = 10, columns = 8 }: TableSkeletonProps) {
+export function TableSkeleton({ rows = 10, columns = 8, columnWidths }: TableSkeletonProps) {
   // Generate deterministic widths based on column index to avoid hydration mismatches
   const getColumnWidth = (colIndex: number): string => {
+    // If explicit widths provided, use them
+    if (columnWidths) {
+      const width = columnWidths[colIndex];
+      if (width !== undefined) {
+        return typeof width === 'number' ? `${width}px` : width;
+      }
+    }
+
+    // Default pattern for dashboard tables
     if (colIndex === 0) return '400px';
-    // Use deterministic widths based on column index
     const widths = [110, 120, 130, 115, 125, 135, 120];
     return `${widths[colIndex % widths.length]}px`;
   };
