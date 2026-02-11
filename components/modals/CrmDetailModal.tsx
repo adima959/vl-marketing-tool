@@ -361,7 +361,21 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
       <Tooltip title={val || '–'}><span className={styles.sourceCell}>{val || '–'}</span></Tooltip>
     );
 
-    const cols: ColumnsType<DetailRecord> = [statusColumn, customerColumn];
+    // --- Date column (first after status) ---
+    const dateColumn: ColumnsType<DetailRecord>[number] = {
+      title: 'Date',
+      dataIndex: 'date',
+      width: 130,
+      fixed: 'left',
+      render: (val) => {
+        const d = new Date(val);
+        const date = d.toLocaleDateString('en-GB');
+        const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        return <span className={styles.dateCell}>{date} - {time}</span>;
+      },
+    };
+
+    const cols: ColumnsType<DetailRecord> = [statusColumn, dateColumn, customerColumn];
 
     // Source (all variants)
     cols.push({
@@ -405,19 +419,6 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
       },
     });
 
-    // Date
-    cols.push({
-      title: 'Date',
-      dataIndex: 'date',
-      width: 130,
-      render: (val) => {
-        const d = new Date(val);
-        const date = d.toLocaleDateString('en-GB');
-        const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-        return <span className={styles.dateCell}>{date} - {time}</span>;
-      },
-    });
-
     // Buy/pay rate extra columns
     if (isBuyOrPayRate) {
       const renderDateTime = (val: string | null) => {
@@ -437,7 +438,7 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
     return cols;
   }, [variant, isBuyOrPayRate]);
 
-  // Scroll width: status(56) + customer(190) + source(100) + variant columns + amount(90) + date(130)
+  // Scroll width: status(56) + date(130) + customer(190) + source(100) + variant columns + amount(90)
   const scrollX = useMemo(() => {
     const base = 56 + 190 + 100 + 90 + 130; // 566
     if (variant === 'dashboard') {
