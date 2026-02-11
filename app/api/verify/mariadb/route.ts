@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { executeMariaDBQuery } from '@/lib/server/mariadb';
+import { unstable_rethrow } from 'next/navigation';
 
 export async function POST(request: Request) {
   try {
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
       count: data.length
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('MariaDB verification query error:', error);
 
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

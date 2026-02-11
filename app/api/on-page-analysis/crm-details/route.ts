@@ -6,6 +6,7 @@ import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import type { DetailRecord } from '@/types/dashboardDetails';
 import { maskErrorForClient } from '@/lib/types/errors';
+import { unstable_rethrow } from 'next/navigation';
 
 /** Maps dimension IDs to PG column names for filtering */
 const PG_DIMENSION_MAP: Record<string, string> = {
@@ -334,6 +335,7 @@ async function handleOnPageCrmDetails(
       },
     });
   } catch (error) {
+    unstable_rethrow(error);
     const { message, statusCode } = maskErrorForClient(error, 'On-Page CRM Details API');
 
     return NextResponse.json(

@@ -9,6 +9,7 @@ import { recordUpdate } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
+import { unstable_rethrow } from 'next/navigation';
 
 interface RouteParams {
   params: Promise<{ productId: string }>;
@@ -41,6 +42,7 @@ export const PATCH = withAuth(async (
 
     return NextResponse.json({ success: true, data: updated });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error updating product CPA targets:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update product' },

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_rethrow } from 'next/navigation';
 import type { AngleStatus } from '@/types/marketing-tracker';
 import {
-  getAngleById,
+getAngleById,
   getProductByIdSimple,
   getMessagesByAngleId,
   updateAngle,
@@ -66,6 +67,7 @@ export const GET = withAuth(async (
       },
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error fetching angle:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch angle' },
@@ -129,6 +131,7 @@ export const PUT = withAuth(async (
       data: updatedAngle,
     });
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues);
       return NextResponse.json(
@@ -208,6 +211,7 @@ export const PATCH = withAuth(async (
       data: updatedAngle,
     });
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues);
       return NextResponse.json(
@@ -296,6 +300,7 @@ export const DELETE = withAuth(async (
       success: true,
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error deleting angle:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to delete angle' },

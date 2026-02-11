@@ -7,6 +7,7 @@ import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { maskErrorForClient } from '@/lib/types/errors';
 import { logDebug } from '@/lib/server/debugLogger';
+import { unstable_rethrow } from 'next/navigation';
 
 /**
  * POST /api/dashboard/details
@@ -130,6 +131,7 @@ async function handleDashboardDetails(
 
     return NextResponse.json(response);
   } catch (error) {
+    unstable_rethrow(error);
     const { message, statusCode } = maskErrorForClient(error, 'Dashboard Details API');
 
     return NextResponse.json(

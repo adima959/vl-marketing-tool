@@ -7,6 +7,7 @@ import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { createProductSchema } from '@/lib/schemas/marketingTracker';
 import { z } from 'zod';
+import { unstable_rethrow } from 'next/navigation';
 
 /**
  * GET /api/marketing-tracker/products
@@ -25,6 +26,7 @@ export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise
       data: products,
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error fetching products:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch products' },
@@ -69,6 +71,7 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
       data: newProduct,
     });
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues);
       return NextResponse.json(

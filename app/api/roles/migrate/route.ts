@@ -10,6 +10,7 @@
 import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/server/db';
 import { FEATURES } from '@/types/roles';
+import { unstable_rethrow } from 'next/navigation';
 
 export async function POST(): Promise<NextResponse> {
   try {
@@ -180,6 +181,7 @@ export async function POST(): Promise<NextResponse> {
     });
 
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Migration failed:', error);
     return NextResponse.json(
       {
@@ -212,6 +214,7 @@ export async function GET(): Promise<NextResponse> {
       data: counts[0],
     });
   } catch (error) {
+    unstable_rethrow(error);
     return NextResponse.json({
       success: false,
       error: 'Tables may not exist yet. Run POST to migrate.',

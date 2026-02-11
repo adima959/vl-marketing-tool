@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { deletePipelineAngle, getAngleMessageCount } from '@/lib/marketing-pipeline/db';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
+import { unstable_rethrow } from 'next/navigation';
 
 export const DELETE = withAuth(async (
   _request: NextRequest,
@@ -35,6 +36,7 @@ export const DELETE = withAuth(async (
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error deleting pipeline angle:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to delete angle' },

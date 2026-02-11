@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/server/db';
 import { withAdmin } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
+import { unstable_rethrow } from 'next/navigation';
 
 // ── Fixed UUIDs for seed data referential integrity ─────────────────
 
@@ -516,6 +517,7 @@ async function seedData(): Promise<void> {
     `, [g.id, g.messageId, g.geo, g.stage, g.isPrimary, g.spendThreshold, g.createdAt, g.updatedAt]);
   }
   } catch (e) {
+    unstable_rethrow(e);
     throw new Error(`seedData failed at step "${seedStep}": ${e instanceof Error ? e.message : e}`);
   }
 }
@@ -583,6 +585,7 @@ export const POST = withAdmin(async (request: NextRequest, user: AppUser): Promi
       data: counts[0],
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Migration failed:', error);
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : 'Migration failed' },
@@ -613,6 +616,7 @@ export const GET = withAdmin(async (_request: NextRequest, user: AppUser): Promi
 
     return NextResponse.json({ success: true, data: counts[0] });
   } catch (error) {
+    unstable_rethrow(error);
     return NextResponse.json({
       success: false,
       error: 'Tables may not exist yet. Run POST to migrate.',

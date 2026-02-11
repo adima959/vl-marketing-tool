@@ -9,6 +9,7 @@ import { createValidationError, maskErrorForClient } from '@/lib/types/errors';
 import { toTitleCase } from '@/lib/formatters';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
+import { unstable_rethrow } from 'next/navigation';
 
 const CRM_METRIC_IDS = new Set(['crmConvRate', 'crmTrials', 'crmApproved', 'crmApprovalRate']);
 
@@ -444,6 +445,7 @@ async function handleOnPageQuery(
       data: filteredData,
     });
   } catch (error: unknown) {
+    unstable_rethrow(error);
     const { message, statusCode } = maskErrorForClient(error, 'On-Page Analysis API');
 
     return NextResponse.json(

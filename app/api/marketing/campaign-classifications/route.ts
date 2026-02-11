@@ -3,6 +3,7 @@ import { executeQuery } from '@/lib/server/db';
 import { maskErrorForClient } from '@/lib/types/errors';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
+import { unstable_rethrow } from 'next/navigation';
 
 interface ClassifiedRow {
   id: string;
@@ -123,6 +124,7 @@ async function handleGet(
       },
     });
   } catch (error) {
+    unstable_rethrow(error);
     const masked = maskErrorForClient(error, 'campaign-classifications:GET');
     return NextResponse.json(
       { success: false, error: masked.message },
@@ -249,6 +251,7 @@ async function handlePut(
       },
     });
   } catch (error) {
+    unstable_rethrow(error);
     const masked = maskErrorForClient(error, 'campaign-classifications:PUT');
     return NextResponse.json(
       { success: false, error: masked.message },
@@ -342,6 +345,7 @@ async function handlePost(
       },
     });
   } catch (error) {
+    unstable_rethrow(error);
     const masked = maskErrorForClient(error, 'campaign-classifications:POST');
     return NextResponse.json(
       { success: false, error: masked.message },
@@ -386,6 +390,7 @@ async function handleDelete(
       data: { campaignId: existing[0].campaign_id },
     });
   } catch (error) {
+    unstable_rethrow(error);
     const masked = maskErrorForClient(error, 'campaign-classifications:DELETE');
     return NextResponse.json(
       { success: false, error: masked.message },

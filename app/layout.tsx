@@ -1,5 +1,7 @@
+import { Suspense } from 'react';
+import { Inter } from 'next/font/google';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
-import { ConfigProvider, App } from 'antd';
+import { ConfigProvider, App, Spin } from 'antd';
 import theme from '@/styles/theme';
 import { ToastContainer } from '@/components/notifications/Toast';
 import { KeyboardShortcuts } from '@/components/accessibility/KeyboardShortcuts';
@@ -11,10 +13,34 @@ import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import './globals.css';
 import type { Metadata } from 'next';
 
+// Font optimization with next/font
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+});
+
 export const metadata: Metadata = {
   title: 'Vitaliv Analytics',
   description: 'Marketing analytics and reporting platform',
 };
+
+// Loading fallback for Suspense boundary
+function LoadingFallback() {
+  return (
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: '100vh',
+      width: '100vw'
+    }}>
+      <Spin size="large">
+        <div style={{ padding: '50px' }} />
+      </Spin>
+    </div>
+  );
+}
 
 export default function RootLayout({
   children,
@@ -22,24 +48,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <body suppressHydrationWarning>
         <AntdRegistry>
           <ConfigProvider theme={theme}>
             <App>
             <AuthProvider>
-              <RouteGuard>
-                <NuqsAdapter>
-                  <SidebarProvider>
-                    <AppSidebar />
-                    <SidebarInset className="flex flex-col overflow-hidden isolate">
-                      {children}
-                    </SidebarInset>
-                  </SidebarProvider>
-                  <ToastContainer />
-                  <KeyboardShortcuts />
-                </NuqsAdapter>
-              </RouteGuard>
+              <Suspense fallback={<LoadingFallback />}>
+                <RouteGuard>
+                  <NuqsAdapter>
+                    <SidebarProvider>
+                      <AppSidebar />
+                      <SidebarInset className="flex flex-col overflow-hidden isolate">
+                        {children}
+                      </SidebarInset>
+                    </SidebarProvider>
+                    <ToastContainer />
+                    <KeyboardShortcuts />
+                  </NuqsAdapter>
+                </RouteGuard>
+              </Suspense>
             </AuthProvider>
             </App>
           </ConfigProvider>

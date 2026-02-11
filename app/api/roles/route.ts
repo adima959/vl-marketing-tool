@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAdmin } from '@/lib/rbac';
 import { getRoles, createRole } from '@/lib/roles/db';
 import type { CreateRoleRequest } from '@/types/roles';
+import { unstable_rethrow } from 'next/navigation';
 
 /**
  * GET /api/roles
@@ -18,6 +19,7 @@ export const GET = withAdmin(async () => {
     const roles = await getRoles();
     return NextResponse.json({ success: true, data: roles });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('[API /roles GET] Error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch roles' },
@@ -50,6 +52,7 @@ export const POST = withAdmin(async (request: NextRequest) => {
 
     return NextResponse.json({ success: true, data: role });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('[API /roles POST] Error:', error);
 
     const message = error instanceof Error ? error.message : 'Failed to create role';

@@ -10,6 +10,7 @@ import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 import { withAuth } from '@/lib/rbac';
 import type { GeoStage } from '@/types';
 import type { AppUser } from '@/types/user';
+import { unstable_rethrow } from 'next/navigation';
 
 const VALID_GEO_STAGES: GeoStage[] = ['setup', 'production', 'testing', 'live', 'paused'];
 
@@ -51,6 +52,7 @@ export const PATCH = withAuth(async (
 
     return NextResponse.json({ success: true, data: updated });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error updating message geo:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update geo' },
@@ -79,6 +81,7 @@ export const DELETE = withAuth(async (
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error deleting message geo:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to delete geo' },

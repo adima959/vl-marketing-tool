@@ -3,6 +3,7 @@ import { Pool } from '@neondatabase/serverless';
 import { withAdmin } from '@/lib/rbac';
 import { UserRole, type UpdateUserRoleDTO } from '@/types/user';
 import { timingSafeCompare } from '@/lib/security/timing-safe-compare';
+import { unstable_rethrow } from 'next/navigation';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const USER_MANAGEMENT_API_KEY = process.env.USER_MANAGEMENT_API_KEY || '';
@@ -41,7 +42,8 @@ export async function PATCH(
     try {
       body = await request.json();
     } catch (error) {
-      return NextResponse.json(
+      unstable_rethrow(error);
+    return NextResponse.json(
         { error: 'Invalid JSON body' },
         { status: 400 }
       );
@@ -79,7 +81,8 @@ export async function PATCH(
         user: result.rows[0],
       });
     } catch (error) {
-      console.error('[API /users/[id] PATCH] Error:', error);
+      unstable_rethrow(error);
+    console.error('[API /users/[id] PATCH] Error:', error);
       return NextResponse.json(
         { error: 'Failed to update user role' },
         { status: 500 }
@@ -173,6 +176,7 @@ const withAdminPatch = withAdmin(async (request, _user, { params }: { params: { 
 
     return NextResponse.json({ success: true, user: result.rows[0] });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('[API /users/[id] PATCH] Error:', error);
     return NextResponse.json(
       { error: 'Failed to update user role' },
@@ -227,7 +231,8 @@ export async function DELETE(
         user: result.rows[0],
       });
     } catch (error) {
-      console.error('[API /users/[id] DELETE] Error:', error);
+      unstable_rethrow(error);
+    console.error('[API /users/[id] DELETE] Error:', error);
       return NextResponse.json(
         { error: 'Failed to delete user' },
         { status: 500 }
@@ -270,6 +275,7 @@ const withAdminDelete = withAdmin(async (_request, _user, { params }: { params: 
       user: result.rows[0],
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('[API /users/[id] DELETE] Error:', error);
     return NextResponse.json(
       { error: 'Failed to delete user' },

@@ -6,6 +6,7 @@ import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { maskErrorForClient } from '@/lib/types/errors';
 import { z } from 'zod';
+import { unstable_rethrow } from 'next/navigation';
 
 /**
  * Request schema for time series endpoint
@@ -111,6 +112,7 @@ async function handleTimeSeriesQuery(
       data,
     });
   } catch (error: unknown) {
+    unstable_rethrow(error);
     // Handle Zod validation errors
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues);

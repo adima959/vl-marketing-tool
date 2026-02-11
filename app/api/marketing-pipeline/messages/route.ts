@@ -8,6 +8,7 @@ import { recordCreation } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
+import { unstable_rethrow } from 'next/navigation';
 
 export const POST = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
@@ -39,6 +40,7 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
 
     return NextResponse.json({ success: true, data: message });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error creating pipeline message:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to create message' },

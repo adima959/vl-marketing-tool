@@ -9,6 +9,7 @@ import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { maskErrorForClient } from '@/lib/types/errors';
 import type { DashboardDetailMetricId } from '@/lib/server/crmMetrics';
+import { unstable_rethrow } from 'next/navigation';
 
 interface TrackingIdTuple {
   campaign_id: string;
@@ -265,6 +266,7 @@ async function handleMarketingDetails(
 
     return NextResponse.json(response);
   } catch (error) {
+    unstable_rethrow(error);
     const { message, statusCode } = maskErrorForClient(error, 'Marketing Details API');
 
     return NextResponse.json(

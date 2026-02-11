@@ -3,6 +3,7 @@ import { executeQuery } from '@/lib/server/db';
 import { maskErrorForClient } from '@/lib/types/errors';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
+import { unstable_rethrow } from 'next/navigation';
 
 interface ClassifiedRow {
   id: string;
@@ -100,6 +101,7 @@ async function handleGet(
       },
     });
   } catch (error) {
+    unstable_rethrow(error);
     const masked = maskErrorForClient(error, 'url-classifications:GET');
     return NextResponse.json(
       { success: false, error: masked.message },
@@ -238,6 +240,7 @@ async function handlePut(
       },
     });
   } catch (error) {
+    unstable_rethrow(error);
     const masked = maskErrorForClient(error, 'url-classifications:PUT');
     return NextResponse.json(
       { success: false, error: masked.message },
@@ -322,6 +325,7 @@ async function handlePost(
       },
     });
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof Error && error.message.includes('unique')) {
       return NextResponse.json(
         { success: false, error: 'This URL path is already classified' },
@@ -373,6 +377,7 @@ async function handleDelete(
       data: { urlPath: existing[0].url_path },
     });
   } catch (error) {
+    unstable_rethrow(error);
     const masked = maskErrorForClient(error, 'url-classifications:DELETE');
     return NextResponse.json(
       { success: false, error: masked.message },

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_rethrow } from 'next/navigation';
 import type { CreateAngleRequest } from '@/types/marketing-tracker';
 import {
-  getAnglesByProductId,
+getAnglesByProductId,
   getProductById,
   createAngle,
 } from '@/lib/marketing-tracker/db';
@@ -41,6 +42,7 @@ export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise
       data: angles,
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error fetching angles:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch angles' },
@@ -91,6 +93,7 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
       data: newAngle,
     });
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues);
       return NextResponse.json(

@@ -4,6 +4,7 @@ import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { restoreProductSchema } from '@/lib/schemas/marketingTracker';
 import { z } from 'zod';
+import { unstable_rethrow } from 'next/navigation';
 
 /**
  * POST /api/marketing-tracker/restore
@@ -38,6 +39,7 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
       message: `Product ${productId} and all descendants restored`,
     });
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues);
       return NextResponse.json(

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_rethrow } from 'next/navigation';
 import type { CreateMessageRequest } from '@/types/marketing-tracker';
 import {
   getMessagesByAngleId,
@@ -41,6 +42,7 @@ export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise
       data: messages,
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error fetching messages:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch messages' },
@@ -96,6 +98,7 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
       data: newMessage,
     });
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues);
       return NextResponse.json(

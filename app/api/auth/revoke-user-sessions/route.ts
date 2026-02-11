@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revokeUserSessions } from '@/lib/auth';
 import { timingSafeCompare } from '@/lib/security/timing-safe-compare';
+import { unstable_rethrow } from 'next/navigation';
 
 const USER_MANAGEMENT_API_KEY = process.env.USER_MANAGEMENT_API_KEY || '';
 
@@ -50,6 +51,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     body = await request.json();
   } catch (error) {
+    unstable_rethrow(error);
     return NextResponse.json(
       { error: 'Invalid JSON body' },
       { status: 400 }

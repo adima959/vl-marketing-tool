@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/server/db';
+import { unstable_rethrow } from 'next/navigation';
 
 interface AdsRow {
   network: string;
@@ -54,6 +55,7 @@ export async function POST(request: Request) {
       count: data.length
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('PostgreSQL verification query error:', error);
 
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

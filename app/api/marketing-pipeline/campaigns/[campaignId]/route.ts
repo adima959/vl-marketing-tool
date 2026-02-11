@@ -4,8 +4,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_rethrow } from 'next/navigation';
 import {
-  updatePipelineCampaign,
+updatePipelineCampaign,
   deletePipelineCampaign,
 } from '@/lib/marketing-pipeline/db';
 import { recordUpdate, recordDeletion } from '@/lib/marketing-tracker/historyService';
@@ -49,6 +50,7 @@ export const PATCH = withAuth(async (
 
     return NextResponse.json({ success: true, data: updated });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error updating campaign:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update campaign' },
@@ -78,6 +80,7 @@ export const DELETE = withAuth(async (
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error deleting campaign:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to delete campaign' },

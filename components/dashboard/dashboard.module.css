@@ -55,7 +55,7 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   white-space: nowrap;
-  width: 100%;
+  flex-shrink: 0;
 }
 
 .buttonText {

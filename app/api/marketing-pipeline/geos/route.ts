@@ -9,6 +9,7 @@ import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 import { withAuth } from '@/lib/rbac';
 import type { Geography } from '@/types';
 import type { AppUser } from '@/types/user';
+import { unstable_rethrow } from 'next/navigation';
 
 const VALID_GEOS: Geography[] = ['NO', 'SE', 'DK'];
 
@@ -47,6 +48,7 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
 
     return NextResponse.json({ success: true, data: geo });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error adding message geo:', error);
     const message = error instanceof Error ? error.message : 'Failed to add geo';
     const status = message.includes('unique') || message.includes('duplicate') ? 409 : 500;

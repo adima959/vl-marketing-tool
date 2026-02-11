@@ -10,6 +10,7 @@ import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 import { withAuth } from '@/lib/rbac';
 import type { PipelineStage, VerdictType } from '@/types';
 import type { AppUser } from '@/types/user';
+import { unstable_rethrow } from 'next/navigation';
 
 const VALID_STAGES: PipelineStage[] = [
   'backlog', 'production', 'testing', 'scaling', 'retired',
@@ -63,6 +64,7 @@ export const PATCH = withAuth(async (
       data: { newMessageId: result.newMessageId },
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error moving pipeline message:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to move message' },

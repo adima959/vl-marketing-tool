@@ -9,6 +9,7 @@ import { queryRequestSchema } from '@/lib/schemas/api';
 import { toTitleCase } from '@/lib/formatters';
 import { z } from 'zod';
 import { logDebug } from '@/lib/server/debugLogger';
+import { unstable_rethrow } from 'next/navigation';
 
 /**
  * Maximum number of rows to return from dashboard queries.
@@ -260,6 +261,7 @@ async function handleDashboardQuery(
       data,
     });
   } catch (error: unknown) {
+    unstable_rethrow(error);
     // Handle Zod validation errors specifically
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues);

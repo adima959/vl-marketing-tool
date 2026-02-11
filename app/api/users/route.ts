@@ -4,6 +4,7 @@ import { withAdmin, getUserByExternalId, getUserByEmail } from '@/lib/rbac';
 import { UserRole, type CreateUserDTO } from '@/types/user';
 import { randomUUID } from 'crypto';
 import { timingSafeCompare } from '@/lib/security/timing-safe-compare';
+import { unstable_rethrow } from 'next/navigation';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const USER_MANAGEMENT_API_KEY = process.env.USER_MANAGEMENT_API_KEY || '';
@@ -28,6 +29,7 @@ export const GET = withAdmin(async (request, user) => {
       users: result.rows,
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('[API /users GET] Error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch users' },
@@ -81,6 +83,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     body = await request.json();
   } catch (error) {
+    unstable_rethrow(error);
     return NextResponse.json(
       { error: 'Invalid JSON body' },
       { status: 400 }
@@ -139,6 +142,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       user: result.rows[0],
     }, { status: 201 });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('[API /users POST] Error:', error);
     return NextResponse.json(
       { error: 'Failed to create user' },

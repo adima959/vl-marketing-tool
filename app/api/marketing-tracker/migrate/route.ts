@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/server/db';
 import { withAdmin } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
+import { unstable_rethrow } from 'next/navigation';
 
 export const POST = withAdmin(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
@@ -384,6 +385,7 @@ export const POST = withAdmin(async (request: NextRequest, user: AppUser): Promi
     });
 
   } catch (error) {
+    unstable_rethrow(error);
     console.error('❌ Migration failed:', error);
     return NextResponse.json(
       {
@@ -418,6 +420,7 @@ export const GET = withAdmin(async (request: NextRequest, user: AppUser): Promis
       data: counts[0],
     });
   } catch (error) {
+    unstable_rethrow(error);
     return NextResponse.json({
       success: false,
       error: 'Tables may not exist yet. Run POST to migrate.',

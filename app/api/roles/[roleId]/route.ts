@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAdmin } from '@/lib/rbac';
 import { getRoleWithPermissions, updateRole, deleteRole } from '@/lib/roles/db';
 import type { UpdateRoleRequest } from '@/types/roles';
+import { unstable_rethrow } from 'next/navigation';
 
 type RouteParams = { params: Promise<{ roleId: string }> };
 
@@ -34,6 +35,7 @@ export const GET = withAdmin(async (
 
     return NextResponse.json({ success: true, data: role });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('[API /roles/[roleId] GET] Error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch role' },
@@ -70,6 +72,7 @@ export const PATCH = withAdmin(async (
 
     return NextResponse.json({ success: true, data: role });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('[API /roles/[roleId] PATCH] Error:', error);
     const message = error instanceof Error ? error.message : 'Failed to update role';
     const status = message.includes('not found') ? 404
@@ -95,6 +98,7 @@ export const DELETE = withAdmin(async (
     await deleteRole(roleId);
     return NextResponse.json({ success: true });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('[API /roles/[roleId] DELETE] Error:', error);
     const message = error instanceof Error ? error.message : 'Failed to delete role';
     const status = message.includes('not found') ? 404

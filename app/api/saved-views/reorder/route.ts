@@ -4,6 +4,7 @@ import { withAuth } from '@/lib/rbac';
 import { safeValidateRequest, savedViewReorderSchema } from '@/lib/schemas/api';
 import { maskErrorForClient } from '@/lib/types/errors';
 import type { AppUser } from '@/types/user';
+import { unstable_rethrow } from 'next/navigation';
 
 /**
  * PATCH /api/saved-views/reorder
@@ -50,6 +51,7 @@ async function handlePatch(
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    unstable_rethrow(error);
     const masked = maskErrorForClient(error, 'saved-views:reorder');
     return NextResponse.json(
       { success: false, error: masked.message },

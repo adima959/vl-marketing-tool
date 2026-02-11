@@ -129,9 +129,13 @@ export function GenericFilterToolbar({
   const rightClass = styleModule?.filterRight || styles.rightSection;
   const labelClass = styleModule?.filterLabel || styles.dimensionsLabel;
 
+  // When using custom styleModule with grid layout, mainRow should use display: contents
+  // to allow grid children to be direct descendants of the grid container
+  const mainRowStyle = styleModule?.filterBar ? { display: 'contents' } : undefined;
+
   return (
     <div className={toolbarClass}>
-      <div className={styles.mainRow}>
+      <div className={styles.mainRow} style={mainRowStyle}>
         {/* Left: Dimensions + optional Filters */}
         <div className={leftClass}>
           <div className={styles.dimensionsWrapper}>

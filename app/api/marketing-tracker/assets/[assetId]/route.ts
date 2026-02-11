@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_rethrow } from 'next/navigation';
 import type { Geography, AssetType } from '@/types';
 import {
-  getAssetById,
+getAssetById,
   getMessageById,
   getAngleById,
   getProductById,
@@ -56,6 +57,7 @@ export const GET = withAuth(async (
       },
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error fetching asset:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch asset' },
@@ -115,6 +117,7 @@ export const PUT = withAuth(async (
       data: updatedAsset,
     });
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues);
       return NextResponse.json(
@@ -168,6 +171,7 @@ export const DELETE = withAuth(async (
       success: true,
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error deleting asset:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to delete asset' },

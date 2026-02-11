@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_rethrow } from 'next/navigation';
 import type { ProductStatus } from '@/types/marketing-tracker';
 import {
-  getProductById,
+getProductById,
   updateProduct,
   deleteProduct,
   getAnglesByProductId,
@@ -62,6 +63,7 @@ export const GET = withAuth(async (
       },
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error fetching product:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch product' },
@@ -130,6 +132,7 @@ export const PUT = withAuth(async (
       data: updatedProduct,
     });
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues);
       return NextResponse.json(
@@ -217,6 +220,7 @@ export const PATCH = withAuth(async (
       data: updatedProduct,
     });
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues);
       return NextResponse.json(
@@ -305,6 +309,7 @@ export const DELETE = withAuth(async (
       success: true,
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error deleting product:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to delete product' },

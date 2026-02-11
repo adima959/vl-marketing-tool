@@ -4,6 +4,7 @@ import { withAuth } from '@/lib/rbac';
 import { safeValidateRequest, savedViewRenameSchema } from '@/lib/schemas/api';
 import { maskErrorForClient } from '@/lib/types/errors';
 import type { AppUser } from '@/types/user';
+import { unstable_rethrow } from 'next/navigation';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -75,6 +76,7 @@ async function handlePatch(
       },
     });
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof Error && error.message.includes('unique')) {
       return NextResponse.json(
         { success: false, error: 'A view with this name already exists on this page' },
@@ -116,6 +118,7 @@ async function handleDelete(
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    unstable_rethrow(error);
     const masked = maskErrorForClient(error, 'saved-views:DELETE');
     return NextResponse.json(
       { success: false, error: masked.message },
@@ -192,6 +195,7 @@ async function handleGet(
       },
     });
   } catch (error) {
+    unstable_rethrow(error);
     const masked = maskErrorForClient(error, 'saved-views:GET');
     return NextResponse.json(
       { success: false, error: masked.message },

@@ -6,6 +6,7 @@ import type { AppUser } from '@/types/user';
 import { validationRateQueryRequestSchema } from '@/lib/schemas/api';
 import type { ValidationRateResponse, ValidationRateQueryParams } from '@/types';
 import { z } from 'zod';
+import { unstable_rethrow } from 'next/navigation';
 
 /**
  * POST /api/validation-rate/query
@@ -44,6 +45,7 @@ async function handleValidationRateQuery(
 
     return NextResponse.json(result);
   } catch (error: unknown) {
+    unstable_rethrow(error);
     // Handle Zod validation errors specifically
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues);

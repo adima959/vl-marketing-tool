@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_rethrow } from 'next/navigation';
 import type { AngleStatus } from '@/types/marketing-tracker';
 import {
-  getMessageById,
+getMessageById,
   getAngleById,
   getProductByIdSimple,
   getAssetsByMessageId,
@@ -75,6 +76,7 @@ export const GET = withAuth(async (
       },
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error fetching message:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch message' },
@@ -144,6 +146,7 @@ export const PUT = withAuth(async (
       data: updatedMessage,
     });
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues);
       return NextResponse.json(
@@ -229,6 +232,7 @@ export const PATCH = withAuth(async (
       data: updatedMessage,
     });
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues);
       return NextResponse.json(
@@ -317,6 +321,7 @@ export const DELETE = withAuth(async (
       success: true,
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error deleting message:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to delete message' },

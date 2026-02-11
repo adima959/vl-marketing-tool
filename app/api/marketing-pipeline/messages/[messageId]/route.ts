@@ -5,8 +5,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_rethrow } from 'next/navigation';
 import {
-  getPipelineMessageDetail,
+getPipelineMessageDetail,
   updatePipelineMessage,
   deletePipelineMessage,
 } from '@/lib/marketing-pipeline/db';
@@ -37,6 +38,7 @@ export const GET = withAuth(async (
 
     return NextResponse.json({ success: true, data: detail });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error fetching pipeline message:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch message' },
@@ -88,6 +90,7 @@ export const PATCH = withAuth(async (
 
     return NextResponse.json({ success: true, data: updated });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error updating pipeline message:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update message' },
@@ -124,6 +127,7 @@ export const DELETE = withAuth(async (
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error deleting pipeline message:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to delete message' },

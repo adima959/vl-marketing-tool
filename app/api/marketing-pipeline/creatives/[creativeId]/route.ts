@@ -8,6 +8,7 @@ import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 import { recordDeletion } from '@/lib/marketing-tracker/historyService';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
+import { unstable_rethrow } from 'next/navigation';
 
 interface RouteParams {
   params: Promise<{ creativeId: string }>;
@@ -29,6 +30,7 @@ export const DELETE = withAuth(async (
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error deleting creative:', error);
     return NextResponse.json({ success: false, error: 'Failed to delete creative' }, { status: 500 });
   }

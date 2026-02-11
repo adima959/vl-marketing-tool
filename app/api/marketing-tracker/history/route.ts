@@ -3,6 +3,7 @@ import type { EntityType } from '@/types/marketing-tracker';
 import { getEntityHistory, getRecentHistory } from '@/lib/marketing-tracker/historyService';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
+import { unstable_rethrow } from 'next/navigation';
 
 const VALID_ENTITY_TYPES: EntityType[] = ['product', 'angle', 'message', 'asset', 'creative'];
 
@@ -77,6 +78,7 @@ export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise
       data: history,
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error fetching history:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch history' },

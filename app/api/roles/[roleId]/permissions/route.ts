@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAdmin } from '@/lib/rbac';
 import { updatePermissions } from '@/lib/roles/db';
 import type { UpdatePermissionsRequest } from '@/types/roles';
+import { unstable_rethrow } from 'next/navigation';
 
 type RouteParams = { params: Promise<{ roleId: string }> };
 
@@ -35,6 +36,7 @@ export const PUT = withAdmin(async (
     const permissions = await updatePermissions(roleId, body.permissions);
     return NextResponse.json({ success: true, data: permissions });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('[API /roles/[roleId]/permissions PUT] Error:', error);
     const message = error instanceof Error ? error.message : 'Failed to update permissions';
     const status = message.includes('not found') ? 404

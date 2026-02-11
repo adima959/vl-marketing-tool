@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/server/db';
+import { unstable_rethrow } from 'next/navigation';
 
 /**
  * POST /api/marketing/campaign-classifications/migrate
@@ -32,6 +33,7 @@ export async function POST(): Promise<NextResponse> {
 
     return NextResponse.json({ success: true, message: 'Migration completed' });
   } catch (error) {
+    unstable_rethrow(error);
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : 'Migration failed' },
       { status: 500 }

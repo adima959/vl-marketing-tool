@@ -8,6 +8,7 @@ import { getPipelineBoard } from '@/lib/marketing-pipeline/db';
 import { withAuth } from '@/lib/rbac';
 import type { Channel, Geography } from '@/types';
 import type { AppUser } from '@/types/user';
+import { unstable_rethrow } from 'next/navigation';
 
 export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
@@ -28,6 +29,7 @@ export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise
 
     return NextResponse.json({ success: true, data });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error fetching pipeline board:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch pipeline board' },

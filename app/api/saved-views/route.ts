@@ -4,6 +4,7 @@ import { withAuth } from '@/lib/rbac';
 import { safeValidateRequest, savedViewCreateSchema } from '@/lib/schemas/api';
 import { maskErrorForClient } from '@/lib/types/errors';
 import type { AppUser } from '@/types/user';
+import { unstable_rethrow } from 'next/navigation';
 
 /**
  * GET /api/saved-views?pagePath=/marketing-report
@@ -99,6 +100,7 @@ async function handleGet(request: NextRequest, user: AppUser): Promise<NextRespo
 
     return NextResponse.json({ success: true, data: views });
   } catch (error) {
+    unstable_rethrow(error);
     const masked = maskErrorForClient(error, 'saved-views:GET');
     return NextResponse.json(
       { success: false, error: masked.message },
@@ -182,6 +184,7 @@ async function handlePost(request: NextRequest, user: AppUser): Promise<NextResp
       },
     });
   } catch (error) {
+    unstable_rethrow(error);
     // Handle unique constraint violation
     if (error instanceof Error && error.message.includes('unique')) {
       return NextResponse.json(

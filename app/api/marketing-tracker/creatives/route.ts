@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_rethrow } from 'next/navigation';
 import type { CreateCreativeRequest, Geography, CreativeFormat } from '@/types';
 import {
-  getCreativesByMessageId,
+getCreativesByMessageId,
   getMessageById,
   createCreative,
 } from '@/lib/marketing-tracker/db';
@@ -47,6 +48,7 @@ export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise
       data: creatives,
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error fetching creatives:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch creatives' },
@@ -100,6 +102,7 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
       data: newCreative,
     });
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues);
       return NextResponse.json(

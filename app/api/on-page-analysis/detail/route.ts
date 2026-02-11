@@ -5,6 +5,7 @@ import { createValidationError, maskErrorForClient } from '@/lib/types/errors';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import type { OnPageDetailRequest } from '@/types/onPageDetails';
+import { unstable_rethrow } from 'next/navigation';
 
 interface RawPageViewRow {
   id: string;
@@ -138,6 +139,7 @@ async function handleOnPageDetail(
       data: { records, total, page, pageSize },
     });
   } catch (error: unknown) {
+    unstable_rethrow(error);
     const { message, statusCode } = maskErrorForClient(error, 'On-Page Detail API');
     return NextResponse.json(
       { success: false, error: message },

@@ -9,6 +9,7 @@ import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 import { withAuth } from '@/lib/rbac';
 import type { Geography, CreativeFormat } from '@/types';
 import type { AppUser } from '@/types/user';
+import { unstable_rethrow } from 'next/navigation';
 
 const VALID_GEOS: Geography[] = ['NO', 'SE', 'DK'];
 const VALID_FORMATS: CreativeFormat[] = ['ugc_video', 'static_image', 'video'];
@@ -47,6 +48,7 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
 
     return NextResponse.json({ success: true, data: creative });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error creating creative:', error);
     return NextResponse.json({ success: false, error: 'Failed to create creative' }, { status: 500 });
   }

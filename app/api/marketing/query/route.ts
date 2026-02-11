@@ -9,6 +9,7 @@ import type { AppUser } from '@/types/user';
 import { marketingQueryRequestSchema } from '@/lib/schemas/api';
 import { toTitleCase } from '@/lib/formatters';
 import { z } from 'zod';
+import { unstable_rethrow } from 'next/navigation';
 
 /**
  * POST /api/marketing/query
@@ -107,6 +108,7 @@ async function handleMarketingQuery(
       data,
     });
   } catch (error: unknown) {
+    unstable_rethrow(error);
     // Handle Zod validation errors specifically
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues);

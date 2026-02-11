@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_rethrow } from 'next/navigation';
 import type { CreateAssetRequest, Geography, AssetType } from '@/types';
 import {
-  getAssetsByMessageId,
+getAssetsByMessageId,
   getMessageById,
   createAsset,
 } from '@/lib/marketing-tracker/db';
@@ -47,6 +48,7 @@ export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise
       data: assets,
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error fetching assets:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch assets' },
@@ -100,6 +102,7 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
       data: newAsset,
     });
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues);
       return NextResponse.json(

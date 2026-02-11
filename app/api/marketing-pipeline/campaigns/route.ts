@@ -10,6 +10,7 @@ import { withAuth } from '@/lib/rbac';
 import { createCampaignSchema } from '@/lib/schemas/marketingPipeline';
 import type { AppUser } from '@/types/user';
 import { ZodError } from 'zod';
+import { unstable_rethrow } from 'next/navigation';
 
 export const POST = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
@@ -37,6 +38,7 @@ export const POST = withAuth(async (request: NextRequest, user: AppUser): Promis
 
     return NextResponse.json({ success: true, data: campaign });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error creating campaign:', error);
 
     // Handle Zod validation errors
