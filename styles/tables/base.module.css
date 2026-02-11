@@ -15,6 +15,7 @@
    ============================================================================= */
 
 .dataTable {
+  composes: stickyTable from './sticky.module.css';
   display: flex;
   flex-direction: column;
   background: var(--color-background-primary);
@@ -23,17 +24,6 @@
   border: 1px solid var(--color-gray-200);
   overflow: visible;
   position: relative;
-}
-
-/* =============================================================================
-   TABLE BASE
-   ============================================================================= */
-
-/* Ant Design's CSS-in-JS sets overflow:hidden on .ant-table-wrapper,
-   which traps position:sticky. Override to allow sticky header to
-   reach the .page scroll container. */
-.dataTable :global(.ant-table-wrapper) {
-  overflow: visible !important;
 }
 
 .dataTable :global(.ant-table) {
@@ -89,22 +79,8 @@
   cursor: grabbing !important;
 }
 
-/* Header scroll sync — FixedHolder sets overflow:hidden inline, scrollLeft is synced via JS */
-/* Hide any scrollbar that might appear as fallback */
-.dataTable :global(.ant-table-header) {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-/* Ensure sticky header has proper z-index and background */
-.dataTable :global(.ant-table-sticky-holder) {
-  z-index: 100 !important;
-  background: var(--color-background-primary) !important;
-}
-
-.dataTable :global(.ant-table-header::-webkit-scrollbar) {
-  display: none;
-}
+/* Sticky header overrides (overflow:visible, z-index, scrollbar hiding)
+   are inherited via composes from sticky.module.css. */
 
 /* Custom scrollbar styling */
 .dataTable :global(.ant-table-body)::-webkit-scrollbar,

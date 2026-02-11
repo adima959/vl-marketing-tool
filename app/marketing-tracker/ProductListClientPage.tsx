@@ -12,6 +12,7 @@ import { EditableSelect } from '@/components/ui/EditableSelect';
 import { useMarketingTrackerStore } from '@/stores/marketingTrackerStore';
 import type { ColumnsType } from 'antd/es/table';
 import type { ProductStatus } from '@/types';
+import stickyStyles from '@/styles/tables/sticky.module.css';
 import styles from './page.module.css';
 
 interface ProductRow {
@@ -230,15 +231,18 @@ export default function ProductListClientPage() {
               description={products.length === 0 ? 'No products yet' : 'No products match your filter'}
             />
           ) : (
-            <Table
-              columns={columns}
-              dataSource={tableData}
-              pagination={false}
-              className={styles.productsTable}
-              size="middle"
-              rowClassName={styles.tableRow}
-              tableLayout="fixed"
-            />
+            <div className={stickyStyles.stickyTable}>
+              <Table
+                columns={columns}
+                dataSource={tableData}
+                pagination={false}
+                className={styles.productsTable}
+                size="middle"
+                rowClassName={styles.tableRow}
+                tableLayout="fixed"
+                sticky={{ offsetHeader: 0 }}
+              />
+            </div>
           )}
         </div>
 

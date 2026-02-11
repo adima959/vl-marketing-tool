@@ -16,6 +16,7 @@ import { GeoStageBadge } from './GeoStageBadge';
 import { CampaignModal } from './CampaignModal';
 import { AssetModal } from './AssetModal';
 import { CreativeModal } from './CreativeModal';
+import stickyStyles from '@/styles/tables/sticky.module.css';
 import styles from './ConceptDetailPanel.module.css';
 
 const { TextArea } = Input;
@@ -451,13 +452,16 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
                 {isExpanded && (
                   <div className={styles.geoTrackContent}>
                     {geoCampaigns.length > 0 && (
-                      <Table
-                        columns={campaignColumns}
-                        dataSource={geoCampaigns.map(c => ({ ...c, key: c.id }))}
-                        pagination={false}
-                        size="small"
-                        className={styles.campaignsTable}
-                      />
+                      <div className={stickyStyles.stickyTable}>
+                        <Table
+                          columns={campaignColumns}
+                          dataSource={geoCampaigns.map(c => ({ ...c, key: c.id }))}
+                          pagination={false}
+                          size="small"
+                          className={styles.campaignsTable}
+                          sticky={{ offsetHeader: 0 }}
+                        />
+                      </div>
                     )}
 
                     {geoAssets.length > 0 && (
@@ -526,13 +530,16 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
               </div>
               <div className={styles.geoTrackContent}>
                 {unassignedCampaigns.length > 0 && (
-                  <Table
-                    columns={campaignColumns}
-                    dataSource={unassignedCampaigns.map(c => ({ ...c, key: c.id }))}
-                    pagination={false}
-                    size="small"
-                    className={styles.campaignsTable}
-                  />
+                  <div className={stickyStyles.stickyTable}>
+                    <Table
+                      columns={campaignColumns}
+                      dataSource={unassignedCampaigns.map(c => ({ ...c, key: c.id }))}
+                      pagination={false}
+                      size="small"
+                      className={styles.campaignsTable}
+                      sticky={{ offsetHeader: 0 }}
+                    />
+                  </div>
                 )}
                 {unassignedAssets.length > 0 && (
                   <div className={styles.geoSubSection}>
@@ -580,13 +587,16 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
               {message.campaigns.length > 0 && (
                 <>
                   <div className={styles.geoSubLabel} style={{ marginTop: 12 }}>Campaigns</div>
-                  <Table
-                    columns={campaignColumns}
-                    dataSource={message.campaigns.map(c => ({ ...c, key: c.id }))}
-                    pagination={false}
-                    size="small"
-                    className={styles.campaignsTable}
-                  />
+                  <div className={stickyStyles.stickyTable}>
+                    <Table
+                      columns={campaignColumns}
+                      dataSource={message.campaigns.map(c => ({ ...c, key: c.id }))}
+                      pagination={false}
+                      size="small"
+                      className={styles.campaignsTable}
+                      sticky={{ offsetHeader: 0 }}
+                    />
+                  </div>
                 </>
               )}
               {(message.assets || []).length > 0 && (

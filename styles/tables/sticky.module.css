@@ -1,0 +1,38 @@
+/**
+ * Sticky Table Header Styles
+ *
+ * Lightweight CSS overrides that make Ant Design's `sticky` prop work correctly.
+ * Apply to the wrapper div around any <Table sticky={{ offsetHeader: 0 }}>.
+ *
+ * Usage:
+ *   import stickyStyles from '@/styles/tables/sticky.module.css';
+ *   <div className={stickyStyles.stickyTable}>
+ *     <Table sticky={{ offsetHeader: 0 }} ... />
+ *   </div>
+ *
+ * Why this is needed:
+ *   Ant Design sets overflow:hidden on .ant-table-wrapper via CSS-in-JS,
+ *   which kills position:sticky. This module overrides that and ensures
+ *   proper z-indexing and scrollbar behavior for the sticky header.
+ */
+
+/* Override Ant Design's overflow:hidden that traps position:sticky */
+.stickyTable :global(.ant-table-wrapper) {
+  overflow: visible !important;
+}
+
+/* Ensure sticky header holder has proper z-index and background */
+.stickyTable :global(.ant-table-sticky-holder) {
+  z-index: 100 !important;
+  background: var(--color-background-primary) !important;
+}
+
+/* Hide scrollbar on synced header (scrollLeft is synced via JS by Ant Design) */
+.stickyTable :global(.ant-table-header) {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.stickyTable :global(.ant-table-header::-webkit-scrollbar) {
+  display: none;
+}

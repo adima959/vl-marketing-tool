@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import type { AppUser } from '@/types/user';
 import type { ColumnsType } from 'antd/es/table';
 import styles from '@/styles/components/settings.module.css';
+import stickyStyles from '@/styles/tables/sticky.module.css';
 
 const EditRoleDialog = lazy(() =>
   import('@/components/users/EditRoleDialog').then((mod) => ({ default: mod.EditRoleDialog }))
@@ -164,13 +165,14 @@ export function UsersClientTable({ users }: UsersClientTableProps) {
           </div>
         </div>
 
-        <div className={styles.tableCard}>
+        <div className={`${styles.tableCard} ${stickyStyles.stickyTable}`}>
           <Table
             columns={columns}
             dataSource={users}
             loading={loading}
             rowKey="id"
             size="small"
+            sticky={{ offsetHeader: 0 }}
             pagination={{
               pageSize: 20,
               showTotal: (total) => (

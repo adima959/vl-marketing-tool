@@ -26,6 +26,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { FEATURES } from '@/types/roles';
 import modalStyles from '@/styles/components/modal.module.css';
 import settingsStyles from '@/styles/components/settings.module.css';
+import stickyStyles from '@/styles/tables/sticky.module.css';
 import styles from './permissions.module.css';
 import type {
   Role,
@@ -497,7 +498,7 @@ export default function PermissionsPage() {
                 </div>
               )}
 
-              <div className={`${settingsStyles.tableCard} ${styles.permissionGrid}`}>
+              <div className={`${settingsStyles.tableCard} ${styles.permissionGrid} ${stickyStyles.stickyTable}`}>
                 <Table
                   key={selectedRoleId}
                   columns={gridColumns}
@@ -506,6 +507,7 @@ export default function PermissionsPage() {
                   rowKey="key"
                   size="small"
                   pagination={false}
+                  sticky={{ offsetHeader: 0 }}
                   rowClassName={(record) =>
                     record.isGroupHeader ? 'groupRow' : ''
                   }

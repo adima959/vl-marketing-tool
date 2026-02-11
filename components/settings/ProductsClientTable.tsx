@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import type { Product, TrackerUser } from '@/types/marketing-tracker';
 import type { ColumnsType } from 'antd/es/table';
 import styles from '@/styles/components/settings.module.css';
+import stickyStyles from '@/styles/tables/sticky.module.css';
 
 const ProductDialog = lazy(() =>
   import('@/components/settings/ProductDialog').then((mod) => ({ default: mod.ProductDialog }))
@@ -157,13 +158,14 @@ export function ProductsClientTable({ products, users }: ProductsClientTableProp
           </div>
         </div>
 
-        <div className={styles.tableCard}>
+        <div className={`${styles.tableCard} ${stickyStyles.stickyTable}`}>
           <Table
             columns={columns}
             dataSource={products}
             loading={loading}
             rowKey="id"
             size="small"
+            sticky={{ offsetHeader: 0 }}
             pagination={{
               pageSize: 20,
               showTotal: (total) => (

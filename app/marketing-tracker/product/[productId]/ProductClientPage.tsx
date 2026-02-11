@@ -13,6 +13,7 @@ import { RichEditableField } from '@/components/ui/RichEditableField';
 import { useMarketingTrackerStore } from '@/stores/marketingTrackerStore';
 import type { ColumnsType } from 'antd/es/table';
 import type { Angle } from '@/types';
+import stickyStyles from '@/styles/tables/sticky.module.css';
 import styles from './page.module.css';
 
 interface AngleRow {
@@ -238,14 +239,17 @@ export default function ProductClientPage({ productId }: ProductClientPageProps)
               <Empty description="No angles yet" />
             </div>
           ) : (
-            <Table
-              columns={columns}
-              dataSource={tableData}
-              pagination={false}
-              className={styles.anglesTable}
-              size="middle"
-              rowClassName={styles.tableRow}
-            />
+            <div className={stickyStyles.stickyTable}>
+              <Table
+                columns={columns}
+                dataSource={tableData}
+                pagination={false}
+                className={styles.anglesTable}
+                size="middle"
+                rowClassName={styles.tableRow}
+                sticky={{ offsetHeader: 0 }}
+              />
+            </div>
           )}
         </div>
 

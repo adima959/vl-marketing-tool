@@ -12,6 +12,7 @@ import { RichEditableField } from '@/components/ui/RichEditableField';
 import { useMarketingTrackerStore } from '@/stores/marketingTrackerStore';
 import type { ColumnsType } from 'antd/es/table';
 import type { Message } from '@/types';
+import stickyStyles from '@/styles/tables/sticky.module.css';
 import styles from './page.module.css';
 
 interface MessageRow {
@@ -243,14 +244,17 @@ export default function AngleClientPage({ angleId }: AngleClientPageProps) {
               <Empty description="No messages yet" />
             </div>
           ) : (
-            <Table
-              columns={columns}
-              dataSource={tableData}
-              pagination={false}
-              className={styles.messagesTable}
-              size="middle"
-              rowClassName={styles.tableRow}
-            />
+            <div className={stickyStyles.stickyTable}>
+              <Table
+                columns={columns}
+                dataSource={tableData}
+                pagination={false}
+                className={styles.messagesTable}
+                size="middle"
+                rowClassName={styles.tableRow}
+                sticky={{ offsetHeader: 0 }}
+              />
+            </div>
           )}
         </div>
 

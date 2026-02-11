@@ -8,6 +8,7 @@ import type { Product } from '@/types';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ProductStatusBadge } from '@/components/marketing-tracker';
 import { usePipelineStore } from '@/stores/pipelineStore';
+import stickyStyles from '@/styles/tables/sticky.module.css';
 import styles from './page.module.css';
 
 interface ProductRow extends Product {
@@ -114,14 +115,17 @@ export default function ProductsSettingsPage() {
       />
       <div className={styles.container}>
         <div className={styles.tableCard}>
-          <Table
-            columns={columns}
-            dataSource={tableData}
-            pagination={false}
-            className={styles.productsTable}
-            size="middle"
-            tableLayout="fixed"
-          />
+          <div className={stickyStyles.stickyTable}>
+            <Table
+              columns={columns}
+              dataSource={tableData}
+              pagination={false}
+              className={styles.productsTable}
+              size="middle"
+              tableLayout="fixed"
+              sticky={{ offsetHeader: 0 }}
+            />
+          </div>
         </div>
       </div>
     </>
