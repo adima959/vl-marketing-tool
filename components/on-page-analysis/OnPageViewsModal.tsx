@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Modal, Table, Tooltip, Button } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { OnPageViewClickContext, OnPageDetailRecord } from '@/types/onPageDetails';
 import { fetchOnPageDetails } from '@/lib/api/onPageDetailsClient';
-import { fetchAllRecords, downloadCsv } from '@/lib/utils/csvExport';
+import { fetchAllRecords, downloadCsv, ExportCancelledError } from '@/lib/utils/csvExport';
 import { getOnPageDimensionLabel } from '@/config/onPageDimensions';
 import modalStyles from '@/styles/components/modal.module.css';
 import stickyStyles from '@/styles/tables/sticky.module.css';
@@ -34,6 +34,7 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
   const [data, setData] = useState<{ records: OnPageDetailRecord[]; total: number } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 100;
+  const exportAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (open && context) {
@@ -63,19 +64,29 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
   useEffect(() => {
     if (open) {
       setCurrentPage(1);
+    } else {
+      exportAbortRef.current?.abort();
     }
   }, [open, context?.metricId]);
 
+  const cancelExport = useCallback(() => {
+    exportAbortRef.current?.abort();
+  }, []);
+
   const exportToCSV = useCallback(async () => {
     if (!context || !data?.total) return;
+
+    const abortController = new AbortController();
+    exportAbortRef.current = abortController;
     setExporting(true);
-    setExportProgress({ current: 0, total: 0 });
+    setExportProgress({ current: 0, total: Math.min(data.total, 100_000) });
 
     try {
       const allRecords = await fetchAllRecords<OnPageDetailRecord>(
         (pagination) => fetchOnPageDetails(context, pagination),
         data.total,
-        (current, totalPages) => setExportProgress({ current, total: totalPages }),
+        (fetched, total) => setExportProgress({ current: fetched, total }),
+        abortController.signal,
       );
 
       const headers = [
@@ -166,10 +177,13 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
 
       downloadCsv(csvRows, filename);
     } catch (err) {
-      console.error('Export failed:', err);
+      if (!(err instanceof ExportCancelledError)) {
+        console.error('Export failed:', err);
+      }
     } finally {
       setExporting(false);
       setExportProgress(null);
+      exportAbortRef.current = null;
     }
   }, [context, data?.total]);
 
@@ -653,15 +667,17 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
         </div>
         <div className={styles.headerRight}>
           {exportProgress && (
-            <div className={styles.exportProgress}>
-              <div className={styles.progressBar}>
+            <div className={modalStyles.exportProgress}>
+              <div className={modalStyles.progressBar}>
                 <div
-                  className={styles.progressFill}
-                  style={{ width: `${(exportProgress.current / exportProgress.total) * 100}%` }}
+                  className={modalStyles.progressFill}
+                  style={{ width: `${(exportProgress.current / Math.max(exportProgress.total, 1)) * 100}%` }}
                 />
               </div>
-              <span className={styles.progressText}>
-                Exporting... {exportProgress.current} of {exportProgress.total}
+              <span className={modalStyles.progressText}>
+                {exportProgress.current.toLocaleString()} / {exportProgress.total.toLocaleString()} records
+                {' · '}
+                <button type="button" className={modalStyles.cancelExport} onClick={cancelExport}>Cancel</button>
               </span>
             </div>
           )}

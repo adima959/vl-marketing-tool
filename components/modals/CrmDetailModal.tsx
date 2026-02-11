@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Modal, Table, Tooltip, Button } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -10,7 +10,7 @@ import type { OnPageViewClickContext } from '@/types/onPageDetails';
 import { fetchDashboardDetails } from '@/lib/api/dashboardDetailsClient';
 import { fetchMarketingDetails } from '@/lib/api/marketingDetailsClient';
 import { fetchOnPageCrmDetails } from '@/lib/api/onPageCrmDetailsClient';
-import { fetchAllRecords, downloadCsv } from '@/lib/utils/csvExport';
+import { fetchAllRecords, downloadCsv, ExportCancelledError } from '@/lib/utils/csvExport';
 import { TableSkeleton } from '@/components/loading/TableSkeleton';
 import modalStyles from '@/styles/components/modal.module.css';
 import stickyStyles from '@/styles/tables/sticky.module.css';
@@ -91,10 +91,12 @@ async function fetchRecords(
 export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailModalProps) {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState<{ current: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<{ records: DetailRecord[]; total: number } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 100;
+  const exportAbortRef = useRef<AbortController | null>(null);
 
   const loadData = useCallback(async () => {
     if (!context) return;
@@ -124,6 +126,8 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
   useEffect(() => {
     if (open) {
       setCurrentPage(1);
+    } else {
+      exportAbortRef.current?.abort();
     }
   }, [open, context?.metricId]);
 
@@ -133,15 +137,24 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
     ((context as MetricClickContext)?.filters?.rateType === 'buy' ||
      (context as MetricClickContext)?.filters?.rateType === 'pay');
 
+  const cancelExport = useCallback(() => {
+    exportAbortRef.current?.abort();
+  }, []);
+
   const exportToCSV = useCallback(async () => {
     if (!context || !data?.total) return;
 
+    const abortController = new AbortController();
+    exportAbortRef.current = abortController;
     setExporting(true);
+    setExportProgress({ current: 0, total: Math.min(data.total, 100_000) });
 
     try {
       const allRecords = await fetchAllRecords<DetailRecord>(
         (pagination) => fetchRecords(variant, context, pagination),
         data.total,
+        (fetched, total) => setExportProgress({ current: fetched, total }),
+        abortController.signal,
       );
 
       const headers =
@@ -189,13 +202,18 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
                   `"${(record.productName || '').replace(/"/g, '""')}"`,
                 ];
 
+          const fmtDateTime = (val: string) => {
+            const d = new Date(val);
+            return `${d.toLocaleDateString('en-GB')} - ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+          };
+
           const tail = [
             record.amount !== null && record.amount !== undefined ? Number(record.amount).toFixed(2) : '0.00',
-            new Date(record.date).toLocaleDateString('en-GB'),
+            fmtDateTime(record.date),
             ...(isBuyOrPayRate
               ? [
-                  record.dateBought ? new Date(record.dateBought).toLocaleDateString('en-GB') : '',
-                  record.datePaid ? new Date(record.datePaid).toLocaleDateString('en-GB') : '',
+                  record.dateBought ? fmtDateTime(record.dateBought) : '',
+                  record.datePaid ? fmtDateTime(record.datePaid) : '',
                 ]
               : []),
           ];
@@ -250,9 +268,13 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
 
       downloadCsv(csvRows, `${filename}_export.csv`);
     } catch (err) {
-      console.error('Export failed:', err);
+      if (!(err instanceof ExportCancelledError)) {
+        console.error('Export failed:', err);
+      }
     } finally {
       setExporting(false);
+      setExportProgress(null);
+      exportAbortRef.current = null;
     }
   }, [context, data?.total, variant, isBuyOrPayRate]);
 
@@ -311,16 +333,18 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
       ellipsis: { showTitle: false },
       render: (name: string, record: DetailRecord) => (
         <div className={styles.customerCell}>
-          <Tooltip title={name} placement="topLeft">
-            <a
-              href={`https://vitaliv.no/admin/customers/${encodeURIComponent(record.customerId)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.customerLink}
-            >
-              {name}
-            </a>
-          </Tooltip>
+          <span className={styles.customerNameWrap}>
+            <Tooltip title={name} placement="topLeft">
+              <a
+                href={`https://vitaliv.no/admin/customers/${encodeURIComponent(record.customerId)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.customerLink}
+              >
+                {name}
+              </a>
+            </Tooltip>
+          </span>
           {record.customerDateRegistered &&
            new Date(record.customerDateRegistered).toDateString() === new Date(record.date).toDateString() && (
             <span className={styles.badgeNew}>NEW</span>
@@ -385,49 +409,40 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
     cols.push({
       title: 'Date',
       dataIndex: 'date',
-      width: 90,
-      render: (val) => (
-        <span className={styles.dateCell}>
-          {new Date(val).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
-        </span>
-      ),
+      width: 130,
+      render: (val) => {
+        const d = new Date(val);
+        const date = d.toLocaleDateString('en-GB');
+        const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        return <span className={styles.dateCell}>{date} - {time}</span>;
+      },
     });
 
     // Buy/pay rate extra columns
     if (isBuyOrPayRate) {
+      const renderDateTime = (val: string | null) => {
+        if (!val) return <span className={styles.dateCell}>–</span>;
+        const d = new Date(val);
+        const date = d.toLocaleDateString('en-GB');
+        const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        return <span className={styles.dateCell}>{date} - {time}</span>;
+      };
+
       cols.push(
-        {
-          title: 'Bought at',
-          dataIndex: 'dateBought',
-          width: 90,
-          render: (val) => (
-            <span className={styles.dateCell}>
-              {val ? new Date(val).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '–'}
-            </span>
-          ),
-        },
-        {
-          title: 'Paid at',
-          dataIndex: 'datePaid',
-          width: 90,
-          render: (val) => (
-            <span className={styles.dateCell}>
-              {val ? new Date(val).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '–'}
-            </span>
-          ),
-        }
+        { title: 'Bought at', dataIndex: 'dateBought', width: 130, render: renderDateTime },
+        { title: 'Paid at', dataIndex: 'datePaid', width: 130, render: renderDateTime },
       );
     }
 
     return cols;
   }, [variant, isBuyOrPayRate]);
 
-  // Scroll width: status(56) + customer(190) + source(100) + variant columns + amount(90) + date(90)
+  // Scroll width: status(56) + customer(190) + source(100) + variant columns + amount(90) + date(130)
   const scrollX = useMemo(() => {
-    const base = 56 + 190 + 100 + 90 + 90; // 526
+    const base = 56 + 190 + 100 + 90 + 130; // 566
     if (variant === 'dashboard') {
       // 5 × tracking(110) = 550
-      const extra = isBuyOrPayRate ? 180 : 0; // bought(90) + paid(90)
+      const extra = isBuyOrPayRate ? 260 : 0; // bought(130) + paid(130)
       return base + 550 + extra;
     }
     // campaign(120) + adset(120) + ad(120) + product(150) = 510
@@ -454,10 +469,25 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
           </span>
         </div>
         <div className={styles.headerRight}>
+          {exportProgress && (
+            <div className={modalStyles.exportProgress}>
+              <div className={modalStyles.progressBar}>
+                <div
+                  className={modalStyles.progressFill}
+                  style={{ width: `${(exportProgress.current / Math.max(exportProgress.total, 1)) * 100}%` }}
+                />
+              </div>
+              <span className={modalStyles.progressText}>
+                {exportProgress.current.toLocaleString()} / {exportProgress.total.toLocaleString()} records
+                {' · '}
+                <button type="button" className={modalStyles.cancelExport} onClick={cancelExport}>Cancel</button>
+              </span>
+            </div>
+          )}
           <Button
             type="text"
             size="small"
-            icon={<DownloadOutlined />}
+            icon={!exporting ? <DownloadOutlined /> : undefined}
             onClick={exportToCSV}
             disabled={!data?.total || exporting}
             loading={exporting}

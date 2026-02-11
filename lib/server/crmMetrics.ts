@@ -297,6 +297,20 @@ export type MarketingDetailMetricId = typeof MARKETING_DETAIL_METRIC_IDS[number]
 // ---------------------------------------------------------------------------
 
 /**
+ * Format a Date returned by mysql2 from a MariaDB DATE/DATETIME column.
+ * mysql2 interprets DATE values in the server's local timezone (Europe/Oslo, CET),
+ * so local methods correctly recover the original calendar day.
+ *
+ * Do NOT use getUTC* here — that would shift the date back one day for CET.
+ */
+export function formatMariaDBDateResult(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
  * Format a Date for MariaDB BETWEEN queries (YYYY-MM-DD HH:MM:SS).
  * Uses UTC components to avoid timezone shifts.
  */

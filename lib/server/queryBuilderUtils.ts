@@ -191,22 +191,3 @@ export class FilterBuilder {
     this.paramCount = 0;
   }
 }
-
-/**
- * Helper: Build pagination clause (LIMIT + OFFSET)
- */
-export function buildPaginationClause(
-  page: number,
-  pageSize: number,
-  dbType: DbType = 'mariadb'
-): string {
-  const offset = (page - 1) * pageSize;
-  return `LIMIT ${pageSize} OFFSET ${offset}`;
-}
-
-/**
- * Helper: Format date for MariaDB queries (YYYY-MM-DD)
- */
-export function formatDateForMariaDB(date: Date): string {
-  return date.toISOString().split('T')[0];
-}

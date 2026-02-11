@@ -90,7 +90,7 @@ export const validationRateQueryRequestSchema = queryRequestSchema.extend({
  */
 const paginationSchema = z.object({
   page: z.number().int().min(1, 'page must be at least 1').default(1),
-  pageSize: z.number().int().min(1).max(100, 'pageSize must be between 1 and 100').default(50),
+  pageSize: z.number().int().min(1).max(5000, 'pageSize must be between 1 and 5000').default(50),
 }).optional();
 
 /**

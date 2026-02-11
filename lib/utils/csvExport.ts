@@ -2,8 +2,15 @@
  * Shared CSV export utilities used by all detail modals.
  */
 
-const BATCH_SIZE = 100;
-const MAX_RECORDS = 10_000;
+const BATCH_SIZE = 5_000;
+const MAX_RECORDS = 100_000;
+
+export class ExportCancelledError extends Error {
+  constructor() {
+    super('Export cancelled');
+    this.name = 'ExportCancelledError';
+  }
+}
 
 interface BatchResult<T> {
   records: T[];
@@ -11,30 +18,54 @@ interface BatchResult<T> {
 }
 
 /**
- * Fetches all records by paginating in batches of 100 (server max pageSize).
- * Caps at 10 000 records total.
+ * Fetches all records by paginating in batches of 5 000.
+ * Caps at 100 000 records total.
  *
- * @param fetchFn - callback that fetches a single page
- * @param total   - known total from the initial load (used to calculate page count)
- * @param onProgress - optional callback with (currentPage, totalPages)
+ * @param fetchFn    - callback that fetches a single page
+ * @param total      - known total from the initial load
+ * @param onProgress - optional callback with (fetchedSoFar, cappedTotal)
+ * @param signal     - optional AbortSignal to cancel the export mid-request
  */
 export async function fetchAllRecords<T>(
   fetchFn: (pagination: { page: number; pageSize: number }) => Promise<BatchResult<T>>,
   total: number,
-  onProgress?: (current: number, totalPages: number) => void,
+  onProgress?: (fetched: number, total: number) => void,
+  signal?: AbortSignal,
 ): Promise<T[]> {
   const capped = Math.min(total, MAX_RECORDS);
   const totalPages = Math.ceil(capped / BATCH_SIZE);
   const allRecords: T[] = [];
 
   for (let page = 1; page <= totalPages; page++) {
-    const batch = await fetchFn({ page, pageSize: BATCH_SIZE });
+    if (signal?.aborted) throw new ExportCancelledError();
+
+    // Race the fetch against the abort signal so cancel is instant
+    const batch = await (signal
+      ? raceAbort(fetchFn({ page, pageSize: BATCH_SIZE }), signal)
+      : fetchFn({ page, pageSize: BATCH_SIZE }));
+
     allRecords.push(...batch.records);
-    onProgress?.(page, totalPages);
+    onProgress?.(allRecords.length, capped);
     if (batch.records.length < BATCH_SIZE) break;
   }
 
   return allRecords;
+}
+
+/**
+ * Races a promise against an AbortSignal.
+ * Resolves/rejects as soon as either the promise settles or the signal fires.
+ */
+function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(new ExportCancelledError());
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new ExportCancelledError());
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (v) => { signal.removeEventListener('abort', onAbort); resolve(v); },
+      (e) => { signal.removeEventListener('abort', onAbort); reject(e); },
+    );
+  });
 }
 
 /**

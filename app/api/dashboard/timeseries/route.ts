@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeMariaDBQuery } from '@/lib/server/mariadb';
 import { crmQueryBuilder } from '@/lib/server/crmQueryBuilder';
+import { formatMariaDBDateResult } from '@/lib/server/crmMetrics';
 import type { TimeSeriesDataPoint, TimeSeriesResponse } from '@/types/dashboard';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
@@ -64,15 +65,9 @@ async function handleTimeSeriesQuery(
     // Build OTS lookup by date string
     const otsMap = new Map<string, { ots: number; otsApproved: number }>();
     for (const otsRow of otsRows) {
-      let dateKey: string;
-      if (otsRow.date instanceof Date) {
-        const y = otsRow.date.getFullYear();
-        const m = String(otsRow.date.getMonth() + 1).padStart(2, '0');
-        const d = String(otsRow.date.getDate()).padStart(2, '0');
-        dateKey = `${y}-${m}-${d}`;
-      } else {
-        dateKey = String(otsRow.date).split('T')[0];
-      }
+      const dateKey = otsRow.date instanceof Date
+        ? formatMariaDBDateResult(otsRow.date)
+        : String(otsRow.date).split('T')[0];
       otsMap.set(dateKey, {
         ots: Number(otsRow.ots) || 0,
         otsApproved: Number(otsRow.otsApproved) || 0,
@@ -81,16 +76,9 @@ async function handleTimeSeriesQuery(
 
     // Transform to frontend format, merging OTS data
     const data: TimeSeriesDataPoint[] = rows.map((row) => {
-      // Format date as YYYY-MM-DD string (use local methods to avoid UTC shift)
-      let dateValue: string;
-      if (row.date instanceof Date) {
-        const y = row.date.getFullYear();
-        const m = String(row.date.getMonth() + 1).padStart(2, '0');
-        const d = String(row.date.getDate()).padStart(2, '0');
-        dateValue = `${y}-${m}-${d}`;
-      } else {
-        dateValue = String(row.date).split('T')[0];
-      }
+      const dateValue = row.date instanceof Date
+        ? formatMariaDBDateResult(row.date)
+        : String(row.date).split('T')[0];
 
       const otsData = otsMap.get(dateValue) || { ots: 0, otsApproved: 0 };
 

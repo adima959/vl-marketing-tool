@@ -1,5 +1,5 @@
 import { executeMariaDBQuery } from './mariadb';
-import { CRM_JOINS, CRM_WHERE, RATE_TYPE_CONFIGS } from './crmMetrics';
+import { CRM_JOINS, CRM_WHERE, RATE_TYPE_CONFIGS, formatDateForMariaDB } from './crmMetrics';
 import { FilterBuilder } from './queryBuilderUtils';
 import {
   VALIDATION_RATE_DIMENSION_COLUMN_MAP,
@@ -65,8 +65,16 @@ const validationFilterBuilder = new FilterBuilder({
   },
 });
 
+/** Create a Date at UTC midnight for the given year/month/day */
+function utcDate(year: number, month: number, day: number): Date {
+  return new Date(Date.UTC(year, month, day));
+}
+
 /**
  * Generate time period columns based on date range and period type
+ *
+ * All date arithmetic uses UTC to match the canonical formatDateForMariaDB() in crmMetrics.ts.
+ * Input dates are expected at UTC midnight (as created by the frontend DateRangePicker).
  *
  * Periods are generated from the END date backwards to maintain
  * consistent ordering (most recent first in array index 0).
@@ -91,23 +99,23 @@ export function generateTimePeriods(
       case 'weekly':
         // 7-day intervals
         currentStart = new Date(currentEnd);
-        currentStart.setDate(currentStart.getDate() - 6);
+        currentStart.setUTCDate(currentStart.getUTCDate() - 6);
         break;
 
       case 'biweekly':
         // Half-month boundaries: 1-14 and 15-end of month
-        if (currentEnd.getDate() >= 15) {
+        if (currentEnd.getUTCDate() >= 15) {
           // Second half: 15 to end of month
-          currentStart = new Date(currentEnd.getFullYear(), currentEnd.getMonth(), 15);
+          currentStart = utcDate(currentEnd.getUTCFullYear(), currentEnd.getUTCMonth(), 15);
         } else {
           // First half: 1 to 14
-          currentStart = new Date(currentEnd.getFullYear(), currentEnd.getMonth(), 1);
+          currentStart = utcDate(currentEnd.getUTCFullYear(), currentEnd.getUTCMonth(), 1);
         }
         break;
 
       case 'monthly':
         // Calendar month
-        currentStart = new Date(currentEnd.getFullYear(), currentEnd.getMonth(), 1);
+        currentStart = utcDate(currentEnd.getUTCFullYear(), currentEnd.getUTCMonth(), 1);
         break;
     }
 
@@ -121,28 +129,28 @@ export function generateTimePeriods(
     periods.push({
       key: `period_${periodIndex}`,
       label: formatPeriodLabel(currentStart, currentEnd, periodType),
-      startDate: formatDateForSQL(currentStart, false),  // 00:00:00
-      endDate: formatDateForSQL(currentEnd, true),       // 23:59:59
+      startDate: formatDateForMariaDB(currentStart, false),  // 00:00:00
+      endDate: formatDateForMariaDB(currentEnd, true),       // 23:59:59
     });
 
     // Move to previous period
     if (periodType === 'monthly') {
       // Go to last day of previous month
       currentEnd = new Date(currentStart);
-      currentEnd.setDate(currentEnd.getDate() - 1);
+      currentEnd.setUTCDate(currentEnd.getUTCDate() - 1);
     } else if (periodType === 'biweekly') {
       // Go to end of previous half-month
-      if (currentStart.getDate() === 15) {
+      if (currentStart.getUTCDate() === 15) {
         // Was second half, go to 14th of same month
-        currentEnd = new Date(currentStart.getFullYear(), currentStart.getMonth(), 14);
+        currentEnd = utcDate(currentStart.getUTCFullYear(), currentStart.getUTCMonth(), 14);
       } else {
         // Was first half, go to end of previous month
-        currentEnd = new Date(currentStart.getFullYear(), currentStart.getMonth(), 0);
+        currentEnd = utcDate(currentStart.getUTCFullYear(), currentStart.getUTCMonth(), 0);
       }
     } else {
       // Weekly: Go back by period length
       currentEnd = new Date(currentStart);
-      currentEnd.setDate(currentEnd.getDate() - 1);
+      currentEnd.setUTCDate(currentEnd.getUTCDate() - 1);
     }
 
     periodIndex++;
@@ -156,48 +164,31 @@ export function generateTimePeriods(
 }
 
 /**
- * Format period label for display
+ * Format period label for display (uses UTC to match SQL date boundaries)
  */
 function formatPeriodLabel(start: Date, end: Date, periodType: TimePeriod): string {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   if (periodType === 'monthly') {
     // Show month name + year if different from current year
-    const monthName = months[start.getMonth()];
-    const currentYear = new Date().getFullYear();
-    if (start.getFullYear() !== currentYear) {
-      return `${monthName} ${start.getFullYear()}`;
+    const monthName = months[start.getUTCMonth()];
+    const currentYear = new Date().getUTCFullYear();
+    if (start.getUTCFullYear() !== currentYear) {
+      return `${monthName} ${start.getUTCFullYear()}`;
     }
     return monthName;
   }
 
   // Weekly/biweekly: Show date range
-  const startMonth = months[start.getMonth()];
-  const endMonth = months[end.getMonth()];
-  const startDay = start.getDate();
-  const endDay = end.getDate();
+  const startMonth = months[start.getUTCMonth()];
+  const endMonth = months[end.getUTCMonth()];
+  const startDay = start.getUTCDate();
+  const endDay = end.getUTCDate();
 
   if (startMonth === endMonth) {
     return `${startMonth} ${startDay}-${endDay}`;
   }
   return `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
-}
-
-/**
- * Format date as YYYY-MM-DD HH:MM:SS for SQL
- *
- * @param date - Date to format
- * @param endOfDay - If true, use 23:59:59; if false, use 00:00:00
- *
- * Using full datetime format allows MySQL/MariaDB to use indexes on datetime columns
- * (vs using DATE() function which prevents index usage)
- */
-function formatDateForSQL(date: Date, endOfDay: boolean = false): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const time = endOfDay ? '23:59:59' : '00:00:00';
-  return `${year}-${month}-${day} ${time}`;
 }
 
 /**
