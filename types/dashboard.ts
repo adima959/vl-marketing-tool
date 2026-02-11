@@ -17,7 +17,7 @@ export interface DashboardRow extends BaseTableRow {
     ots: number;              // COUNT of one-time sale invoices (type = 3)
     otsApproved: number;      // COUNT of approved OTS (type = 3, is_marked = 1)
     trialsApproved: number;   // COUNT of approved trials (is_marked = 1)
-    approvalRate: number;     // (trialsApproved + otsApproved) / (trials + ots)
+    approvalRate: number;     // trialsApproved / subscriptions
     upsells: number;          // COUNT of upsells (tag-based parent-sub-id matching)
     upsellsApproved: number;  // COUNT of approved upsells (is_marked = 1)
     otsApprovalRate: number;    // otsApproved / ots (decimal ratio for formatPercentage)

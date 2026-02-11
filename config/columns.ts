@@ -77,7 +77,7 @@ export const METRIC_COLUMNS: MetricColumn[] = [
     align: 'right',
   },
 
-  // CRM Metrics (order matches dashboard: Cust, Subs, Trials, Approved, Appr.%, OTS, OTS Appr.%, Upsells, Ups. Appv %, Real CPA)
+  // CRM Metrics (order matches dashboard: Cust, Subs, Trials, Trial Appv, Trial Appr.%, OTS, OTS Appr.%, Upsells, Ups. Appv %, Real CPA)
   {
     id: 'customers',
     label: 'Customers',
@@ -113,8 +113,8 @@ export const METRIC_COLUMNS: MetricColumn[] = [
   },
   {
     id: 'trialsApproved',
-    label: 'Approved',
-    shortLabel: 'Approved',
+    label: 'Trial Appv',
+    shortLabel: 'Trial Appv',
     description: 'Approved trial invoices (is_marked = 1)',
     format: 'number',
     category: 'conversions',
@@ -124,9 +124,9 @@ export const METRIC_COLUMNS: MetricColumn[] = [
   },
   {
     id: 'approvalRate',
-    label: 'Approval %',
-    shortLabel: 'Appr. %',
-    description: 'Percentage of trials + OTS approved ((trialsApproved + otsApproved) / (trials + ots))',
+    label: 'Trial Appr. %',
+    shortLabel: 'Trial Appr. %',
+    description: 'Approved trials as percentage of subscriptions (trialsApproved / subscriptions)',
     format: 'percentage',
     category: 'conversions',
     defaultVisible: true,

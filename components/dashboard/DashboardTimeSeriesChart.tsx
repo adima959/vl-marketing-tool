@@ -30,42 +30,6 @@ interface ChartDataPoint extends TimeSeriesDataPoint {
  * Metric configuration for chart visualization
  */
 const METRIC_CONFIG = {
-  trials: {
-    key: 'trials',
-    label: 'Trials (w/o upsells)',
-    color: '#1a1a1a',
-    defaultVisible: true,
-    yAxisId: 'left',
-    isPercentage: false,
-    isArea: false,
-  },
-  trialsApproved: {
-    key: 'trialsApproved',
-    label: 'Approved',
-    color: '#00B96B',
-    defaultVisible: true,
-    yAxisId: 'left',
-    isPercentage: false,
-    isArea: false,
-  },
-  approvalRate: {
-    key: 'approvalRate',
-    label: 'Approval %',
-    color: '#10b981',
-    defaultVisible: true,
-    yAxisId: 'right',
-    isPercentage: true,
-    isArea: true,
-  },
-  subscriptions: {
-    key: 'subscriptions',
-    label: 'Subscriptions',
-    color: '#3b82f6',
-    defaultVisible: false,
-    yAxisId: 'left',
-    isPercentage: false,
-    isArea: false,
-  },
   customers: {
     key: 'customers',
     label: 'Customers',
@@ -75,10 +39,55 @@ const METRIC_CONFIG = {
     isPercentage: false,
     isArea: false,
   },
+  subscriptions: {
+    key: 'subscriptions',
+    label: 'Subscriptions',
+    color: '#3b82f6',
+    defaultVisible: true,
+    yAxisId: 'left',
+    isPercentage: false,
+    isArea: false,
+  },
+  trials: {
+    key: 'trials',
+    label: 'Trials (w/o upsells)',
+    color: '#1a1a1a',
+    defaultVisible: false,
+    yAxisId: 'left',
+    isPercentage: false,
+    isArea: false,
+  },
+  trialsApproved: {
+    key: 'trialsApproved',
+    label: 'Trial Appv',
+    color: '#00B96B',
+    defaultVisible: true,
+    yAxisId: 'left',
+    isPercentage: false,
+    isArea: false,
+  },
+  approvalRate: {
+    key: 'approvalRate',
+    label: 'Trial Appr. %',
+    color: '#10b981',
+    defaultVisible: true,
+    yAxisId: 'right',
+    isPercentage: true,
+    isArea: true,
+  },
   upsells: {
     key: 'upsells',
     label: 'Upsells',
-    color: '#f97316',
+    color: '#d97706',
+    defaultVisible: true,
+    yAxisId: 'left',
+    isPercentage: false,
+    isArea: false,
+  },
+  ots: {
+    key: 'ots',
+    label: 'OTS',
+    color: '#7c8db5',
     defaultVisible: true,
     yAxisId: 'left',
     isPercentage: false,
@@ -159,11 +168,19 @@ function CustomTooltip({
     return null;
   }
 
+  // Sort tooltip entries to match METRIC_CONFIG order
+  const metricKeyOrder = Object.keys(METRIC_CONFIG);
+  const sortedPayload = [...payload].sort((a, b) => {
+    const aIdx = metricKeyOrder.indexOf(String(a.dataKey));
+    const bIdx = metricKeyOrder.indexOf(String(b.dataKey));
+    return aIdx - bIdx;
+  });
+
   return (
     <div className={styles.tooltip}>
       <div className={styles.tooltipDate}>{formatTooltipDate(label || '')}</div>
       <div className={styles.tooltipMetrics}>
-        {payload.map((entry) => {
+        {sortedPayload.map((entry) => {
           const metricConfig = Object.values(METRIC_CONFIG).find(
             (m) => m.key === entry.dataKey
           );
@@ -310,9 +327,9 @@ export function DashboardTimeSeriesChart(): React.ReactElement {
   const chartData = useMemo((): ChartDataPoint[] => {
     return data.map((point) => ({
       ...point,
-      // Calculate approval rate as percentage
-      approvalRate: point.trials > 0
-        ? (point.trialsApproved / point.trials) * 100
+      // Trial approval rate: trialsApproved / subscriptions
+      approvalRate: point.subscriptions > 0
+        ? (point.trialsApproved / point.subscriptions) * 100
         : null,
     }));
   }, [data]);
@@ -409,7 +426,7 @@ export function DashboardTimeSeriesChart(): React.ReactElement {
                 <Area
                   type="monotone"
                   dataKey="approvalRate"
-                  name="Approval %"
+                  name="Trial Appr. %"
                   yAxisId="right"
                   stroke="none"
                   fill="url(#approvalRateGradient)"

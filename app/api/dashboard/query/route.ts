@@ -174,7 +174,7 @@ async function handleDashboardQuery(
 
       // Merge OTS from standalone query
       const otsData = otsMap.get(rowKey) || { ots: 0, otsApproved: 0 };
-      const approvalDenominator = trials + otsData.ots;
+      const subscriptions = Number(row.subscription_count) || 0;
 
       // Track which OTS keys were matched
       if (otsMap.has(rowKey)) {
@@ -205,7 +205,7 @@ async function handleDashboardQuery(
           ots: otsData.ots,
           otsApproved: otsData.otsApproved,
           trialsApproved,
-          approvalRate: approvalDenominator > 0 ? (trialsApproved + otsData.otsApproved) / approvalDenominator : 0,
+          approvalRate: subscriptions > 0 ? trialsApproved / subscriptions : 0,
           otsApprovalRate: otsData.ots > 0 ? otsData.otsApproved / otsData.ots : 0,
           upsells: Number(row.upsell_count) || 0,
           upsellsApproved: Number(row.upsells_approved_count) || 0,

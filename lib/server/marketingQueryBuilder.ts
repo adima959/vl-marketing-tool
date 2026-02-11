@@ -423,7 +423,6 @@ export async function getMarketingData(
     }
 
     const cost = Number(row.cost) || 0;
-    const approvalDenominator = trials + ots;
     return {
       dimension_value: row.dimension_value,
       cost,
@@ -442,7 +441,7 @@ export async function getMarketingData(
       ots_approved,
       upsells,
       upsells_approved,
-      approval_rate: approvalDenominator > 0 ? (trials_approved + ots_approved) / approvalDenominator : 0,
+      approval_rate: subscriptions > 0 ? trials_approved / subscriptions : 0,
       ots_approval_rate: ots > 0 ? ots_approved / ots : 0,
       upsell_approval_rate: upsells > 0 ? upsells_approved / upsells : 0,
       real_cpa: trials_approved > 0 ? cost / trials_approved : 0,
