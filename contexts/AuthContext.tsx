@@ -5,7 +5,6 @@ import type { CRMUser } from '@/types/auth';
 import { AppError, ErrorCode } from '@/lib/types/errors';
 import { registerErrorHandler, clearError } from '@/lib/api/errorHandler';
 import { ErrorPage } from '@/components/ErrorPage';
-import { registerAuthErrorHandler } from '@/lib/api/authErrorHandler';
 
 interface AuthConfig {
   callbackUrl: string;
@@ -120,11 +119,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         };
         setAuthConfig(fallbackConfig);
       });
-  }, []);
-
-  // Register global auth error handler (legacy)
-  useEffect(() => {
-    registerAuthErrorHandler(setAuthError);
   }, []);
 
   // Register global error handler for all error types

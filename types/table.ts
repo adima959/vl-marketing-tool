@@ -42,7 +42,6 @@ export interface TableStore<TRow extends BaseTableRow> {
   hasLoadedOnce: boolean;
   loadChildData: (key: string, value: string, depth: number) => Promise<void>;
   loadData: () => Promise<void>;
-  error: string | null;
 }
 
 /**

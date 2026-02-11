@@ -1,7 +1,6 @@
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { AuthErrorPage } from '@/components/auth/AuthErrorPage';
 import { Spin } from 'antd';
 import styles from '@/styles/components/settings.module.css';
 
@@ -37,8 +36,9 @@ export function SettingsPageWrapper({ children }: SettingsPageWrapperProps) {
     );
   }
 
-  if (!isAuthenticated || authError) {
-    return <AuthErrorPage />;
+  // AuthContext handles authError globally via ErrorPage
+  if (!isAuthenticated) {
+    return null;
   }
 
   return <>{children}</>;

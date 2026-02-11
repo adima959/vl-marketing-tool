@@ -1,11 +1,20 @@
 import type { SavedView } from '@/types/savedViews';
-import { triggerAuthError, isAuthError } from '@/lib/api/authErrorHandler';
+import { triggerError, isAuthError } from '@/lib/api/errorHandler';
+import { ErrorCode } from '@/lib/types/errors';
 
 export async function fetchSavedViews(pagePath: string): Promise<SavedView[]> {
   const res = await fetch(`/api/saved-views?pagePath=${encodeURIComponent(pagePath)}`);
 
   if (!res.ok) {
-    if (isAuthError(res.status)) triggerAuthError();
+    if (isAuthError(res.status)) {
+    const authError: import('@/lib/types/errors').AppError = {
+      name: 'AuthError',
+      message: 'Your session has expired or is invalid. Please refresh your session to continue.',
+      code: ErrorCode.AUTH_ERROR,
+      statusCode: 401,
+    };
+    triggerError(authError);
+  }
     throw new Error('Failed to fetch saved views');
   }
 
@@ -21,7 +30,15 @@ export async function createSavedView(body: Record<string, unknown>): Promise<Sa
   });
 
   if (!res.ok) {
-    if (isAuthError(res.status)) triggerAuthError();
+    if (isAuthError(res.status)) {
+    const authError: import('@/lib/types/errors').AppError = {
+      name: 'AuthError',
+      message: 'Your session has expired or is invalid. Please refresh your session to continue.',
+      code: ErrorCode.AUTH_ERROR,
+      statusCode: 401,
+    };
+    triggerError(authError);
+  }
     const json = await res.json();
     throw new Error(json.error || 'Failed to create saved view');
   }
@@ -34,7 +51,15 @@ export async function deleteSavedView(id: string): Promise<void> {
   const res = await fetch(`/api/saved-views/${id}`, { method: 'DELETE' });
 
   if (!res.ok) {
-    if (isAuthError(res.status)) triggerAuthError();
+    if (isAuthError(res.status)) {
+    const authError: import('@/lib/types/errors').AppError = {
+      name: 'AuthError',
+      message: 'Your session has expired or is invalid. Please refresh your session to continue.',
+      code: ErrorCode.AUTH_ERROR,
+      statusCode: 401,
+    };
+    triggerError(authError);
+  }
     throw new Error('Failed to delete saved view');
   }
 }
@@ -47,7 +72,15 @@ export async function renameSavedView(id: string, name: string): Promise<SavedVi
   });
 
   if (!res.ok) {
-    if (isAuthError(res.status)) triggerAuthError();
+    if (isAuthError(res.status)) {
+    const authError: import('@/lib/types/errors').AppError = {
+      name: 'AuthError',
+      message: 'Your session has expired or is invalid. Please refresh your session to continue.',
+      code: ErrorCode.AUTH_ERROR,
+      statusCode: 401,
+    };
+    triggerError(authError);
+  }
     const json = await res.json();
     throw new Error(json.error || 'Failed to rename saved view');
   }
@@ -60,7 +93,15 @@ export async function fetchFavoriteViews(): Promise<SavedView[]> {
   const res = await fetch('/api/saved-views?favorites=true');
 
   if (!res.ok) {
-    if (isAuthError(res.status)) triggerAuthError();
+    if (isAuthError(res.status)) {
+    const authError: import('@/lib/types/errors').AppError = {
+      name: 'AuthError',
+      message: 'Your session has expired or is invalid. Please refresh your session to continue.',
+      code: ErrorCode.AUTH_ERROR,
+      statusCode: 401,
+    };
+    triggerError(authError);
+  }
     throw new Error('Failed to fetch favorite views');
   }
 
@@ -76,7 +117,15 @@ export async function toggleFavorite(id: string, isFavorite: boolean): Promise<v
   });
 
   if (!res.ok) {
-    if (isAuthError(res.status)) triggerAuthError();
+    if (isAuthError(res.status)) {
+    const authError: import('@/lib/types/errors').AppError = {
+      name: 'AuthError',
+      message: 'Your session has expired or is invalid. Please refresh your session to continue.',
+      code: ErrorCode.AUTH_ERROR,
+      statusCode: 401,
+    };
+    triggerError(authError);
+  }
     throw new Error('Failed to update favorite status');
   }
 }
@@ -89,7 +138,15 @@ export async function reorderFavorites(items: { id: string; favoriteOrder: numbe
   });
 
   if (!res.ok) {
-    if (isAuthError(res.status)) triggerAuthError();
+    if (isAuthError(res.status)) {
+    const authError: import('@/lib/types/errors').AppError = {
+      name: 'AuthError',
+      message: 'Your session has expired or is invalid. Please refresh your session to continue.',
+      code: ErrorCode.AUTH_ERROR,
+      statusCode: 401,
+    };
+    triggerError(authError);
+  }
     throw new Error('Failed to reorder favorites');
   }
 }
@@ -98,7 +155,15 @@ export async function fetchSavedViewById(id: string): Promise<SavedView> {
   const res = await fetch(`/api/saved-views/${id}`);
 
   if (!res.ok) {
-    if (isAuthError(res.status)) triggerAuthError();
+    if (isAuthError(res.status)) {
+    const authError: import('@/lib/types/errors').AppError = {
+      name: 'AuthError',
+      message: 'Your session has expired or is invalid. Please refresh your session to continue.',
+      code: ErrorCode.AUTH_ERROR,
+      statusCode: 401,
+    };
+    triggerError(authError);
+  }
     throw new Error('Failed to fetch saved view');
   }
 

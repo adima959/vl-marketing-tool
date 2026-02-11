@@ -23,7 +23,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { App, Table, Button, Checkbox, Tag, Modal, Input, Select, Spin } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
-import { AuthErrorPage } from '@/components/auth/AuthErrorPage';
 import { FEATURES } from '@/types/roles';
 import modalStyles from '@/styles/components/modal.module.css';
 import settingsStyles from '@/styles/components/settings.module.css';
@@ -409,8 +408,9 @@ export default function PermissionsPage() {
     return <div className={settingsStyles.centeredState}><Spin size="small" /></div>;
   }
 
-  if (!isAuthenticated || authError) {
-    return <AuthErrorPage />;
+  // AuthContext handles authError globally via ErrorPage
+  if (!isAuthenticated) {
+    return null;
   }
 
   return (

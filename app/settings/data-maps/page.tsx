@@ -19,7 +19,6 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Spin } from 'antd';
 import { Megaphone, Globe, Link2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { AuthErrorPage } from '@/components/auth/AuthErrorPage';
 import settingsStyles from '@/styles/components/settings.module.css';
 import styles from '@/components/settings/data-maps.module.css';
 
@@ -73,8 +72,9 @@ export default function DataMapsPage(): React.ReactNode {
     return <div className={settingsStyles.centeredState}><Spin size="small" /></div>;
   }
 
-  if (!isAuthenticated || authError) {
-    return <AuthErrorPage />;
+  // AuthContext handles authError globally via ErrorPage
+  if (!isAuthenticated) {
+    return null;
   }
 
   return (

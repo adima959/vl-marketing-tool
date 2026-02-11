@@ -4,7 +4,6 @@ import { useEffect, ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spin } from 'antd';
-import { AuthErrorPage } from '@/components/auth/AuthErrorPage';
 
 interface RouteGuardProps {
   children: ReactNode;
@@ -61,12 +60,8 @@ export function RouteGuard({ children }: RouteGuardProps) {
     );
   }
 
-  // If auth error detected (401 from API), show error page
-  if (authError) {
-    return <AuthErrorPage />;
-  }
-
-  // If not authenticated, show nothing (will redirect)
+  // AuthContext handles authError globally via ErrorPage
+  // If not authenticated, show nothing (will redirect unless authError is set)
   if (!isAuthenticated) {
     return null;
   }

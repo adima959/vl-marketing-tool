@@ -1,5 +1,5 @@
-import { normalizeError, createTimeoutError, createNetworkError } from '@/lib/types/errors';
-import { triggerAuthError, isAuthError } from '@/lib/api/authErrorHandler';
+import { normalizeError, createTimeoutError, createNetworkError, ErrorCode } from '@/lib/types/errors';
+import { triggerError, isAuthError } from '@/lib/api/errorHandler';
 import { formatLocalDate } from '@/lib/types/api';
 import type {
   ValidationRateType,
@@ -64,7 +64,13 @@ export async function fetchValidationRateData(
 
     if (!response.ok) {
       if (isAuthError(response.status)) {
-        triggerAuthError();
+        const authError: import('@/lib/types/errors').AppError = {
+          name: 'AuthError',
+          message: 'Your session has expired or is invalid. Please refresh your session to continue.',
+          code: ErrorCode.AUTH_ERROR,
+          statusCode: 401,
+        };
+        triggerError(authError);
       }
       const error = await response.json().catch(() => ({ error: `API request failed: ${response.statusText}` }));
       throw createNetworkError(
