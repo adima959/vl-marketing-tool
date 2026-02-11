@@ -1,4 +1,5 @@
 import { executeMariaDBQuery } from './mariadb';
+import { CRM_WHERE } from './crmMetrics';
 import {
   VALIDATION_RATE_DIMENSION_COLUMN_MAP,
   getValidationRateDimensionColumn,
@@ -327,6 +328,7 @@ function buildValidationRateQuery(
     ${extraJoin}
     WHERE 1=1
       ${invoiceFilter}
+      AND ${CRM_WHERE.upsellExclusion}
       AND ${dateField} BETWEEN ? AND ?
       AND ${dimensionColumn} IS NOT NULL
       AND LENGTH(TRIM(${dimensionColumn})) > 0

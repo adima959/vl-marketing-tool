@@ -8,7 +8,6 @@ import { DASHBOARD_DETAIL_METRIC_IDS, type DashboardDetailMetricId, type Marketi
 import { OnPageClickableMetricCell } from '@/components/on-page-analysis/OnPageClickableMetricCell';
 import { useToast } from '@/hooks/useToast';
 import { useDragScroll } from '@/hooks/useDragScroll';
-import { ErrorMessage } from '@/components/ErrorMessage';
 import { EmptyState } from '@/components/EmptyState';
 import { TableSkeleton } from '@/components/loading/TableSkeleton';
 import type { BaseTableRow, GenericDataTableConfig } from '@/types/table';
@@ -43,7 +42,6 @@ export function GenericDataTable<TRow extends BaseTableRow>({
     hasLoadedOnce,
     loadChildData,
     loadData,
-    error,
   } = useStore();
   const { visibleColumns } = useColumnStore();
   const toast = useToast();
@@ -305,11 +303,6 @@ export function GenericDataTable<TRow extends BaseTableRow>({
 
   // Drag-to-scroll + header/body scroll sync
   useDragScroll(tableRef);
-
-  // Show error state
-  if (error) {
-    return <ErrorMessage error={error} onRetry={loadData} />;
-  }
 
   // Show loading skeleton when loading and no data
   if (isLoading && reportData.length === 0) {

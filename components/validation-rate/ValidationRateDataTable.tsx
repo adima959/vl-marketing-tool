@@ -6,7 +6,6 @@ import { useMemo, useRef, useState } from 'react';
 import { ValidationRateCell, MIN_SUBSCRIPTIONS_THRESHOLD } from './ValidationRateCell';
 import { useToast } from '@/hooks/useToast';
 import { useDragScroll } from '@/hooks/useDragScroll';
-import { ErrorMessage } from '@/components/ErrorMessage';
 import { EmptyState } from '@/components/EmptyState';
 import { TableSkeleton } from '@/components/loading/TableSkeleton';
 import { CrmDetailModal } from '@/components/modals/CrmDetailModal';
@@ -57,7 +56,6 @@ export function ValidationRateDataTable({
     hasLoadedOnce,
     loadChildData,
     loadData,
-    error,
     dimensions,
   } = useStore();
   const toast = useToast();
@@ -249,11 +247,6 @@ export function ValidationRateDataTable({
       setSort(sorter.columnKey as string ?? null, sorter.order ?? null);
     }
   };
-
-  // Error state
-  if (error) {
-    return <ErrorMessage error={error} onRetry={loadData} />;
-  }
 
   // Loading skeleton
   if (isLoading && reportData.length === 0) {
