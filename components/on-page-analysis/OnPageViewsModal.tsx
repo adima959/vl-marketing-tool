@@ -6,8 +6,10 @@ import { DownloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { OnPageViewClickContext, OnPageDetailRecord } from '@/types/onPageDetails';
 import { fetchOnPageDetails } from '@/lib/api/onPageDetailsClient';
+import { fetchAllRecords, downloadCsv } from '@/lib/utils/csvExport';
 import { getOnPageDimensionLabel } from '@/config/onPageDimensions';
 import modalStyles from '@/styles/components/modal.module.css';
+import stickyStyles from '@/styles/tables/sticky.module.css';
 import styles from './OnPageViewsModal.module.css';
 
 interface OnPageViewsModalProps {
@@ -70,21 +72,11 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
     setExportProgress({ current: 0, total: 0 });
 
     try {
-      // Fetch all data in batches of 2500
-      const batchSize = 2500;
-      const totalPages = Math.ceil(data.total / batchSize);
-      const allRecords: OnPageDetailRecord[] = [];
-
-      setExportProgress({ current: 0, total: totalPages });
-
-      for (let page = 1; page <= totalPages; page++) {
-        const batchData = await fetchOnPageDetails(
-          context,
-          { page, pageSize: batchSize }
-        );
-        allRecords.push(...batchData.records);
-        setExportProgress({ current: page, total: totalPages });
-      }
+      const allRecords = await fetchAllRecords<OnPageDetailRecord>(
+        (pagination) => fetchOnPageDetails(context, pagination),
+        data.total,
+        (current, totalPages) => setExportProgress({ current, total: totalPages }),
+      );
 
       const headers = [
         // Session/Identity
@@ -172,15 +164,7 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
       const filterSuffix = filterParts.length > 0 ? `_${filterParts.join('_')}` : '';
       const filename = `page_views_${dateRangeStr}${filterSuffix}.csv`;
 
-      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadCsv(csvRows, filename);
     } catch (err) {
       console.error('Export failed:', err);
     } finally {
@@ -705,7 +689,7 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
 
       {error && <div className={styles.error}>{error}</div>}
 
-      <div className={styles.tableWrap}>
+      <div className={`${styles.tableWrap} ${stickyStyles.stickyTable}`}>
         <Table
           columns={columns}
           dataSource={data?.records || []}
@@ -724,6 +708,7 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
           }}
           rowKey="id"
           scroll={{ x: 3710 }}
+          sticky={{ offsetHeader: 0 }}
           size="small"
         />
       </div>

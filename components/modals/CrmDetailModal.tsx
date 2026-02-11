@@ -10,8 +10,10 @@ import type { OnPageViewClickContext } from '@/types/onPageDetails';
 import { fetchDashboardDetails } from '@/lib/api/dashboardDetailsClient';
 import { fetchMarketingDetails } from '@/lib/api/marketingDetailsClient';
 import { fetchOnPageCrmDetails } from '@/lib/api/onPageCrmDetailsClient';
+import { fetchAllRecords, downloadCsv } from '@/lib/utils/csvExport';
 import { TableSkeleton } from '@/components/loading/TableSkeleton';
 import modalStyles from '@/styles/components/modal.module.css';
+import stickyStyles from '@/styles/tables/sticky.module.css';
 import styles from './CrmDetailModal.module.css';
 
 type CrmDetailVariant = 'dashboard' | 'marketing' | 'onPage';
@@ -137,10 +139,10 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
     setExporting(true);
 
     try {
-      const allData = await fetchRecords(variant, context, {
-        page: 1,
-        pageSize: Math.min(data.total, 10000),
-      });
+      const allRecords = await fetchAllRecords<DetailRecord>(
+        (pagination) => fetchRecords(variant, context, pagination),
+        data.total,
+      );
 
       const headers =
         variant === 'dashboard'
@@ -158,7 +160,7 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
 
       const csvRows = [
         headers.join(','),
-        ...allData.records.map((record) => {
+        ...allRecords.map((record) => {
           let status = '';
           if (record.subscriptionStatus === 4) status = 'Soft Cancel';
           else if (record.subscriptionStatus === 5) status = 'Cancel Forever';
@@ -201,12 +203,6 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
           return [...common, ...variantFields, ...tail].join(',');
         }),
       ];
-
-      const csvContent = csvRows.join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
 
       // Build filename with metric + date range + all dimensions for clarity
       const metricLabel =
@@ -252,12 +248,7 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
       const parts = [metricLabel, dateRangeStr, ...dimensionParts.map(sanitize)].filter(Boolean);
       const filename = parts.join('_');
 
-      link.download = `${filename}_export.csv`;
-
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadCsv(csvRows, `${filename}_export.csv`);
     } catch (err) {
       console.error('Export failed:', err);
     } finally {
@@ -488,7 +479,7 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
         <div className={styles.error}>{error}</div>
       )}
 
-      <div className={styles.tableWrap}>
+      <div className={`${styles.tableWrap} ${stickyStyles.stickyTable}`}>
         {loading && !data ? (
           <TableSkeleton
             rows={10}
@@ -514,6 +505,7 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
             }}
             rowKey="id"
             scroll={{ x: scrollX }}
+            sticky={{ offsetHeader: 0 }}
             size="small"
           />
         )}
