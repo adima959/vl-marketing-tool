@@ -304,6 +304,118 @@ export class OnPageQueryBuilder {
   }
 
   /**
+   * Resolves JOIN context: which JOINs are needed based on involved dimensions.
+   * Returns join level, classification flag, column prefix, and table alias.
+   */
+  private resolveJoinContext(
+    currentDimension: string,
+    parentFilters: Record<string, string> | undefined,
+    filters: QueryOptions['filters']
+  ): {
+    joinLevel: 'campaign' | 'adset' | 'ad' | null;
+    needsClassificationJoin: boolean;
+    columnPrefix: string;
+  } {
+    const filterDims = (filters || []).map(f => f.field);
+    const allInvolvedDims = [currentDimension, ...Object.keys(parentFilters || {}), ...filterDims];
+
+    // Determine deepest enriched JOIN level needed
+    const joinLevelOrder = { campaign: 1, adset: 2, ad: 3 };
+    let joinLevel: 'campaign' | 'adset' | 'ad' | null = null;
+    for (const d of allInvolvedDims) {
+      const enriched = this.enrichedDimensions[d];
+      if (enriched && (!joinLevel || joinLevelOrder[enriched.joinLevel] > joinLevelOrder[joinLevel])) {
+        joinLevel = enriched.joinLevel;
+      }
+    }
+
+    const needsClassificationJoin = allInvolvedDims.some(d => this.classificationDims[d] != null);
+    const anyJoinNeeded = joinLevel !== null || needsClassificationJoin;
+    const columnPrefix = anyJoinNeeded ? 'pv.' : '';
+
+    return { joinLevel, needsClassificationJoin, columnPrefix };
+  }
+
+  /**
+   * Builds SELECT and GROUP BY expressions for the current dimension.
+   */
+  private buildDimensionSelect(
+    currentDimension: string,
+    sqlColumn: string,
+    columnPrefix: string
+  ): { dimensionSelect: string; groupByExpression: string } {
+    const enriched = this.enrichedDimensions[currentDimension];
+    const classifDim = this.classificationDims[currentDimension];
+
+    // Resolve SELECT/GROUP BY expressions
+    let selectExpression: string;
+    let groupByExpression: string;
+    if (classifDim) {
+      selectExpression = classifDim.selectExpr;
+      groupByExpression = classifDim.groupByExpr;
+    } else {
+      const dimPrefix = enriched?.dimColumnPrefix ?? columnPrefix;
+      selectExpression = currentDimension === 'date'
+        ? `${columnPrefix}created_at::date`
+        : this.prefixColumn(sqlColumn, dimPrefix);
+      groupByExpression = selectExpression;
+    }
+
+    // Build dimension SELECT columns
+    let dimensionSelect: string;
+    if (classifDim) {
+      dimensionSelect = classifDim.nameExpr
+        ? `\n        ${selectExpression} AS dimension_id,\n        COALESCE(${classifDim.nameExpr}, 'Unknown') AS dimension_value`
+        : `${selectExpression} AS dimension_value`;
+    } else if (enriched) {
+      dimensionSelect = `\n        ${selectExpression}::text AS dimension_id,\n        COALESCE(${enriched.nameExpression} || ' (' || ${selectExpression}::text || ')', COALESCE(${selectExpression}::text, 'Unknown')) AS dimension_value`;
+    } else {
+      dimensionSelect = `${selectExpression} AS dimension_value`;
+    }
+
+    return { dimensionSelect, groupByExpression };
+  }
+
+  /**
+   * Builds FROM clause with appropriate JOINs based on join context.
+   */
+  private buildFromClause(
+    joinLevel: 'campaign' | 'adset' | 'ad' | null,
+    needsClassificationJoin: boolean,
+    columnPrefix: string
+  ): string {
+    let fromClause: string;
+
+    if (joinLevel) {
+      const joinConfigs = {
+        campaign: { distinctColumns: 'campaign_id, campaign_name', extraJoin: '' },
+        adset: { distinctColumns: 'campaign_id, campaign_name, adset_id, adset_name', extraJoin: ' AND pv.utm_content::text = mas.adset_id::text' },
+        ad: { distinctColumns: 'campaign_id, campaign_name, adset_id, adset_name, ad_id, ad_name', extraJoin: ' AND pv.utm_content::text = mas.adset_id::text AND pv.utm_medium::text = mas.ad_id::text' },
+      };
+      const { distinctColumns, extraJoin } = joinConfigs[joinLevel];
+      fromClause = `
+      FROM remote_session_tracker.event_page_view_enriched_v2 pv
+      LEFT JOIN (
+        SELECT DISTINCT ${distinctColumns} FROM merged_ads_spending
+        WHERE date::date BETWEEN $1::date AND $2::date
+      ) mas ON pv.utm_campaign::text = mas.campaign_id::text${extraJoin}`;
+    } else if (needsClassificationJoin) {
+      fromClause = `
+      FROM remote_session_tracker.event_page_view_enriched_v2 pv`;
+    } else {
+      fromClause = `FROM remote_session_tracker.event_page_view_enriched_v2`;
+    }
+
+    if (needsClassificationJoin) {
+      fromClause += `
+      LEFT JOIN app_url_classifications uc ON ${columnPrefix}url_path = uc.url_path AND uc.is_ignored = false
+      LEFT JOIN app_products ap ON uc.product_id = ap.id`;
+    }
+
+    return fromClause;
+  }
+
+  /**
    * Builds the complete query for a given depth and filters
    */
   public buildQuery(options: QueryOptions): { query: string; params: SqlParam[] } {
@@ -318,15 +430,11 @@ export class OnPageQueryBuilder {
       limit = 1000,
     } = options;
 
-    // Validate depth
     if (depth >= dimensions.length) {
       throw new Error(`Depth ${depth} exceeds dimensions length ${dimensions.length}`);
     }
 
-    // Validate limit
     const safeLimit = Math.max(1, Math.min(10000, Math.floor(limit)));
-
-    // Get current dimension
     const currentDimension = dimensions[depth];
     const sqlColumn = this.dimensionMap[currentDimension];
 
@@ -334,132 +442,27 @@ export class OnPageQueryBuilder {
       throw new Error(`Unknown dimension: ${currentDimension}`);
     }
 
-    // Determine if this is an enriched dimension and what JOIN level is needed
-    const enriched = this.enrichedDimensions[currentDimension];
-    const classifDim = this.classificationDims[currentDimension];
-    const filterDims = (filters || []).map(f => f.field);
-    const allInvolvedDims = [currentDimension, ...Object.keys(parentFilters || {}), ...filterDims];
-    const involvedEnriched = allInvolvedDims
-      .map((d) => this.enrichedDimensions[d])
-      .filter(Boolean);
+    // Resolve JOIN context, dimension SELECT, and FROM clause
+    const { joinLevel, needsClassificationJoin, columnPrefix } = this.resolveJoinContext(currentDimension, parentFilters, filters);
+    const { dimensionSelect, groupByExpression } = this.buildDimensionSelect(currentDimension, sqlColumn, columnPrefix);
+    const fromClause = this.buildFromClause(joinLevel, needsClassificationJoin, columnPrefix);
 
-    // Determine the deepest JOIN level needed
-    const joinLevelOrder = { campaign: 1, adset: 2, ad: 3 };
-    let joinLevel: 'campaign' | 'adset' | 'ad' | null = null;
-    for (const dim of involvedEnriched) {
-      if (!joinLevel || joinLevelOrder[dim.joinLevel] > joinLevelOrder[joinLevel]) {
-        joinLevel = dim.joinLevel;
-      }
-    }
-
-    // Check if classification JOIN is needed (product/market dimensions)
-    const needsClassificationJoin = allInvolvedDims.some(d => this.classificationDims[d] != null);
-
-    const anyJoinNeeded = joinLevel !== null || needsClassificationJoin;
-    const tableAlias = anyJoinNeeded ? 'pv' : '';
-    const columnPrefix = tableAlias ? `${tableAlias}.` : '';
-
-    // For SELECT/GROUP BY: classification dims use their own expressions
-    let selectExpression: string;
-    let groupByExpression: string;
-    if (classifDim) {
-      selectExpression = classifDim.selectExpr;
-      groupByExpression = classifDim.groupByExpr;
-    } else {
-      const dimPrefix = enriched?.dimColumnPrefix ?? columnPrefix;
-      selectExpression = currentDimension === 'date'
-        ? `${columnPrefix}created_at::date`
-        : this.prefixColumn(sqlColumn, dimPrefix);
-      groupByExpression = selectExpression;
-    }
-
-    // Get sort column
+    // Sort configuration
     const sortColumn = this.metricMap[sortBy] || 'page_views';
     const finalSortColumn = currentDimension === 'date' ? 'dimension_value' : sortColumn;
     const finalSortDirection = currentDimension === 'date' ? 'DESC' : validateSortDirection(sortDirection);
 
     // Build parameters
     const params: SqlParam[] = [
-      formatLocalDate(dateRange.start), // $1
-      formatLocalDate(dateRange.end),   // $2
+      formatLocalDate(dateRange.start),
+      formatLocalDate(dateRange.end),
     ];
 
-    // Build parent filters (drill-down)
-    const { whereClause, params: filterParams } = this.buildParentFilters(
-      parentFilters,
-      params.length,
-      columnPrefix
-    );
+    const { whereClause, params: filterParams } = this.buildParentFilters(parentFilters, params.length, columnPrefix);
     params.push(...filterParams);
 
-    // Build table filters (user-defined WHERE clauses)
-    const { whereClause: tableFilterClause, params: tableFilterParams } = this.buildTableFilters(
-      filters,
-      params.length,
-      columnPrefix
-    );
+    const { whereClause: tableFilterClause, params: tableFilterParams } = this.buildTableFilters(filters, params.length, columnPrefix);
     params.push(...tableFilterParams);
-
-    // Build SELECT columns for dimension
-    let dimensionSelect: string;
-    if (classifDim) {
-      if (classifDim.nameExpr) {
-        // Product: show name as value, id as dimension_id
-        dimensionSelect = `
-        ${selectExpression} AS dimension_id,
-        COALESCE(${classifDim.nameExpr}, 'Unknown') AS dimension_value`;
-      } else {
-        // Market: just the value
-        dimensionSelect = `${selectExpression} AS dimension_value`;
-      }
-    } else if (enriched) {
-      dimensionSelect = `
-        ${selectExpression}::text AS dimension_id,
-        COALESCE(${enriched.nameExpression} || ' (' || ${selectExpression}::text || ')', COALESCE(${selectExpression}::text, 'Unknown')) AS dimension_value`;
-    } else {
-      dimensionSelect = `${selectExpression} AS dimension_value`;
-    }
-
-    // Build FROM clause with JOINs tailored to what's needed
-    let fromClause: string;
-    if (joinLevel) {
-      let distinctColumns: string;
-      let extraJoinCondition = '';
-
-      switch (joinLevel) {
-        case 'campaign':
-          distinctColumns = 'campaign_id, campaign_name';
-          break;
-        case 'adset':
-          distinctColumns = 'campaign_id, campaign_name, adset_id, adset_name';
-          extraJoinCondition = ' AND pv.utm_content::text = mas.adset_id::text';
-          break;
-        case 'ad':
-          distinctColumns = 'campaign_id, campaign_name, adset_id, adset_name, ad_id, ad_name';
-          extraJoinCondition = ' AND pv.utm_content::text = mas.adset_id::text AND pv.utm_medium::text = mas.ad_id::text';
-          break;
-      }
-
-      fromClause = `
-      FROM remote_session_tracker.event_page_view_enriched_v2 pv
-      LEFT JOIN (
-        SELECT DISTINCT ${distinctColumns} FROM merged_ads_spending
-        WHERE date::date BETWEEN $1::date AND $2::date
-      ) mas ON pv.utm_campaign::text = mas.campaign_id::text${extraJoinCondition}`;
-    } else if (needsClassificationJoin) {
-      fromClause = `
-      FROM remote_session_tracker.event_page_view_enriched_v2 pv`;
-    } else {
-      fromClause = `FROM remote_session_tracker.event_page_view_enriched_v2`;
-    }
-
-    // Append classification JOINs when needed
-    // url_path is already normalized in the view, so direct comparison is fine
-    if (needsClassificationJoin) {
-      fromClause += `
-      LEFT JOIN app_url_classifications uc ON ${columnPrefix}url_path = uc.url_path AND uc.is_ignored = false
-      LEFT JOIN app_products ap ON uc.product_id = ap.id`;
-    }
 
     // Column references need prefix when using table alias
     const colRef = (col: string) => columnPrefix ? `${columnPrefix}${col}` : col;

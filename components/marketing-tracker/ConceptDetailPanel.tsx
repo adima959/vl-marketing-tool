@@ -4,7 +4,7 @@ import { useState, useCallback, useRef } from 'react';
 import { Drawer, Table, Button, Input, Popconfirm, Dropdown, type MenuProps } from 'antd';
 import { PlusOutlined, DeleteOutlined, EditOutlined, DownOutlined, RightOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import type { MessageDetail, Campaign, Geography, PipelineStage } from '@/types';
+import type { MessageDetail, Campaign, Geography, PipelineStage, Asset, Creative } from '@/types';
 import { GEO_CONFIG, CAMPAIGN_STATUS_CONFIG } from '@/types';
 import { getCpaTarget, getCpaHealth } from '@/lib/marketing-pipeline/cpaUtils';
 import { usePipelineStore } from '@/stores/pipelineStore';
@@ -16,6 +16,7 @@ import { GeoStageBadge } from './GeoStageBadge';
 import { CampaignModal } from './CampaignModal';
 import { AssetModal } from './AssetModal';
 import { CreativeModal } from './CreativeModal';
+import { formatTimeAgo, formatHistoryEntry } from '@/lib/utils/displayFormatters';
 import stickyStyles from '@/styles/tables/sticky.module.css';
 import styles from './ConceptDetailPanel.module.css';
 
@@ -27,27 +28,40 @@ interface ConceptDetailPanelProps {
   onClose: () => void;
 }
 
-function formatTimeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return `${Math.floor(days / 30)}mo ago`;
+function AssetList({ assets, onDelete }: { assets: Asset[]; onDelete: (id: string) => void }): React.ReactNode {
+  return (
+    <div className={styles.assetList}>
+      {assets.map(asset => (
+        <span key={asset.id} className={styles.assetItem}>
+          <span className={styles.assetIcon}>
+            {asset.type === 'landing_page' ? '🔗' : asset.type === 'text_ad' ? '📝' : '📎'}
+          </span>
+          {asset.name}
+          <Popconfirm title="Delete?" onConfirm={() => onDelete(asset.id)} okText="Delete" okButtonProps={{ danger: true }}>
+            <DeleteOutlined className={styles.assetDelete} />
+          </Popconfirm>
+        </span>
+      ))}
+    </div>
+  );
 }
 
-function formatHistoryEntry(entry: { action: string; fieldName: string; oldValue: unknown; newValue: unknown }): string {
-  if (entry.action === 'create') return 'Message created';
-  if (entry.action === 'delete') return 'Message deleted';
-  const field = entry.fieldName.replace(/([A-Z])/g, ' $1').toLowerCase().replace(/^./, s => s.toUpperCase());
-  if (entry.fieldName === 'pipelineStage') return `Stage changed to ${entry.newValue}`;
-  const oldStr = entry.oldValue != null ? String(entry.oldValue) : '—';
-  const newStr = entry.newValue != null ? String(entry.newValue) : '—';
-  if (oldStr === '—') return `${field} set to "${newStr}"`;
-  return `${field} changed`;
+function CreativeList({ creatives, onDelete }: { creatives: Creative[]; onDelete: (id: string) => void }): React.ReactNode {
+  return (
+    <div className={styles.assetList}>
+      {creatives.map(creative => (
+        <span key={creative.id} className={styles.assetItem}>
+          <span className={styles.assetIcon}>
+            {creative.format === 'ugc_video' ? '🎬' : creative.format === 'static_image' ? '🖼' : '🎥'}
+          </span>
+          {creative.name}
+          <Popconfirm title="Delete?" onConfirm={() => onDelete(creative.id)} okText="Delete" okButtonProps={{ danger: true }}>
+            <DeleteOutlined className={styles.assetDelete} />
+          </Popconfirm>
+        </span>
+      ))}
+    </div>
+  );
 }
 
 export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPanelProps) {
@@ -467,38 +481,14 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
                     {geoAssets.length > 0 && (
                       <div className={styles.geoSubSection}>
                         <div className={styles.geoSubLabel}>Assets</div>
-                        <div className={styles.assetList}>
-                          {geoAssets.map(asset => (
-                            <span key={asset.id} className={styles.assetItem}>
-                              <span className={styles.assetIcon}>
-                                {asset.type === 'landing_page' ? '🔗' : asset.type === 'text_ad' ? '📝' : '📎'}
-                              </span>
-                              {asset.name}
-                              <Popconfirm title="Delete?" onConfirm={() => deleteAsset(asset.id)} okText="Delete" okButtonProps={{ danger: true }}>
-                                <DeleteOutlined className={styles.assetDelete} />
-                              </Popconfirm>
-                            </span>
-                          ))}
-                        </div>
+                        <AssetList assets={geoAssets} onDelete={deleteAsset} />
                       </div>
                     )}
 
                     {geoCreatives.length > 0 && (
                       <div className={styles.geoSubSection}>
                         <div className={styles.geoSubLabel}>Creatives</div>
-                        <div className={styles.assetList}>
-                          {geoCreatives.map(creative => (
-                            <span key={creative.id} className={styles.assetItem}>
-                              <span className={styles.assetIcon}>
-                                {creative.format === 'ugc_video' ? '🎬' : creative.format === 'static_image' ? '🖼' : '🎥'}
-                              </span>
-                              {creative.name}
-                              <Popconfirm title="Delete?" onConfirm={() => deleteCreative(creative.id)} okText="Delete" okButtonProps={{ danger: true }}>
-                                <DeleteOutlined className={styles.assetDelete} />
-                              </Popconfirm>
-                            </span>
-                          ))}
-                        </div>
+                        <CreativeList creatives={geoCreatives} onDelete={deleteCreative} />
                       </div>
                     )}
 
@@ -544,37 +534,13 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
                 {unassignedAssets.length > 0 && (
                   <div className={styles.geoSubSection}>
                     <div className={styles.geoSubLabel}>Assets</div>
-                    <div className={styles.assetList}>
-                      {unassignedAssets.map(asset => (
-                        <span key={asset.id} className={styles.assetItem}>
-                          <span className={styles.assetIcon}>
-                            {asset.type === 'landing_page' ? '🔗' : asset.type === 'text_ad' ? '📝' : '📎'}
-                          </span>
-                          {asset.name}
-                          <Popconfirm title="Delete?" onConfirm={() => deleteAsset(asset.id)} okText="Delete" okButtonProps={{ danger: true }}>
-                            <DeleteOutlined className={styles.assetDelete} />
-                          </Popconfirm>
-                        </span>
-                      ))}
-                    </div>
+                    <AssetList assets={unassignedAssets} onDelete={deleteAsset} />
                   </div>
                 )}
                 {unassignedCreatives.length > 0 && (
                   <div className={styles.geoSubSection}>
                     <div className={styles.geoSubLabel}>Creatives</div>
-                    <div className={styles.assetList}>
-                      {unassignedCreatives.map(creative => (
-                        <span key={creative.id} className={styles.assetItem}>
-                          <span className={styles.assetIcon}>
-                            {creative.format === 'ugc_video' ? '🎬' : creative.format === 'static_image' ? '🖼' : '🎥'}
-                          </span>
-                          {creative.name}
-                          <Popconfirm title="Delete?" onConfirm={() => deleteCreative(creative.id)} okText="Delete" okButtonProps={{ danger: true }}>
-                            <DeleteOutlined className={styles.assetDelete} />
-                          </Popconfirm>
-                        </span>
-                      ))}
-                    </div>
+                    <CreativeList creatives={unassignedCreatives} onDelete={deleteCreative} />
                   </div>
                 )}
               </div>
@@ -602,37 +568,13 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
               {(message.assets || []).length > 0 && (
                 <div className={styles.geoSubSection}>
                   <div className={styles.geoSubLabel}>Assets</div>
-                  <div className={styles.assetList}>
-                    {(message.assets || []).map(asset => (
-                      <span key={asset.id} className={styles.assetItem}>
-                        <span className={styles.assetIcon}>
-                          {asset.type === 'landing_page' ? '🔗' : asset.type === 'text_ad' ? '📝' : '📎'}
-                        </span>
-                        {asset.name}
-                        <Popconfirm title="Delete?" onConfirm={() => deleteAsset(asset.id)} okText="Delete" okButtonProps={{ danger: true }}>
-                          <DeleteOutlined className={styles.assetDelete} />
-                        </Popconfirm>
-                      </span>
-                    ))}
-                  </div>
+                  <AssetList assets={message.assets || []} onDelete={deleteAsset} />
                 </div>
               )}
               {(message.creatives || []).length > 0 && (
                 <div className={styles.geoSubSection}>
                   <div className={styles.geoSubLabel}>Creatives</div>
-                  <div className={styles.assetList}>
-                    {(message.creatives || []).map(creative => (
-                      <span key={creative.id} className={styles.assetItem}>
-                        <span className={styles.assetIcon}>
-                          {creative.format === 'ugc_video' ? '🎬' : creative.format === 'static_image' ? '🖼' : '🎥'}
-                        </span>
-                        {creative.name}
-                        <Popconfirm title="Delete?" onConfirm={() => deleteCreative(creative.id)} okText="Delete" okButtonProps={{ danger: true }}>
-                          <DeleteOutlined className={styles.assetDelete} />
-                        </Popconfirm>
-                      </span>
-                    ))}
-                  </div>
+                  <CreativeList creatives={message.creatives || []} onDelete={deleteCreative} />
                 </div>
               )}
               <div className={styles.geoAddButtons} style={{ marginTop: 8 }}>

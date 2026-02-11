@@ -4,6 +4,13 @@ import type { TableFilter } from '@/types/filters';
 import { normalizeError } from '@/lib/types/errors';
 import { triggerError } from '@/lib/api/errorHandler';
 import { findRowByKey } from '@/lib/treeUtils';
+import {
+  updateHasChildren,
+  updateTreeChildren,
+  updateTreeWithResults,
+  parseKeyToParentFilters,
+  groupKeysByDepth,
+} from '@/lib/utils/treeUtils';
 
 /**
  * Base row interface that all table row types must extend
@@ -74,26 +81,6 @@ export interface TableStore<TRow extends BaseTableRow> {
 }
 
 /**
- * Helper: Update hasChildren property for all rows based on dimension count
- * This is called when dimensions are added or removed
- */
-function updateHasChildren<TRow extends BaseTableRow>(
-  rows: TRow[],
-  currentDimensions: string[]
-): TRow[] {
-  return rows.map(row => {
-    const newHasChildren = row.depth < currentDimensions.length - 1;
-    const updatedRow = { ...row, hasChildren: newHasChildren };
-
-    if (row.children && row.children.length > 0) {
-      updatedRow.children = updateHasChildren(row.children as TRow[], currentDimensions);
-    }
-
-    return updatedRow as TRow;
-  });
-}
-
-/**
  * Creates a Zustand store for hierarchical table data with common patterns:
  * - Dual-state management (active vs loaded)
  * - Dimension management with hasChildren updates
@@ -153,7 +140,7 @@ export function createTableStore<TRow extends BaseTableRow>(
           set({
             dimensions: newDimensions,
             hasUnsavedChanges: true,
-            reportData: updateHasChildren(reportData, newDimensions)
+            reportData: updateHasChildren(reportData, newDimensions.length)
           });
         } else {
           set({ dimensions: newDimensions, hasUnsavedChanges: true });
@@ -171,7 +158,7 @@ export function createTableStore<TRow extends BaseTableRow>(
           set({
             dimensions: newDimensions,
             hasUnsavedChanges: true,
-            reportData: updateHasChildren(reportData, newDimensions)
+            reportData: updateHasChildren(reportData, newDimensions.length)
           });
         } else {
           set({ dimensions: newDimensions, hasUnsavedChanges: true });
@@ -291,7 +278,7 @@ export function createTableStore<TRow extends BaseTableRow>(
           // Load depth 1 for all top-level rows in batches of 10 to avoid overwhelming the server
           const expandableRows = data.filter(row => row.hasChildren);
           const BATCH_SIZE = 10;
-          const allDepth1Results: Array<{ status: string; value: { success: boolean; key: string; children: TRow[] } }> = [];
+          const allDepth1Results: PromiseSettledResult<{ success: boolean; key: string; children: TRow[] }>[] = [];
 
           for (let i = 0; i < expandableRows.length; i += BATCH_SIZE) {
             const batch = expandableRows.slice(i, i + BATCH_SIZE);
@@ -317,41 +304,19 @@ export function createTableStore<TRow extends BaseTableRow>(
             });
 
             const batchResults = await Promise.allSettled(batchPromises);
-            for (const result of batchResults) {
-              allDepth1Results.push(result as typeof allDepth1Results[number]);
-            }
+            allDepth1Results.push(...batchResults);
           }
 
-          // Update tree with depth 1 data
-          const updateTreeDepth1 = (rows: TRow[]): TRow[] => {
-            return rows.map((row) => {
-              for (const result of allDepth1Results) {
-                if (result.status === 'fulfilled' && result.value.success && result.value.key === row.key) {
-                  return { ...row, children: result.value.children };
-                }
-              }
-              return row;
-            });
-          };
-
-          set({ reportData: updateTreeDepth1(data), expandedRowKeys: allExpandedKeys, isLoadingSubLevels: false });
+          set({
+            reportData: updateTreeWithResults(data, allDepth1Results),
+            expandedRowKeys: allExpandedKeys,
+            isLoadingSubLevels: false,
+          });
         }
         // If there are saved expanded keys, restore them (manual reload)
         else if (savedExpandedKeys.length > 0 && state.hasLoadedOnce) {
           set({ isLoadingSubLevels: true });
-          const { sortKeysByDepth, findRowByKey } = await import('@/lib/treeUtils');
-          const sortedKeys = sortKeysByDepth(savedExpandedKeys);
-
-          // Group keys by depth for level-by-level processing
-          const keysByDepth = new Map<number, string[]>();
-          for (const key of sortedKeys) {
-            const depth = key.split('::').length - 1;
-            if (!keysByDepth.has(depth)) {
-              keysByDepth.set(depth, []);
-            }
-            keysByDepth.get(depth)!.push(key);
-          }
-
+          const keysByDepth = groupKeysByDepth(savedExpandedKeys);
           const depths = Array.from(keysByDepth.keys()).sort((a, b) => a - b);
           const allValidKeys: string[] = [];
 
@@ -374,20 +339,11 @@ export function createTableStore<TRow extends BaseTableRow>(
             // Load all rows at this depth in parallel, then update tree once
             if (rowsToLoad.length > 0) {
               const childDataPromises = rowsToLoad.map(({ key, row }) => {
-                const keyParts = key.split('::');
-                const parentFilters: Record<string, string> = {};
-                keyParts.forEach((value, index) => {
-                  const dimension = state.dimensions[index];
-                  if (dimension) {
-                    parentFilters[dimension] = value;
-                  }
-                });
-
                 return fetchData({
                   dateRange: state.dateRange,
                   dimensions: state.dimensions,
                   depth: row.depth + 1,
-                  parentFilters,
+                  parentFilters: parseKeyToParentFilters(key, state.dimensions),
                   ...(apiFilters.length > 0 && { filters: apiFilters }),
                   sortBy: state.sortColumn || defaultSortColumn,
                   sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
@@ -401,22 +357,7 @@ export function createTableStore<TRow extends BaseTableRow>(
 
               const results = await Promise.allSettled(childDataPromises);
 
-              // Update tree once with all children for this depth level
-              const updateTree = (rows: TRow[]): TRow[] => {
-                return rows.map((row) => {
-                  for (const result of results) {
-                    if (result.status === 'fulfilled' && result.value.success && result.value.key === row.key) {
-                      return { ...row, children: result.value.children };
-                    }
-                  }
-                  if (row.children && row.children.length > 0) {
-                    return { ...row, children: updateTree(row.children as TRow[]) };
-                  }
-                  return row;
-                });
-              };
-
-              set({ reportData: updateTree(get().reportData) });
+              set({ reportData: updateTreeWithResults(get().reportData, results) });
 
               // Small delay for state propagation
               await new Promise((resolve) => setTimeout(resolve, 50));
@@ -448,18 +389,7 @@ export function createTableStore<TRow extends BaseTableRow>(
       set({ isLoadingSubLevels: true });
 
       try {
-        // Build complete parent filter chain by parsing the key hierarchy
-        // Key format: "value1::value2::value3" corresponds to dimensions in order
-        const keyParts = parentKey.split('::');
-        const parentFilters: Record<string, string> = {};
-
-        keyParts.forEach((value, index) => {
-          const dimension = state.loadedDimensions[index];
-          if (dimension) {
-            parentFilters[dimension] = value;
-          }
-        });
-
+        const parentFilters = parseKeyToParentFilters(parentKey, state.loadedDimensions);
         const loadedApiFilters = hasFilters
           ? state.loadedFilters.filter(f => f.value).map(({ field, operator, value }) => ({ field, operator, value }))
           : [];
@@ -474,20 +404,10 @@ export function createTableStore<TRow extends BaseTableRow>(
           sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
         });
 
-        // Update reportData tree with children
-        const updateTree = (rows: TRow[]): TRow[] => {
-          return rows.map((row) => {
-            if (row.key === parentKey) {
-              return { ...row, children };
-            }
-            if (row.children && row.children.length > 0) {
-              return { ...row, children: updateTree(row.children as TRow[]) };
-            }
-            return row;
-          });
-        };
-
-        set({ reportData: updateTree(state.reportData), isLoadingSubLevels: false });
+        set({
+          reportData: updateTreeChildren(state.reportData, parentKey, children),
+          isLoadingSubLevels: false,
+        });
       } catch (error: unknown) {
         set({ isLoadingSubLevels: false });
         const appError = normalizeError(error);

@@ -223,69 +223,30 @@ export class CRMQueryBuilder {
   });
 
   /**
-   * Build SELECT columns based on dimensions and depth
+   * Build SELECT or GROUP BY columns from a dimension map
    */
-  private buildSelectColumns(dimensions: string[], depth: number, groupBy: GroupByStrategy): string {
-    const dimMap = groupBy.type === 'geography' ? this.geographyDimensions : this.trackingDimensions;
+  private buildDimColumns(
+    dimensions: string[],
+    depth: number,
+    dimMap: Record<string, { selectExpr: string; groupByExpr: string }>,
+    mode: 'select' | 'groupBy',
+    label: string
+  ): string {
     const columns: string[] = [];
     for (let i = 0; i <= depth; i++) {
       const dim = dimensions[i];
       const config = dimMap[dim];
       if (!config) {
-        throw new Error(`Unknown dimension for ${groupBy.type} mode: ${dim}`);
+        throw new Error(`Unknown ${label} dimension: ${dim}`);
       }
-      columns.push(config.selectExpr);
+      columns.push(mode === 'select' ? config.selectExpr : config.groupByExpr);
     }
-    return columns.join(',\n        ');
+    return mode === 'select' ? columns.join(',\n        ') : columns.join(', ');
   }
 
-  /**
-   * Build SELECT columns for OTS queries (geography mode only, uses invoice path)
-   */
-  private buildOtsSelectColumns(dimensions: string[], depth: number): string {
-    const columns: string[] = [];
-    for (let i = 0; i <= depth; i++) {
-      const dim = dimensions[i];
-      const config = this.geographyOtsDimensions[dim];
-      if (!config) {
-        throw new Error(`Unknown OTS dimension: ${dim}`);
-      }
-      columns.push(config.selectExpr);
-    }
-    return columns.join(',\n        ');
-  }
-
-  /**
-   * Build GROUP BY clause based on dimensions and depth
-   */
-  private buildGroupByClause(dimensions: string[], depth: number, groupBy: GroupByStrategy): string {
-    const dimMap = groupBy.type === 'geography' ? this.geographyDimensions : this.trackingDimensions;
-    const columns: string[] = [];
-    for (let i = 0; i <= depth; i++) {
-      const dim = dimensions[i];
-      const config = dimMap[dim];
-      if (!config) {
-        throw new Error(`Unknown dimension for ${groupBy.type} mode: ${dim}`);
-      }
-      columns.push(config.groupByExpr);
-    }
-    return columns.join(', ');
-  }
-
-  /**
-   * Build GROUP BY clause for OTS queries (geography mode only, uses invoice path)
-   */
-  private buildOtsGroupByClause(dimensions: string[], depth: number): string {
-    const columns: string[] = [];
-    for (let i = 0; i <= depth; i++) {
-      const dim = dimensions[i];
-      const config = this.geographyOtsDimensions[dim];
-      if (!config) {
-        throw new Error(`Unknown OTS dimension: ${dim}`);
-      }
-      columns.push(config.groupByExpr);
-    }
-    return columns.join(', ');
+  /** Resolve dimension map for the given groupBy strategy */
+  private getDimMap(groupBy: GroupByStrategy): Record<string, { selectExpr: string; groupByExpr: string }> {
+    return groupBy.type === 'geography' ? this.geographyDimensions : this.trackingDimensions;
   }
 
   /**
@@ -333,8 +294,9 @@ export class CRMQueryBuilder {
 
     const { whereClause, params: filterParams } = this.buildParentFilters(parentFilters, groupBy);
 
-    const selectColumns = this.buildSelectColumns(groupBy.dimensions, depth, groupBy);
-    const groupByClause = this.buildGroupByClause(groupBy.dimensions, depth, groupBy);
+    const dimMap = this.getDimMap(groupBy);
+    const selectColumns = this.buildDimColumns(groupBy.dimensions, depth, dimMap, 'select', groupBy.type);
+    const groupByClause = this.buildDimColumns(groupBy.dimensions, depth, dimMap, 'groupBy', groupBy.type);
 
     // Mode-specific configuration
     const isTracking = groupBy.type === 'tracking';
@@ -429,19 +391,13 @@ export class CRMQueryBuilder {
     const { whereClause, params: filterParams } = filterBuilder.buildParentFilters(parentFilters);
 
     // For OTS queries in geography mode, use OTS-specific dimensions (invoice-only path)
-    const selectColumns = groupBy.type === 'geography'
-      ? this.buildOtsSelectColumns(groupBy.dimensions, depth)
-      : this.buildSelectColumns(groupBy.dimensions, depth, groupBy);
-    const groupByClause = groupBy.type === 'geography'
-      ? this.buildOtsGroupByClause(groupBy.dimensions, depth)
-      : this.buildGroupByClause(groupBy.dimensions, depth, groupBy);
-
-    // Mode-specific configuration
     const isTracking = groupBy.type === 'tracking';
+    const otsDimMap = isTracking ? this.trackingDimensions : this.geographyOtsDimensions;
+    const selectColumns = this.buildDimColumns(groupBy.dimensions, depth, otsDimMap, 'select', 'OTS');
+    const groupByClause = this.buildDimColumns(groupBy.dimensions, depth, otsDimMap, 'groupBy', 'OTS');
 
     // Geography mode needs product JOINs, tracking mode doesn't
-    // For multi-product invoices, only count in the first product (MIN(product_id))
-    const geographyJoins = groupBy.type === 'geography' ? `
+    const geographyJoins = !isTracking ? `
       ${OTS_JOINS.customer}
       LEFT JOIN (
         SELECT invoice_id, MIN(product_id) as product_id
@@ -460,19 +416,19 @@ export class CRMQueryBuilder {
       AND ${CRM_WHERE.otsTrackingIdValidation.join('\n      AND ')}
     ` : '';
 
-    // Build SELECT expression for tracking mode OTS (needs tracking IDs)
+    // Build SELECT/GROUP BY for tracking mode OTS
     // Replace s. with i. and date_create with order_date (invoices use order_date, not date_create)
-    const trackingSelectColumns = isTracking ?
-      this.buildSelectColumns(groupBy.dimensions, depth, { type: 'tracking', dimensions: groupBy.dimensions })
-        .replace(/s\./g, 'i.')
-        .replace(/DATE\(i\.date_create\)/g, 'DATE(i.order_date)') :
-      selectColumns;
+    const trackingSelectColumns = isTracking
+      ? this.buildDimColumns(groupBy.dimensions, depth, this.trackingDimensions, 'select', 'tracking')
+          .replace(/s\./g, 'i.')
+          .replace(/DATE\(i\.date_create\)/g, 'DATE(i.order_date)')
+      : selectColumns;
 
-    const trackingGroupByClause = isTracking ?
-      this.buildGroupByClause(groupBy.dimensions, depth, { type: 'tracking', dimensions: groupBy.dimensions })
-        .replace(/s\./g, 'i.')
-        .replace(/DATE\(i\.date_create\)/g, 'DATE(i.order_date)') :
-      groupByClause;
+    const trackingGroupByClause = isTracking
+      ? this.buildDimColumns(groupBy.dimensions, depth, this.trackingDimensions, 'groupBy', 'tracking')
+          .replace(/s\./g, 'i.')
+          .replace(/DATE\(i\.date_create\)/g, 'DATE(i.order_date)')
+      : groupByClause;
 
     // Include source column in SELECT for tracking mode (needed for JS-side source matching)
     const sourceColumn = isTracking ? ',\n        sr.source AS source' : '';

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Spin } from 'antd';
 import { Clock, ChevronDown } from 'lucide-react';
 import type { ActivityRecord } from '@/stores/marketingTrackerStore';
+import { formatTimeAgo, formatFieldName, formatValue, getSummaryText } from '@/lib/utils/displayFormatters';
 import styles from './ActivityFeed.module.css';
 import { checkAuthError } from '@/lib/api/errorHandler';
 
@@ -33,62 +34,6 @@ const FIELD_LABELS: Record<string, string> = {
   keyMessage: 'key message',
   hookText: 'hook text',
 };
-
-function formatTimeAgo(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-
-  if (diffMin < 1) return 'just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-}
-
-function formatFieldName(field: string): string {
-  if (FIELD_LABELS[field]) return FIELD_LABELS[field];
-  // Fallback: convert camelCase to words
-  return field
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/_/g, ' ')
-    .toLowerCase()
-    .trim();
-}
-
-/** Format a history value for display (truncate long strings, handle null) */
-function formatValue(value: unknown): string | null {
-  if (value === null || value === undefined) return null;
-  if (typeof value === 'string') {
-    // Strip HTML tags for display
-    const plain = value.replace(/<[^>]*>/g, '').trim();
-    if (!plain) return null;
-    return plain.length > 40 ? plain.slice(0, 40) + '...' : plain;
-  }
-  if (typeof value === 'boolean') return value ? 'yes' : 'no';
-  if (typeof value === 'number') return String(value);
-  // Objects/arrays — skip display
-  return null;
-}
-
-function getSummaryText(activity: ActivityRecord[]): string {
-  if (activity.length === 0) return 'No recent activity';
-
-  const now = new Date();
-  const todayCount = activity.filter((item) => {
-    const date = new Date(item.changedAt);
-    return date.toDateString() === now.toDateString();
-  }).length;
-
-  if (todayCount > 0) {
-    return `${todayCount} update${todayCount === 1 ? '' : 's'} today`;
-  }
-
-  return `${activity.length} recent updates`;
-}
 
 interface ActivityFeedProps {
   /** Increment to trigger a re-fetch (e.g. after mutations on the page) */
@@ -153,7 +98,7 @@ export function ActivityFeed({ refreshKey = 0 }: ActivityFeedProps) {
               {activity.map((item) => {
                 const entityType = ENTITY_LABELS[item.entityType] || item.entityType;
                 const displayName = item.entityName || entityType;
-                const field = item.fieldName === '_deleted' ? '' : formatFieldName(item.fieldName);
+                const field = item.fieldName === '_deleted' ? '' : formatFieldName(item.fieldName, FIELD_LABELS);
 
                 // Build description based on action type
                 const byLine = item.changedByName ? ` by ${item.changedByName}` : '';

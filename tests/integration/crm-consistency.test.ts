@@ -6,7 +6,7 @@
  * continue to count subscriptions/trials the same way.
  */
 
-import { describe, it, expect } from '@jest/globals';
+
 import { isEligibleForTrialCount, isEligibleForMarketingMatch } from '@/lib/server/crmFilters';
 
 describe('CRM Filtering Consistency', () => {

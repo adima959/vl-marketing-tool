@@ -9,6 +9,13 @@ import type {
 import { normalizeError } from '@/lib/types/errors';
 import { triggerError } from '@/lib/api/errorHandler';
 import { findRowByKey } from '@/lib/treeUtils';
+import {
+  updateHasChildren,
+  updateTreeChildren,
+  updateTreeWithResults,
+  parseKeyToParentFilters,
+  groupKeysByDepth,
+} from '@/lib/utils/treeUtils';
 import { DEFAULT_VALIDATION_RATE_DIMENSIONS } from '@/config/validationRateDimensions';
 
 /**
@@ -74,23 +81,11 @@ export function createValidationRateStore(rateType: ValidationRateType) {
       if (!dimensions.includes(id)) {
         const newDimensions = [...dimensions, id];
 
-        // Update hasChildren for all existing rows
-        const updateHasChildren = (rows: ValidationRateRow[], dims: string[]): ValidationRateRow[] => {
-          return rows.map((row) => {
-            const newHasChildren = row.depth < dims.length - 1;
-            const updatedRow = { ...row, hasChildren: newHasChildren };
-            if (row.children && row.children.length > 0) {
-              updatedRow.children = updateHasChildren(row.children, dims);
-            }
-            return updatedRow;
-          });
-        };
-
         if (reportData.length > 0 && loadedDimensions.length > 0) {
           set({
             dimensions: newDimensions,
             hasUnsavedChanges: true,
-            reportData: updateHasChildren(reportData, newDimensions),
+            reportData: updateHasChildren(reportData, newDimensions.length),
           });
         } else {
           set({ dimensions: newDimensions, hasUnsavedChanges: true });
@@ -103,23 +98,11 @@ export function createValidationRateStore(rateType: ValidationRateType) {
       if (dimensions.length > 1) {
         const newDimensions = dimensions.filter((d) => d !== id);
 
-        // Update hasChildren for all existing rows
-        const updateHasChildren = (rows: ValidationRateRow[], dims: string[]): ValidationRateRow[] => {
-          return rows.map((row) => {
-            const newHasChildren = row.depth < dims.length - 1;
-            const updatedRow = { ...row, hasChildren: newHasChildren };
-            if (row.children && row.children.length > 0) {
-              updatedRow.children = updateHasChildren(row.children, dims);
-            }
-            return updatedRow;
-          });
-        };
-
         if (reportData.length > 0 && loadedDimensions.length > 0) {
           set({
             dimensions: newDimensions,
             hasUnsavedChanges: true,
-            reportData: updateHasChildren(reportData, newDimensions),
+            reportData: updateHasChildren(reportData, newDimensions.length),
           });
         } else {
           set({ dimensions: newDimensions, hasUnsavedChanges: true });
@@ -240,16 +223,7 @@ export function createValidationRateStore(rateType: ValidationRateType) {
         const isManualReload = state.hasLoadedOnce;
         if (savedExpandedKeys.length > 0 && isManualReload) {
           set({ isLoadingSubLevels: true });
-          // Group keys by depth
-          const keysByDepth = new Map<number, string[]>();
-          for (const key of savedExpandedKeys) {
-            const depth = key.split('::').length - 1;
-            if (!keysByDepth.has(depth)) {
-              keysByDepth.set(depth, []);
-            }
-            keysByDepth.get(depth)!.push(key);
-          }
-
+          const keysByDepth = groupKeysByDepth(savedExpandedKeys);
           const depths = Array.from(keysByDepth.keys()).sort((a, b) => a - b);
           const allValidKeys: string[] = [];
 
@@ -272,21 +246,12 @@ export function createValidationRateStore(rateType: ValidationRateType) {
             // Load all rows at this depth in parallel
             if (rowsToLoad.length > 0) {
               const childDataPromises = rowsToLoad.map(({ key, row }) => {
-                const keyParts = key.split('::');
-                const parentFilters: Record<string, string> = {};
-                keyParts.forEach((value, index) => {
-                  const dimension = state.dimensions[index];
-                  if (dimension) {
-                    parentFilters[dimension] = value;
-                  }
-                });
-
                 return fetchValidationRateData({
                   rateType,
                   dateRange: state.dateRange,
                   dimensions: state.dimensions,
                   depth: row.depth + 1,
-                  parentFilters,
+                  parentFilters: parseKeyToParentFilters(key, state.dimensions),
                   timePeriod: state.timePeriod,
                   sortBy: state.sortColumn || undefined,
                   sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
@@ -300,28 +265,9 @@ export function createValidationRateStore(rateType: ValidationRateType) {
 
               const results = await Promise.allSettled(childDataPromises);
 
-              // Update tree with all children
-              const updateTree = (rows: ValidationRateRow[]): ValidationRateRow[] => {
-                return rows.map((row) => {
-                  for (const result of results) {
-                    if (
-                      result.status === 'fulfilled' &&
-                      result.value.success &&
-                      result.value.key === row.key
-                    ) {
-                      return { ...row, children: result.value.children };
-                    }
-                  }
-                  if (row.children && row.children.length > 0) {
-                    return { ...row, children: updateTree(row.children) };
-                  }
-                  return row;
-                });
-              };
-
               // Check staleness before updating
               if (requestId !== currentLoadRequestId) return;
-              set({ reportData: updateTree(get().reportData) });
+              set({ reportData: updateTreeWithResults(get().reportData, results) });
               await new Promise((resolve) => setTimeout(resolve, 50));
             }
           }
@@ -350,17 +296,7 @@ export function createValidationRateStore(rateType: ValidationRateType) {
       set({ isLoadingSubLevels: true });
 
       try {
-        // Build parent filter chain from key hierarchy
-        const keyParts = parentKey.split('::');
-        const parentFilters: Record<string, string> = {};
-
-        keyParts.forEach((value, index) => {
-          const dimension = state.loadedDimensions[index];
-          if (dimension) {
-            parentFilters[dimension] = value;
-          }
-        });
-
+        const parentFilters = parseKeyToParentFilters(parentKey, state.loadedDimensions);
         const { data: children } = await fetchValidationRateData({
           rateType,
           dateRange: state.loadedDateRange,
@@ -372,20 +308,10 @@ export function createValidationRateStore(rateType: ValidationRateType) {
           sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
         });
 
-        // Update tree with children
-        const updateTree = (rows: ValidationRateRow[]): ValidationRateRow[] => {
-          return rows.map((row) => {
-            if (row.key === parentKey) {
-              return { ...row, children };
-            }
-            if (row.children && row.children.length > 0) {
-              return { ...row, children: updateTree(row.children) };
-            }
-            return row;
-          });
-        };
-
-        set({ reportData: updateTree(state.reportData), isLoadingSubLevels: false });
+        set({
+          reportData: updateTreeChildren(state.reportData, parentKey, children),
+          isLoadingSubLevels: false,
+        });
       } catch (error: unknown) {
         set({ isLoadingSubLevels: false });
         const appError = normalizeError(error);

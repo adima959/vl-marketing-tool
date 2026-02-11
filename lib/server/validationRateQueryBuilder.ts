@@ -70,6 +70,41 @@ function utcDate(year: number, month: number, day: number): Date {
   return new Date(Date.UTC(year, month, day));
 }
 
+/** Compute the start date for a period ending at `currentEnd` */
+function computePeriodStart(currentEnd: Date, periodType: TimePeriod): Date {
+  if (periodType === 'weekly') {
+    const start = new Date(currentEnd);
+    start.setUTCDate(start.getUTCDate() - 6);
+    return start;
+  }
+  if (periodType === 'biweekly') {
+    // Half-month boundaries: 1-14 and 15-end of month
+    return currentEnd.getUTCDate() >= 15
+      ? utcDate(currentEnd.getUTCFullYear(), currentEnd.getUTCMonth(), 15)
+      : utcDate(currentEnd.getUTCFullYear(), currentEnd.getUTCMonth(), 1);
+  }
+  // monthly: first day of month
+  return utcDate(currentEnd.getUTCFullYear(), currentEnd.getUTCMonth(), 1);
+}
+
+/** Advance backwards: return the end date of the period before `currentStart` */
+function advanceToPreviousPeriod(currentStart: Date, periodType: TimePeriod): Date {
+  if (periodType === 'monthly') {
+    const end = new Date(currentStart);
+    end.setUTCDate(end.getUTCDate() - 1);
+    return end;
+  }
+  if (periodType === 'biweekly') {
+    return currentStart.getUTCDate() === 15
+      ? utcDate(currentStart.getUTCFullYear(), currentStart.getUTCMonth(), 14)
+      : utcDate(currentStart.getUTCFullYear(), currentStart.getUTCMonth(), 0);
+  }
+  // weekly
+  const end = new Date(currentStart);
+  end.setUTCDate(end.getUTCDate() - 1);
+  return end;
+}
+
 /**
  * Generate time period columns based on date range and period type
  *
@@ -88,71 +123,26 @@ export function generateTimePeriods(
 ): TimePeriodColumn[] {
   const periods: TimePeriodColumn[] = [];
 
-  // Clone dates to avoid mutation
   let currentEnd = new Date(endDate);
-  let currentStart: Date = new Date(endDate);
   let periodIndex = 0;
 
   // Work backwards from end date
   while (currentEnd >= startDate) {
-    switch (periodType) {
-      case 'weekly':
-        // 7-day intervals
-        currentStart = new Date(currentEnd);
-        currentStart.setUTCDate(currentStart.getUTCDate() - 6);
-        break;
-
-      case 'biweekly':
-        // Half-month boundaries: 1-14 and 15-end of month
-        if (currentEnd.getUTCDate() >= 15) {
-          // Second half: 15 to end of month
-          currentStart = utcDate(currentEnd.getUTCFullYear(), currentEnd.getUTCMonth(), 15);
-        } else {
-          // First half: 1 to 14
-          currentStart = utcDate(currentEnd.getUTCFullYear(), currentEnd.getUTCMonth(), 1);
-        }
-        break;
-
-      case 'monthly':
-        // Calendar month
-        currentStart = utcDate(currentEnd.getUTCFullYear(), currentEnd.getUTCMonth(), 1);
-        break;
-    }
+    let currentStart = computePeriodStart(currentEnd, periodType);
 
     // Don't go before the requested start date
     if (currentStart < startDate) {
       currentStart = new Date(startDate);
     }
 
-    // Create period column
-    // Use full datetime format (with time) to allow index usage on datetime columns
     periods.push({
       key: `period_${periodIndex}`,
       label: formatPeriodLabel(currentStart, currentEnd, periodType),
-      startDate: formatDateForMariaDB(currentStart, false),  // 00:00:00
-      endDate: formatDateForMariaDB(currentEnd, true),       // 23:59:59
+      startDate: formatDateForMariaDB(currentStart, false),
+      endDate: formatDateForMariaDB(currentEnd, true),
     });
 
-    // Move to previous period
-    if (periodType === 'monthly') {
-      // Go to last day of previous month
-      currentEnd = new Date(currentStart);
-      currentEnd.setUTCDate(currentEnd.getUTCDate() - 1);
-    } else if (periodType === 'biweekly') {
-      // Go to end of previous half-month
-      if (currentStart.getUTCDate() === 15) {
-        // Was second half, go to 14th of same month
-        currentEnd = utcDate(currentStart.getUTCFullYear(), currentStart.getUTCMonth(), 14);
-      } else {
-        // Was first half, go to end of previous month
-        currentEnd = utcDate(currentStart.getUTCFullYear(), currentStart.getUTCMonth(), 0);
-      }
-    } else {
-      // Weekly: Go back by period length
-      currentEnd = new Date(currentStart);
-      currentEnd.setUTCDate(currentEnd.getUTCDate() - 1);
-    }
-
+    currentEnd = advanceToPreviousPeriod(currentStart, periodType);
     periodIndex++;
 
     // Safety: Max 52 periods (1 year of weeks)

@@ -3,8 +3,8 @@ import { executeMariaDBQuery } from './mariadb';
 import { crmQueryBuilder, type CRMSubscriptionRow, type CRMOtsRow } from './crmQueryBuilder';
 import { formatDateForMariaDB } from './crmMetrics';
 import { validateSortDirection } from './types';
-import { matchNetworkToSource } from './crmMetrics';
 import { FilterBuilder } from './queryBuilderUtils';
+import { buildCrmIndex, buildOtsIndex, matchAdsToCrm } from './marketingTransforms';
 import { formatLocalDate } from '@/lib/types/api';
 
 type SqlParam = string | number | boolean | null | Date;
@@ -351,81 +351,16 @@ export async function getMarketingData(
     executeMariaDBQuery<CRMOtsRow>(otsQuery, otsParams),
   ]);
 
-  // Build CRM subscription index: tracking ID tuple → rows
-  const crmIndex = new Map<string, CRMSubscriptionRow[]>();
-  for (const crm of crmData) {
-    const key = `${crm.campaign_id}|${crm.adset_id}|${crm.ad_id}`;
-    if (!crmIndex.has(key)) {
-      crmIndex.set(key, []);
-    }
-    crmIndex.get(key)!.push(crm);
-  }
+  const crmIdx = buildCrmIndex(crmData);
+  const otsIdx = buildOtsIndex(otsData);
 
-  // Build OTS index: tracking ID tuple → rows
-  const otsIndex = new Map<string, CRMOtsRow[]>();
-  for (const ots of otsData) {
-    const key = `${ots.campaign_id}|${ots.adset_id}|${ots.ad_id}`;
-    if (!otsIndex.has(key)) {
-      otsIndex.set(key, []);
-    }
-    otsIndex.get(key)!.push(ots);
-  }
-
-  return adsData.map(row => {
-    let subscriptions = 0;
-    let trials_approved = 0;
-    let trials = 0;
-    let customers = 0;
-    let upsells = 0;
-    let upsells_approved = 0;
-    let ots = 0;
-    let ots_approved = 0;
-
-    const campaignIds = row.campaign_ids || [];
-    const adsetIds = row.adset_ids || [];
-    const adIds = row.ad_ids || [];
-    const networkList = row.networks || [];
-
-    // Match subscription-based CRM metrics
-    for (const campaignId of campaignIds) {
-      for (const adsetId of adsetIds) {
-        for (const adId of adIds) {
-          const key = `${campaignId}|${adsetId}|${adId}`;
-
-          const crmRows = crmIndex.get(key);
-          if (crmRows) {
-            for (const crm of crmRows) {
-              const sourceMatched = networkList.some(n => matchNetworkToSource(n, crm.source));
-              if (sourceMatched) {
-                subscriptions += Number(crm.subscription_count || 0);
-                trials_approved += Number(crm.trials_approved_count || 0);
-                trials += Number(crm.trial_count || 0);
-                customers += Number(crm.customer_count || 0);
-                upsells += Number(crm.upsell_count || 0);
-                upsells_approved += Number(crm.upsells_approved_count || 0);
-              }
-            }
-          }
-
-          // Match OTS metrics (same tracking ID matching, different index)
-          const otsRows = otsIndex.get(key);
-          if (otsRows) {
-            for (const otsRow of otsRows) {
-              const sourceMatched = networkList.some(n => matchNetworkToSource(n, otsRow.source));
-              if (sourceMatched) {
-                ots += Number(otsRow.ots_count || 0);
-                ots_approved += Number(otsRow.ots_approved_count || 0);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    const cost = Number(row.cost) || 0;
-    return {
-      dimension_value: row.dimension_value,
-      cost,
+  return adsData.map(row => matchAdsToCrm(
+    {
+      campaign_ids: row.campaign_ids || [],
+      adset_ids: row.adset_ids || [],
+      ad_ids: row.ad_ids || [],
+      networks: row.networks || [],
+      cost: Number(row.cost) || 0,
       clicks: Number(row.clicks) || 0,
       impressions: Number(row.impressions) || 0,
       conversions: Number(row.conversions) || 0,
@@ -433,19 +368,10 @@ export async function getMarketingData(
       cpc: Number(row.cpc) || 0,
       cpm: Number(row.cpm) || 0,
       conversion_rate: Number(row.conversion_rate) || 0,
-      subscriptions,
-      trials_approved,
-      trials,
-      customers,
-      ots,
-      ots_approved,
-      upsells,
-      upsells_approved,
-      approval_rate: subscriptions > 0 ? trials_approved / subscriptions : 0,
-      ots_approval_rate: ots > 0 ? ots_approved / ots : 0,
-      upsell_approval_rate: upsells > 0 ? upsells_approved / upsells : 0,
-      real_cpa: trials_approved > 0 ? cost / trials_approved : 0,
-    };
-  });
+      dimension_value: row.dimension_value,
+    },
+    crmIdx,
+    otsIdx
+  ));
 }
 

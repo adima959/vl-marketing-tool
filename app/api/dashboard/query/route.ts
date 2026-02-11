@@ -6,7 +6,7 @@ import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { maskErrorForClient } from '@/lib/types/errors';
 import { queryRequestSchema } from '@/lib/schemas/api';
-import { toTitleCase } from '@/lib/formatters';
+import { buildOtsMap, transformDashboardRow, buildOtsOnlyRows } from '@/lib/server/dashboardTransforms';
 import { z } from 'zod';
 import { logDebug } from '@/lib/server/debugLogger';
 import { unstable_rethrow } from 'next/navigation';
@@ -50,16 +50,6 @@ async function handleDashboardQuery(
     const dateRange = {
       start: new Date(body.dateRange.start),
       end: new Date(body.dateRange.end),
-    };
-
-    const queryOptions = {
-      dateRange,
-      dimensions: body.dimensions,
-      depth: body.depth,
-      parentFilters: body.parentFilters,
-      sortBy: body.sortBy || 'subscriptions',
-      sortDirection: (body.sortDirection || 'DESC') as 'ASC' | 'DESC',
-      limit: MAX_DASHBOARD_QUERY_LIMIT,
     };
 
     // Build main subscription query and standalone OTS query using shared builder
@@ -129,27 +119,7 @@ async function handleDashboardQuery(
     }
 
     // Build OTS lookup map keyed by display value (after toTitleCase)
-    const otsMap = new Map<string, { ots: number; otsApproved: number }>();
-    const otsKeyDetails: any[] = [];
-
-    for (const otsRow of otsRows) {
-      const rawValue = otsRow[columnName] || 'Unknown';
-      const displayValue = toTitleCase(rawValue);
-      const key = `${keyPrefix}${displayValue}`;
-
-      otsKeyDetails.push({
-        rawValue,
-        displayValue,
-        fullKey: key,
-        otsCount: otsRow.ots_count,
-        otsApprovedCount: otsRow.ots_approved_count,
-      });
-
-      otsMap.set(key, {
-        ots: Number(otsRow.ots_count) || 0,
-        otsApproved: Number(otsRow.ots_approved_count) || 0,
-      });
-    }
+    const otsMap = buildOtsMap(otsRows, columnName, keyPrefix);
 
     logDebug('OTS KEY BUILDING', {
       currentDimension,
@@ -157,102 +127,38 @@ async function handleDashboardQuery(
       keyPrefix: keyPrefix || '(none)',
       otsMapSize: otsMap.size,
       otsMapKeys: Array.from(otsMap.keys()),
-      keyDetails: otsKeyDetails,
     });
 
     // Transform database rows to frontend format, merging OTS data
-    const subscriptionRowDetails: any[] = [];
     const matchedOtsKeys = new Set<string>();
 
     const data: DashboardRow[] = rows.map((row, index) => {
-      const rawValue = row[columnName] || 'Unknown';
-      const displayValue = toTitleCase(rawValue);
-      const rowKey = `${keyPrefix}${displayValue}`;
+      const { dashboardRow, otsKey } = transformDashboardRow(
+        row, otsMap, columnName, keyPrefix, body.depth, hasMoreDimensions
+      );
 
-      const trials = Number(row.trial_count) || 0;
-      const trialsApproved = Number(row.trials_approved_count) || 0;
+      if (otsMap.has(otsKey)) matchedOtsKeys.add(otsKey);
 
-      // Merge OTS from standalone query
-      const otsData = otsMap.get(rowKey) || { ots: 0, otsApproved: 0 };
-      const subscriptions = Number(row.subscription_count) || 0;
-
-      // Track which OTS keys were matched
-      if (otsMap.has(rowKey)) {
-        matchedOtsKeys.add(rowKey);
-      }
-
-      if (index < 5) { // Only log first 5 rows to avoid spam
-        subscriptionRowDetails.push({
-          index: index + 1,
-          rawValue,
-          displayValue,
-          rowKey,
-          otsDataFound: otsMap.has(rowKey),
-          ots: otsData.ots,
-          otsApproved: otsData.otsApproved,
+      if (index < 5) {
+        logDebug(`ROW ${index + 1}`, {
+          key: dashboardRow.key,
+          attribute: dashboardRow.attribute,
+          otsDataFound: otsMap.has(otsKey),
+          ots: dashboardRow.metrics.ots,
+          otsApproved: dashboardRow.metrics.otsApproved,
         });
       }
 
-      return {
-        key: rowKey,
-        attribute: displayValue,
-        depth: body.depth,
-        hasChildren: hasMoreDimensions,
-        metrics: {
-          customers: Number(row.customer_count) || 0,
-          subscriptions: Number(row.subscription_count) || 0,
-          trials,
-          ots: otsData.ots,
-          otsApproved: otsData.otsApproved,
-          trialsApproved,
-          approvalRate: subscriptions > 0 ? trialsApproved / subscriptions : 0,
-          otsApprovalRate: otsData.ots > 0 ? otsData.otsApproved / otsData.ots : 0,
-          upsells: Number(row.upsell_count) || 0,
-          upsellsApproved: Number(row.upsells_approved_count) || 0,
-          upsellApprovalRate: (Number(row.upsell_count) || 0) > 0
-            ? (Number(row.upsells_approved_count) || 0) / (Number(row.upsell_count) || 0)
-            : 0,
-        },
-      };
+      return dashboardRow;
     });
 
-    // Add OTS-only rows (OTS data with no subscription)
-    const otsOnlyRows: any[] = [];
-    for (const [otsKey, otsData] of otsMap.entries()) {
-      if (!matchedOtsKeys.has(otsKey)) {
-        // Extract attribute from key (remove prefix)
-        const attribute = otsKey.replace(keyPrefix, '');
-        const approvalRate = otsData.ots > 0 ? otsData.otsApproved / otsData.ots : 0;
-
-        otsOnlyRows.push({
-          key: otsKey,
-          attribute,
-          depth: body.depth,
-          hasChildren: hasMoreDimensions,
-          metrics: {
-            customers: 0,
-            subscriptions: 0,
-            trials: 0,
-            ots: otsData.ots,
-            otsApproved: otsData.otsApproved,
-            trialsApproved: 0,
-            approvalRate,
-            otsApprovalRate: approvalRate,
-            upsells: 0,
-            upsellsApproved: 0,
-            upsellApprovalRate: 0,
-          },
-        });
-      }
-    }
-
-    // Combine subscription rows with OTS-only rows
+    // Add OTS-only rows (OTS data with no matching subscription row)
+    const otsOnlyRows = buildOtsOnlyRows(otsMap, matchedOtsKeys, keyPrefix, body.depth, hasMoreDimensions);
     data.push(...otsOnlyRows);
 
     logDebug('SUBSCRIPTION ROWS & KEY MATCHING', {
       subscriptionRowCount: rows.length,
       otsOnlyRowCount: otsOnlyRows.length,
-      first5Rows: subscriptionRowDetails,
       otsOnlyRows,
     });
 

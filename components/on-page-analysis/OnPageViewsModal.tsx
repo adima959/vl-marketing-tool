@@ -10,20 +10,13 @@ import { fetchAllRecords, downloadCsv, ExportCancelledError } from '@/lib/utils/
 import { getOnPageDimensionLabel } from '@/config/onPageDimensions';
 import modalStyles from '@/styles/components/modal.module.css';
 import stickyStyles from '@/styles/tables/sticky.module.css';
+import { formatDuration } from '@/lib/utils/displayFormatters';
 import styles from './OnPageViewsModal.module.css';
 
 interface OnPageViewsModalProps {
   open: boolean;
   onClose: () => void;
   context: OnPageViewClickContext | null;
-}
-
-function formatDuration(seconds: number | null): string {
-  if (seconds == null) return '–';
-  if (seconds < 60) return `${Math.round(seconds)}s`;
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
-  return `${m}m ${s}s`;
 }
 
 export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalProps) {
