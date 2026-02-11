@@ -1,5 +1,6 @@
 import { executeMariaDBQuery } from './mariadb';
-import { CRM_WHERE } from './crmMetrics';
+import { CRM_JOINS, CRM_WHERE, RATE_TYPE_CONFIGS } from './crmMetrics';
+import { FilterBuilder } from './queryBuilderUtils';
 import {
   VALIDATION_RATE_DIMENSION_COLUMN_MAP,
   getValidationRateDimensionColumn,
@@ -21,25 +22,20 @@ import type {
  * Supports approval rate, pay rate, and buy rate calculations.
  * Data source: MariaDB CRM database only (no PostgreSQL).
  *
- * Uses ? placeholders for MariaDB (NOT $1, $2 like PostgreSQL).
+ * Uses shared primitives from crmMetrics.ts:
+ * - CRM_JOINS for table joins (matches dashboard patterns)
+ * - CRM_WHERE for filter conditions
+ * - RATE_TYPE_CONFIGS for approval/pay/buy differences
  *
- * Rate type differences:
- * - approval: Trial invoices only (type=1), date by s.date_create, matched = is_marked=1
- * - pay: ALL invoices except refunds (type!=4), date by i.order_date, matched = date_paid IS NOT NULL
- * - buy: Processed invoices only (INNER JOIN invoice_proccessed), date by i.invoice_date, matched = date_bought IS NOT NULL
+ * Rate type configs are defined in crmMetrics.ts (single source of truth).
  *
- * IMPORTANT for Buy Rate (matches CRM):
- * - Uses invoice_date (not order_date) - this is when invoice was finalized
- * - Only counts invoices in invoice_proccessed table (INNER JOIN, not LEFT JOIN)
- * - Country matching is case-insensitive
- *
- * IMPORTANT: Table joins:
+ * Table joins (via CRM_JOINS):
  *   subscription s
- *   → customer c (via s.customer_id)
- *   → invoice i (INNER JOIN via i.subscription_id)
- *   → invoice_product ip (via ip.invoice_id)
- *   → product p (via ip.product_id)
- *   → source sr (via s.source_id)
+ *   → customer c (LEFT JOIN via s.customer_id)
+ *   → invoice i (INNER JOIN via i.subscription_id, no type filter — type in WHERE)
+ *   → invoice_product ip (deduped MIN subquery — one product per invoice)
+ *   → product p (via ip.product_id) + p_sub fallback (via s.product_id)
+ *   → source sr (via i.source_id) + sr_sub fallback (via s.source_id)
  *   → invoice_proccessed ipr (via ipr.invoice_id) [pay/buy only]
  */
 
@@ -48,6 +44,26 @@ interface RawValidationRow {
   dimension_value: string | null;
   [key: string]: string | number | null; // Dynamic period columns
 }
+
+/** FilterBuilder for validation rate parent filters (case-insensitive country matching) */
+const validationFilterBuilder = new FilterBuilder({
+  dbType: 'mariadb',
+  dimensionMap: {
+    country: {
+      column: VALIDATION_RATE_DIMENSION_COLUMN_MAP.country,
+      nullCheck: `(${VALIDATION_RATE_DIMENSION_COLUMN_MAP.country} IS NULL OR ${VALIDATION_RATE_DIMENSION_COLUMN_MAP.country} = '')`,
+      caseInsensitive: true,
+    },
+    source: {
+      column: VALIDATION_RATE_DIMENSION_COLUMN_MAP.source,
+      nullCheck: `(${VALIDATION_RATE_DIMENSION_COLUMN_MAP.source} IS NULL OR ${VALIDATION_RATE_DIMENSION_COLUMN_MAP.source} = '')`,
+    },
+    product: {
+      column: VALIDATION_RATE_DIMENSION_COLUMN_MAP.product,
+      nullCheck: `(${VALIDATION_RATE_DIMENSION_COLUMN_MAP.product} IS NULL OR ${VALIDATION_RATE_DIMENSION_COLUMN_MAP.product} = '')`,
+    },
+  },
+});
 
 /**
  * Generate time period columns based on date range and period type
@@ -185,54 +201,10 @@ function formatDateForSQL(date: Date, endOfDay: boolean = false): string {
 }
 
 /**
- * Get the SQL matched condition, extra JOIN, invoice filter, and date field based on rate type
+ * Build SQL query for validation rates with dynamic period columns.
  *
- * Rate type differences:
- * - approval: Only trial invoices (type=1), date by subscription creation, matched = is_marked=1
- * - pay: Processed invoices only (INNER JOIN invoice_proccessed), date by invoice_date, matched = date_paid IS NOT NULL
- * - buy: Processed invoices only (INNER JOIN invoice_proccessed), date by invoice_date, matched = date_bought IS NOT NULL
- */
-function getRateTypeConfig(rateType: ValidationRateType): {
-  matchedCondition: string;
-  extraJoin: string;
-  invoiceFilter: string;
-  dateField: string;
-} {
-  switch (rateType) {
-    case 'approval':
-      return {
-        matchedCondition: 'AND i.is_marked = 1',
-        extraJoin: '',
-        invoiceFilter: 'AND i.type = 1', // Only trial invoices for approval rate
-        dateField: 's.date_create', // Subscription creation date for approval (no DATE() wrapper for index usage)
-      };
-    case 'pay':
-      // Pay rate uses invoice_date and only counts processed invoices (matches CRM)
-      // - invoice_date: When invoice was finalized (not order_date which is creation)
-      // - INNER JOIN: Only count invoices that exist in invoice_proccessed table
-      // NOTE: No DATE() wrapper to allow index usage - use datetime range comparison instead
-      return {
-        matchedCondition: 'AND ipr.date_paid IS NOT NULL',
-        extraJoin: 'INNER JOIN invoice_proccessed ipr ON ipr.invoice_id = i.id',
-        invoiceFilter: 'AND i.type != 4', // Exclude refunds for pay rate
-        dateField: 'i.invoice_date', // Invoice finalization date for pay (no DATE() wrapper for index usage)
-      };
-    case 'buy':
-      // Buy rate uses invoice_date and only counts processed invoices (matches CRM)
-      // - invoice_date: When invoice was finalized (not order_date which is creation)
-      // - INNER JOIN: Only count invoices that exist in invoice_proccessed table
-      // NOTE: No DATE() wrapper to allow index usage - use datetime range comparison instead
-      return {
-        matchedCondition: 'AND ipr.date_bought IS NOT NULL',
-        extraJoin: 'INNER JOIN invoice_proccessed ipr ON ipr.invoice_id = i.id',
-        invoiceFilter: 'AND i.type != 4', // Exclude refunds for buy rate
-        dateField: 'i.invoice_date', // Invoice finalization date for buy (no DATE() wrapper for index usage)
-      };
-  }
-}
-
-/**
- * Build SQL query for validation rates with dynamic period columns
+ * Uses shared primitives from crmMetrics.ts for JOINs, WHERE clauses, and rate type configs.
+ * Uses FilterBuilder from queryBuilderUtils.ts for parent filter generation.
  */
 function buildValidationRateQuery(
   rateType: ValidationRateType,
@@ -245,21 +217,30 @@ function buildValidationRateQuery(
     throw new Error(`Unknown dimension: ${dimension}`);
   }
 
-  const { matchedCondition, extraJoin, invoiceFilter, dateField } = getRateTypeConfig(rateType);
+  const { matchedCondition, extraJoin, invoiceFilter, dateField, invoiceJoin, denominatorId } = RATE_TYPE_CONFIGS[rateType];
+
+  // Build parent filters via shared FilterBuilder (handles case-insensitive country, Unknown→NULL)
+  const filterResult = validationFilterBuilder.buildParentFilters(parentFilters);
+
+  // Get overall date range for WHERE clause (critical for performance!)
+  // Periods are sorted oldest-first, so first period has earliest start, last has latest end
+  const overallStartDate = periods[0].startDate;
+  const overallEndDate = periods[periods.length - 1].endDate;
+
+  // Build params in SQL clause order (no splice hack needed)
   const params: (string | number | boolean | null | Date)[] = [];
 
-  // Build period SELECT columns
+  // 1. Period SELECT params: 4 per period (2 for denominator count, 2 for approved count)
+  // Denominator: s.id for approval (subscriptions), i.id for pay/buy (invoices)
+  // Numerator: always i.id (matched invoices)
   const periodSelects = periods.map((period) => {
-    // Add params for trial count (date range check)
     params.push(period.startDate, period.endDate);
-
-    // Add params for matched count (same date range)
     params.push(period.startDate, period.endDate);
 
     return `
       COUNT(DISTINCT CASE
         WHEN ${dateField} BETWEEN ? AND ?
-        THEN i.id
+        THEN ${denominatorId}
       END) as ${period.key}_trials,
       COUNT(DISTINCT CASE
         WHEN ${dateField} BETWEEN ? AND ?
@@ -268,63 +249,36 @@ function buildValidationRateQuery(
       END) as ${period.key}_approved`;
   }).join(',\n      ');
 
-  // Build parent filter WHERE clause
-  let parentWhereClause = '';
-  if (parentFilters && Object.keys(parentFilters).length > 0) {
-    const parentConditions: string[] = [];
+  // 2. Overall date range params (WHERE clause)
+  params.push(overallStartDate, overallEndDate);
 
-    for (const [dim, value] of Object.entries(parentFilters)) {
-      const parentColumn = VALIDATION_RATE_DIMENSION_COLUMN_MAP[dim];
-      if (!parentColumn) continue;
+  // 3. Parent filter params
+  params.push(...filterResult.params);
 
-      if (value === 'Unknown' || value === '') {
-        // Handle NULL values
-        parentConditions.push(`(${parentColumn} IS NULL OR ${parentColumn} = '')`);
-      } else if (dim === 'country') {
-        // Case-insensitive matching for country (matches CRM behavior)
-        parentConditions.push(`LOWER(${parentColumn}) = LOWER(?)`);
-        params.push(value);
-      } else {
-        parentConditions.push(`${parentColumn} = ?`);
-        params.push(value);
-      }
-    }
-
-    if (parentConditions.length > 0) {
-      parentWhereClause = `AND ${parentConditions.join(' AND ')}`;
-    }
-  }
-
-  // Build HAVING clause to filter out dimension values below display threshold
-  // Matches MIN_SUBSCRIPTIONS_THRESHOLD (3) in ValidationRateCell.tsx
-  // Rows where no period reaches 3+ trials would have all cells hidden
+  // 4. HAVING params: filter out dimension values below display threshold (3 minimum)
   const havingConditions = periods.map((period) => {
     params.push(period.startDate, period.endDate);
-    return `COUNT(DISTINCT CASE WHEN ${dateField} BETWEEN ? AND ? THEN i.id END) >= 3`;
+    return `COUNT(DISTINCT CASE WHEN ${dateField} BETWEEN ? AND ? THEN ${denominatorId} END) >= 3`;
   });
   const havingClause = `HAVING (${havingConditions.join(' OR ')})`;
 
-  // Get overall date range for WHERE clause (critical for performance!)
-  // This allows the database to filter rows BEFORE aggregation
-  // Periods are already sorted oldest-first, so first period has earliest start, last has latest end
-  const overallStartDate = periods[0].startDate;
-  const overallEndDate = periods[periods.length - 1].endDate;
-
-  // Build full query
-  // Filter out NULL/empty dimension values at SQL level to prevent empty rows
-  // Use multiple checks: COALESCE for NULL, TRIM for whitespace, LENGTH for any remaining edge cases
-  // CRITICAL: The date range WHERE clause dramatically improves performance by filtering
-  // rows before aggregation instead of scanning all rows
+  // Build full query using shared CRM_JOINS
+  // JOINs match dashboard geography mode patterns for consistent dimension resolution:
+  // - invoiceProductDeduped: MIN(product_id) prevents multi-product invoice duplication
+  // - sourceFromInvoice + sourceFromSubAlt: COALESCE for source resolution
+  // - product + productSub: COALESCE for product resolution
   const query = `
     SELECT
       ${dimensionColumn} AS dimension_value,
       ${periodSelects}
     FROM subscription s
-    LEFT JOIN customer c ON s.customer_id = c.id
-    INNER JOIN invoice i ON i.subscription_id = s.id AND i.deleted = 0
-    LEFT JOIN invoice_product ip ON ip.invoice_id = i.id
-    LEFT JOIN product p ON p.id = ip.product_id
-    LEFT JOIN source sr ON sr.id = s.source_id
+    ${CRM_JOINS.customer}
+    ${invoiceJoin}
+    ${CRM_JOINS.invoiceProductDeduped}
+    ${CRM_JOINS.product}
+    ${CRM_JOINS.productSub}
+    ${CRM_JOINS.sourceFromInvoice}
+    ${CRM_JOINS.sourceFromSubAlt}
     ${extraJoin}
     WHERE 1=1
       ${invoiceFilter}
@@ -332,23 +286,11 @@ function buildValidationRateQuery(
       AND ${dateField} BETWEEN ? AND ?
       AND ${dimensionColumn} IS NOT NULL
       AND LENGTH(TRIM(${dimensionColumn})) > 0
-      ${parentWhereClause}
+      ${filterResult.whereClause}
     GROUP BY ${dimensionColumn}
     ${havingClause}
     ORDER BY ${dimensionColumn}
   `;
-
-  // Add the overall date range params at the correct position (after periodSelects params, before parent filter params)
-  // We need to insert them right after the period SELECT params but before the HAVING params
-  // Actually, params are built in order, so we need to add these at the right spot
-  // The current param order is: [periodSelects params...][parentFilter params...][having params...]
-  // We need: [periodSelects params...][overall date range params][parentFilter params...][having params...]
-
-  // Since we've already built params, we need to rebuild or insert at the right position
-  // For simplicity, let's add the date range params right after periodSelects (before parentFilters)
-  // Find the insertion point: after period params (4 per period) = periods.length * 4
-  const insertIndex = periods.length * 4;
-  params.splice(insertIndex, 0, overallStartDate, overallEndDate);
 
   return { query, params };
 }

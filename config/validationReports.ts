@@ -45,15 +45,16 @@ export const VALIDATION_REPORTS: Record<
   }
 > = {
   'approval-rate': {
-    title: 'Approval Rate | Vitaliv Analytics',
+    title: 'Approval Rate',
     description: 'Approval rate analysis across dimensions and time periods',
     Icon: TrendingUp,
     promptTitle: 'Ready to analyze approval rates?',
     useStore: useApprovalRateStore,
     urlParam: 'approval',
+    rateType: 'approval',
   },
   'buy-rate': {
-    title: 'Buy Rate | Vitaliv Analytics',
+    title: 'Buy Rate',
     description: 'Buy rate analysis across dimensions and time periods',
     Icon: ShoppingCart,
     promptTitle: 'Ready to analyze buy rates?',
@@ -63,7 +64,7 @@ export const VALIDATION_REPORTS: Record<
     modalRecordLabel: 'Invoices',
   },
   'pay-rate': {
-    title: 'Pay Rate | Vitaliv Analytics',
+    title: 'Pay Rate',
     description: 'Pay rate analysis across dimensions and time periods',
     Icon: CreditCard,
     promptTitle: 'Ready to analyze pay rates?',

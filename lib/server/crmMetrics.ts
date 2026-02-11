@@ -110,6 +110,19 @@ export const CRM_JOINS = {
 
   /** Cancel reason JOINs (subscription → cancel_reason) */
   cancelReason: 'LEFT JOIN subscription_cancel_reason scr ON scr.subscription_id = s.id\n      LEFT JOIN cancel_reason cr ON cr.id = scr.cancel_reason_id',
+
+  /** Invoice INNER JOIN (generic, no type filter) — used by validation rate queries */
+  invoiceInner: 'INNER JOIN invoice i ON i.subscription_id = s.id AND i.deleted = 0',
+
+  /** Invoice processed table — used by pay/buy rate calculations */
+  invoiceProcessed: 'INNER JOIN invoice_proccessed ipr ON ipr.invoice_id = i.id',
+
+  /** Invoice product with MIN deduplication — one product per invoice for accurate grouping */
+  invoiceProductDeduped: `LEFT JOIN (
+    SELECT invoice_id, MIN(product_id) as product_id
+    FROM invoice_product
+    GROUP BY invoice_id
+  ) ip ON ip.invoice_id = i.id`,
 } as const;
 
 /** OTS JOINs (standalone invoice-based, no subscription). */
@@ -154,6 +167,49 @@ export const CRM_WHERE = {
     'i.tracking_id IS NOT NULL',
     "i.tracking_id != 'null'",
   ] as readonly string[],
+} as const;
+
+// ---------------------------------------------------------------------------
+// Rate type configurations (validation rate queries)
+// ---------------------------------------------------------------------------
+
+/**
+ * Rate type configurations for validation rate pivot queries.
+ * Defines the SQL fragments that differ between approval, pay, and buy rates.
+ *
+ * - approval: Denominator = subscriptions (s.id), numerator = approved trials (i.is_marked=1).
+ *   Uses LEFT JOIN so subscriptions without trial invoices are still counted.
+ *   Date = s.date_create (subscription creation date).
+ * - pay: Denominator = invoices (i.id), numerator = paid invoices (date_paid IS NOT NULL).
+ *   Uses INNER JOIN — only invoices matter. Date = i.invoice_date.
+ * - buy: Denominator = invoices (i.id), numerator = bought invoices (date_bought IS NOT NULL).
+ *   Uses INNER JOIN — only invoices matter. Date = i.invoice_date.
+ */
+export const RATE_TYPE_CONFIGS = {
+  approval: {
+    matchedCondition: 'AND i.is_marked = 1',
+    extraJoin: '',
+    invoiceFilter: '',  // type=1 is in the JOIN condition
+    invoiceJoin: CRM_JOINS.invoiceTrialLeft,  // LEFT JOIN keeps subscriptions without trials
+    denominatorId: 's.id',  // Count subscriptions
+    dateField: 's.date_create',
+  },
+  pay: {
+    matchedCondition: 'AND ipr.date_paid IS NOT NULL',
+    extraJoin: CRM_JOINS.invoiceProcessed,
+    invoiceFilter: 'AND i.type != 4',
+    invoiceJoin: CRM_JOINS.invoiceInner,
+    denominatorId: 'i.id',  // Count invoices
+    dateField: 'i.invoice_date',
+  },
+  buy: {
+    matchedCondition: 'AND ipr.date_bought IS NOT NULL',
+    extraJoin: CRM_JOINS.invoiceProcessed,
+    invoiceFilter: 'AND i.type != 4',
+    invoiceJoin: CRM_JOINS.invoiceInner,
+    denominatorId: 'i.id',  // Count invoices
+    dateField: 'i.invoice_date',
+  },
 } as const;
 
 // ---------------------------------------------------------------------------

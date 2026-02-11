@@ -219,6 +219,7 @@ export function ValidationRateDataTable({
         return (
           <ValidationRateCell
             metric={metric ?? { rate: 0, trials: 0, approved: 0 }}
+            rateType={rateType}
             onClick={() => handleMetricClick(record, period.key, period.label, period.startDate, period.endDate)}
           />
         );
@@ -235,6 +236,7 @@ export function ValidationRateDataTable({
     sortDirection,
     toast,
     dimensions,
+    rateType,
   ]);
 
   // Handle sort change

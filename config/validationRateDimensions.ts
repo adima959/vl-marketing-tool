@@ -37,15 +37,15 @@ export const DEFAULT_VALIDATION_RATE_DIMENSIONS = ['country', 'source', 'product
  * Database column mapping for each dimension
  * Used in SQL query building (MariaDB)
  *
- * IMPORTANT: Must match dashboardQueryBuilder.ts mappings:
+ * Matches crmQueryBuilder.ts geography mode mappings:
  * - country: c.country (via subscription.customer_id → customer)
- * - product: p.product_name (via invoice_product → product)
- * - source: sr.source (via subscription.source_id → source)
+ * - source: COALESCE(sr.source, sr_sub.source) — invoice source (primary) → subscription source (fallback)
+ * - product: COALESCE(p.product_name, p_sub.product_name) — invoice product (primary) → subscription product (fallback)
  */
 export const VALIDATION_RATE_DIMENSION_COLUMN_MAP: Record<string, string> = {
   country: 'c.country',
-  source: 'sr.source',
-  product: 'p.product_name',
+  source: 'COALESCE(sr.source, sr_sub.source)',
+  product: 'COALESCE(p.product_name, p_sub.product_name)',
 };
 
 /**

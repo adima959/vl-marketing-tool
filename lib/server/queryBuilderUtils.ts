@@ -12,6 +12,8 @@ export interface DimensionConfig {
   column: string;
   /** Optional null check override (e.g., "IS NULL OR column = ''") */
   nullCheck?: string;
+  /** If true, use LOWER() for case-insensitive comparison in parent filters */
+  caseInsensitive?: boolean;
 }
 
 export interface FilterBuilderConfig {
@@ -84,7 +86,12 @@ export class FilterBuilder {
       } else {
         params.push(value);
         const placeholder = this.getPlaceholder(paramOffset + params.length);
-        conditions.push(`${column} = ${placeholder}`);
+        const isCaseInsensitive = typeof dimConfig !== 'string' && dimConfig.caseInsensitive;
+        if (isCaseInsensitive) {
+          conditions.push(`LOWER(${column}) = LOWER(${placeholder})`);
+        } else {
+          conditions.push(`${column} = ${placeholder}`);
+        }
       }
     });
 
