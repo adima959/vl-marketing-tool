@@ -7,21 +7,9 @@ import type {
   ValidationRateStore,
 } from '@/types/validationRate';
 import { normalizeError } from '@/lib/types/errors';
+import { triggerError } from '@/lib/api/errorHandler';
+import { findRowByKey } from '@/lib/treeUtils';
 import { DEFAULT_VALIDATION_RATE_DIMENSIONS } from '@/config/validationRateDimensions';
-
-/**
- * Tree utility to find a row by key
- */
-function findRowByKey(rows: ValidationRateRow[], key: string): ValidationRateRow | undefined {
-  for (const row of rows) {
-    if (row.key === key) return row;
-    if (row.children) {
-      const found = findRowByKey(row.children, key);
-      if (found) return found;
-    }
-  }
-  return undefined;
-}
 
 /**
  * Get default date range (last 90 days / 3 months)
@@ -72,9 +60,9 @@ export function createValidationRateStore(rateType: ValidationRateType) {
     sortDirection: null,
 
     isLoading: false,
+    isLoadingSubLevels: false,
     hasUnsavedChanges: false,
     hasLoadedOnce: false,
-    error: null,
 
     // Actions
     setTimePeriod: (period) => set({ timePeriod: period, hasUnsavedChanges: true }),
@@ -155,7 +143,7 @@ export function createValidationRateStore(rateType: ValidationRateType) {
 
       // Reload if data has been loaded
       if (state.hasLoadedOnce) {
-        set({ isLoading: true, error: null });
+        set({ isLoading: true });
 
         try {
           const { data, periodColumns } = await fetchValidationRateData({
@@ -182,7 +170,8 @@ export function createValidationRateStore(rateType: ValidationRateType) {
         } catch (error: unknown) {
           const appError = normalizeError(error);
           console.error('Failed to load data:', appError);
-          set({ isLoading: false, error: appError.message });
+          triggerError(appError);
+          set({ isLoading: false });
         }
       }
     },
@@ -217,7 +206,7 @@ export function createValidationRateStore(rateType: ValidationRateType) {
       // Increment request ID to track this specific request
       const requestId = ++currentLoadRequestId;
 
-      set({ isLoading: true, error: null, reportData: [] });
+      set({ isLoading: true, reportData: [] });
 
       try {
         const { data, periodColumns } = await fetchValidationRateData({
@@ -250,6 +239,7 @@ export function createValidationRateStore(rateType: ValidationRateType) {
         // Reload child data for expanded rows (if manual reload)
         const isManualReload = state.hasLoadedOnce;
         if (savedExpandedKeys.length > 0 && isManualReload) {
+          set({ isLoadingSubLevels: true });
           // Group keys by depth
           const keysByDepth = new Map<number, string[]>();
           for (const key of savedExpandedKeys) {
@@ -341,6 +331,7 @@ export function createValidationRateStore(rateType: ValidationRateType) {
           if (allValidKeys.length !== savedExpandedKeys.length) {
             set({ expandedRowKeys: allValidKeys });
           }
+          set({ isLoadingSubLevels: false });
         }
       } catch (error: unknown) {
         // Ignore errors from stale requests
@@ -349,12 +340,14 @@ export function createValidationRateStore(rateType: ValidationRateType) {
         }
         const appError = normalizeError(error);
         console.error('Failed to load data:', appError);
-        set({ isLoading: false, error: appError.message });
+        triggerError(appError);
+        set({ isLoading: false });
       }
     },
 
     loadChildData: async (parentKey: string, _parentValue: string, parentDepth: number) => {
       const state = get();
+      set({ isLoadingSubLevels: true });
 
       try {
         // Build parent filter chain from key hierarchy
@@ -392,8 +385,9 @@ export function createValidationRateStore(rateType: ValidationRateType) {
           });
         };
 
-        set({ reportData: updateTree(state.reportData) });
+        set({ reportData: updateTree(state.reportData), isLoadingSubLevels: false });
       } catch (error: unknown) {
+        set({ isLoadingSubLevels: false });
         const appError = normalizeError(error);
         console.error('Failed to load child data:', appError);
         throw appError;

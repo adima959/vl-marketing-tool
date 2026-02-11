@@ -2,6 +2,9 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import type { CRMUser } from '@/types/auth';
+import { AppError, ErrorCode } from '@/lib/types/errors';
+import { registerErrorHandler, clearError } from '@/lib/api/errorHandler';
+import { ErrorPage } from '@/components/ErrorPage';
 import { registerAuthErrorHandler } from '@/lib/api/authErrorHandler';
 
 interface AuthConfig {
@@ -16,9 +19,12 @@ interface AuthContextType {
   isLoggingOut: boolean;
   authConfig: AuthConfig | null;
   authError: boolean;
+  appError: AppError | null;
   checkAuth: () => Promise<void>;
   logout: () => Promise<void>;
   setAuthError: (hasError: boolean) => void;
+  setAppError: (error: AppError | null) => void;
+  clearError: () => void;
   refreshSession: () => void;
 }
 
@@ -34,6 +40,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [authConfig, setAuthConfig] = useState<AuthConfig | null>(null);
   const [authError, setAuthError] = useState(false);
+  const [appError, setAppError] = useState<AppError | null>(null);
 
   const checkAuth = async () => {
     try {
@@ -115,9 +122,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
   }, []);
 
-  // Register global auth error handler
+  // Register global auth error handler (legacy)
   useEffect(() => {
     registerAuthErrorHandler(setAuthError);
+  }, []);
+
+  // Register global error handler for all error types
+  useEffect(() => {
+    registerErrorHandler(setAppError);
   }, []);
 
   // Check auth status on mount
@@ -132,11 +144,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isLoggingOut,
     authConfig,
     authError,
+    appError,
     checkAuth,
     logout,
     setAuthError,
+    setAppError,
+    clearError,
     refreshSession,
   };
+
+  // Render error page if auth error exists
+  if (authError) {
+    const error: AppError = {
+      name: 'AuthError',
+      message: 'Your session has expired or is invalid. Please refresh your session to continue using the dashboard.',
+      code: ErrorCode.AUTH_ERROR,
+      statusCode: 401,
+    };
+    return (
+      <AuthContext.Provider value={value}>
+        <ErrorPage error={error} onRetry={refreshSession} />
+      </AuthContext.Provider>
+    );
+  }
+
+  // Render error page if any app error exists
+  if (appError) {
+    return (
+      <AuthContext.Provider value={value}>
+        <ErrorPage error={appError} onRetry={clearError} />
+      </AuthContext.Provider>
+    );
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

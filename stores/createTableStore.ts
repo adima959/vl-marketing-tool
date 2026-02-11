@@ -2,6 +2,7 @@ import { create, type StoreApi } from 'zustand';
 import type { DateRange, QueryParams } from '@/lib/types/api';
 import type { TableFilter } from '@/types/filters';
 import { normalizeError } from '@/lib/types/errors';
+import { triggerError } from '@/lib/api/errorHandler';
 import { findRowByKey } from '@/lib/treeUtils';
 
 /**
@@ -57,7 +58,6 @@ export interface TableStore<TRow extends BaseTableRow> {
   isLoadingSubLevels: boolean;
   hasUnsavedChanges: boolean;
   hasLoadedOnce: boolean;
-  error: string | null;
 
   // Actions
   setDateRange: (range: DateRange) => void;
@@ -133,7 +133,6 @@ export function createTableStore<TRow extends BaseTableRow>(
     isLoadingSubLevels: false,
     hasUnsavedChanges: false,
     hasLoadedOnce: false,
-    error: null,
 
     // Actions
     setDateRange: (range) => set({ dateRange: range, hasUnsavedChanges: true }),
@@ -192,7 +191,7 @@ export function createTableStore<TRow extends BaseTableRow>(
       // Only reload if data has been loaded at least once
       if (state.hasLoadedOnce) {
         // Load top-level data with new sort
-        set({ isLoading: true, error: null });
+        set({ isLoading: true });
         const apiFilters = hasFilters
           ? state.filters.filter(f => f.value).map(({ field, operator, value }) => ({ field, operator, value }))
           : [];
@@ -220,10 +219,8 @@ export function createTableStore<TRow extends BaseTableRow>(
         } catch (error: unknown) {
           const appError = normalizeError(error);
           console.error('Failed to load data:', appError);
-          set({
-            isLoading: false,
-            error: appError.message,
-          });
+          triggerError(appError);
+          set({ isLoading: false });
         }
       }
     },
@@ -254,7 +251,7 @@ export function createTableStore<TRow extends BaseTableRow>(
         state.dimensions.some((dim, i) => dim !== state.loadedDimensions[i]);
 
       // Clear old data to prevent stale children from blocking fresh loads
-      set({ isLoading: true, error: null, reportData: [] });
+      set({ isLoading: true, reportData: [] });
 
       try {
         const data = await fetchData({
@@ -438,10 +435,10 @@ export function createTableStore<TRow extends BaseTableRow>(
           code: appError.code,
           message: appError.message,
         });
+        triggerError(appError);
         set({
           isLoading: false,
           isLoadingSubLevels: false,
-          error: appError.message,
         });
       }
     },

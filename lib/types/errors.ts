@@ -2,6 +2,7 @@
  * Standard error codes for the application
  */
 export enum ErrorCode {
+  AUTH_ERROR = 'AUTH_ERROR',
   VALIDATION_ERROR = 'VALIDATION_ERROR',
   NOT_FOUND = 'NOT_FOUND',
   TIMEOUT = 'TIMEOUT',
@@ -160,6 +161,7 @@ export function maskErrorForClient(
 
   // Return generic messages for clients based on error type
   const genericMessages: Record<ErrorCode, string> = {
+    [ErrorCode.AUTH_ERROR]: 'Your session has expired or is invalid. Please refresh your session to continue.',
     [ErrorCode.VALIDATION_ERROR]: normalized.message, // Validation errors are safe to expose
     [ErrorCode.NOT_FOUND]: 'Resource not found',
     [ErrorCode.TIMEOUT]: normalized.message || 'Request timeout - please try again with a shorter date range',

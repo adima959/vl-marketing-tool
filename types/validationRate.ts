@@ -85,9 +85,9 @@ export interface ValidationRateState {
 
   // UI state
   isLoading: boolean;
+  isLoadingSubLevels: boolean;
   hasUnsavedChanges: boolean;
   hasLoadedOnce: boolean;
-  error: string | null;
 }
 
 // Store actions

@@ -35,8 +35,8 @@ export function ValidationRateCell({ metric, onClick }: ValidationRateCellProps)
     const rateDisplay = `${percentage}%`;
 
     // Determine text color based on rate
-    // >81% = green, ≤81% = red
-    const textColor = rate > 0.81 ? '#16a34a' : '#ef4444';
+    // >81% = green (success), ≤81% = red (error)
+    const textColor = rate > 0.81 ? 'var(--color-success)' : 'var(--color-error)';
 
     return {
       textColor,
@@ -57,9 +57,9 @@ export function ValidationRateCell({ metric, onClick }: ValidationRateCellProps)
       <span
         onClick={onClick ? onClick : undefined}
         style={{
-          color: '#374151', // Default text color
+          color: 'var(--color-gray-700)',
           fontWeight: 600,
-          fontSize: '13px',
+          fontSize: 'var(--font-size-sm)',
           fontVariantNumeric: 'tabular-nums',
           cursor: onClick ? 'pointer' : 'default',
           textDecoration: 'none',
@@ -81,7 +81,7 @@ export function ValidationRateCell({ metric, onClick }: ValidationRateCellProps)
         style={{
           color: textColor,
           fontWeight: 500,
-          fontSize: '13px',
+          fontSize: 'var(--font-size-sm)',
           fontVariantNumeric: 'tabular-nums',
         }}
       >

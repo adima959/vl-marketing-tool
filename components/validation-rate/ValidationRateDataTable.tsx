@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { TableSkeleton } from '@/components/loading/TableSkeleton';
 import { CrmDetailModal } from '@/components/modals/CrmDetailModal';
 import { TableInfoBanner } from '@/components/ui/TableInfoBanner';
+import { injectSkeletonRows, isSkeletonRow } from '@/lib/utils/tableUtils';
 import type { ValidationRateRow, ValidationRateStore } from '@/types';
 import type { MetricClickContext } from '@/types/dashboardDetails';
 import type { UseBoundStore, StoreApi } from 'zustand';
@@ -21,15 +22,12 @@ import compactStyles from './ValidationRateDataTable.module.css';
  * Validation Rate Data Table
  *
  * Shared pivot-style table for all validation rate pages (approval, pay, buy).
- * - Rows: Hierarchical dimensions (country → source → product)
+ * - Rows: Hierarchical dimensions (country -> source -> product)
  * - Columns: Dynamic time periods (weekly/biweekly/monthly)
  * - Values: Color-coded rate percentages
  *
  * Accepts a store hook as prop for use across different rate types.
  */
-
-// Extended row type to support skeleton rows
-type ValidationRateRowWithSkeleton = ValidationRateRow & { _isSkeleton?: boolean };
 
 interface ValidationRateDataTableProps {
   useStore: UseBoundStore<StoreApi<ValidationRateStore>>;
@@ -55,6 +53,7 @@ export function ValidationRateDataTable({
     sortDirection,
     setSort,
     isLoading,
+    isLoadingSubLevels,
     hasLoadedOnce,
     loadChildData,
     loadData,
@@ -71,9 +70,6 @@ export function ValidationRateDataTable({
   const [modalContext, setModalContext] = useState<MetricClickContext | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  // Track which rows are currently loading children
-  const [loadingRowKeys, setLoadingRowKeys] = useState<Set<string>>(new Set());
-
   // Calculate table width: attribute column + period columns
   const tableWidth = useMemo(() => {
     const attributeWidth = 250;
@@ -83,38 +79,9 @@ export function ValidationRateDataTable({
 
   // Process data to inject skeleton rows for expanded parents that are loading
   const processedData = useMemo(() => {
-    if (loadingRowKeys.size === 0) return reportData;
-
-    const injectSkeletons = (rows: ValidationRateRow[]): ValidationRateRowWithSkeleton[] => {
-      return rows.map((row) => {
-        const isExpanded = expandedRowKeys.includes(row.key);
-        const isLoadingChildren = loadingRowKeys.has(row.key);
-        const needsSkeleton = isExpanded && isLoadingChildren && (!row.children || row.children.length === 0);
-
-        if (needsSkeleton) {
-          // Create 2 skeleton placeholder children
-          const skeletonChildren: ValidationRateRowWithSkeleton[] = [1, 2].map((i) => ({
-            key: `${row.key}::skeleton-${i}`,
-            attribute: '',
-            depth: row.depth + 1,
-            hasChildren: false,
-            metrics: {},
-            _isSkeleton: true,
-          }));
-          return { ...row, children: skeletonChildren };
-        }
-
-        // Recursively process children
-        if (row.children && row.children.length > 0) {
-          return { ...row, children: injectSkeletons(row.children) };
-        }
-
-        return row;
-      });
-    };
-
-    return injectSkeletons(reportData);
-  }, [reportData, expandedRowKeys, loadingRowKeys]);
+    if (!isLoadingSubLevels) return reportData;
+    return injectSkeletonRows(reportData, expandedRowKeys, 2);
+  }, [reportData, expandedRowKeys, isLoadingSubLevels]);
 
   // Helper to build dimension filters from row key
   const buildFilters = (rowKey: string) => {
@@ -167,20 +134,20 @@ export function ValidationRateDataTable({
   };
 
   // Build columns from period columns
-  const columns: ColumnsType<ValidationRateRowWithSkeleton> = useMemo(() => {
+  const columns: ColumnsType<ValidationRateRow> = useMemo(() => {
     // Attribute column (fixed left)
-    const attributeColumn: ColumnsType<ValidationRateRowWithSkeleton>[0] = {
+    const attributeColumn: ColumnsType<ValidationRateRow>[0] = {
       title: 'Attributes',
       dataIndex: 'attribute',
       key: 'attribute',
       fixed: 'left',
       width: 250,
-      render: (value: string, record: ValidationRateRowWithSkeleton) => {
+      render: (value: string, record: ValidationRateRow) => {
         const indent = record.depth * 20;
         const isExpanded = expandedRowKeys.includes(record.key);
 
         // Render skeleton row
-        if (record._isSkeleton) {
+        if (isSkeletonRow(record)) {
           return (
             <div className={styles.attributeCell} style={{ paddingLeft: `${indent}px` }}>
               <span className={styles.expandSpacer} />
@@ -203,20 +170,11 @@ export function ValidationRateDataTable({
                       setExpandedRowKeys([...expandedRowKeys, record.key]);
                     }
                     if (!record.children || record.children.length === 0) {
-                      // Start loading - add to loading set
-                      setLoadingRowKeys((prev) => new Set(prev).add(record.key));
                       try {
                         await loadChildData(record.key, record.attribute, record.depth);
                       } catch {
                         setExpandedRowKeys(expandedRowKeys.filter((k) => k !== record.key));
                         toast.error('Failed to load child data. Please try again.');
-                      } finally {
-                        // Done loading - remove from loading set
-                        setLoadingRowKeys((prev) => {
-                          const next = new Set(prev);
-                          next.delete(record.key);
-                          return next;
-                        });
                       }
                     }
                   }
@@ -255,9 +213,9 @@ export function ValidationRateDataTable({
       sorter: true,
       sortOrder: sortColumn === period.key ? sortDirection : null,
       showSorterTooltip: false,
-      render: (metric: { rate: number; trials: number; approved: number } | undefined, record: ValidationRateRowWithSkeleton) => {
+      render: (metric: { rate: number; trials: number; approved: number } | undefined, record: ValidationRateRow) => {
         // Render skeleton for loading rows
-        if (record._isSkeleton) {
+        if (isSkeletonRow(record)) {
           return <div className={styles.skeletonMetric} />;
         }
         return (
@@ -282,7 +240,7 @@ export function ValidationRateDataTable({
   ]);
 
   // Handle sort change
-  const handleTableChange: TableProps<ValidationRateRowWithSkeleton>['onChange'] = (
+  const handleTableChange: TableProps<ValidationRateRow>['onChange'] = (
     _pagination,
     _filters,
     sorter
@@ -326,7 +284,7 @@ export function ValidationRateDataTable({
       )}
 
       <div ref={tableRef} className={`${styles.dataTable} ${compactStyles.compactTable}`}>
-        <Table<ValidationRateRowWithSkeleton>
+        <Table<ValidationRateRow>
           columns={columns}
           dataSource={processedData}
           loading={isLoading && reportData.length > 0}

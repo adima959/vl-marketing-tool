@@ -37,11 +37,12 @@ export function RouteGuard({ children }: RouteGuardProps) {
     }
 
     // If not loading and not authenticated, redirect to CRM login
-    if (!isLoading && !isAuthenticated) {
+    // BUT: Don't auto-redirect if authError is true - let user click manually
+    if (!isLoading && !isAuthenticated && !authError) {
       const returnUrl = encodeURIComponent(window.location.href);
       window.location.href = `${authConfig.loginUrl}?callback_url=${authConfig.callbackUrl}&returnUrl=${returnUrl}`;
     }
-  }, [isAuthenticated, isLoading, isLoggingOut, pathname, authConfig]);
+  }, [isAuthenticated, isLoading, isLoggingOut, pathname, authConfig, authError]);
 
   // Show loading spinner while checking auth or logging out
   if (isLoading || isLoggingOut) {

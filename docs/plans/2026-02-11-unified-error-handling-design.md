@@ -219,12 +219,13 @@ Changes:
 1. ✅ Create `ErrorPage` component
 2. ✅ Create `errorHandler.ts`
 3. ✅ Update `AuthContext` → add `appError` state + ErrorPage rendering
-4. ⏳ Update stores (one by one, test after each)
-5. ⏳ Update API clients
-6. ⏳ Update ALL app pages (dashboard, marketing-report, on-page-analysis, validation-rate)
-7. ⏳ Remove `ErrorMessage` from remaining components (GenericDataTable, etc.)
-8. ⏳ Delete old files
-9. ✅ Commit and test
+4. ✅ Fix RouteGuard auto-redirect → only redirect if !authError (let user click manually)
+5. ⏳ Update stores (one by one, test after each)
+6. ⏳ Update API clients
+7. ⏳ Update ALL app pages (dashboard, marketing-report, on-page-analysis, validation-rate)
+8. ⏳ Remove `ErrorMessage` from remaining components (GenericDataTable, etc.)
+9. ⏳ Delete old files
+10. ✅ Commit and test
 
 ---
 

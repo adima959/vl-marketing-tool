@@ -67,28 +67,26 @@ export function ValidationRateFilterToolbar({ useStore }: ValidationRateFilterTo
     }
   };
 
-  // Custom date picker with presets
+  // Custom date picker with presets + period toggle stacked below
   const customDatePicker = (
-    <div className={datePickerStyles.datePickerWrapper}>
-      <RangePicker
-        className={datePickerStyles.rangePicker}
-        classNames={{ popup: { root: datePickerStyles.datePickerPopup } }}
-        value={[dayjs(dateRange.start), dayjs(dateRange.end)]}
-        onChange={handleDateChange}
-        presets={presets}
-        format="DD/MM/YYYY"
-        allowClear={false}
-        size="middle"
-        separator={<SwapRightOutlined className={datePickerStyles.separator} />}
-      />
-    </div>
-  );
-
-  // Additional controls (TimePeriodToggle)
-  const additionalControls = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <span style={{ fontSize: '11px', color: '#999', fontWeight: 600, letterSpacing: '0.06em' }}>PERIOD:</span>
-      <TimePeriodToggle useStore={useStore} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-1)' }}>
+      <div className={datePickerStyles.datePickerWrapper}>
+        <RangePicker
+          className={datePickerStyles.rangePicker}
+          classNames={{ popup: { root: datePickerStyles.datePickerPopup } }}
+          value={[dayjs(dateRange.start), dayjs(dateRange.end)]}
+          onChange={handleDateChange}
+          presets={presets}
+          format="DD/MM/YYYY"
+          allowClear={false}
+          size="middle"
+          separator={<SwapRightOutlined className={datePickerStyles.separator} />}
+        />
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)' }}>
+        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-gray-400)', fontWeight: 600, letterSpacing: '0.06em' }}>PERIOD:</span>
+        <TimePeriodToggle useStore={useStore} />
+      </div>
     </div>
   );
 
@@ -98,7 +96,6 @@ export function ValidationRateFilterToolbar({ useStore }: ValidationRateFilterTo
       getLabel={getValidationRateDimensionLabel}
       dimensionPicker={<ValidationRateDimensionPicker useStore={useStore} />}
       customDatePicker={customDatePicker}
-      additionalControls={additionalControls}
       showUnsavedDot
     />
   );
