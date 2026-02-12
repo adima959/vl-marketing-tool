@@ -17,31 +17,36 @@ import { GenericMapPanel } from './GenericMapPanel';
 export function CampaignMapPanel(): React.ReactNode {
   return (
     <GenericMapPanel<UnclassifiedCampaign, ClassifiedCampaign, IgnoredCampaign>
-      fetchData={fetchCampaignClassifications}
-      classify={(campaignId, productId, countryCode) => classifyCampaign(campaignId, productId, countryCode)}
-      ignore={(campaignId) => ignoreCampaign(campaignId)}
-      autoMatch={autoMatchCampaigns}
-      unclassify={unclassifyCampaign}
-      // Unclassified accessors
-      getUnclassifiedId={(campaign) => campaign.campaignId}
-      getUnclassifiedName={(campaign) => campaign.campaignName}
-      // Classified accessors
-      getClassifiedId={(item) => item.id}
-      getClassifiedItemId={(item) => item.campaignId}
-      getClassifiedName={(item) => item.campaignName}
-      getClassifiedProduct={(item) => ({
-        id: item.productId,
-        name: item.productName,
-        color: item.productColor,
-      })}
-      getClassifiedCountry={(item) => item.countryCode}
-      // Ignored accessors
-      getIgnoredId={(item) => item.id}
-      getIgnoredItemId={(item) => item.campaignId}
-      getIgnoredName={(item) => item.campaignName}
-      // Reconstruction
-      reconstructUnclassified={(campaignId, campaignName) => ({ campaignId, campaignName })}
-      // Labels
+      api={{
+        fetchData: fetchCampaignClassifications,
+        classify: classifyCampaign,
+        ignore: ignoreCampaign,
+        autoMatch: autoMatchCampaigns,
+        unclassify: unclassifyCampaign,
+      }}
+      accessors={{
+        unclassified: {
+          getId: (campaign) => campaign.campaignId,
+          getName: (campaign) => campaign.campaignName,
+        },
+        classified: {
+          getId: (item) => item.id,
+          getItemId: (item) => item.campaignId,
+          getName: (item) => item.campaignName,
+          getProduct: (item) => ({
+            id: item.productId,
+            name: item.productName,
+            color: item.productColor,
+          }),
+          getCountry: (item) => item.countryCode,
+        },
+        ignored: {
+          getId: (item) => item.id,
+          getItemId: (item) => item.campaignId,
+          getName: (item) => item.campaignName,
+        },
+        reconstructUnclassified: (campaignId, campaignName) => ({ campaignId, campaignName }),
+      }}
       labels={{ singular: 'campaign', plural: 'campaigns' }}
     />
   );

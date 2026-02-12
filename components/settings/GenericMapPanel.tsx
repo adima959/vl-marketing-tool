@@ -36,55 +36,39 @@ export interface AutoMatchResult<TClassified> {
 }
 
 export interface GenericMapPanelProps<TUnclassified, TClassified, TIgnored> {
-  // API client functions
-  fetchData: () => Promise<ClassificationData<TUnclassified, TClassified, TIgnored>>;
-  classify: (itemId: string, productId: string, countryCode: string) => Promise<TClassified>;
-  ignore: (itemId: string) => Promise<TIgnored>;
-  autoMatch: () => Promise<AutoMatchResult<TClassified>>;
-  unclassify: (id: string) => Promise<string>; // Returns itemId
-
-  // Item accessors
-  getUnclassifiedId: (item: TUnclassified) => string;
-  getUnclassifiedName: (item: TUnclassified) => string;
-  getClassifiedId: (item: TClassified) => string;
-  getClassifiedItemId: (item: TClassified) => string;
-  getClassifiedName: (item: TClassified) => string;
-  getClassifiedProduct: (item: TClassified) => ProductOption;
-  getClassifiedCountry: (item: TClassified) => string;
-  getIgnoredId: (item: TIgnored) => string;
-  getIgnoredItemId: (item: TIgnored) => string;
-  getIgnoredName: (item: TIgnored) => string;
-
-  // Unclassified item reconstruction (for unignore/unclassify)
-  reconstructUnclassified: (itemId: string, name: string) => TUnclassified;
-
-  // Labels
-  labels: {
-    singular: string; // e.g., "URL", "campaign"
-    plural: string; // e.g., "URLs", "campaigns"
+  api: {
+    fetchData: () => Promise<ClassificationData<TUnclassified, TClassified, TIgnored>>;
+    classify: (itemId: string, productId: string, countryCode: string) => Promise<TClassified>;
+    ignore: (itemId: string) => Promise<TIgnored>;
+    autoMatch: () => Promise<AutoMatchResult<TClassified>>;
+    unclassify: (id: string) => Promise<string>;
   };
-
-  // Display config
-  itemNameClass?: string; // CSS class for item name (default: itemName)
+  accessors: {
+    unclassified: {
+      getId: (item: TUnclassified) => string;
+      getName: (item: TUnclassified) => string;
+    };
+    classified: {
+      getId: (item: TClassified) => string;
+      getItemId: (item: TClassified) => string;
+      getName: (item: TClassified) => string;
+      getProduct: (item: TClassified) => ProductOption;
+      getCountry: (item: TClassified) => string;
+    };
+    ignored: {
+      getId: (item: TIgnored) => string;
+      getItemId: (item: TIgnored) => string;
+      getName: (item: TIgnored) => string;
+    };
+    reconstructUnclassified: (itemId: string, name: string) => TUnclassified;
+  };
+  labels: { singular: string; plural: string };
+  itemNameClass?: string;
 }
 
 export function GenericMapPanel<TUnclassified, TClassified, TIgnored>({
-  fetchData,
-  classify,
-  ignore,
-  autoMatch,
-  unclassify,
-  getUnclassifiedId,
-  getUnclassifiedName,
-  getClassifiedId,
-  getClassifiedItemId,
-  getClassifiedName,
-  getClassifiedProduct,
-  getClassifiedCountry,
-  getIgnoredId,
-  getIgnoredItemId,
-  getIgnoredName,
-  reconstructUnclassified,
+  api,
+  accessors,
   labels,
   itemNameClass = styles.itemName,
 }: GenericMapPanelProps<TUnclassified, TClassified, TIgnored>): React.ReactNode {
@@ -105,7 +89,7 @@ export function GenericMapPanel<TUnclassified, TClassified, TIgnored>({
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchData();
+      const data = await api.fetchData();
       setUnclassified(data.unclassified);
       setClassified(data.classified);
       setIgnored(data.ignored);
@@ -115,7 +99,7 @@ export function GenericMapPanel<TUnclassified, TClassified, TIgnored>({
     } finally {
       setLoading(false);
     }
-  }, [fetchData]);
+  }, [api]);
 
   useEffect(() => {
     loadData();
@@ -124,7 +108,7 @@ export function GenericMapPanel<TUnclassified, TClassified, TIgnored>({
   const productGroups = useMemo(() => {
     const groups = new Map<string, { product: ProductOption; items: TClassified[] }>();
     for (const item of classified) {
-      const product = getClassifiedProduct(item);
+      const product = accessors.classified.getProduct(item);
       if (!groups.has(product.id)) {
         groups.set(product.id, {
           product,
@@ -136,7 +120,7 @@ export function GenericMapPanel<TUnclassified, TClassified, TIgnored>({
     return Array.from(groups.values()).sort((a, b) =>
       a.product.name.localeCompare(b.product.name)
     );
-  }, [classified, getClassifiedProduct]);
+  }, [classified, accessors.classified]);
 
   const productOptions = useMemo(
     () =>
@@ -160,14 +144,14 @@ export function GenericMapPanel<TUnclassified, TClassified, TIgnored>({
   };
 
   const handleClassify = async (item: TUnclassified): Promise<void> => {
-    const itemId = getUnclassifiedId(item);
+    const itemId = accessors.unclassified.getId(item);
     const draft = drafts[itemId];
     if (!draft?.countryCode || !draft?.productId) return;
 
     setSavingId(itemId);
     try {
-      const result = await classify(itemId, draft.productId, draft.countryCode);
-      setUnclassified((prev) => prev.filter((i) => getUnclassifiedId(i) !== itemId));
+      const result = await api.classify(itemId, draft.productId, draft.countryCode);
+      setUnclassified((prev) => prev.filter((i) => accessors.unclassified.getId(i) !== itemId));
       setClassified((prev) => [...prev, result]);
       setDrafts((prev) => {
         const next = { ...prev };
@@ -182,13 +166,13 @@ export function GenericMapPanel<TUnclassified, TClassified, TIgnored>({
   };
 
   const handleIgnore = async (item: TUnclassified): Promise<void> => {
-    const itemId = getUnclassifiedId(item);
+    const itemId = accessors.unclassified.getId(item);
     setIgnoringId(itemId);
     try {
-      const result = await ignore(itemId);
-      setUnclassified((prev) => prev.filter((i) => getUnclassifiedId(i) !== itemId));
+      const result = await api.ignore(itemId);
+      setUnclassified((prev) => prev.filter((i) => accessors.unclassified.getId(i) !== itemId));
       setIgnored((prev) =>
-        [...prev, result].sort((a, b) => getIgnoredName(a).localeCompare(getIgnoredName(b)))
+        [...prev, result].sort((a, b) => accessors.ignored.getName(a).localeCompare(accessors.ignored.getName(b)))
       );
       setDrafts((prev) => {
         const next = { ...prev };
@@ -203,15 +187,15 @@ export function GenericMapPanel<TUnclassified, TClassified, TIgnored>({
   };
 
   const handleUnignore = async (item: TIgnored): Promise<void> => {
-    const id = getIgnoredId(item);
+    const id = accessors.ignored.getId(item);
     setRemovingId(id);
     try {
-      const itemId = await unclassify(id);
-      const name = getIgnoredName(item);
-      setIgnored((prev) => prev.filter((i) => getIgnoredId(i) !== id));
+      const itemId = await api.unclassify(id);
+      const name = accessors.ignored.getName(item);
+      setIgnored((prev) => prev.filter((i) => accessors.ignored.getId(i) !== id));
       setUnclassified((prev) =>
-        [...prev, reconstructUnclassified(itemId, name)].sort((a, b) =>
-          getUnclassifiedName(a).localeCompare(getUnclassifiedName(b))
+        [...prev, accessors.reconstructUnclassified(itemId, name)].sort((a, b) =>
+          accessors.unclassified.getName(a).localeCompare(accessors.unclassified.getName(b))
         )
       );
     } catch (err) {
@@ -222,15 +206,15 @@ export function GenericMapPanel<TUnclassified, TClassified, TIgnored>({
   };
 
   const handleUnclassify = async (item: TClassified): Promise<void> => {
-    const id = getClassifiedId(item);
+    const id = accessors.classified.getId(item);
     setRemovingId(id);
     try {
-      const itemId = await unclassify(id);
-      const name = getClassifiedName(item);
-      setClassified((prev) => prev.filter((i) => getClassifiedId(i) !== id));
+      const itemId = await api.unclassify(id);
+      const name = accessors.classified.getName(item);
+      setClassified((prev) => prev.filter((i) => accessors.classified.getId(i) !== id));
       setUnclassified((prev) =>
-        [...prev, reconstructUnclassified(itemId, name)].sort((a, b) =>
-          getUnclassifiedName(a).localeCompare(getUnclassifiedName(b))
+        [...prev, accessors.reconstructUnclassified(itemId, name)].sort((a, b) =>
+          accessors.unclassified.getName(a).localeCompare(accessors.unclassified.getName(b))
         )
       );
     } catch (err) {
@@ -244,10 +228,10 @@ export function GenericMapPanel<TUnclassified, TClassified, TIgnored>({
     setAutoMatching(true);
     setError(null);
     try {
-      const result = await autoMatch();
+      const result = await api.autoMatch();
       if (result.matchedCount > 0) {
-        const matchedIds = new Set(result.matched.map((m) => getClassifiedItemId(m)));
-        setUnclassified((prev) => prev.filter((i) => !matchedIds.has(getUnclassifiedId(i))));
+        const matchedIds = new Set(result.matched.map((m) => accessors.classified.getItemId(m)));
+        setUnclassified((prev) => prev.filter((i) => !matchedIds.has(accessors.unclassified.getId(i))));
         setClassified((prev) => [...prev, ...result.matched]);
       }
     } catch (err) {
@@ -340,8 +324,8 @@ export function GenericMapPanel<TUnclassified, TClassified, TIgnored>({
               <div className={styles.emptyState}>All {labels.plural} are classified</div>
             ) : (
               unclassified.map((item) => {
-                const itemId = getUnclassifiedId(item);
-                const itemName = getUnclassifiedName(item);
+                const itemId = accessors.unclassified.getId(item);
+                const itemName = accessors.unclassified.getName(item);
                 const draft = drafts[itemId] || { countryCode: null, productId: null };
                 const canSave = draft.countryCode && draft.productId;
                 const isSaving = savingId === itemId;
@@ -403,8 +387,8 @@ export function GenericMapPanel<TUnclassified, TClassified, TIgnored>({
               <div className={styles.emptyState}>No ignored {labels.plural}</div>
             ) : (
               ignored.map((item) => {
-                const id = getIgnoredId(item);
-                const name = getIgnoredName(item);
+                const id = accessors.ignored.getId(item);
+                const name = accessors.ignored.getName(item);
                 return (
                   <div key={id} className={styles.itemRow}>
                     <Tooltip title={name}>
@@ -428,9 +412,9 @@ export function GenericMapPanel<TUnclassified, TClassified, TIgnored>({
               <div className={styles.emptyState}>No {labels.plural} classified under this product</div>
             ) : (
               activeProductGroup.items.map((item) => {
-                const id = getClassifiedId(item);
-                const name = getClassifiedName(item);
-                const countryCode = getClassifiedCountry(item);
+                const id = accessors.classified.getId(item);
+                const name = accessors.classified.getName(item);
+                const countryCode = accessors.classified.getCountry(item);
                 return (
                   <div key={id} className={styles.itemRow}>
                     <Tooltip title={name}>

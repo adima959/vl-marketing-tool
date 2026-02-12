@@ -14,33 +14,37 @@ import styles from './data-maps.module.css';
 export function UrlMapPanel(): React.ReactNode {
   return (
     <GenericMapPanel<string, ClassifiedUrl, IgnoredUrl>
-      fetchData={fetchUrlClassifications}
-      classify={classifyUrl}
-      ignore={ignoreUrl}
-      autoMatch={autoMatchUrls}
-      unclassify={unclassifyUrl}
-      // Unclassified accessors (simple strings)
-      getUnclassifiedId={(urlPath) => urlPath}
-      getUnclassifiedName={(urlPath) => urlPath}
-      // Classified accessors
-      getClassifiedId={(item) => item.id}
-      getClassifiedItemId={(item) => item.urlPath}
-      getClassifiedName={(item) => item.urlPath}
-      getClassifiedProduct={(item) => ({
-        id: item.productId,
-        name: item.productName,
-        color: item.productColor,
-      })}
-      getClassifiedCountry={(item) => item.countryCode}
-      // Ignored accessors
-      getIgnoredId={(item) => item.id}
-      getIgnoredItemId={(item) => item.urlPath}
-      getIgnoredName={(item) => item.urlPath}
-      // Reconstruction
-      reconstructUnclassified={(urlPath) => urlPath}
-      // Labels
+      api={{
+        fetchData: fetchUrlClassifications,
+        classify: classifyUrl,
+        ignore: ignoreUrl,
+        autoMatch: autoMatchUrls,
+        unclassify: unclassifyUrl,
+      }}
+      accessors={{
+        unclassified: {
+          getId: (urlPath) => urlPath,
+          getName: (urlPath) => urlPath,
+        },
+        classified: {
+          getId: (item) => item.id,
+          getItemId: (item) => item.urlPath,
+          getName: (item) => item.urlPath,
+          getProduct: (item) => ({
+            id: item.productId,
+            name: item.productName,
+            color: item.productColor,
+          }),
+          getCountry: (item) => item.countryCode,
+        },
+        ignored: {
+          getId: (item) => item.id,
+          getItemId: (item) => item.urlPath,
+          getName: (item) => item.urlPath,
+        },
+        reconstructUnclassified: (urlPath) => urlPath,
+      }}
       labels={{ singular: 'URL', plural: 'URLs' }}
-      // Display config
       itemNameClass={styles.itemNameMono}
     />
   );

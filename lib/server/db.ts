@@ -1,5 +1,6 @@
 import { Pool } from '@neondatabase/serverless';
-import { createDatabaseError, createNetworkError, createTimeoutError, normalizeError } from '@/lib/types/errors';
+import { normalizeError } from '@/lib/types/errors';
+import { classifyDatabaseError, PG_ERROR_CONFIG } from '@/lib/server/dbErrorClassifier';
 
 // Lazy initialization of database pool
 let pool: Pool | null = null;
@@ -45,139 +46,7 @@ export async function executeQuery<T = unknown>(
     }
     return result.rows as T[];
   } catch (error: unknown) {
-    const normalized = normalizeError(error);
-
-    // Extract PostgreSQL error code if available
-    const pgError = error as any;
-    const pgCode = pgError?.code;
-    const errorMessage = normalized.message.toLowerCase();
-
-    // Log error details for debugging
-    console.error('PostgreSQL query error:', {
-      error: normalized.message,
-      code: normalized.code,
-      pgCode: pgCode,
-      query: query.substring(0, 200),
-      paramCount: params.length,
-    });
-
-    // Connection errors
-    if (errorMessage.includes('etimedout') || errorMessage.includes('timeout')) {
-      throw createTimeoutError(
-        'Database connection timeout - please check your connection and try again',
-        {
-          query: query.substring(0, 200),
-          originalError: normalized.message,
-        }
-      );
-    }
-
-    if (errorMessage.includes('econnrefused') || errorMessage.includes('connection refused')) {
-      throw createNetworkError(
-        'Unable to connect to database - please check your network connection',
-        {
-          query: query.substring(0, 200),
-          originalError: normalized.message,
-        }
-      );
-    }
-
-    if (errorMessage.includes('enotfound') || errorMessage.includes('getaddrinfo')) {
-      throw createNetworkError(
-        'Database host not found - please check your network connection',
-        {
-          query: query.substring(0, 200),
-          originalError: normalized.message,
-        }
-      );
-    }
-
-    if (errorMessage.includes('econnreset') || errorMessage.includes('connection reset')) {
-      throw createNetworkError(
-        'Database connection was reset - please try again',
-        {
-          query: query.substring(0, 200),
-          originalError: normalized.message,
-        }
-      );
-    }
-
-    // PostgreSQL specific error codes
-    switch (pgCode) {
-      // Authentication errors
-      case '28P01': // Invalid password
-      case '28000': // Invalid authorization
-        throw createDatabaseError('Database authentication failed', {
-          query: query.substring(0, 200),
-          originalError: normalized.message,
-        });
-
-      // Constraint violations
-      case '23505': // Unique violation
-        throw createDatabaseError('This record already exists', {
-          query: query.substring(0, 200),
-          originalError: normalized.message,
-        });
-
-      case '23503': // Foreign key violation
-        throw createDatabaseError('Cannot delete - this record is referenced by other data', {
-          query: query.substring(0, 200),
-          originalError: normalized.message,
-        });
-
-      case '23502': // Not null violation
-        throw createDatabaseError('Required field is missing', {
-          query: query.substring(0, 200),
-          originalError: normalized.message,
-        });
-
-      // Table/column errors
-      case '42P01': // Undefined table
-        throw createDatabaseError('Database table not found', {
-          query: query.substring(0, 200),
-          originalError: normalized.message,
-        });
-
-      case '42703': // Undefined column
-        throw createDatabaseError('Database column not found', {
-          query: query.substring(0, 200),
-          originalError: normalized.message,
-        });
-
-      // Lock/deadlock errors
-      case '40P01': // Deadlock detected
-        throw createDatabaseError('Database deadlock detected - please try again', {
-          query: query.substring(0, 200),
-          originalError: normalized.message,
-        });
-
-      // Connection limit errors
-      case '53300': // Too many connections
-        throw createDatabaseError('Too many database connections - please try again shortly', {
-          query: query.substring(0, 200),
-          originalError: normalized.message,
-        });
-
-      case '57P03': // Cannot connect now
-        throw createDatabaseError('Database is currently unavailable - please try again shortly', {
-          query: query.substring(0, 200),
-          originalError: normalized.message,
-        });
-    }
-
-    // Syntax errors (generic pattern matching)
-    if (errorMessage.includes('syntax error') || errorMessage.includes('sql syntax')) {
-      throw createDatabaseError('Database query error - please try again', {
-        query: query.substring(0, 200),
-        originalError: normalized.message,
-      });
-    }
-
-    // Generic database error
-    throw createDatabaseError(`Database query failed: ${normalized.message}`, {
-      query: query.substring(0, 200),
-      originalError: normalized.message,
-    });
+    throw classifyDatabaseError(error, query, params, PG_ERROR_CONFIG);
   }
 }
 

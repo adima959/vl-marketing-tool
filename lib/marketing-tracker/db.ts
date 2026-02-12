@@ -3,6 +3,7 @@
 
 import { executeQuery } from '@/lib/server/db';
 import { toCamelCase, rowsToCamelCase } from '@/lib/server/caseUtils';
+import { buildDynamicSetClauses } from '@/lib/utils/dynamicUpdate';
 import type {
   Product,
   ProductStatus,
@@ -205,61 +206,30 @@ export async function createProduct(data: CreateProductData): Promise<Product> {
  * Update a product
  */
 export async function updateProduct(id: string, data: UpdateProductData): Promise<Product> {
-  const setClauses: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
-
-  if (data.name !== undefined) {
-    setClauses.push(`name = $${paramIndex++}`);
-    values.push(data.name);
-  }
-  if (data.sku !== undefined) {
-    setClauses.push(`sku = $${paramIndex++}`);
-    values.push(data.sku);
-  }
-  if (data.description !== undefined) {
-    setClauses.push(`description = $${paramIndex++}`);
-    values.push(data.description);
-  }
-  if (data.notes !== undefined) {
-    setClauses.push(`notes = $${paramIndex++}`);
-    values.push(data.notes);
-  }
-  if (data.color !== undefined) {
-    setClauses.push(`color = $${paramIndex++}`);
-    values.push(data.color);
-  }
-  if (data.status !== undefined) {
-    setClauses.push(`status = $${paramIndex++}`);
-    values.push(data.status);
-  }
-  if (data.ownerId !== undefined) {
-    setClauses.push(`owner_id = $${paramIndex++}`);
-    values.push(data.ownerId);
-  }
+  const { setClauses, values, nextIndex } = buildDynamicSetClauses(data, {
+    name: 'name', sku: 'sku', description: 'description',
+    notes: 'notes', color: 'color', status: 'status', ownerId: 'owner_id',
+  });
 
   if (setClauses.length === 0) {
-    // No updates, just return the existing product
     const existing = await getProductById(id);
     if (!existing) throw new Error(`Product not found: ${id}`);
     return existing;
   }
 
-  setClauses.push(`updated_at = NOW()`);
+  setClauses.push('updated_at = NOW()');
   values.push(id);
 
   const query = `
     UPDATE app_products
     SET ${setClauses.join(', ')}
-    WHERE id = $${paramIndex} AND deleted_at IS NULL
+    WHERE id = $${nextIndex} AND deleted_at IS NULL
     RETURNING id, name, sku, description, notes, color, status, owner_id, created_at, updated_at
   `;
 
   const rows = await executeQuery<Record<string, unknown>>(query, values);
   if (rows.length === 0) throw new Error(`Product not found: ${id}`);
 
-  // Return RETURNING data directly - counts don't change on text field updates
-  // Caller should merge with existing counts if needed
   const product = toCamelCase<Product>(rows[0]);
   return product;
 }
@@ -359,34 +329,14 @@ export async function createAngle(data: CreateAngleData): Promise<Angle> {
  * Update an angle
  */
 export async function updateAngle(id: string, data: UpdateAngleData): Promise<Angle> {
-  const setClauses: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
+  const { setClauses, values, nextIndex } = buildDynamicSetClauses(data, {
+    productId: 'product_id', name: 'name', description: 'description',
+    status: 'status', launchedAt: 'launched_at',
+  });
 
-  if (data.productId !== undefined) {
-    setClauses.push(`product_id = $${paramIndex++}`);
-    values.push(data.productId);
-  }
-  if (data.name !== undefined) {
-    setClauses.push(`name = $${paramIndex++}`);
-    values.push(data.name);
-  }
-  if (data.description !== undefined) {
-    setClauses.push(`description = $${paramIndex++}`);
-    values.push(data.description);
-  }
-  if (data.status !== undefined) {
-    setClauses.push(`status = $${paramIndex++}`);
-    values.push(data.status);
-
-    // Auto-set launched_at when status changes to 'live'
-    if (data.status === 'live' && data.launchedAt === undefined) {
-      setClauses.push(`launched_at = COALESCE(launched_at, NOW())`);
-    }
-  }
-  if (data.launchedAt !== undefined) {
-    setClauses.push(`launched_at = $${paramIndex++}`);
-    values.push(data.launchedAt);
+  // Auto-set launched_at when status changes to 'live' (unless explicitly provided)
+  if (data.status === 'live' && data.launchedAt === undefined) {
+    setClauses.push('launched_at = COALESCE(launched_at, NOW())');
   }
 
   if (setClauses.length === 0) {
@@ -395,21 +345,19 @@ export async function updateAngle(id: string, data: UpdateAngleData): Promise<An
     return existing;
   }
 
-  setClauses.push(`updated_at = NOW()`);
+  setClauses.push('updated_at = NOW()');
   values.push(id);
 
   const query = `
     UPDATE app_angles
     SET ${setClauses.join(', ')}
-    WHERE id = $${paramIndex} AND deleted_at IS NULL
+    WHERE id = $${nextIndex} AND deleted_at IS NULL
     RETURNING id, product_id, name, description, status, launched_at, created_at, updated_at
   `;
 
   const rows = await executeQuery<Record<string, unknown>>(query, values);
   if (rows.length === 0) throw new Error(`Angle not found: ${id}`);
 
-  // Return RETURNING data directly - counts don't change on text field updates
-  // Caller should merge with existing counts if needed
   const angle = toCamelCase<Angle>(rows[0]);
   return angle;
 }
@@ -533,54 +481,16 @@ export async function createMessage(data: CreateMessageData): Promise<Message> {
  * Update a message
  */
 export async function updateMessage(id: string, data: UpdateMessageData): Promise<Message> {
-  const setClauses: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
+  const { setClauses, values, nextIndex } = buildDynamicSetClauses(data, {
+    angleId: 'angle_id', name: 'name', description: 'description',
+    specificPainPoint: 'specific_pain_point', corePromise: 'core_promise',
+    keyIdea: 'key_idea', primaryHookDirection: 'primary_hook_direction',
+    headlines: 'headlines', status: 'status', launchedAt: 'launched_at',
+  });
 
-  if (data.angleId !== undefined) {
-    setClauses.push(`angle_id = $${paramIndex++}`);
-    values.push(data.angleId);
-  }
-  if (data.name !== undefined) {
-    setClauses.push(`name = $${paramIndex++}`);
-    values.push(data.name);
-  }
-  if (data.description !== undefined) {
-    setClauses.push(`description = $${paramIndex++}`);
-    values.push(data.description);
-  }
-  if (data.specificPainPoint !== undefined) {
-    setClauses.push(`specific_pain_point = $${paramIndex++}`);
-    values.push(data.specificPainPoint);
-  }
-  if (data.corePromise !== undefined) {
-    setClauses.push(`core_promise = $${paramIndex++}`);
-    values.push(data.corePromise);
-  }
-  if (data.keyIdea !== undefined) {
-    setClauses.push(`key_idea = $${paramIndex++}`);
-    values.push(data.keyIdea);
-  }
-  if (data.primaryHookDirection !== undefined) {
-    setClauses.push(`primary_hook_direction = $${paramIndex++}`);
-    values.push(data.primaryHookDirection);
-  }
-  if (data.headlines !== undefined) {
-    setClauses.push(`headlines = $${paramIndex++}`);
-    values.push(data.headlines);
-  }
-  if (data.status !== undefined) {
-    setClauses.push(`status = $${paramIndex++}`);
-    values.push(data.status);
-
-    // Auto-set launched_at when status changes to 'live'
-    if (data.status === 'live' && data.launchedAt === undefined) {
-      setClauses.push(`launched_at = COALESCE(launched_at, NOW())`);
-    }
-  }
-  if (data.launchedAt !== undefined) {
-    setClauses.push(`launched_at = $${paramIndex++}`);
-    values.push(data.launchedAt);
+  // Auto-set launched_at when status changes to 'live' (unless explicitly provided)
+  if (data.status === 'live' && data.launchedAt === undefined) {
+    setClauses.push('launched_at = COALESCE(launched_at, NOW())');
   }
 
   if (setClauses.length === 0) {
@@ -589,13 +499,13 @@ export async function updateMessage(id: string, data: UpdateMessageData): Promis
     return existing;
   }
 
-  setClauses.push(`updated_at = NOW()`);
+  setClauses.push('updated_at = NOW()');
   values.push(id);
 
   const query = `
     UPDATE app_messages
     SET ${setClauses.join(', ')}
-    WHERE id = $${paramIndex} AND deleted_at IS NULL
+    WHERE id = $${nextIndex} AND deleted_at IS NULL
     RETURNING id, angle_id, name, description, specific_pain_point, core_promise,
       key_idea, primary_hook_direction, headlines, status, launched_at, created_at, updated_at
   `;
@@ -603,8 +513,6 @@ export async function updateMessage(id: string, data: UpdateMessageData): Promis
   const rows = await executeQuery<Record<string, unknown>>(query, values);
   if (rows.length === 0) throw new Error(`Message not found: ${id}`);
 
-  // Return RETURNING data directly - counts don't change on text field updates
-  // Caller should merge with existing counts if needed
   const message = toCamelCase<Message>(rows[0]);
   return message;
 }
@@ -703,38 +611,10 @@ export async function createCreative(data: CreateCreativeData): Promise<Creative
  * Update a creative
  */
 export async function updateCreative(id: string, data: UpdateCreativeData): Promise<Creative> {
-  const setClauses: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
-
-  if (data.messageId !== undefined) {
-    setClauses.push(`message_id = $${paramIndex++}`);
-    values.push(data.messageId);
-  }
-  if (data.geo !== undefined) {
-    setClauses.push(`geo = $${paramIndex++}`);
-    values.push(data.geo);
-  }
-  if (data.name !== undefined) {
-    setClauses.push(`name = $${paramIndex++}`);
-    values.push(data.name);
-  }
-  if (data.format !== undefined) {
-    setClauses.push(`format = $${paramIndex++}`);
-    values.push(data.format);
-  }
-  if (data.cta !== undefined) {
-    setClauses.push(`cta = $${paramIndex++}`);
-    values.push(data.cta);
-  }
-  if (data.url !== undefined) {
-    setClauses.push(`url = $${paramIndex++}`);
-    values.push(data.url);
-  }
-  if (data.notes !== undefined) {
-    setClauses.push(`notes = $${paramIndex++}`);
-    values.push(data.notes);
-  }
+  const { setClauses, values, nextIndex } = buildDynamicSetClauses(data, {
+    messageId: 'message_id', geo: 'geo', name: 'name',
+    format: 'format', cta: 'cta', url: 'url', notes: 'notes',
+  });
 
   if (setClauses.length === 0) {
     const existing = await getCreativeById(id);
@@ -742,13 +622,13 @@ export async function updateCreative(id: string, data: UpdateCreativeData): Prom
     return existing;
   }
 
-  setClauses.push(`updated_at = NOW()`);
+  setClauses.push('updated_at = NOW()');
   values.push(id);
 
   const query = `
     UPDATE app_creatives
     SET ${setClauses.join(', ')}
-    WHERE id = $${paramIndex} AND deleted_at IS NULL
+    WHERE id = $${nextIndex} AND deleted_at IS NULL
     RETURNING id, message_id, geo, name, format, cta, url, notes, created_at, updated_at
   `;
 
@@ -852,38 +732,10 @@ export async function createAsset(data: CreateAssetData): Promise<Asset> {
  * Update an asset
  */
 export async function updateAsset(id: string, data: UpdateAssetData): Promise<Asset> {
-  const setClauses: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
-
-  if (data.messageId !== undefined) {
-    setClauses.push(`message_id = $${paramIndex++}`);
-    values.push(data.messageId);
-  }
-  if (data.geo !== undefined) {
-    setClauses.push(`geo = $${paramIndex++}`);
-    values.push(data.geo);
-  }
-  if (data.type !== undefined) {
-    setClauses.push(`type = $${paramIndex++}`);
-    values.push(data.type);
-  }
-  if (data.name !== undefined) {
-    setClauses.push(`name = $${paramIndex++}`);
-    values.push(data.name);
-  }
-  if (data.url !== undefined) {
-    setClauses.push(`url = $${paramIndex++}`);
-    values.push(data.url);
-  }
-  if (data.content !== undefined) {
-    setClauses.push(`content = $${paramIndex++}`);
-    values.push(data.content);
-  }
-  if (data.notes !== undefined) {
-    setClauses.push(`notes = $${paramIndex++}`);
-    values.push(data.notes);
-  }
+  const { setClauses, values, nextIndex } = buildDynamicSetClauses(data, {
+    messageId: 'message_id', geo: 'geo', type: 'type', name: 'name',
+    url: 'url', content: 'content', notes: 'notes',
+  });
 
   if (setClauses.length === 0) {
     const existing = await getAssetById(id);
@@ -891,13 +743,13 @@ export async function updateAsset(id: string, data: UpdateAssetData): Promise<As
     return existing;
   }
 
-  setClauses.push(`updated_at = NOW()`);
+  setClauses.push('updated_at = NOW()');
   values.push(id);
 
   const query = `
     UPDATE app_assets
     SET ${setClauses.join(', ')}
-    WHERE id = $${paramIndex} AND deleted_at IS NULL
+    WHERE id = $${nextIndex} AND deleted_at IS NULL
     RETURNING id, message_id, geo, type, name, url, content, notes, created_at, updated_at
   `;
 

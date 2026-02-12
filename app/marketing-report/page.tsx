@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense, useEffect, useRef, useMemo, useCallback, lazy } from 'react';
+import { useState, Suspense, useEffect, useRef, lazy } from 'react';
 import { Button } from 'antd';
 import { SettingOutlined } from '@ant-design/icons';
 import Link from 'next/link';
@@ -10,6 +10,7 @@ import { DataTable } from '@/components/table/DataTable';
 import { SavedViewsDropdown } from '@/components/saved-views/SavedViewsDropdown';
 import { useUrlSync } from '@/hooks/useUrlSync';
 import { useApplyViewFromUrl } from '@/hooks/useApplyViewFromUrl';
+import { useReportPageSetup } from '@/hooks/useReportPageSetup';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useReportStore } from '@/stores/reportStore';
 import { MARKETING_DIMENSION_GROUPS } from '@/config/marketingDimensions';
@@ -18,8 +19,6 @@ import { TableInfoBanner } from '@/components/ui/TableInfoBanner';
 import { fetchUnclassifiedCount } from '@/lib/api/campaignClassificationsClient';
 import pageStyles from '@/components/dashboard/dashboard.module.css';
 import type { MarketingMetricClickContext } from '@/types/marketingDetails';
-import type { ResolvedViewParams } from '@/types/savedViews';
-import type { TableFilter } from '@/types/filters';
 
 const ColumnSettingsModal = lazy(() =>
   import('@/components/modals/ColumnSettingsModal').then((mod) => ({ default: mod.ColumnSettingsModal }))
@@ -56,16 +55,11 @@ function MarketingReportContent() {
     setTimeout(() => setDetailModalContext(null), 300);
   };
 
-  // Check if today's date is in the selected range
-  const includesToday = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const start = new Date(dateRange.start);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(dateRange.end);
-    end.setHours(23, 59, 59, 999);
-    return today >= start && today <= end;
-  }, [dateRange]);
+  const { includesToday, handleApplyView, getCurrentState } = useReportPageSetup({
+    dateRange,
+    getStoreState: useReportStore.getState,
+    setStoreState: useReportStore.setState,
+  });
 
   // Auto-collapse sidebar on mount only once
   useEffect(() => {
@@ -78,41 +72,7 @@ function MarketingReportContent() {
   // Sync store state with URL parameters and auto-load data
   useUrlSync();
 
-  const handleApplyView = useCallback((params: ResolvedViewParams) => {
-    const store = useReportStore.getState();
-    const viewFilters = params.filters
-      ? params.filters.map((f, i) => ({
-          id: `view-${i}-${Date.now()}`,
-          field: f.field,
-          operator: f.operator as TableFilter['operator'],
-          value: f.value,
-        }))
-      : [];
-    useReportStore.setState({
-      dateRange: { start: params.start, end: params.end },
-      ...(params.dimensions && { dimensions: params.dimensions }),
-      filters: viewFilters,
-      hasUnsavedChanges: false,
-    });
-    if (params.sortBy) {
-      store.setSort(params.sortBy, params.sortDir ?? 'descend');
-    } else {
-      store.loadData();
-    }
-  }, []);
-
   useApplyViewFromUrl(handleApplyView);
-
-  const getCurrentState = useCallback(() => {
-    const { dateRange, dimensions, filters: storeFilters, sortColumn, sortDirection } = useReportStore.getState();
-    const activeFilters = storeFilters
-      .filter((f) => f.field && f.value)
-      .map(({ field, operator, value }) => ({ field, operator, value }));
-    return {
-      dateRange, dimensions, sortBy: sortColumn, sortDir: sortDirection,
-      ...(activeFilters.length > 0 && { filters: activeFilters }),
-    };
-  }, []);
 
   const headerActions = (
     <>

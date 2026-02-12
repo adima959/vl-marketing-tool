@@ -4,6 +4,7 @@ import { maskErrorForClient } from '@/lib/types/errors';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { unstable_rethrow } from 'next/navigation';
+import { matchProductAndCountry } from '@/lib/utils/classificationMatching';
 
 interface ClassifiedRow {
   id: string;
@@ -110,14 +111,6 @@ async function handleGet(
   }
 }
 
-/** Country code detection from URL path segments */
-const COUNTRY_PATTERNS: Record<string, string> = {
-  nor: 'NO', no: 'NO', norway: 'NO',
-  dnk: 'DK', dk: 'DK', denmark: 'DK',
-  swe: 'SE', sve: 'SE', se: 'SE', sweden: 'SE',
-  fin: 'FI', fi: 'FI', finland: 'FI',
-};
-
 const VALID_COUNTRY_CODES = ['NO', 'SE', 'DK', 'FI'];
 
 /**
@@ -128,45 +121,11 @@ function tryAutoMatch(
   urlPath: string,
   products: { id: string; name: string }[]
 ): { productId: string; countryCode: string } | null {
-  // Split path into segments: "/dnk/balansera/" → ["dnk", "balansera"]
   const segments = urlPath
     .split('/')
     .map((s) => s.toLowerCase().trim())
     .filter(Boolean);
-
-  // Detect country from segments
-  let countryCode: string | null = null;
-  for (const seg of segments) {
-    if (COUNTRY_PATTERNS[seg]) {
-      countryCode = COUNTRY_PATTERNS[seg];
-      break;
-    }
-  }
-
-  // Detect product: check if any segment matches a product name (case-insensitive)
-  // Normalizes both sides by stripping hyphens/spaces for comparison
-  // e.g. URL "sleep-repair" → "sleeprepair" matches product "SleepRepair" → "sleeprepair"
-  // Also matches prefix abbreviations: "flex" → starts "flexrepair" (min 3 chars)
-  let productId: string | null = null;
-  for (const product of products) {
-    const productNorm = product.name.toLowerCase().replace(/[-\s]+/g, '');
-    for (const seg of segments) {
-      const segNorm = seg.replace(/-/g, '');
-      if (
-        segNorm === productNorm ||
-        (segNorm.length >= 3 && productNorm.startsWith(segNorm))
-      ) {
-        productId = product.id;
-        break;
-      }
-    }
-    if (productId) break;
-  }
-
-  if (countryCode && productId) {
-    return { productId, countryCode };
-  }
-  return null;
+  return matchProductAndCountry(segments, products);
 }
 
 /**

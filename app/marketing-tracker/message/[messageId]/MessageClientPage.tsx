@@ -1,16 +1,12 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { App, Spin, Empty, Button, Modal, Tabs } from 'antd';
-import { sanitizeHtml } from '@/lib/sanitize';
-import { PlusOutlined, EditOutlined, ExportOutlined, LinkOutlined, CheckOutlined, DeleteOutlined } from '@ant-design/icons';
-import { Target, ChevronRight, Globe, FileText, ExternalLink, Lightbulb, MessageSquare, Video } from 'lucide-react';
+import { App, Spin, Empty, Button, Tabs } from 'antd';
+import { PlusOutlined, LinkOutlined } from '@ant-design/icons';
+import { Target, ChevronRight, Globe, ExternalLink, MessageSquare, Video } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatusBadge, AssetTypeIcon, AssetModal, CreativeModal } from '@/components/marketing-tracker';
-import { EditableField } from '@/components/ui/EditableField';
-import { EditableTags } from '@/components/ui/EditableTags';
-import modalStyles from '@/styles/components/modal.module.css';
+import { AssetTypeIcon, AssetModal, CreativeModal } from '@/components/marketing-tracker';
 import { useMarketingTrackerStore } from '@/stores/marketingTrackerStore';
 import {
   GEO_CONFIG,
@@ -22,6 +18,9 @@ import {
   type AssetType,
   type CreativeFormat,
 } from '@/types';
+import { AssetDetailModal } from './AssetDetailModal';
+import { CreativeDetailModal } from './CreativeDetailModal';
+import { MessageHeaderCard } from './MessageHeaderCard';
 import styles from './page.module.css';
 
 interface MessageClientPageProps {
@@ -246,17 +245,6 @@ export default function MessageClientPage({ messageId }: MessageClientPageProps)
     );
   }
 
-  // Get current values from server state
-  const painPoint = currentMessage.specificPainPoint || '';
-  const corePromise = currentMessage.corePromise || '';
-  const keyIdea = currentMessage.keyIdea || '';
-  const hookDirection = currentMessage.primaryHookDirection || '';
-  const headlines = currentMessage.headlines || [];
-  const description = currentMessage.description || '';
-
-  // Strip HTML from description for editing (simple approach)
-  const plainDescription = description.replace(/<[^>]*>/g, '');
-
   return (
     <>
       <PageHeader title={currentMessage.name} icon={<MessageSquare className="h-5 w-5" />} />
@@ -286,103 +274,12 @@ export default function MessageClientPage({ messageId }: MessageClientPageProps)
           <span className={styles.breadcrumbCurrent}>{currentMessage.name}</span>
         </div>
 
-        {/* Message Header Card */}
-        <div className={styles.headerCard}>
-          <div className={styles.headerTop}>
-            <span className={styles.headerLabel}>MESSAGE HYPOTHESIS</span>
-            <div className={styles.headerActions}>
-              <StatusBadge
-                status={currentMessage.status}
-                variant="dot"
-                editable
-                onChange={(newStatus) => updateMessageStatus(currentMessage.id, newStatus)}
-              />
-              {saveStatus === 'saving' && <span className={styles.saveIndicator}>Saving...</span>}
-              {saveStatus === 'saved' && <span className={styles.saveIndicatorDone}><CheckOutlined /> Saved</span>}
-            </div>
-          </div>
-          <h1 className={styles.headerTitle}>{currentMessage.name}</h1>
-
-          <div className={styles.headerGrid}>
-            {/* Pain Point */}
-            <div className={styles.hypothesisSection}>
-              <span className={styles.sectionLabel}>
-                <Lightbulb size={14} /> PAIN POINT
-              </span>
-              <EditableField
-                value={painPoint}
-                onChange={(v) => handleFieldChange('specificPainPoint', v)}
-                placeholder="Add a pain point..."
-                quoted
-                multiline
-              />
-            </div>
-
-            {/* Core Promise */}
-            <div className={styles.hypothesisSection}>
-              <span className={styles.sectionLabel}>
-                <Target size={14} /> CORE PROMISE
-              </span>
-              <EditableField
-                value={corePromise}
-                onChange={(v) => handleFieldChange('corePromise', v)}
-                placeholder="Add a core promise..."
-                quoted
-                multiline
-              />
-            </div>
-
-            {/* Key Idea */}
-            <div className={styles.hypothesisSection}>
-              <span className={styles.sectionLabel}>
-                <MessageSquare size={14} /> KEY IDEA
-              </span>
-              <EditableField
-                value={keyIdea}
-                onChange={(v) => handleFieldChange('keyIdea', v)}
-                placeholder="Add a key idea..."
-                multiline
-              />
-            </div>
-
-            {/* Hook Direction */}
-            <div className={styles.hypothesisSection}>
-              <span className={styles.sectionLabel}>
-                <Video size={14} /> HOOK DIRECTION
-              </span>
-              <EditableField
-                value={hookDirection}
-                onChange={(v) => handleFieldChange('primaryHookDirection', v)}
-                placeholder="Add a hook direction..."
-                multiline
-              />
-            </div>
-          </div>
-
-          {/* Headlines */}
-          <div className={styles.headlinesSection}>
-            <span className={styles.sectionLabel}>HEADLINES</span>
-            <EditableTags
-              tags={headlines}
-              onChange={(h) => handleFieldChange('headlines', h)}
-              placeholder="New headline..."
-              addLabel="Add"
-            />
-          </div>
-
-          {/* Strategy notes section */}
-          <div className={styles.strategySection}>
-            <span className={styles.sectionLabel}>
-              <FileText size={14} /> STRATEGY NOTES
-            </span>
-            <EditableField
-              value={plainDescription}
-              onChange={(v) => handleFieldChange('description', v)}
-              placeholder="Add strategy notes..."
-              multiline
-            />
-          </div>
-        </div>
+        <MessageHeaderCard
+          message={currentMessage}
+          saveStatus={saveStatus}
+          onFieldChange={handleFieldChange}
+          onStatusChange={(newStatus) => updateMessageStatus(currentMessage.id, newStatus)}
+        />
 
         {/* Tabs navigation */}
         <div className={styles.tabsContainer}>
@@ -547,164 +444,25 @@ export default function MessageClientPage({ messageId }: MessageClientPageProps)
         creative={selectedCreative}
       />
 
-      {/* Asset Detail Modal */}
-      <Modal
-        title={selectedAsset?.name}
+      <AssetDetailModal
+        asset={selectedAsset}
         open={assetDetailOpen}
-        onCancel={closeAssetDetail}
-        className={modalStyles.modal}
-        footer={[
-          selectedAsset?.url && (
-            <Button key="open" type="primary" icon={<ExportOutlined />} href={selectedAsset.url} target="_blank">
-              Open Link
-            </Button>
-          ),
-          <Button key="edit" icon={<EditOutlined />} onClick={handleEditAsset}>
-            Edit
-          </Button>,
-          <Button
-            key="delete"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => selectedAsset && modal.confirm({
-              title: 'Delete Asset',
-              content: `Are you sure you want to delete "${selectedAsset.name}"?`,
-              okText: 'Delete',
-              okType: 'danger',
-              onOk: () => handleDeleteAsset(selectedAsset.id),
-            })}
-          >
-            Delete
-          </Button>,
-          <Button key="close" onClick={closeAssetDetail}>
-            Close
-          </Button>,
-        ]}
-        width={600}
-      >
-        {selectedAsset && (
-          <div className={styles.modalContent}>
-            <div className={styles.modalMeta}>
-              <div className={styles.modalMetaItem}>
-                <span className={styles.metaLabel}>Type</span>
-                <span className={styles.metaValue}>
-                  <AssetTypeIcon type={selectedAsset.type} showLabel />
-                </span>
-              </div>
-              <div className={styles.modalMetaItem}>
-                <span className={styles.metaLabel}>Geography</span>
-                <span className={styles.metaValue}>
-                  {GEO_CONFIG[selectedAsset.geo].flag} {GEO_CONFIG[selectedAsset.geo].label}
-                </span>
-              </div>
-              <div className={styles.modalMetaItem}>
-                <span className={styles.metaLabel}>Created</span>
-                <span className={styles.metaValue}>{formatDate(selectedAsset.createdAt)}</span>
-              </div>
-            </div>
+        onClose={closeAssetDetail}
+        onEdit={handleEditAsset}
+        onDelete={handleDeleteAsset}
+        formatDate={formatDate}
+        modal={modal}
+      />
 
-            {selectedAsset.url && (
-              <div className={styles.modalSection}>
-                <h4 className={styles.modalSectionTitle}>URL</h4>
-                <a href={selectedAsset.url} target="_blank" rel="noopener noreferrer" className={styles.modalUrl}>
-                  {selectedAsset.url}
-                </a>
-              </div>
-            )}
-
-            {selectedAsset.content && (
-              <div className={styles.modalSection}>
-                <h4 className={styles.modalSectionTitle}>Content</h4>
-                <div className={styles.modalContentText} dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedAsset.content) }} />
-              </div>
-            )}
-
-            {selectedAsset.notes && (
-              <div className={styles.modalSection}>
-                <h4 className={styles.modalSectionTitle}>Notes</h4>
-                <p className={styles.modalNotes}>{selectedAsset.notes}</p>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
-
-      {/* Creative Detail Modal */}
-      <Modal
-        title={selectedCreative?.name}
+      <CreativeDetailModal
+        creative={selectedCreative}
         open={creativeDetailOpen}
-        onCancel={closeCreativeDetail}
-        className={modalStyles.modal}
-        footer={[
-          selectedCreative?.url && (
-            <Button key="open" type="primary" icon={<ExportOutlined />} href={selectedCreative.url} target="_blank">
-              Open Link
-            </Button>
-          ),
-          <Button key="edit" icon={<EditOutlined />} onClick={handleEditCreative}>
-            Edit
-          </Button>,
-          <Button
-            key="delete"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => selectedCreative && modal.confirm({
-              title: 'Delete Creative',
-              content: `Are you sure you want to delete "${selectedCreative.name}"?`,
-              okText: 'Delete',
-              okType: 'danger',
-              onOk: () => handleDeleteCreative(selectedCreative.id),
-            })}
-          >
-            Delete
-          </Button>,
-          <Button key="close" onClick={closeCreativeDetail}>
-            Close
-          </Button>,
-        ]}
-        width={600}
-      >
-        {selectedCreative && (
-          <div className={styles.modalContent}>
-            <div className={styles.modalMeta}>
-              <div className={styles.modalMetaItem}>
-                <span className={styles.metaLabel}>Format</span>
-                <span className={styles.metaValue}>{CREATIVE_FORMAT_CONFIG[selectedCreative.format].label}</span>
-              </div>
-              <div className={styles.modalMetaItem}>
-                <span className={styles.metaLabel}>Geography</span>
-                <span className={styles.metaValue}>
-                  {GEO_CONFIG[selectedCreative.geo].flag} {GEO_CONFIG[selectedCreative.geo].label}
-                </span>
-              </div>
-              <div className={styles.modalMetaItem}>
-                <span className={styles.metaLabel}>CTA</span>
-                <span className={styles.metaValue}>{selectedCreative.cta || '-'}</span>
-              </div>
-              <div className={styles.modalMetaItem}>
-                <span className={styles.metaLabel}>Created</span>
-                <span className={styles.metaValue}>{formatDate(selectedCreative.createdAt)}</span>
-              </div>
-            </div>
-
-            {selectedCreative.url && (
-              <div className={styles.modalSection}>
-                <h4 className={styles.modalSectionTitle}>URL</h4>
-                <a href={selectedCreative.url} target="_blank" rel="noopener noreferrer" className={styles.modalUrl}>
-                  {selectedCreative.url}
-                </a>
-              </div>
-            )}
-
-            {selectedCreative.notes && (
-              <div className={styles.modalSection}>
-                <h4 className={styles.modalSectionTitle}>Notes</h4>
-                <p className={styles.modalNotes}>{selectedCreative.notes}</p>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
+        onClose={closeCreativeDetail}
+        onEdit={handleEditCreative}
+        onDelete={handleDeleteCreative}
+        formatDate={formatDate}
+        modal={modal}
+      />
     </>
   );
 }

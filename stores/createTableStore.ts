@@ -3,13 +3,12 @@ import type { DateRange, QueryParams } from '@/lib/types/api';
 import type { TableFilter } from '@/types/filters';
 import { normalizeError } from '@/lib/types/errors';
 import { triggerError } from '@/lib/api/errorHandler';
-import { findRowByKey } from '@/lib/treeUtils';
 import {
   updateHasChildren,
   updateTreeChildren,
   updateTreeWithResults,
   parseKeyToParentFilters,
-  groupKeysByDepth,
+  restoreExpandedRows,
 } from '@/lib/utils/treeUtils';
 
 /**
@@ -316,59 +315,28 @@ export function createTableStore<TRow extends BaseTableRow>(
         // If there are saved expanded keys, restore them (manual reload)
         else if (savedExpandedKeys.length > 0 && state.hasLoadedOnce) {
           set({ isLoadingSubLevels: true });
-          const keysByDepth = groupKeysByDepth(savedExpandedKeys);
-          const depths = Array.from(keysByDepth.keys()).sort((a, b) => a - b);
-          const allValidKeys: string[] = [];
 
-          // Process each depth level sequentially
-          for (const depth of depths) {
-            const keysAtDepth = keysByDepth.get(depth)!;
-            const rowsToLoad: Array<{ key: string; row: TRow }> = [];
+          const { updatedData, validKeys } = await restoreExpandedRows<TRow>({
+            savedExpandedKeys,
+            reportData: data,
+            dimensions: state.dimensions,
+            fetchChildren: (parentFilters, depth) =>
+              fetchData({
+                dateRange: state.dateRange,
+                dimensions: state.dimensions,
+                depth,
+                parentFilters,
+                ...(apiFilters.length > 0 && { filters: apiFilters }),
+                sortBy: state.sortColumn || defaultSortColumn,
+                sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
+              }),
+          });
 
-            for (const key of keysAtDepth) {
-              const currentData = get().reportData;
-              const row = findRowByKey(currentData, key) as TRow | null;
-              if (row) {
-                allValidKeys.push(key);
-                if (row.hasChildren) {
-                  rowsToLoad.push({ key, row });
-                }
-              }
-            }
-
-            // Load all rows at this depth in parallel, then update tree once
-            if (rowsToLoad.length > 0) {
-              const childDataPromises = rowsToLoad.map(({ key, row }) => {
-                return fetchData({
-                  dateRange: state.dateRange,
-                  dimensions: state.dimensions,
-                  depth: row.depth + 1,
-                  parentFilters: parseKeyToParentFilters(key, state.dimensions),
-                  ...(apiFilters.length > 0 && { filters: apiFilters }),
-                  sortBy: state.sortColumn || defaultSortColumn,
-                  sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
-                })
-                  .then((children) => ({ success: true, key, children }))
-                  .catch((error) => {
-                    console.warn(`Failed to reload expanded row ${key}:`, error);
-                    return { success: false, key, children: [] as TRow[] };
-                  });
-              });
-
-              const results = await Promise.allSettled(childDataPromises);
-
-              set({ reportData: updateTreeWithResults(get().reportData, results) });
-
-              // Small delay for state propagation
-              await new Promise((resolve) => setTimeout(resolve, 50));
-            }
-          }
-
-          // Update to only valid keys (some may not exist after filter change)
-          if (allValidKeys.length !== savedExpandedKeys.length) {
-            set({ expandedRowKeys: allValidKeys });
-          }
-          set({ isLoadingSubLevels: false });
+          set({
+            reportData: updatedData,
+            expandedRowKeys: validKeys,
+            isLoadingSubLevels: false,
+          });
         }
       } catch (error: unknown) {
         const appError = normalizeError(error);

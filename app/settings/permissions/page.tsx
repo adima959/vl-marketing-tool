@@ -20,13 +20,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { App, Table, Button, Checkbox, Tag, Modal, Input, Select, Spin } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { App, Table, Button, Checkbox, Spin } from 'antd';
+import { EditOutlined, DeleteOutlined, LockOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { FEATURES } from '@/types/roles';
-import modalStyles from '@/styles/components/modal.module.css';
 import settingsStyles from '@/styles/components/settings.module.css';
 import stickyStyles from '@/styles/tables/sticky.module.css';
+import RoleListPanel from './RoleListPanel';
+import RoleFormDialog from './RoleFormDialog';
 import styles from './permissions.module.css';
 import type {
   Role,
@@ -36,8 +37,6 @@ import type {
   PermissionAction,
 } from '@/types/roles';
 import type { ColumnsType } from 'antd/es/table';
-
-const { TextArea } = Input;
 
 // ============================================================================
 // Types
@@ -426,51 +425,13 @@ export default function PermissionsPage() {
       </div>
 
       <div className={styles.layout}>
-        {/* Left panel: Role list */}
-        <div className={styles.rolePanel}>
-          <div className={styles.rolePanelHeader}>
-            <span className={styles.rolePanelCount}>
-              {roles.length} role{roles.length !== 1 ? 's' : ''}
-            </span>
-            <Button
-              type="primary"
-              size="small"
-              icon={<PlusOutlined />}
-              onClick={openCreateDialog}
-            >
-              Add role
-            </Button>
-          </div>
-
-          <div className={styles.roleList}>
-            {loading ? (
-              <div className={styles.roleListLoading}>
-                <Spin size="small" />
-              </div>
-            ) : (
-              roles.map(role => (
-                <button
-                  key={role.id}
-                  onClick={() => setSelectedRoleId(role.id)}
-                  className={`${styles.roleItem} ${selectedRoleId === role.id ? styles.roleItemActive : ''}`}
-                >
-                  <div className={styles.roleItemTop}>
-                    <span className={styles.roleItemName}>{role.name}</span>
-                    {role.isSystem && <Tag className={styles.systemTag}>System</Tag>}
-                  </div>
-                  <div className={styles.roleItemBottom}>
-                    <span className={styles.roleItemDesc}>
-                      {role.description || 'No description'}
-                    </span>
-                    <span className={styles.roleItemUsers}>
-                      {role.userCount ?? 0} user{(role.userCount ?? 0) !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        </div>
+        <RoleListPanel
+          roles={roles}
+          loading={loading}
+          selectedRoleId={selectedRoleId}
+          onSelect={setSelectedRoleId}
+          onCreateClick={openCreateDialog}
+        />
 
         {/* Right panel: Permission grid */}
         <div className={styles.gridPanel}>
@@ -536,62 +497,20 @@ export default function PermissionsPage() {
         </div>
       </div>
 
-      {/* Create/Edit Role Dialog */}
-      <Modal
-        title={null}
+      <RoleFormDialog
         open={dialogOpen}
+        mode={dialogMode}
+        name={dialogName}
+        description={dialogDescription}
+        cloneFrom={dialogCloneFrom}
+        roles={roles}
+        saving={dialogSaving}
+        onNameChange={setDialogName}
+        onDescriptionChange={setDialogDescription}
+        onCloneFromChange={setDialogCloneFrom}
+        onSubmit={handleDialogSubmit}
         onCancel={() => setDialogOpen(false)}
-        onOk={handleDialogSubmit}
-        confirmLoading={dialogSaving}
-        okText={dialogMode === 'create' ? 'Create' : 'Save'}
-        destroyOnHidden
-        width={420}
-        className={`${modalStyles.modal} ${modalStyles.formDialog}`}
-      >
-        <div className={modalStyles.dialogHeader}>
-          <div className={modalStyles.dialogTitle}>
-            {dialogMode === 'create' ? 'Create role' : 'Edit role'}
-          </div>
-          <div className={modalStyles.dialogSubtitle}>
-            {dialogMode === 'create'
-              ? 'Define a new role and optionally clone permissions.'
-              : 'Update role name and description.'}
-          </div>
-        </div>
-
-        <div className={styles.dialogForm}>
-          <div className={styles.dialogField}>
-            <label className={styles.dialogLabel}>Name</label>
-            <Input
-              value={dialogName}
-              onChange={(e) => setDialogName(e.target.value)}
-              placeholder="e.g. Marketing Manager"
-            />
-          </div>
-          <div className={styles.dialogField}>
-            <label className={styles.dialogLabel}>Description</label>
-            <TextArea
-              value={dialogDescription}
-              onChange={(e) => setDialogDescription(e.target.value)}
-              placeholder="Optional description of this role's purpose"
-              rows={2}
-            />
-          </div>
-          {dialogMode === 'create' && (
-            <div className={styles.dialogField}>
-              <label className={styles.dialogLabel}>Clone permissions from</label>
-              <Select
-                value={dialogCloneFrom}
-                onChange={setDialogCloneFrom}
-                placeholder="Start with blank permissions"
-                allowClear
-                style={{ width: '100%' }}
-                options={roles.map(r => ({ label: r.name, value: r.id }))}
-              />
-            </div>
-          )}
-        </div>
-      </Modal>
+      />
     </div>
   );
 }

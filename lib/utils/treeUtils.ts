@@ -10,7 +10,7 @@
  * Uses readonly arrays and optional children to stay compatible with
  * concrete types where children is typed as `ConcreteRow[]` rather than `TRow[]`.
  */
-interface TreeRow {
+export interface TreeRow {
   key: string;
   depth: number;
   hasChildren?: boolean;
@@ -124,4 +124,74 @@ export function groupKeysByDepth(keys: string[]): Map<number, string[]> {
   }
 
   return map;
+}
+
+/**
+ * Find a row by its key, searching recursively through children.
+ */
+export function findRowByKey<TRow extends TreeRow>(rows: TRow[], key: string): TRow | undefined {
+  for (const row of rows) {
+    if (row.key === key) return row;
+    if (row.children?.length) {
+      const found = findRowByKey(row.children as TRow[], key);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Sort keys by depth (shallow first) so parent data loads before children.
+ */
+export function sortKeysByDepth(keys: string[]): string[] {
+  return [...keys].sort((a, b) => {
+    const depthA = a.split('::').length - 1;
+    const depthB = b.split('::').length - 1;
+    return depthA - depthB;
+  });
+}
+
+/**
+ * Restore expanded rows by fetching children for each saved expanded key.
+ * Processes keys depth-first (shallow before deep) so parent data exists before children load.
+ */
+export interface RestoreConfig<TRow extends TreeRow> {
+  savedExpandedKeys: string[];
+  reportData: TRow[];
+  dimensions: string[];
+  fetchChildren: (parentFilters: Record<string, string>, depth: number) => Promise<TRow[]>;
+  skipIfChildrenExist?: boolean;
+}
+
+export async function restoreExpandedRows<TRow extends TreeRow>(
+  config: RestoreConfig<TRow>
+): Promise<{ updatedData: TRow[]; validKeys: string[] }> {
+  const { savedExpandedKeys, dimensions, fetchChildren, skipIfChildrenExist } = config;
+  let updatedData = config.reportData;
+  const validKeys: string[] = [];
+
+  const sortedKeys = sortKeysByDepth(savedExpandedKeys);
+
+  for (const key of sortedKeys) {
+    const row = findRowByKey(updatedData, key);
+    if (!row) continue;
+
+    if (skipIfChildrenExist && row.children && row.children.length > 0) {
+      validKeys.push(key);
+      continue;
+    }
+
+    const parentFilters = parseKeyToParentFilters(key, dimensions);
+    const depth = key.split('::').length;
+
+    try {
+      const children = await fetchChildren(parentFilters, depth);
+      updatedData = updateTreeChildren(updatedData, key, children as TRow[]);
+      validKeys.push(key);
+    } catch {
+      // Skip failed fetches — row won't be expanded
+    }
+  }
+
+  return { updatedData, validKeys };
 }

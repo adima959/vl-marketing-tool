@@ -7,10 +7,8 @@ import {
   parseAsStringLiteral,
 } from 'nuqs';
 import type { TableFilter } from '@/types/filters';
+import { restoreExpandedRows } from '@/lib/utils/treeUtils';
 
-/**
- * Base row interface that report types must extend
- */
 interface BaseReportRow {
   key: string;
   depth: number;
@@ -18,13 +16,10 @@ interface BaseReportRow {
   children?: BaseReportRow[];
 }
 
-/**
- * Store state interface that both reportStore and onPageStore must conform to
- */
 interface ReportState<TRow extends BaseReportRow> {
   dateRange: { start: Date; end: Date };
   dimensions: string[];
-  filters: TableFilter[];
+  filters?: TableFilter[];
   expandedRowKeys: string[];
   sortColumn: string | null;
   sortDirection: 'ascend' | 'descend' | null;
@@ -37,38 +32,43 @@ interface ReportState<TRow extends BaseReportRow> {
   loadChildData: (key: string, value: string, depth: number) => Promise<void>;
 }
 
-/**
- * Zustand store hook type
- */
 type StoreHook<TRow extends BaseReportRow> = {
   (): ReportState<TRow>;
   getState: () => ReportState<TRow>;
   setState: (partial: Partial<ReportState<TRow>>) => void;
 };
 
-/**
- * Configuration for generic URL sync
- */
+interface TimePeriodConfig {
+  urlKey: string;
+  values: readonly string[];
+  defaultValue: string;
+  storeKey: string;
+}
+
+interface DimensionValidation {
+  validKeys: Record<string, string>;
+  defaults: string[];
+}
+
 export interface UseGenericUrlSyncConfig<TRow extends BaseReportRow> {
   useStore: StoreHook<TRow>;
   fetchData: (params: any) => Promise<TRow[]>;
   defaultSortColumn: string;
-  skipDimensions?: boolean; // Don't sync dimensions to/from URL (optional for tables with fixed dimensions)
+  skipDimensions?: boolean;
+  defaultStartDate?: Date;
+  defaultEndDate?: Date;
+  defaultDimensions?: string[];
+  timePeriod?: TimePeriodConfig;
+  dimensionValidation?: DimensionValidation;
+  skipFilters?: boolean;
 }
 
-/**
- * Serialize filters to a compact URL-safe JSON string.
- * Each filter is encoded as "field.operator.value" joined by "|".
- */
 function serializeFilters(filters: TableFilter[]): string | null {
   const valid = filters.filter(f => f.field && f.value);
   if (valid.length === 0) return null;
   return JSON.stringify(valid.map(({ field, operator, value }) => ({ field, operator, value })));
 }
 
-/**
- * Deserialize filters from URL JSON string back to TableFilter[].
- */
 function deserializeFilters(raw: string | null): TableFilter[] {
   if (!raw) return [];
   try {
@@ -85,36 +85,48 @@ function deserializeFilters(raw: string | null): TableFilter[] {
   }
 }
 
-/**
- * Generic hook to sync Zustand store state with URL query parameters
- * This enables sharing and bookmarking of dashboard state
- *
- * @param config - Configuration object with store, fetchData function, and defaults
- */
 export function useGenericUrlSync<TRow extends BaseReportRow>({
   useStore,
   fetchData,
   defaultSortColumn,
   skipDimensions = false,
-}: UseGenericUrlSyncConfig<TRow>) {
-  // Define URL parsers with defaults
-  const getDefaultDateRange = () => {
+  defaultStartDate,
+  defaultEndDate,
+  defaultDimensions,
+  timePeriod: timePeriodConfig,
+  dimensionValidation,
+  skipFilters = false,
+}: UseGenericUrlSyncConfig<TRow>): void {
+  const getDefaultStart = () => {
+    if (defaultStartDate) return defaultStartDate;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return today;
   };
 
-  const urlParsers = {
-    start: parseAsIsoDate.withDefault(getDefaultDateRange()),
-    end: parseAsIsoDate.withDefault(getDefaultDateRange()),
-    dimensions: parseAsArrayOf(parseAsString).withDefault([]),
+  const getDefaultEnd = () => {
+    if (defaultEndDate) return defaultEndDate;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  };
+
+  const baseParsers = {
+    start: parseAsIsoDate.withDefault(getDefaultStart()),
+    end: parseAsIsoDate.withDefault(getDefaultEnd()),
+    dimensions: parseAsArrayOf(parseAsString).withDefault(defaultDimensions ?? []),
     expanded: parseAsArrayOf(parseAsString).withDefault([]),
     sortBy: parseAsString.withDefault(defaultSortColumn),
     sortDir: parseAsStringLiteral(['ascend', 'descend'] as const).withDefault('descend'),
-    filters: parseAsString.withDefault(''),
+    ...(!skipFilters ? { filters: parseAsString.withDefault('') } : {}),
+    ...(timePeriodConfig ? {
+      [timePeriodConfig.urlKey]: parseAsStringLiteral(
+        timePeriodConfig.values as unknown as readonly [string, ...string[]]
+      ).withDefault(timePeriodConfig.defaultValue),
+    } : {}),
   } as const;
 
-  const [urlState, setUrlState] = useQueryStates(urlParsers, {
+  const [urlState, setUrlState] = useQueryStates(baseParsers, {
     history: 'replace',
     shallow: true,
   });
@@ -125,15 +137,14 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
   const hasRestoredOnce = useRef(false);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Only run on client side
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
+  const storeState = useStore();
   const {
     dateRange,
     dimensions,
-    filters,
     expandedRowKeys,
     sortColumn,
     sortDirection,
@@ -141,13 +152,18 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
     setSort,
     loadData,
     setExpandedRowKeys,
-  } = useStore();
+  } = storeState;
+  const filters = storeState.filters ?? [];
+
+  // Read timePeriod from store if config is provided
+  const timePeriodValue = timePeriodConfig
+    ? (storeState as any)[timePeriodConfig.storeKey]
+    : undefined;
 
   // Initialize state from URL on mount
   useEffect(() => {
     if (!isMounted || isInitialized.current) return;
 
-    // If viewId is present, skip URL init — useApplyViewFromUrl will handle it
     if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('viewId')) {
       isInitialized.current = true;
       return;
@@ -157,37 +173,46 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
     isUpdatingFromUrl.current = true;
 
     try {
-      // Parse and apply date range from URL
       if (urlState.start && urlState.end) {
         useStore.setState({
           dateRange: { start: urlState.start, end: urlState.end }
         });
       }
 
-      // Parse and apply dimensions from URL (skip if disabled)
       if (!skipDimensions && urlState.dimensions && urlState.dimensions.length > 0) {
-        useStore.setState({ dimensions: urlState.dimensions });
-      }
-
-      // Parse and apply filters from URL
-      if (urlState.filters) {
-        const parsedFilters = deserializeFilters(urlState.filters);
-        if (parsedFilters.length > 0) {
-          useStore.setState({ filters: parsedFilters });
+        if (dimensionValidation) {
+          const validDimensions = urlState.dimensions.filter(
+            (d: string) => d in dimensionValidation.validKeys
+          );
+          useStore.setState({
+            dimensions: validDimensions.length > 0 ? validDimensions : dimensionValidation.defaults,
+          });
+        } else {
+          useStore.setState({ dimensions: urlState.dimensions });
         }
       }
 
-      // Save expanded keys for later restoration (deduplicate from URL)
+      if (!skipFilters && (urlState as any).filters) {
+        const parsedFilters = deserializeFilters((urlState as any).filters);
+        if (parsedFilters.length > 0) {
+          useStore.setState({ filters: parsedFilters } as Partial<ReportState<TRow>>);
+        }
+      }
+
+      if (timePeriodConfig && (urlState as any)[timePeriodConfig.urlKey]) {
+        useStore.setState({
+          [timePeriodConfig.storeKey]: (urlState as any)[timePeriodConfig.urlKey],
+        } as Partial<ReportState<TRow>>);
+      }
+
       if (urlState.expanded && urlState.expanded.length > 0) {
         savedExpandedKeys.current = Array.from(new Set(urlState.expanded));
       }
 
-      // Parse and apply sort from URL
       if (urlState.sortBy) {
         setSort(urlState.sortBy, urlState.sortDir || 'descend');
       }
 
-      // Always load data on mount (URL params restore state, then load)
       queueMicrotask(() => {
         loadData();
       });
@@ -196,110 +221,37 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
     }
   }, [isMounted, loadData, setSort, useStore, urlState]);
 
-  // Restore expanded rows after data loads (optimized with parallel loading per level)
+  // Restore expanded rows after data loads
   useEffect(() => {
     if (!isMounted || !isInitialized.current || isUpdatingFromUrl.current) return;
-    if (hasRestoredOnce.current) return; // Only restore once after initial load
+    if (hasRestoredOnce.current) return;
     if (savedExpandedKeys.current.length === 0 || reportData.length === 0) return;
 
     const restoreRows = async () => {
-      hasRestoredOnce.current = true; // Mark as restored to prevent re-running
+      hasRestoredOnce.current = true;
       const keysToRestore = savedExpandedKeys.current;
-      savedExpandedKeys.current = []; // Clear to prevent re-running
+      savedExpandedKeys.current = [];
 
-      // Import dynamically to avoid circular deps
-      const { findRowByKey, sortKeysByDepth } = await import('@/lib/treeUtils');
-      const sortedKeys = sortKeysByDepth(keysToRestore);
+      const state = useStore.getState();
 
-      // Group keys by depth for level-by-level processing
-      const keysByDepth = new Map<number, string[]>();
-      for (const key of sortedKeys) {
-        const depth = key.split('::').length - 1;
-        if (!keysByDepth.has(depth)) {
-          keysByDepth.set(depth, []);
-        }
-        keysByDepth.get(depth)!.push(key);
-      }
+      const { updatedData, validKeys } = await restoreExpandedRows<TRow>({
+        savedExpandedKeys: keysToRestore,
+        reportData: state.reportData,
+        dimensions: state.loadedDimensions,
+        skipIfChildrenExist: true,
+        fetchChildren: (parentFilters, depth) =>
+          fetchData({
+            dateRange: state.loadedDateRange,
+            dimensions: state.loadedDimensions,
+            depth,
+            parentFilters,
+            sortBy: state.sortColumn || defaultSortColumn || undefined,
+            sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
+          }),
+      });
 
-      // Get sorted depth levels
-      const depths = Array.from(keysByDepth.keys()).sort((a, b) => a - b);
-      const allValidKeys: string[] = [];
-
-      // Process each depth level sequentially (but parallel within each level)
-      for (const depth of depths) {
-        const keysAtDepth = keysByDepth.get(depth)!;
-        const rowsToLoad: Array<{ key: string; row: any }> = [];
-        const state = useStore.getState();
-
-        // Find rows at this depth level
-        for (const key of keysAtDepth) {
-          const currentData = useStore.getState().reportData;
-          const row = findRowByKey(currentData, key);
-
-          if (row) {
-            allValidKeys.push(key);
-            if (row.hasChildren && (!row.children || row.children.length === 0)) {
-              rowsToLoad.push({ key, row });
-            }
-          }
-        }
-
-        // Fetch all children data in parallel, then update tree once
-        if (rowsToLoad.length > 0) {
-          const childDataPromises = rowsToLoad.map(({ key, row }) => {
-            const keyParts = key.split('::');
-            const parentFilters: Record<string, string> = {};
-            keyParts.forEach((value, index) => {
-              const dimension = state.loadedDimensions[index];
-              if (dimension) {
-                parentFilters[dimension] = value;
-              }
-            });
-
-            return fetchData({
-              dateRange: state.loadedDateRange,
-              dimensions: state.loadedDimensions,
-              depth: row.depth + 1,
-              parentFilters,
-              sortBy: state.sortColumn || defaultSortColumn,
-              sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
-            })
-              .then((children) => ({ success: true, key, children }))
-              .catch((error) => {
-                console.warn(`Failed to restore expanded row ${key}:`, error);
-                return { success: false, key, children: [] };
-              });
-          });
-
-          const results = await Promise.allSettled(childDataPromises);
-
-          // Update tree once with all children for this depth level
-          const updateTree = (rows: TRow[]): TRow[] => {
-            return rows.map((row) => {
-              // Check if this row has new children data
-              for (const result of results) {
-                if (result.status === 'fulfilled' && result.value.success && result.value.key === row.key) {
-                  return { ...row, children: result.value.children } as TRow;
-                }
-              }
-              // Recursively update children
-              if (row.children && row.children.length > 0) {
-                return { ...row, children: updateTree(row.children as TRow[]) } as TRow;
-              }
-              return row;
-            });
-          };
-
-          const currentReportData = useStore.getState().reportData;
-          useStore.setState({ reportData: updateTree(currentReportData) });
-
-          // Small delay to ensure state has propagated
-          await new Promise((resolve) => setTimeout(resolve, 50));
-        }
-      }
-
-      // Set all valid expanded keys at once
-      setExpandedRowKeys(allValidKeys);
+      useStore.setState({ reportData: updatedData });
+      setExpandedRowKeys(validKeys);
     };
 
     restoreRows();
@@ -309,15 +261,24 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
   useEffect(() => {
     if (!isMounted || !isInitialized.current || isUpdatingFromUrl.current) return;
 
-    setUrlState({
+    const urlUpdate: Record<string, any> = {
       start: dateRange.start,
       end: dateRange.end,
-      dimensions: skipDimensions ? null : (dimensions.length > 0 ? dimensions : null), // null removes param
+      dimensions: skipDimensions ? null : (dimensions.length > 0 ? dimensions : null),
       expanded: expandedRowKeys.length > 0 ? Array.from(new Set(expandedRowKeys)) : null,
-      sortBy: sortColumn || defaultSortColumn,
+      sortBy: sortColumn || defaultSortColumn || null,
       sortDir: sortDirection || 'descend',
-      filters: serializeFilters(filters),
-    });
+    };
+
+    if (!skipFilters) {
+      urlUpdate.filters = serializeFilters(filters);
+    }
+
+    if (timePeriodConfig && timePeriodValue !== undefined) {
+      urlUpdate[timePeriodConfig.urlKey] = timePeriodValue;
+    }
+
+    setUrlState(urlUpdate);
   }, [
     isMounted,
     dateRange,
@@ -326,8 +287,11 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
     expandedRowKeys,
     sortColumn,
     sortDirection,
+    timePeriodValue,
     setUrlState,
     defaultSortColumn,
     skipDimensions,
+    skipFilters,
+    timePeriodConfig,
   ]);
 }

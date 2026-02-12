@@ -8,13 +8,11 @@ import type {
 } from '@/types/validationRate';
 import { normalizeError } from '@/lib/types/errors';
 import { triggerError } from '@/lib/api/errorHandler';
-import { findRowByKey } from '@/lib/treeUtils';
 import {
   updateHasChildren,
   updateTreeChildren,
-  updateTreeWithResults,
   parseKeyToParentFilters,
-  groupKeysByDepth,
+  restoreExpandedRows,
 } from '@/lib/utils/treeUtils';
 import { DEFAULT_VALIDATION_RATE_DIMENSIONS } from '@/config/validationRateDimensions';
 
@@ -223,61 +221,34 @@ export function createValidationRateStore(rateType: ValidationRateType) {
         const isManualReload = state.hasLoadedOnce;
         if (savedExpandedKeys.length > 0 && isManualReload) {
           set({ isLoadingSubLevels: true });
-          const keysByDepth = groupKeysByDepth(savedExpandedKeys);
-          const depths = Array.from(keysByDepth.keys()).sort((a, b) => a - b);
-          const allValidKeys: string[] = [];
 
-          // Process each depth level sequentially
-          for (const depth of depths) {
-            const keysAtDepth = keysByDepth.get(depth)!;
-            const rowsToLoad: Array<{ key: string; row: ValidationRateRow }> = [];
-
-            for (const key of keysAtDepth) {
-              const currentData = get().reportData;
-              const row = findRowByKey(currentData, key);
-              if (row) {
-                allValidKeys.push(key);
-                if (row.hasChildren) {
-                  rowsToLoad.push({ key, row });
-                }
-              }
-            }
-
-            // Load all rows at this depth in parallel
-            if (rowsToLoad.length > 0) {
-              const childDataPromises = rowsToLoad.map(({ key, row }) => {
-                return fetchValidationRateData({
-                  rateType,
-                  dateRange: state.dateRange,
-                  dimensions: state.dimensions,
-                  depth: row.depth + 1,
-                  parentFilters: parseKeyToParentFilters(key, state.dimensions),
-                  timePeriod: state.timePeriod,
-                  sortBy: state.sortColumn || undefined,
-                  sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
-                })
-                  .then(({ data: children }) => ({ success: true, key, children }))
-                  .catch((error) => {
-                    console.warn(`Failed to reload expanded row ${key}:`, error);
-                    return { success: false, key, children: [] as ValidationRateRow[] };
-                  });
+          const { updatedData, validKeys } = await restoreExpandedRows<ValidationRateRow>({
+            savedExpandedKeys,
+            reportData: data,
+            dimensions: state.dimensions,
+            fetchChildren: async (parentFilters, depth) => {
+              const { data: children } = await fetchValidationRateData({
+                rateType,
+                dateRange: state.dateRange,
+                dimensions: state.dimensions,
+                depth,
+                parentFilters,
+                timePeriod: state.timePeriod,
+                sortBy: state.sortColumn || undefined,
+                sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
               });
+              return children;
+            },
+          });
 
-              const results = await Promise.allSettled(childDataPromises);
-
-              // Check staleness before updating
-              if (requestId !== currentLoadRequestId) return;
-              set({ reportData: updateTreeWithResults(get().reportData, results) });
-              await new Promise((resolve) => setTimeout(resolve, 50));
-            }
-          }
-
-          // Check staleness before final update
+          // Check staleness before applying results
           if (requestId !== currentLoadRequestId) return;
-          if (allValidKeys.length !== savedExpandedKeys.length) {
-            set({ expandedRowKeys: allValidKeys });
-          }
-          set({ isLoadingSubLevels: false });
+
+          set({
+            reportData: updatedData,
+            expandedRowKeys: validKeys,
+            isLoadingSubLevels: false,
+          });
         }
       } catch (error: unknown) {
         // Ignore errors from stale requests

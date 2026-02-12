@@ -4,6 +4,7 @@ import { maskErrorForClient } from '@/lib/types/errors';
 import { withAuth } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { unstable_rethrow } from 'next/navigation';
+import { matchProductAndCountry } from '@/lib/utils/classificationMatching';
 
 interface ClassifiedRow {
   id: string;
@@ -133,14 +134,6 @@ async function handleGet(
   }
 }
 
-/** Country code detection from campaign name segments */
-const COUNTRY_PATTERNS: Record<string, string> = {
-  nor: 'NO', no: 'NO', norway: 'NO',
-  dnk: 'DK', dk: 'DK', denmark: 'DK',
-  swe: 'SE', sve: 'SE', se: 'SE', sweden: 'SE',
-  fin: 'FI', fi: 'FI', finland: 'FI',
-};
-
 /**
  * Try to auto-match a campaign name to a product + country.
  * Campaign names often follow patterns like "Balansera - DNK - Q1 2024"
@@ -149,42 +142,11 @@ function tryAutoMatch(
   campaignName: string,
   products: { id: string; name: string }[]
 ): { productId: string; countryCode: string } | null {
-  // Split on common delimiters: " - ", "_", " "
   const segments = campaignName
     .split(/[\s_-]+/)
     .map((s) => s.toLowerCase().trim())
     .filter(Boolean);
-
-  // Detect country
-  let countryCode: string | null = null;
-  for (const seg of segments) {
-    if (COUNTRY_PATTERNS[seg]) {
-      countryCode = COUNTRY_PATTERNS[seg];
-      break;
-    }
-  }
-
-  // Detect product: check if any segment matches a product name
-  let productId: string | null = null;
-  for (const product of products) {
-    const productNorm = product.name.toLowerCase().replace(/[-\s]+/g, '');
-    for (const seg of segments) {
-      const segNorm = seg.replace(/-/g, '');
-      if (
-        segNorm === productNorm ||
-        (segNorm.length >= 3 && productNorm.startsWith(segNorm))
-      ) {
-        productId = product.id;
-        break;
-      }
-    }
-    if (productId) break;
-  }
-
-  if (countryCode && productId) {
-    return { productId, countryCode };
-  }
-  return null;
+  return matchProductAndCountry(segments, products);
 }
 
 /**
