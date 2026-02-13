@@ -17,7 +17,8 @@ RUN apt-get update && \
 COPY package.json package-lock.json* ./
 
 # Install dependencies with legacy peer deps flag for compatibility
-RUN npm install --legacy-peer-deps --no-audit --no-fund
+# --ignore-scripts prevents the "prepare" script (git hooks setup) from running in Docker
+RUN npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
 
 # ===================================
 # Stage 2: Builder
