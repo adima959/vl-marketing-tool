@@ -1,0 +1,100 @@
+/**
+ * Session Analytics Table Theme
+ *
+ * Column groups:
+ *   - Session Basics (columns 2-6): Blue tint
+ *   - Funnel Progression (columns 7-10): Emerald tint
+ *   - Entry Engagement (columns 11-13): Amber tint
+ */
+
+/* =============================================================================
+   GROUP HEADERS
+   ============================================================================= */
+
+/* Session Basics group - blue tint */
+.theme :global(.ant-table-thead > tr:first-child > th:nth-child(2)) {
+  background: #e3f2ff !important;
+  border-bottom: 2px solid #bfdbfe !important;
+}
+
+/* Funnel Progression group - emerald tint */
+.theme :global(.ant-table-thead > tr:first-child > th:nth-child(3)) {
+  background: #ecfdf5 !important;
+  border-bottom: 2px solid #a7f3d0 !important;
+}
+
+/* Entry Engagement group - amber tint */
+.theme :global(.ant-table-thead > tr:first-child > th:nth-child(4)) {
+  background: #fff7ed !important;
+  border-bottom: 2px solid #fed7aa !important;
+}
+
+/* =============================================================================
+   METRIC HEADERS
+   ============================================================================= */
+
+/* Session Basics columns - subtle blue accent */
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(2)),
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(3)),
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(4)),
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(5)),
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(6)) {
+  background: #fafcff !important;
+}
+
+/* Funnel Progression columns - subtle emerald accent */
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(7)),
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(8)),
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(9)),
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(10)) {
+  background: color-mix(in srgb, #ecfdf5 30%, #ffffff) !important;
+}
+
+/* Entry Engagement columns - subtle amber accent */
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(11)),
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(12)),
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(13)) {
+  background: color-mix(in srgb, #fff7ed 30%, #ffffff) !important;
+}
+
+/* =============================================================================
+   BODY CELLS
+   ============================================================================= */
+
+/* Group separator border - after Session Basics */
+.theme :global(.ant-table-tbody > tr > td:nth-child(6)) {
+  border-right: 1px solid rgba(191, 219, 254, 0.4) !important;
+}
+
+/* Group separator border - after Funnel Progression */
+.theme :global(.ant-table-tbody > tr > td:nth-child(10)) {
+  border-right: 1px solid rgba(167, 243, 208, 0.4) !important;
+}
+
+/* =============================================================================
+   HOVER STATES
+   ============================================================================= */
+
+/* Session Basics cells hover - enhanced blue */
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(2)),
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(3)),
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(4)),
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(5)),
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(6)) {
+  background: rgba(219, 234, 254, 0.5) !important;
+}
+
+/* Funnel Progression cells hover - enhanced emerald */
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(7)),
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(8)),
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(9)),
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(10)) {
+  background: rgba(167, 243, 208, 0.3) !important;
+}
+
+/* Entry Engagement cells hover - enhanced amber */
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(11)),
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(12)),
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(13)) {
+  background: rgba(254, 215, 170, 0.3) !important;
+}

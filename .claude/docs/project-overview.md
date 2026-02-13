@@ -59,45 +59,21 @@ Full details: `docs/state.md`
 ## Generic Components (Review BEFORE Building)
 
 **GenericDataTable**: Hierarchical data + expand/collapse + multiple metrics → USE GenericDataTable
-- Template: `docs/components/generic-table.md`
+- Source: `components/table/GenericDataTable.tsx`
 - Examples: `components/table/DataTable.tsx`, `components/on-page-analysis/OnPageDataTable.tsx`
 
 **useGenericUrlSync**: Shareable dashboard state (date range, dimensions, sort) → USE useGenericUrlSync
-- Template: `docs/components/url-sync.md`
+- Source: `hooks/useGenericUrlSync.ts`
 - URL Format: `?start=DATE&end=DATE&dimensions=a,b&sortBy=col&expanded=keys`
 
-**Store Pattern**: New dashboard/report similar to existing → COPY reportStore pattern
-- Template: `docs/components/store-pattern.md`
+**Store Pattern**: New dashboard/report → USE `createTableStore` factory (20 lines of config)
+- Source: `stores/createTableStore.ts`
 - Examples: `stores/reportStore.ts`, `stores/onPageStore.ts`
 
-## Building Features — Decision Tree
+## Building Features
 
-**Step 1: Search for similar**
-```bash
-grep -r "GenericDataTable" components/
-find . -name "*Report*" -o -name "*Analysis*"
-```
-
-**Step 2: Calculate similarity (0-100%)**
-- Same data structure (hierarchical) = 20%
-- Same interactions (expand/sort/filter) = 20%
-- Same columns (attributes + metrics) = 20%
-- Same state (URL sync, persistence) = 20%
-- Same loading (parent + lazy children) = 20%
-
-**Step 3: Choose workflow**
-- 80-100%: Use GenericDataTable → `docs/workflows/new-dashboard.md`
-- 60-80%: Extend generic with customization
-- 0-40%: Build custom → `docs/workflows/standalone-component.md`
-
-## Common Operations
-
-| Task | Files | Workflow |
-|------|-------|----------|
-| **New dashboard** | 7-8 files | `docs/workflows/new-dashboard.md` |
-| **Add metric** | 3-4 files | `docs/workflows/add-metric.md` |
-| **Add dimension** | 3 files | `docs/workflows/add-dimension.md` |
-| **Custom component** | 2-3 files | `docs/workflows/standalone-component.md` |
+> **Similarity scoring and path selection**: See `docs/workflows/new-feature-checklist.md`
+> For common operations (new dashboard, add metric/dimension), read existing source files directly — AI derives patterns from the codebase.
 
 ## Working Principles
 

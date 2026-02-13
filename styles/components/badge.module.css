@@ -1,0 +1,16 @@
+/* Unclassified count badge — red pill, used across nav tabs and toolbar buttons */
+.countBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--color-white, #fff);
+  background: var(--color-error);
+}

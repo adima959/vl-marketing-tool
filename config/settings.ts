@@ -1,15 +1,15 @@
 import { Users, Package, Map, Shield } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import type { FeatureKey } from '@/types/roles';
 
 /**
  * Settings Pages Configuration
  *
  * Single source of truth for all settings pages.
- * Defines navigation tabs, routes, icons, and permissions.
+ * Defines navigation tabs, routes, icons, and permission gates.
  *
- * Usage:
- * - SettingsNav.tsx: Uses SETTINGS_PAGES for navigation tabs
- * - Future: Can be used for page-level metadata and auth requirements
+ * Each page is gated by a FeatureKey — users need can_view on that feature
+ * to see the tab and access the page.
  */
 
 export interface SettingsPageConfig {
@@ -17,7 +17,7 @@ export interface SettingsPageConfig {
   title: string;
   href: string;
   icon: LucideIcon;
-  requireAdmin?: boolean;
+  featureKey: FeatureKey;
 }
 
 /**
@@ -30,25 +30,28 @@ export const SETTINGS_PAGES: readonly SettingsPageConfig[] = [
     title: 'Users',
     href: '/settings/users',
     icon: Users,
-    requireAdmin: true,
+    featureKey: 'admin.user_management',
   },
   {
     id: 'products',
     title: 'Products',
     href: '/settings/products',
     icon: Package,
+    featureKey: 'admin.product_settings',
   },
   {
     id: 'data-maps',
     title: 'Data Maps',
     href: '/settings/data-maps',
     icon: Map,
+    featureKey: 'admin.data_maps',
   },
   {
     id: 'permissions',
     title: 'Permissions',
     href: '/settings/permissions',
     icon: Shield,
+    featureKey: 'admin.role_permissions',
   },
 ] as const;
 

@@ -12,6 +12,51 @@ import stickyStyles from '@/styles/tables/sticky.module.css';
 import { buildOnPageViewColumns } from './onPageViewColumns';
 import styles from './OnPageViewsModal.module.css';
 
+const ON_PAGE_CSV_HEADERS = [
+  'Timestamp', 'Visitor ID', 'Session ID', 'Visit #',
+  'Page Type', 'URL Path', 'Full URL',
+  'Source', 'Campaign', 'Adset', 'Ad', 'UTM Term', 'Keyword', 'Placement', 'Referrer',
+  'Device Type', 'Operating System', 'OS Version', 'Browser', 'Platform', 'Language', 'User Agent', 'Country',
+  'Active Time (s)', 'Scroll %', 'Hero Scroll Passed', 'Form View', 'Form Started', 'Form Errors', 'Form Error Details', 'CTA Viewed', 'CTA Clicked',
+  'First Contentful Paint (s)', 'Largest Contentful Paint (s)', 'Time to Interactive (s)', 'DOMContentLoaded (s)', 'Page Load (s)',
+  'Timezone', 'Local Hour',
+];
+
+function buildOnPageCsvRow(r: OnPageDetailRecord): string {
+  const q = (v: string | null | undefined) => `"${(v || '').replace(/"/g, '""')}"`;
+  const bool = (v: boolean | undefined) => v ? 'Yes' : 'No';
+  return [
+    `"${new Date(r.createdAt).toLocaleString('en-GB')}"`,
+    `"${r.ffVisitorId}"`, `"${r.sessionId || ''}"`, r.visitNumber ?? '',
+    `"${r.pageType || 'unknown'}"`, q(r.urlPath), q(r.urlFull),
+    q(r.utmSource), q(r.utmCampaign), q(r.utmContent), q(r.utmMedium),
+    q(r.utmTerm), q(r.keyword), q(r.placement), q(r.referrer),
+    `"${r.deviceType || ''}"`, `"${r.osName || ''}"`, `"${r.osVersion || ''}"`,
+    `"${r.browserName || ''}"`, `"${r.platform || ''}"`, `"${r.language || ''}"`,
+    q(r.userAgent), `"${r.countryCode || ''}"`,
+    r.activeTimeS != null ? r.activeTimeS.toFixed(1) : '', r.scrollPercent ?? '',
+    bool(r.heroScrollPassed), bool(r.formView), bool(r.formStarted),
+    r.formErrors || 0,
+    `"${r.formErrorsDetail ? r.formErrorsDetail.map(e => `${e.field}: ${e.error_count}`).join('; ') : ''}"`,
+    bool(r.ctaViewed), bool(r.ctaClicked),
+    r.fcpS != null ? r.fcpS.toFixed(2) : '', r.lcpS != null ? r.lcpS.toFixed(2) : '',
+    r.ttiS != null ? r.ttiS.toFixed(2) : '', r.dclS != null ? r.dclS.toFixed(2) : '',
+    r.loadS != null ? r.loadS.toFixed(2) : '',
+    `"${r.timezone || ''}"`, r.localHourOfDay != null ? r.localHourOfDay : '',
+  ].join(',');
+}
+
+function buildOnPageExportFilename(context: OnPageViewClickContext): string {
+  const { start, end } = context.filters.dateRange;
+  const dateStr = start.toISOString().split('T')[0];
+  const endDateStr = end.toISOString().split('T')[0];
+  const dateRangeStr = dateStr === endDateStr ? dateStr : `${dateStr}_${endDateStr}`;
+  const filterParts = Object.values(context.filters.dimensionFilters)
+    .map(value => value.replace(/[^a-zA-Z0-9-_]/g, '_').substring(0, 20));
+  const filterSuffix = filterParts.length > 0 ? `_${filterParts.join('_')}` : '';
+  return `page_views_${dateRangeStr}${filterSuffix}.csv`;
+}
+
 interface OnPageViewsModalProps {
   open: boolean;
   onClose: () => void;
@@ -81,93 +126,11 @@ export function OnPageViewsModal({ open, onClose, context }: OnPageViewsModalPro
         abortController.signal,
       );
 
-      const headers = [
-        // Session/Identity
-        'Timestamp', 'Visitor ID', 'Session ID', 'Visit #',
-        // Page/URL
-        'Page Type', 'URL Path', 'Full URL',
-        // Traffic Source
-        'Source', 'Campaign', 'Adset', 'Ad', 'UTM Term', 'Keyword', 'Placement', 'Referrer',
-        // Device/Environment
-        'Device Type', 'Operating System', 'OS Version', 'Browser', 'Platform', 'Language', 'User Agent', 'Country',
-        // Engagement
-        'Active Time (s)', 'Scroll %', 'Hero Scroll Passed', 'Form View', 'Form Started', 'Form Errors', 'Form Error Details', 'CTA Viewed', 'CTA Clicked',
-        // Performance
-        'First Contentful Paint (s)', 'Largest Contentful Paint (s)', 'Time to Interactive (s)', 'DOMContentLoaded (s)', 'Page Load (s)',
-        // User Context
-        'Timezone', 'Local Hour',
-      ];
-
       const csvRows = [
-        headers.join(','),
-        ...allRecords.map((r: OnPageDetailRecord) => [
-          // Session/Identity
-          `"${new Date(r.createdAt).toLocaleString('en-GB')}"`,
-          `"${r.ffVisitorId}"`,
-          `"${r.sessionId || ''}"`,
-          r.visitNumber ?? '',
-          // Page/URL
-          `"${r.pageType || 'unknown'}"`,
-          `"${(r.urlPath || '').replace(/"/g, '""')}"`,
-          `"${(r.urlFull || '').replace(/"/g, '""')}"`,
-          // Traffic Source
-          `"${(r.utmSource || '').replace(/"/g, '""')}"`,
-          `"${(r.utmCampaign || '').replace(/"/g, '""')}"`,
-          `"${(r.utmContent || '').replace(/"/g, '""')}"`,
-          `"${(r.utmMedium || '').replace(/"/g, '""')}"`,
-          `"${(r.utmTerm || '').replace(/"/g, '""')}"`,
-          `"${(r.keyword || '').replace(/"/g, '""')}"`,
-          `"${(r.placement || '').replace(/"/g, '""')}"`,
-          `"${(r.referrer || '').replace(/"/g, '""')}"`,
-          // Device/Environment
-          `"${r.deviceType || ''}"`,
-          `"${r.osName || ''}"`,
-          `"${r.osVersion || ''}"`,
-          `"${r.browserName || ''}"`,
-          `"${r.platform || ''}"`,
-          `"${r.language || ''}"`,
-          `"${(r.userAgent || '').replace(/"/g, '""')}"`,
-          `"${r.countryCode || ''}"`,
-          // Engagement
-          r.activeTimeS != null ? r.activeTimeS.toFixed(1) : '',
-          r.scrollPercent ?? '',
-          r.heroScrollPassed ? 'Yes' : 'No',
-          r.formView ? 'Yes' : 'No',
-          r.formStarted ? 'Yes' : 'No',
-          r.formErrors || 0,
-          `"${r.formErrorsDetail ? r.formErrorsDetail.map(e => `${e.field}: ${e.error_count}`).join('; ') : ''}"`,
-          r.ctaViewed ? 'Yes' : 'No',
-          r.ctaClicked ? 'Yes' : 'No',
-          // Performance
-          r.fcpS != null ? r.fcpS.toFixed(2) : '',
-          r.lcpS != null ? r.lcpS.toFixed(2) : '',
-          r.ttiS != null ? r.ttiS.toFixed(2) : '',
-          r.dclS != null ? r.dclS.toFixed(2) : '',
-          r.loadS != null ? r.loadS.toFixed(2) : '',
-          // User Context
-          `"${r.timezone || ''}"`,
-          r.localHourOfDay != null ? r.localHourOfDay : '',
-        ].join(',')),
+        ON_PAGE_CSV_HEADERS.join(','),
+        ...allRecords.map(buildOnPageCsvRow),
       ];
-
-      // Build descriptive filename from filters
-      const { start, end } = context.filters.dateRange;
-      const dateStr = start.toISOString().split('T')[0];
-      const endDateStr = end.toISOString().split('T')[0];
-      const dateRangeStr = dateStr === endDateStr ? dateStr : `${dateStr}_${endDateStr}`;
-
-      // Add dimension filter values to filename
-      const filterParts: string[] = [];
-      for (const [dimId, value] of Object.entries(context.filters.dimensionFilters)) {
-        // Sanitize value for filename (remove special chars, limit length)
-        const sanitized = value.replace(/[^a-zA-Z0-9-_]/g, '_').substring(0, 20);
-        filterParts.push(sanitized);
-      }
-
-      const filterSuffix = filterParts.length > 0 ? `_${filterParts.join('_')}` : '';
-      const filename = `page_views_${dateRangeStr}${filterSuffix}.csv`;
-
-      downloadCsv(csvRows, filename);
+      downloadCsv(csvRows, buildOnPageExportFilename(context));
     } catch (err) {
       if (!(err instanceof ExportCancelledError)) {
         console.error('Export failed:', err);

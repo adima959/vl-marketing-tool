@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createPipelineCreative } from '@/lib/marketing-pipeline/db';
 import { recordCreation } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { Geography, CreativeFormat } from '@/types';
 import type { AppUser } from '@/types/user';
 import { unstable_rethrow } from 'next/navigation';
@@ -14,7 +14,7 @@ import { unstable_rethrow } from 'next/navigation';
 const VALID_GEOS: Geography[] = ['NO', 'SE', 'DK'];
 const VALID_FORMATS: CreativeFormat[] = ['ugc_video', 'static_image', 'video'];
 
-export const POST = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
+export const POST = withPermission('tools.marketing_pipeline', 'can_create', async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const body = await request.json();
     const changedBy = await getChangedBy(request);

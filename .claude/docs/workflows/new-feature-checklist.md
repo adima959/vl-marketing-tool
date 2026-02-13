@@ -29,16 +29,16 @@ Check for matches on:
 
 ## Step 3: Choose Path
 
-| Score | Action | Guide |
-|-------|--------|-------|
-| 80-100% | Use/extend generic components | `docs/workflows/new-dashboard.md` |
-| 60-80% | Extend GenericDataTable with customization | `docs/components/generic-table.md` |
+| Score | Action | Source to Study |
+|-------|--------|----------------|
+| 80-100% | Use/extend generic components | Read existing dashboards (e.g., `app/page.tsx`, `app/on-page-analysis/`) |
+| 60-80% | Extend GenericDataTable with customization | Read `components/table/GenericDataTable.tsx` |
 | 40-60% | Evaluate case-by-case, consider hybrid | Discuss approach first |
-| 0-40% | Build custom component | `docs/workflows/standalone-component.md` |
+| 0-40% | Build custom component | Standard React + Ant Design + CSS Modules |
 
-**Other operations:**
-- Add metric to existing report → `docs/workflows/add-metric.md`
-- Add dimension to existing report → `docs/workflows/add-dimension.md`
+**Other operations** (read existing implementations to derive pattern):
+- Add metric → study existing metrics in `config/columns.ts` + query builder
+- Add dimension → study existing dimensions in `config/marketingDimensions.ts` + query builder
 
 ## Step 4: Document
 

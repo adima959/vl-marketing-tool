@@ -21,9 +21,9 @@
  * Subscription-based metric SQL expressions.
  *
  * Metrics with leftJoinExpr/innerJoinExpr have two forms:
- * - leftJoinExpr: For use when invoice is LEFT JOINed (dashboard pattern).
+ * - leftJoinExpr: For use when invoice is LEFT JOINed (aggregate queries — both dashboard and marketing).
  *   Must filter by i.type in CASE WHEN since unmatched rows have NULL.
- * - innerJoinExpr: For use when invoice is INNER JOINed (marketing pattern).
+ * - innerJoinExpr: For use when invoice is INNER JOINed (detail/drilldown queries only).
  *   JOIN already filters to type=1, so CASE WHEN is simpler.
  *
  * Both forms produce identical results given their respective JOIN contexts.
@@ -51,6 +51,14 @@ export const CRM_METRICS = {
     alias: 'upsell_count',
     expr: 'COUNT(DISTINCT uo.id)',
   },
+  upsellSubCount: {
+    alias: 'upsell_sub_count',
+    expr: 'COUNT(DISTINCT CASE WHEN uo.type = 1 THEN uo.id END)',
+  },
+  upsellOtsCount: {
+    alias: 'upsell_ots_count',
+    expr: 'COUNT(DISTINCT CASE WHEN uo.type = 3 THEN uo.id END)',
+  },
   upsellsApprovedCount: {
     alias: 'upsells_approved_count',
     expr: 'COUNT(DISTINCT CASE WHEN uo.is_marked = 1 THEN uo.id END)',
@@ -69,6 +77,28 @@ export const OTS_METRICS = {
   },
 } as const;
 
+/**
+ * Trial metric SQL expressions (invoice-based, no upsell exclusion).
+ *
+ * Used by the separate trial query that counts trials using i.order_date
+ * instead of s.date_create, and includes trials from upsell subscriptions.
+ * This matches CRM trial counting: i.type=1, i.deleted=0, i.order_date in range.
+ */
+export const TRIAL_METRICS = {
+  trialCount: {
+    alias: 'trial_count',
+    expr: 'COUNT(DISTINCT i.id)',
+  },
+  trialsApprovedCount: {
+    alias: 'trials_approved_count',
+    expr: 'COUNT(DISTINCT CASE WHEN i.is_marked = 1 THEN i.id END)',
+  },
+  onHoldCount: {
+    alias: 'on_hold_count',
+    expr: 'COUNT(DISTINCT CASE WHEN i.on_hold_date IS NOT NULL THEN i.id END)',
+  },
+} as const;
+
 // ---------------------------------------------------------------------------
 // JOIN clause templates
 // ---------------------------------------------------------------------------
@@ -78,7 +108,7 @@ export const CRM_JOINS = {
   /** Customer table — needed for customer_count metric and country dimension */
   customer: 'LEFT JOIN customer c ON s.customer_id = c.id',
 
-  /** Trial invoice (type=1) — LEFT JOIN for dashboard, INNER JOIN for marketing */
+  /** Trial invoice (type=1) — LEFT JOIN for aggregate queries, INNER JOIN for detail/drilldown queries */
   invoiceTrialLeft: 'LEFT JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0',
   invoiceTrialInner: 'INNER JOIN invoice i ON i.subscription_id = s.id AND i.type = 1 AND i.deleted = 0',
 
@@ -139,10 +169,10 @@ export const OTS_JOINS = {
 // ---------------------------------------------------------------------------
 
 export const CRM_WHERE = {
-  /** Excludes upsell invoices from trial counts */
-  upsellExclusion: "(i.tag IS NULL OR i.tag NOT LIKE '%parent-sub-id=%')",
+  /** Excludes upsell subscriptions (matched by subscription tag, not invoice tag) */
+  upsellExclusion: "(s.tag IS NULL OR s.tag NOT LIKE '%parent-sub-id=%')",
 
-  /** Excludes deleted subscriptions (marketing uses this, dashboard does not) */
+  /** Excludes deleted subscriptions (used by detail/drilldown queries only) */
   deletedSubExclusion: 's.deleted = 0',
 
   /** Requires valid tracking IDs for ad attribution matching */
@@ -158,6 +188,9 @@ export const CRM_WHERE = {
   /** OTS invoice base filter */
   otsBase: 'i.type = 3 AND i.deleted = 0',
 
+  /** Trial invoice base filter (for standalone trial query) */
+  trialBase: 'i.type = 1 AND i.deleted = 0',
+
   /** OTS tracking ID validation (on invoice fields, not subscription) */
   otsTrackingIdValidation: [
     'i.tracking_id_4 IS NOT NULL',
@@ -167,6 +200,44 @@ export const CRM_WHERE = {
     'i.tracking_id IS NOT NULL',
     "i.tracking_id != 'null'",
   ] as readonly string[],
+} as const;
+
+// ---------------------------------------------------------------------------
+// Detail modal contracts — aggregate ↔ modal consistency
+// ---------------------------------------------------------------------------
+
+/**
+ * Single source of truth for which date field and required WHERE clauses
+ * each metric type uses. Both crmQueryBuilder (aggregate COUNTs) and
+ * crmDetailModalQueryBuilder (individual rows) import these to guarantee
+ * that clicking a metric cell in the table opens a modal with a matching
+ * row count.
+ *
+ * Rule: if you change a contract here, both query builders automatically
+ * pick up the change. Never hardcode date fields or base WHERE clauses
+ * directly in the modal builder — always reference these contracts.
+ */
+export const CRM_DETAIL_CONTRACTS = {
+  /** Customers / Subscriptions — subscription-based, always excludes upsell subs */
+  subscription: {
+    dateField: 's.date_create',
+    alwaysWhere: [CRM_WHERE.upsellExclusion],
+  },
+  /** Trials / TrialsApproved — invoice date, no upsell exclusion */
+  trial: {
+    dateField: 'i.order_date',
+    alwaysWhere: [] as readonly string[],
+  },
+  /** OTS — standalone invoice-based */
+  ots: {
+    dateField: 'i.order_date',
+    alwaysWhere: [CRM_WHERE.otsBase],
+  },
+  /** Upsells — subscription date, no upsell exclusion (they ARE upsells) */
+  upsell: {
+    dateField: 's.date_create',
+    alwaysWhere: [] as readonly string[],
+  },
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -248,9 +319,14 @@ export function matchNetworkToSource(network: string, source: string | null): bo
  * Used by marketing detail query builder for SQL-side source matching.
  *
  * @param network - Ad network name (e.g., 'Google Ads', 'Facebook')
+ * @param sourceExpr - SQL expression for the source column. Defaults to 'sr.source'.
+ *   Use 'COALESCE(sr.source, sr_sub.source)' when both invoice and subscription source JOINs are present.
  * @returns Object with whereClause (with ? placeholders) and params array, or null if network is not recognized
  */
-export function buildSourceFilterParams(network: string): {
+export function buildSourceFilterParams(
+  network: string,
+  sourceExpr: string = 'sr.source'
+): {
   whereClause: string;
   params: string[];
 } | null {
@@ -260,7 +336,7 @@ export function buildSourceFilterParams(network: string): {
 
   const placeholders = validSources.map(() => '?').join(', ');
   return {
-    whereClause: `LOWER(sr.source) IN (${placeholders})`,
+    whereClause: `LOWER(${sourceExpr}) IN (${placeholders})`,
     params: validSources.map(s => s.toLowerCase()),
   };
 }
@@ -271,11 +347,11 @@ export function buildSourceFilterParams(network: string): {
 
 /**
  * Dashboard detail metric IDs (drilldown queries).
- * Used by: types/dashboardDetails, lib/schemas/api, dashboardDrilldownQueryBuilder,
+ * Used by: types/dashboardDetails, lib/schemas/api, crmDetailModalQueryBuilder,
  * ClickableMetricCell, dashboard details API route.
  */
 export const DASHBOARD_DETAIL_METRIC_IDS = [
-  'customers', 'subscriptions', 'trials', 'trialsApproved', 'ots', 'upsells',
+  'customers', 'subscriptions', 'trials', 'trialsApproved', 'onHold', 'ots', 'upsells',
 ] as const;
 
 export type DashboardDetailMetricId = typeof DASHBOARD_DETAIL_METRIC_IDS[number];
@@ -287,7 +363,7 @@ export type DashboardDetailMetricId = typeof DASHBOARD_DETAIL_METRIC_IDS[number]
  * MarketingClickableMetricCell, DataTable, marketing details API route.
  */
 export const MARKETING_DETAIL_METRIC_IDS = [
-  'subscriptions', 'trialsApproved', 'trials', 'customers', 'ots', 'upsells',
+  'subscriptions', 'trialsApproved', 'trials', 'customers', 'onHold', 'ots', 'upsells',
 ] as const;
 
 export type MarketingDetailMetricId = typeof MARKETING_DETAIL_METRIC_IDS[number];

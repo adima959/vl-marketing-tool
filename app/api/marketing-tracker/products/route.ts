@@ -3,7 +3,7 @@ import type { CreateProductRequest, ProductStatus } from '@/types/marketing-trac
 import { getProducts, createProduct } from '@/lib/marketing-tracker/db';
 import { recordCreation } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { createProductSchema } from '@/lib/schemas/marketingTracker';
 import { z } from 'zod';
@@ -13,7 +13,7 @@ import { unstable_rethrow } from 'next/navigation';
  * GET /api/marketing-tracker/products
  * List all products with stats
  */
-export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
+export const GET = withPermission('tools.marketing_tracker', 'can_view', async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') as ProductStatus | null;
@@ -39,7 +39,7 @@ export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise
  * POST /api/marketing-tracker/products
  * Create a new product
  */
-export const POST = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
+export const POST = withPermission('admin.product_settings', 'can_create', async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const rawBody = await request.json();
     const changedBy = await getChangedBy(request);

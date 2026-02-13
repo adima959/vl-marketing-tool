@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/server/db';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import { safeValidateRequest, savedViewReorderSchema } from '@/lib/schemas/api';
 import { maskErrorForClient } from '@/lib/types/errors';
 import type { AppUser } from '@/types/user';
@@ -60,4 +60,4 @@ async function handlePatch(
   }
 }
 
-export const PATCH = withAuth(handlePatch);
+export const PATCH = withPermission('shared.saved_views', 'can_edit', handlePatch);

@@ -24,7 +24,9 @@ export function ColumnSettingsModal({ open, onClose }: ColumnSettingsModalProps)
       },
       {
         title: 'CRM Data',
-        columns: METRIC_COLUMNS.filter((col) => (CRM_METRIC_IDS as readonly string[]).includes(col.id)),
+        columns: METRIC_COLUMNS.filter((col) =>
+          (CRM_METRIC_IDS as readonly string[]).includes(col.id) || col.id === 'trials' || col.id === 'realCpa'
+        ),
         className: 'crmGroup',
       },
     ],

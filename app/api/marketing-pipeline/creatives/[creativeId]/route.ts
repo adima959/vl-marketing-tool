@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { deletePipelineCreative } from '@/lib/marketing-pipeline/db';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
 import { recordDeletion } from '@/lib/marketing-tracker/historyService';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { unstable_rethrow } from 'next/navigation';
 
@@ -14,7 +14,7 @@ interface RouteParams {
   params: Promise<{ creativeId: string }>;
 }
 
-export const DELETE = withAuth(async (
+export const DELETE = withPermission('tools.marketing_pipeline', 'can_delete', async (
   request: NextRequest,
   user: AppUser,
   { params }: RouteParams,

@@ -28,23 +28,7 @@
       "Bash(test *)",
       "Bash(echo *)",
       "Bash(node -e *)",
-      "Bash(npx tsc *)",
-      "mcp__browsermcp__browser_navigate",
-      "mcp__browsermcp__browser_screenshot",
-      "mcp__browsermcp__browser_get_console_logs",
-      "mcp__browsermcp__browser_snapshot",
-      "mcp__browsermcp__browser_wait",
-      "mcp__browsermcp__browser_press_key",
-      "mcp__browsermcp__browser_click",
-      "mcp__browsermcp__browser_hover",
-      "mcp__browsermcp__browser_type",
-      "mcp__browsermcp__browser_select_option",
-      "mcp__browsermcp__browser_go_back",
-      "mcp__browsermcp__browser_go_forward",
-      "mcp__browsermcp__browser_refresh",
-      "mcp__browsermcp__browser_upload_file",
-      "mcp__browsermcp__browser_download_file",
-      "mcp__browsermcp__browser_close"      
+      "Bash(npx tsc *)"
     ]
   },
   "hooks": {

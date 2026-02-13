@@ -14,6 +14,89 @@ import type { BaseTableRow, GenericDataTableConfig } from '@/types/table';
 import { calculateTableWidth, injectSkeletonRows, isSkeletonRow } from '@/lib/utils/tableUtils';
 import styles from '@/styles/tables/base.module.css';
 
+/** Format ISO date string to dd/MM/yyyy, pass through non-dates unchanged */
+function formatAttributeValue(val: string): string {
+  if (val.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+    const date = new Date(val);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+  return val;
+}
+
+/** Build the fixed-left attribute column with tree expand/collapse */
+function buildAttributeColumn<TRow extends BaseTableRow>(
+  expandedRowKeys: string[],
+  setExpandedRowKeys: (keys: string[]) => void,
+  loadChildData: (key: string, value: string, depth: number) => Promise<void>,
+  onError: (msg: string) => void,
+): ColumnsType<TRow>[0] {
+  return {
+    title: 'Attributes',
+    dataIndex: 'attribute',
+    key: 'attribute',
+    fixed: 'left',
+    width: 350,
+    onHeaderCell: () => ({ rowSpan: 2 }),
+    render: (value: string, record: TRow) => {
+      const indent = record.depth * 20;
+      const isExpanded = expandedRowKeys.includes(record.key);
+
+      if (isSkeletonRow(record)) {
+        return (
+          <div className={styles.attributeCell} style={{ paddingLeft: `${indent}px` }}>
+            <span className={styles.expandSpacer} />
+            <div className={styles.skeletonText} />
+          </div>
+        );
+      }
+
+      return (
+        <div className={styles.attributeCell} style={{ paddingLeft: `${indent}px` }}>
+          {record.hasChildren ? (
+            <span
+              className={styles.expandIcon}
+              onClick={async (e) => {
+                e.stopPropagation();
+                if (isExpanded) {
+                  setExpandedRowKeys(expandedRowKeys.filter((k) => k !== record.key));
+                } else {
+                  if (!expandedRowKeys.includes(record.key)) {
+                    setExpandedRowKeys([...expandedRowKeys, record.key]);
+                  }
+                  if (!record.children || record.children.length === 0) {
+                    try {
+                      await loadChildData(record.key, record.attribute, record.depth);
+                    } catch {
+                      setExpandedRowKeys(expandedRowKeys.filter((k) => k !== record.key));
+                      onError('Failed to load child data. Please try again.');
+                    }
+                  }
+                }
+              }}
+            >
+              {isExpanded ? '▼' : '▶'}
+            </span>
+          ) : (
+            <span className={styles.expandSpacer} />
+          )}
+          <Tooltip title={formatAttributeValue(value)} placement="topLeft" mouseEnterDelay={0.5}>
+            <span
+              className={`${styles.attributeText} ${
+                record.depth === 0 ? styles.attributeTextBold : ''
+              }`}
+            >
+              {formatAttributeValue(value)}
+            </span>
+          </Tooltip>
+        </div>
+      );
+    },
+  };
+}
+
 export function GenericDataTable<TRow extends BaseTableRow>({
   useStore,
   useColumnStore,
@@ -63,90 +146,7 @@ export function GenericDataTable<TRow extends BaseTableRow>({
 
   // Build columns from config
   const columns: ColumnsType<TRow> = useMemo(() => {
-    // First column: Attributes (always visible) - no grouping, so it spans both header rows
-    const attributeColumn: ColumnsType<TRow>[0] = {
-      title: 'Attributes',
-      dataIndex: 'attribute',
-      key: 'attribute',
-      fixed: 'left',
-      width: 350,
-      onHeaderCell: () => ({
-        rowSpan: 2,
-      }),
-      render: (value: string, record: TRow) => {
-        const indent = record.depth * 20; // 20px per level
-        const isExpanded = expandedRowKeys.includes(record.key);
-        const isSkeleton = isSkeletonRow(record);
-
-        // Render skeleton row
-        if (isSkeleton) {
-          return (
-            <div className={styles.attributeCell} style={{ paddingLeft: `${indent}px` }}>
-              <span className={styles.expandSpacer} />
-              <div className={styles.skeletonText} />
-            </div>
-          );
-        }
-
-        // Format date values to dd/MM/yyyy
-        const formatAttributeValue = (val: string): string => {
-          // Check if value looks like an ISO date string
-          if (val.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
-            const date = new Date(val);
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            return `${day}/${month}/${year}`;
-          }
-          return val;
-        };
-
-        return (
-          <div
-            className={styles.attributeCell}
-            style={{ paddingLeft: `${indent}px` }}
-          >
-            {record.hasChildren ? (
-              <span
-                className={styles.expandIcon}
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  if (isExpanded) {
-                    setExpandedRowKeys(expandedRowKeys.filter((k) => k !== record.key));
-                  } else {
-                    if (!expandedRowKeys.includes(record.key)) {
-                      setExpandedRowKeys([...expandedRowKeys, record.key]);
-                    }
-                    if (!record.children || record.children.length === 0) {
-                      try {
-                        await loadChildData(record.key, record.attribute, record.depth);
-                      } catch (error) {
-                        // Revert expansion on error
-                        setExpandedRowKeys(expandedRowKeys.filter((k) => k !== record.key));
-                        toast.error('Failed to load child data. Please try again.');
-                      }
-                    }
-                  }
-                }}
-              >
-                {isExpanded ? '▼' : '▶'}
-              </span>
-            ) : (
-              <span className={styles.expandSpacer} />
-            )}
-            <Tooltip title={formatAttributeValue(value)} placement="topLeft" mouseEnterDelay={0.5}>
-              <span
-                className={`${styles.attributeText} ${
-                  record.depth === 0 ? styles.attributeTextBold : ''
-                }`}
-              >
-                {formatAttributeValue(value)}
-              </span>
-            </Tooltip>
-          </div>
-        );
-      },
-    };
+    const attributeColumn = buildAttributeColumn<TRow>(expandedRowKeys, setExpandedRowKeys, loadChildData, toast.error);
 
     // Get visible metric columns
     const visibleMetrics = metricColumns.filter((col) => visibleColumns.includes(col.id));
@@ -171,69 +171,28 @@ export function GenericDataTable<TRow extends BaseTableRow>({
           sortOrder: sortColumn === col.id ? sortDirection : null,
           showSorterTooltip: false,
           render: (value: number | null, record: TRow) => {
-            // Render skeleton for loading rows
-            const isSkeleton = isSkeletonRow(record);
-            if (isSkeleton) {
-              return <div className={styles.skeletonMetric} />;
-            }
+            if (isSkeletonRow(record)) return <div className={styles.skeletonMetric} />;
+            if (value === null || value === undefined) return <span style={{ color: 'var(--color-gray-300)' }}>–</span>;
 
-            // Null means no data available (e.g., CRM for non-matchable dimensions)
-            if (value === null || value === undefined) {
-              return <span style={{ color: 'var(--color-gray-300)' }}>–</span>;
-            }
+            const sharedProps = { value: value ?? 0, format: col.format, metricLabel: col.label, rowKey: record.key, depth: record.depth, dimensions: loadedDimensions, dateRange: loadedDateRange! };
 
-            // Check if this is a marketing clickable metric
             if (onMarketingMetricClick && loadedDateRange && clickableMarketingMetrics.includes(col.id)) {
-              return (
-                <MarketingClickableMetricCell
-                  value={value ?? 0}
-                  format={col.format}
-                  metricId={col.id as MarketingDetailMetricId}
-                  metricLabel={col.label}
-                  rowKey={record.key}
-                  depth={record.depth}
-                  dimensions={loadedDimensions}
-                  dateRange={loadedDateRange}
-                  onClick={onMarketingMetricClick}
-                  hideZero={hideZeroValues}
-                />
-              );
+              return <MarketingClickableMetricCell {...sharedProps} metricId={col.id as MarketingDetailMetricId} onClick={onMarketingMetricClick} hideZero={hideZeroValues} />;
             }
-            // Check if this is an on-page clickable metric
             if (onOnPageMetricClick && loadedDateRange && clickableOnPageMetrics.includes(col.id)) {
-              return (
-                <OnPageClickableMetricCell
-                  value={value ?? 0}
-                  format={col.format}
-                  metricId={col.id}
-                  metricLabel={col.label}
-                  rowKey={record.key}
-                  depth={record.depth}
-                  dimensions={loadedDimensions}
-                  dateRange={loadedDateRange}
-                  onClick={onOnPageMetricClick}
-                />
-              );
+              return <OnPageClickableMetricCell {...sharedProps} metricId={col.id} onClick={onOnPageMetricClick} />;
             }
-            // Conditionally use ClickableMetricCell when onMetricClick is provided (for Dashboard)
-            const clickableMetricIds: readonly string[] = DASHBOARD_DETAIL_METRIC_IDS;
-            if (onMetricClick && loadedDateRange && clickableMetricIds.includes(col.id)) {
-              return (
-                <ClickableMetricCell
-                  value={value ?? 0}
-                  format={col.format}
-                  metricId={col.id as DashboardDetailMetricId}
-                  metricLabel={col.label}
-                  rowKey={record.key}
-                  depth={record.depth}
-                  dimensions={loadedDimensions}
-                  dateRange={loadedDateRange}
-                  onClick={onMetricClick}
-                  hideZero={hideZeroValues}
-                />
-              );
+            if (onMetricClick && loadedDateRange && (DASHBOARD_DETAIL_METRIC_IDS as readonly string[]).includes(col.id)) {
+              const cell = <ClickableMetricCell {...sharedProps} metricId={col.id as DashboardDetailMetricId} onClick={onMetricClick} hideZero={hideZeroValues} />;
+              if (col.id === 'upsells' && (value ?? 0) > 0 && record.metrics.upsellSub != null) {
+                return (
+                  <Tooltip title={`Subscription: ${record.metrics.upsellSub} · OTS: ${record.metrics.upsellOts ?? 0}`}>
+                    <span>{cell}</span>
+                  </Tooltip>
+                );
+              }
+              return cell;
             }
-            // Default non-clickable cell
             return <MetricCell value={value ?? 0} format={col.format} hideZero={hideZeroValues} />;
           },
         }));

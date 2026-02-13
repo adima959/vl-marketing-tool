@@ -2,16 +2,19 @@ import { METRIC_CONFIG } from '@/config/dashboardChartMetrics';
 import { formatTooltipDate } from '@/lib/utils/chartDateUtils';
 import styles from './DashboardTimeSeriesChart.module.css';
 
+interface TooltipPayloadEntry {
+  dataKey?: string | number;
+  name?: string;
+  value?: number;
+  color?: string;
+  fill?: string;
+  stroke?: string;
+  payload?: Record<string, number | string | null>;
+}
+
 interface CustomTooltipProps {
   active?: boolean;
-  payload?: Array<{
-    dataKey?: string | number;
-    name?: string;
-    value?: number;
-    color?: string;
-    fill?: string;
-    stroke?: string;
-  }>;
+  payload?: TooltipPayloadEntry[];
   label?: string;
 }
 
@@ -47,13 +50,15 @@ export function CustomTooltip({
           const dotColor = entry.stroke || entry.color || entry.fill;
 
           return (
-            <div key={entry.dataKey} className={styles.tooltipRow}>
-              <span
-                className={styles.tooltipDot}
-                style={{ backgroundColor: dotColor }}
-              />
-              <span className={styles.tooltipLabel}>{entry.name}</span>
-              <span className={styles.tooltipValue}>{formattedValue}</span>
+            <div key={entry.dataKey}>
+              <div className={styles.tooltipRow}>
+                <span
+                  className={styles.tooltipDot}
+                  style={{ backgroundColor: dotColor }}
+                />
+                <span className={styles.tooltipLabel}>{entry.name}</span>
+                <span className={styles.tooltipValue}>{formattedValue}</span>
+              </div>
             </div>
           );
         })}

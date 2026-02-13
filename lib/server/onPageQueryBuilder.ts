@@ -134,6 +134,21 @@ export class OnPageQueryBuilder {
   };
 
   /**
+   * Resolves the SQL column expression for a parent filter dimension.
+   * Handles classification, enriched, date, and regular dimensions.
+   */
+  private resolveParentFilterColumn(dimId: string, columnPrefix: string): string {
+    const classifDim = this.classificationDims[dimId];
+    if (classifDim) return classifDim.parentFilterExpr;
+    if (dimId === 'date') return `${columnPrefix}created_at::date`;
+    const enriched = this.enrichedDimensions[dimId];
+    if (enriched) return enriched.parentFilterExpr;
+    const sqlColumn = this.dimensionMap[dimId];
+    if (!sqlColumn) throw new Error(`Unknown dimension in parent filter: ${dimId}`);
+    return this.prefixColumn(sqlColumn, columnPrefix);
+  }
+
+  /**
    * Builds parent filter WHERE clause
    * Handles "Unknown" values by converting them to IS NULL conditions
    */
@@ -149,46 +164,15 @@ export class OnPageQueryBuilder {
     const params: SqlParam[] = [];
     const conditions: string[] = [];
 
-    Object.entries(parentFilters).forEach(([dimId, value]) => {
-      // Classification dims use their own filter expressions (from JOINed tables)
-      const classifDim = this.classificationDims[dimId];
-      if (classifDim) {
-        if (value === 'Unknown') {
-          conditions.push(`${classifDim.parentFilterExpr} IS NULL`);
-        } else {
-          params.push(value);
-          conditions.push(`${classifDim.parentFilterExpr} = $${paramOffset + params.length}`);
-        }
-        return;
-      }
-
-      const sqlColumn = this.dimensionMap[dimId];
-      if (!sqlColumn) {
-        throw new Error(`Unknown dimension in parent filter: ${dimId}`);
-      }
-
-      // Handle "Unknown" values as NULL
+    for (const [dimId, value] of Object.entries(parentFilters)) {
+      const colExpr = this.resolveParentFilterColumn(dimId, columnPrefix);
       if (value === 'Unknown') {
-        if (dimId === 'date') {
-          conditions.push(`${columnPrefix}created_at::date IS NULL`);
-        } else if (this.enrichedDimensions[dimId]) {
-          const dimEnriched = this.enrichedDimensions[dimId];
-          conditions.push(`${dimEnriched.parentFilterExpr} IS NULL`);
-        } else {
-          conditions.push(`${this.prefixColumn(sqlColumn, columnPrefix)} IS NULL`);
-        }
+        conditions.push(`${colExpr} IS NULL`);
       } else {
         params.push(value);
-        if (dimId === 'date') {
-          conditions.push(`${columnPrefix}created_at::date = $${paramOffset + params.length}`);
-        } else if (this.enrichedDimensions[dimId]) {
-          const dimEnriched = this.enrichedDimensions[dimId];
-          conditions.push(`${dimEnriched.parentFilterExpr} = $${paramOffset + params.length}`);
-        } else {
-          conditions.push(`${this.prefixColumn(sqlColumn, columnPrefix)} = $${paramOffset + params.length}`);
-        }
+        conditions.push(`${colExpr} = $${paramOffset + params.length}`);
       }
-    });
+    }
 
     return {
       whereClause: `AND ${conditions.join(' AND ')}`,
@@ -520,29 +504,17 @@ export class OnPageQueryBuilder {
     END`;
 
   /**
-   * Builds a query that groups page views by (target_dimension + tracking ID combo).
-   * Used for cross-database CRM matching: the tracking IDs (source, campaign, adset, ad)
-   * appear in both PostgreSQL page views and MariaDB CRM subscriptions, enabling
-   * application-level joins to attribute conversions to any page view dimension.
-   *
-   * Uses detailFilterMap (raw columns, no JOINs) for simplicity and performance.
+   * Builds filter conditions using raw columns (no JOINs).
+   * Handles parent drill-down filters and user table filters.
+   * Used by tracking match and visitor match queries.
    */
-  public buildTrackingMatchQuery(options: QueryOptions): { query: string; params: SqlParam[] } {
-    const { dateRange, dimensions, depth, parentFilters, filters } = options;
-
-    const currentDimension = dimensions[depth];
-    const rawColumn = this.detailFilterMap[currentDimension];
-    if (!rawColumn) {
-      throw new Error(`Unknown dimension for tracking match: ${currentDimension}`);
-    }
-
-    const params: SqlParam[] = [
-      formatLocalDate(dateRange.start),
-      formatLocalDate(dateRange.end),
-    ];
+  private buildRawFilterConditions(
+    parentFilters: Record<string, string> | undefined,
+    filters: QueryOptions['filters'],
+    params: SqlParam[]
+  ): string {
     const conditions: string[] = [];
 
-    // Apply parent filters using raw columns (no JOINs)
     if (parentFilters) {
       for (const [dimId, value] of Object.entries(parentFilters)) {
         const col = this.detailFilterMap[dimId];
@@ -556,7 +528,6 @@ export class OnPageQueryBuilder {
       }
     }
 
-    // Apply table filters using raw columns (OR within same field, AND between fields)
     if (filters) {
       const fieldGroups = new Map<string, { col: string; textExpr: string; items: Array<{ operator: string; value: string }> }>();
       for (const filter of filters) {
@@ -573,7 +544,6 @@ export class OnPageQueryBuilder {
       for (const [, g] of fieldGroups) {
         const subs: string[] = [];
         for (const f of g.items) {
-          // paramOffset is 0 here — tracking match uses params.length directly
           const cond = this.buildFilterCondition(f, g.col, g.textExpr, params, 0);
           if (cond) subs.push(cond);
         }
@@ -582,7 +552,28 @@ export class OnPageQueryBuilder {
       }
     }
 
-    const extraWhere = conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '';
+    return conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '';
+  }
+
+  /**
+   * Builds a query that groups page views by (target_dimension + tracking ID combo).
+   * Used for cross-database CRM matching: the tracking IDs (source, campaign, adset, ad)
+   * appear in both PostgreSQL page views and MariaDB CRM subscriptions, enabling
+   * application-level joins to attribute conversions to any page view dimension.
+   *
+   * Uses detailFilterMap (raw columns, no JOINs) for simplicity and performance.
+   */
+  public buildTrackingMatchQuery(options: QueryOptions): { query: string; params: SqlParam[] } {
+    const { dateRange, dimensions, depth, parentFilters, filters } = options;
+
+    const currentDimension = dimensions[depth];
+    const rawColumn = this.detailFilterMap[currentDimension];
+    if (!rawColumn) {
+      throw new Error(`Unknown dimension for tracking match: ${currentDimension}`);
+    }
+
+    const params: SqlParam[] = [formatLocalDate(dateRange.start), formatLocalDate(dateRange.end)];
+    const extraWhere = this.buildRawFilterConditions(parentFilters, filters, params);
 
     const query = `
       SELECT
@@ -619,50 +610,8 @@ export class OnPageQueryBuilder {
       throw new Error(`Unknown dimension for visitor match: ${currentDimension}`);
     }
 
-    const params: SqlParam[] = [
-      formatLocalDate(dateRange.start),
-      formatLocalDate(dateRange.end),
-    ];
-    const conditions: string[] = [];
-
-    if (parentFilters) {
-      for (const [dimId, value] of Object.entries(parentFilters)) {
-        const col = this.detailFilterMap[dimId];
-        if (!col) continue;
-        if (value === 'Unknown') {
-          conditions.push(`${col} IS NULL`);
-        } else {
-          params.push(value);
-          conditions.push(`${col}::text = $${params.length}`);
-        }
-      }
-    }
-
-    if (filters) {
-      const fieldGroups = new Map<string, { col: string; textExpr: string; items: Array<{ operator: string; value: string }> }>();
-      for (const filter of filters) {
-        if (!filter.value && filter.operator !== 'equals' && filter.operator !== 'not_equals') continue;
-        const col = this.detailFilterMap[filter.field];
-        if (!col) continue;
-        const group = fieldGroups.get(filter.field);
-        if (group) {
-          group.items.push({ operator: filter.operator, value: filter.value });
-        } else {
-          fieldGroups.set(filter.field, { col, textExpr: `${col}::text`, items: [{ operator: filter.operator, value: filter.value }] });
-        }
-      }
-      for (const [, g] of fieldGroups) {
-        const subs: string[] = [];
-        for (const f of g.items) {
-          const cond = this.buildFilterCondition(f, g.col, g.textExpr, params, 0);
-          if (cond) subs.push(cond);
-        }
-        if (subs.length === 1) conditions.push(subs[0]);
-        else if (subs.length > 1) conditions.push(`(${subs.join(' OR ')})`);
-      }
-    }
-
-    const extraWhere = conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '';
+    const params: SqlParam[] = [formatLocalDate(dateRange.start), formatLocalDate(dateRange.end)];
+    const extraWhere = this.buildRawFilterConditions(parentFilters, filters, params);
 
     const query = `
       SELECT DISTINCT

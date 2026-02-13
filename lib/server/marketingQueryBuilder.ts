@@ -1,10 +1,8 @@
 import { executeQuery } from './db';
-import { executeMariaDBQuery } from './mariadb';
-import { crmQueryBuilder, type CRMSubscriptionRow, type CRMOtsRow } from './crmQueryBuilder';
-import { formatDateForMariaDB } from './crmMetrics';
+import { fetchCrmData, fetchSourceCrmData } from './crmQueryBuilder';
 import { validateSortDirection } from './types';
 import { FilterBuilder } from './queryBuilderUtils';
-import { buildCrmIndex, buildOtsIndex, matchAdsToCrm } from './marketingTransforms';
+import { buildCrmIndex, buildOtsIndex, buildTrialIndex, matchAdsToCrm, buildSourceIndex, matchAdsToCrmBySource, computeSourceTotals } from './trackingTransforms';
 import { formatLocalDate } from '@/lib/types/api';
 
 type SqlParam = string | number | boolean | null | Date;
@@ -39,6 +37,7 @@ export interface AggregatedMetrics {
   ots_approved: number;
   upsells: number;
   upsells_approved: number;
+  on_hold: number;
   approval_rate: number;
   ots_approval_rate: number;
   upsell_approval_rate: number;
@@ -120,7 +119,7 @@ function needsClassificationJoins(
 }
 
 /**
- * Maps dashboard metric IDs to SQL expressions
+ * Maps ad metric IDs to PostgreSQL column names for ORDER BY
  */
 const metricMap: Record<string, string> = {
   cost: 'cost',
@@ -330,48 +329,127 @@ export async function getMarketingData(
     networks: string[];
   };
 
-  // Build CRM queries using shared builder (tracking mode)
-  const { query: crmQuery, params: crmParams } = crmQueryBuilder.buildQuery({
-    dateRange,
-    groupBy: { type: 'tracking', dimensions: ['campaign', 'adset', 'ad', 'date'] },
-    depth: 3, // All tracking dimensions
-    productFilter: effectiveProductFilter,
+  // Determine CRM matching strategy based on current dimension
+  // Network dimension: source-level matching (accurate COUNT DISTINCT totals)
+  // All others: tracking matching + "Unknown" row for unmatched gap
+  const trackingDims = new Set(['campaign', 'adset', 'ad']);
+  const useSourceMatching = currentDimension === 'network';
+  const needsUnknownRow = !useSourceMatching && !trackingDims.has(currentDimension);
+
+  /** Normalize an ads row into the shape needed by matching functions */
+  const toAdsInput = (row: AdsRowWithMappings) => ({
+    campaign_ids: row.campaign_ids || [],
+    adset_ids: row.adset_ids || [],
+    ad_ids: row.ad_ids || [],
+    networks: row.networks || [],
+    cost: Number(row.cost) || 0,
+    clicks: Number(row.clicks) || 0,
+    impressions: Number(row.impressions) || 0,
+    conversions: Number(row.conversions) || 0,
+    ctr_percent: Number(row.ctr_percent) || 0,
+    cpc: Number(row.cpc) || 0,
+    cpm: Number(row.cpm) || 0,
+    conversion_rate: Number(row.conversion_rate) || 0,
+    dimension_value: row.dimension_value,
   });
 
-  const { query: otsQuery, params: otsParams } = crmQueryBuilder.buildOtsQuery({
+  if (useSourceMatching) {
+    // Source-level: CRM grouped by source → match by network → source
+    const [adsData, sourceCrm] = await Promise.all([
+      executeQuery<AdsRowWithMappings>(adsQuery, pgParams),
+      fetchSourceCrmData({ dateRange, productFilter: effectiveProductFilter }),
+    ]);
+
+    const subIdx = buildSourceIndex(sourceCrm.subscriptionRows);
+    const otsIdx = buildSourceIndex(sourceCrm.otsRows);
+    const trialIdx = buildSourceIndex(sourceCrm.trialRows);
+
+    return adsData.map((row: AdsRowWithMappings) =>
+      matchAdsToCrmBySource(toAdsInput(row), subIdx, otsIdx, trialIdx)
+    );
+  }
+
+  // Tracking-level: tiered matching + optional "Unknown" row
+  const crmOptions = {
     dateRange,
-    groupBy: { type: 'tracking', dimensions: ['campaign', 'adset', 'ad', 'date'] },
+    groupBy: { type: 'tracking' as const, dimensions: ['campaign', 'adset', 'ad', 'date'] },
     depth: 3,
     productFilter: effectiveProductFilter,
-  });
+  };
 
-  const [adsData, crmData, otsData] = await Promise.all([
+  // Fetch tracking CRM + source totals (for Unknown row) in parallel
+  const [adsData, trackingCrm, sourceCrm] = await Promise.all([
     executeQuery<AdsRowWithMappings>(adsQuery, pgParams),
-    executeMariaDBQuery<CRMSubscriptionRow>(crmQuery, crmParams),
-    executeMariaDBQuery<CRMOtsRow>(otsQuery, otsParams),
+    fetchCrmData(crmOptions),
+    needsUnknownRow
+      ? fetchSourceCrmData({ dateRange, productFilter: effectiveProductFilter })
+      : Promise.resolve(null),
   ]);
 
-  const crmIdx = buildCrmIndex(crmData);
-  const otsIdx = buildOtsIndex(otsData);
+  const crmIdx = buildCrmIndex(trackingCrm.subscriptionRows);
+  const otsIdx = buildOtsIndex(trackingCrm.otsRows);
+  const trialIdx = buildTrialIndex(trackingCrm.trialRows);
 
-  return adsData.map(row => matchAdsToCrm(
-    {
-      campaign_ids: row.campaign_ids || [],
-      adset_ids: row.adset_ids || [],
-      ad_ids: row.ad_ids || [],
-      networks: row.networks || [],
-      cost: Number(row.cost) || 0,
-      clicks: Number(row.clicks) || 0,
-      impressions: Number(row.impressions) || 0,
-      conversions: Number(row.conversions) || 0,
-      ctr_percent: Number(row.ctr_percent) || 0,
-      cpc: Number(row.cpc) || 0,
-      cpm: Number(row.cpm) || 0,
-      conversion_rate: Number(row.conversion_rate) || 0,
-      dimension_value: row.dimension_value,
-    },
-    crmIdx,
-    otsIdx
-  ));
+  const results = adsData.map((row: AdsRowWithMappings) =>
+    matchAdsToCrm(toAdsInput(row), crmIdx, otsIdx, trialIdx)
+  );
+
+  // Add "Unknown" row for unmatched CRM data (source totals - tracking matched)
+  if (sourceCrm && needsUnknownRow) {
+    const subIdx = buildSourceIndex(sourceCrm.subscriptionRows);
+    const otsSourceIdx = buildSourceIndex(sourceCrm.otsRows);
+    const trialSourceIdx = buildSourceIndex(sourceCrm.trialRows);
+
+    // Collect all networks across all ads rows
+    const allNetworks = new Set<string>();
+    for (const row of adsData) {
+      for (const n of (row.networks || [])) allNetworks.add(n);
+    }
+
+    const totals = computeSourceTotals(subIdx, otsSourceIdx, trialSourceIdx, allNetworks);
+
+    const matched = results.reduce(
+      (acc, r) => ({
+        subscriptions: acc.subscriptions + r.subscriptions,
+        customers: acc.customers + r.customers,
+        trials: acc.trials + r.trials,
+        trials_approved: acc.trials_approved + r.trials_approved,
+        ots: acc.ots + r.ots,
+        ots_approved: acc.ots_approved + r.ots_approved,
+        upsells: acc.upsells + r.upsells,
+        upsells_approved: acc.upsells_approved + r.upsells_approved,
+        on_hold: acc.on_hold + r.on_hold,
+      }),
+      { subscriptions: 0, customers: 0, trials: 0, trials_approved: 0, ots: 0, ots_approved: 0, upsells: 0, upsells_approved: 0, on_hold: 0 }
+    );
+
+    const gap = {
+      subscriptions: Math.max(0, totals.subscriptions - matched.subscriptions),
+      customers: Math.max(0, totals.customers - matched.customers),
+      trials: Math.max(0, totals.trials - matched.trials),
+      trials_approved: Math.max(0, totals.trials_approved - matched.trials_approved),
+      ots: Math.max(0, totals.ots - matched.ots),
+      ots_approved: Math.max(0, totals.ots_approved - matched.ots_approved),
+      upsells: Math.max(0, totals.upsells - matched.upsells),
+      upsells_approved: Math.max(0, totals.upsells_approved - matched.upsells_approved),
+      on_hold: Math.max(0, totals.on_hold - matched.on_hold),
+    };
+
+    const hasGap = gap.subscriptions > 0 || gap.customers > 0 || gap.trials > 0 || gap.ots > 0;
+    if (hasGap) {
+      results.push({
+        dimension_value: 'Unknown',
+        cost: 0, clicks: 0, impressions: 0, conversions: 0,
+        ctr_percent: 0, cpc: 0, cpm: 0, conversion_rate: 0,
+        ...gap,
+        approval_rate: gap.subscriptions > 0 ? gap.trials_approved / gap.subscriptions : 0,
+        ots_approval_rate: gap.ots > 0 ? gap.ots_approved / gap.ots : 0,
+        upsell_approval_rate: gap.upsells > 0 ? gap.upsells_approved / gap.upsells : 0,
+        real_cpa: gap.trials_approved > 0 ? 0 / gap.trials_approved : 0,
+      });
+    }
+  }
+
+  return results;
 }
 

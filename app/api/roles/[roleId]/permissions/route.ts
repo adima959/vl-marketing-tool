@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdmin } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import { updatePermissions } from '@/lib/roles/db';
 import type { UpdatePermissionsRequest } from '@/types/roles';
 import { unstable_rethrow } from 'next/navigation';
@@ -16,7 +16,7 @@ type RouteParams = { params: Promise<{ roleId: string }> };
  * Replaces all permissions for a role. Blocks system roles.
  * Body: { permissions: [{ featureKey, canView, canCreate, canEdit, canDelete }] }
  */
-export const PUT = withAdmin(async (
+export const PUT = withPermission('admin.role_permissions', 'can_edit', async (
   request: NextRequest,
   _user,
   ...[{ params }]: [RouteParams]

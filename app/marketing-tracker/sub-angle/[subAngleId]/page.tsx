@@ -4,7 +4,7 @@ import SubAngleRedirectClientPage from './SubAngleRedirectClientPage';
 export async function generateMetadata({ params }: { params: Promise<{ subAngleId: string }> }): Promise<Metadata> {
   const { subAngleId } = await params;
   return {
-    title: `Redirecting... | Vitaliv Analytics`,
+    title: `Redirecting...`,
     description: 'Redirecting to message page',
   };
 }

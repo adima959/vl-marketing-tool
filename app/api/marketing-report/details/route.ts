@@ -5,7 +5,7 @@ import { crmDetailModalQueryBuilder } from '@/lib/server/crmDetailModalQueryBuil
 import { safeValidateRequest, marketingDetailsRequestSchema } from '@/lib/schemas/api';
 import type { DetailRecord } from '@/types/dashboardDetails';
 import type { MarketingDetailResponse } from '@/types/marketingDetails';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { maskErrorForClient } from '@/lib/types/errors';
 import type { DashboardDetailMetricId } from '@/lib/server/crmMetrics';
@@ -35,6 +35,22 @@ function formatDateAsYMD(date: Date): string {
  * preserving the relationship between IDs. These tuples are passed directly
  * to the CRM query to filter subscriptions by exact ad combinations.
  */
+/** Push a PG dimension filter: 'Unknown' → IS NULL, else parameterized equality. */
+function addDimensionFilter(
+  conditions: string[],
+  params: unknown[],
+  value: string | undefined,
+  columnExpr: string,
+): void {
+  if (!value) return;
+  if (value === 'Unknown') {
+    conditions.push(`${columnExpr} IS NULL`);
+  } else {
+    params.push(value);
+    conditions.push(`${columnExpr} = $${params.length}`);
+  }
+}
+
 async function resolveTrackingIdTuples(
   dateRange: { start: Date; end: Date },
   filters: {
@@ -62,64 +78,18 @@ async function resolveTrackingIdTuples(
   // Classification dimensions require JOINs to app_campaign_classifications + app_products
   const needsClassificationJoin = !!(filters.classifiedProduct || filters.classifiedCountry);
 
-  if (filters.network) {
-    if (filters.network === 'Unknown') {
-      conditions.push('network IS NULL');
-    } else {
-      params.push(filters.network);
-      conditions.push(`network = $${params.length}`);
-    }
-  }
-
-  if (filters.campaign) {
-    if (filters.campaign === 'Unknown') {
-      conditions.push('campaign_name IS NULL');
-    } else {
-      params.push(filters.campaign);
-      conditions.push(`campaign_name = $${params.length}`);
-    }
-  }
-
-  if (filters.adset) {
-    if (filters.adset === 'Unknown') {
-      conditions.push('adset_name IS NULL');
-    } else {
-      params.push(filters.adset);
-      conditions.push(`adset_name = $${params.length}`);
-    }
-  }
-
-  if (filters.ad) {
-    if (filters.ad === 'Unknown') {
-      conditions.push('ad_name IS NULL');
-    } else {
-      params.push(filters.ad);
-      conditions.push(`ad_name = $${params.length}`);
-    }
-  }
+  addDimensionFilter(conditions, params, filters.network, 'network');
+  addDimensionFilter(conditions, params, filters.campaign, 'campaign_name');
+  addDimensionFilter(conditions, params, filters.adset, 'adset_name');
+  addDimensionFilter(conditions, params, filters.ad, 'ad_name');
 
   if (filters.date) {
     params.push(filters.date);
     conditions.push(`date::date = $${params.length}::date`);
   }
 
-  if (filters.classifiedProduct) {
-    if (filters.classifiedProduct === 'Unknown') {
-      conditions.push('ap.name IS NULL');
-    } else {
-      params.push(filters.classifiedProduct);
-      conditions.push(`ap.name = $${params.length}`);
-    }
-  }
-
-  if (filters.classifiedCountry) {
-    if (filters.classifiedCountry === 'Unknown') {
-      conditions.push('cc.country_code IS NULL');
-    } else {
-      params.push(filters.classifiedCountry);
-      conditions.push(`cc.country_code = $${params.length}`);
-    }
-  }
+  addDimensionFilter(conditions, params, filters.classifiedProduct, 'ap.name');
+  addDimensionFilter(conditions, params, filters.classifiedCountry, 'cc.country_code');
 
   const classificationJoin = needsClassificationJoin
     ? `LEFT JOIN app_campaign_classifications cc ON m.campaign_id = cc.campaign_id AND cc.is_ignored = false
@@ -231,6 +201,7 @@ async function handleMarketingDetails(
         trackingIdTuples,
         date: filters.date,
         network: filters.network || undefined,
+        excludeUpsellTags: true,
       },
       pagination
     );
@@ -279,5 +250,5 @@ async function handleMarketingDetails(
   }
 }
 
-// Export with admin authentication
-export const POST = withAuth(handleMarketingDetails);
+// Export with permission-based authentication
+export const POST = withPermission('analytics.marketing_report', 'can_view', handleMarketingDetails);

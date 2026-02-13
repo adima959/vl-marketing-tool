@@ -1,7 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import type { CRMUser } from '@/types/auth';
+import type { FeatureKey, PermissionAction } from '@/types/roles';
+import { UserRole } from '@/types/user';
 import { AppError, ErrorCode } from '@/lib/types/errors';
 import { registerErrorHandler, clearError } from '@/lib/api/errorHandler';
 import { ErrorPage } from '@/components/ErrorPage';
@@ -19,6 +21,7 @@ interface AuthContextType {
   authConfig: AuthConfig | null;
   authError: boolean;
   appError: AppError | null;
+  hasPermission: (featureKey: FeatureKey, action: PermissionAction) => boolean;
   checkAuth: () => Promise<void>;
   logout: () => Promise<void>;
   setAuthError: (hasError: boolean) => void;
@@ -74,6 +77,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return;
     }
 
+    // Save current page so we can return after CRM login
+    // (CRM may not forward returnUrl to the callback)
+    sessionStorage.setItem('auth_return_url', window.location.href);
+
     const returnUrl = encodeURIComponent(window.location.href);
     const redirectUrl = `${authConfig.loginUrl}?callback_url=${authConfig.callbackUrl}&returnUrl=${returnUrl}`;
 
@@ -121,7 +128,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
   }, []);
 
-  // Register global error handler for all error types
+  // Register global error handler (stores call triggerError for DB/network errors)
   useEffect(() => {
     registerErrorHandler(setAppError);
   }, []);
@@ -131,6 +138,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     checkAuth();
   }, []);
 
+  const hasPermission = useCallback(
+    (featureKey: FeatureKey, action: PermissionAction): boolean => {
+      if (!user) return false;
+      if (user.role === UserRole.ADMIN) return true;
+      const perm = user.permissions?.[featureKey];
+      if (!perm) return false;
+      return perm[action] ?? false;
+    },
+    [user]
+  );
+
   const value: AuthContextType = {
     user,
     isAuthenticated: !!user,
@@ -139,6 +157,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     authConfig,
     authError,
     appError,
+    hasPermission,
     checkAuth,
     logout,
     setAuthError,
@@ -147,7 +166,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
     refreshSession,
   };
 
-  // Render error page if auth error exists
+  // After successful auth, navigate back to the page the user was on before refresh
+  useEffect(() => {
+    if (!user) return;
+    const returnUrl = sessionStorage.getItem('auth_return_url');
+    if (!returnUrl) return;
+    sessionStorage.removeItem('auth_return_url');
+
+    // Only navigate if we're on a different page (e.g. landed on / after CRM callback)
+    if (returnUrl !== window.location.href) {
+      window.location.href = returnUrl;
+    }
+  }, [user]);
+
+  // Render error page if auth error exists (fallback if auto-redirect didn't fire)
   if (authError) {
     const error: AppError = {
       name: 'AuthError',
@@ -164,9 +196,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Render error page if any app error exists
   if (appError) {
+    const isAuth = appError.code === ErrorCode.AUTH_ERROR;
     return (
       <AuthContext.Provider value={value}>
-        <ErrorPage error={appError} onRetry={clearError} />
+        <ErrorPage error={appError} onRetry={isAuth ? refreshSession : clearError} />
       </AuthContext.Provider>
     );
   }

@@ -70,7 +70,7 @@ export function ProductDialog({ product, users, open, onClose, onSuccess }: Prod
 
       message.success(`Product ${isEdit ? 'updated' : 'created'} successfully`);
       form.resetFields();
-      onSuccess();
+      await onSuccess();
       onClose();
     } catch (error) {
       message.error(error instanceof Error ? error.message : `Failed to ${isEdit ? 'update' : 'create'} product`);
@@ -146,7 +146,7 @@ export function ProductDialog({ product, users, open, onClose, onSuccess }: Prod
             name="ownerId"
             rules={[]}
           >
-            <Select placeholder="Select owner">
+            <Select placeholder="Select owner" allowClear>
               {users.map((user) => (
                 <Select.Option key={user.id} value={user.id}>
                   {user.name}

@@ -8,11 +8,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/server/db';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { unstable_rethrow } from 'next/navigation';
 
-export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
+export const GET = withPermission('tools.marketing_tracker', 'can_view', async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const users = await executeQuery<{
       id: string;

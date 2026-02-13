@@ -1,5 +1,8 @@
-import type { AuthValidationResponse, CRMUser } from '@/types/auth';
+import type { AuthValidationResponse, CRMUser, PermissionMap } from '@/types/auth';
 import type { AppUser } from '@/types/user';
+import { UserRole } from '@/types/user';
+import { FEATURES } from '@/types/roles';
+import type { FeatureKey, PermissionAction } from '@/types/roles';
 import { Pool } from '@neondatabase/serverless';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -31,17 +34,60 @@ export async function saveSessionToDatabase(token: string, userId: string): Prom
 }
 
 /**
- * Validates token by checking database
- * Never calls CRM - tokens are validated once in callback, then stored in DB
+ * Builds a PermissionMap from raw permission rows returned by a JOIN query.
+ * Admin users get full access; users without role_id get view-only defaults.
+ */
+function buildPermissionMap(
+  role: UserRole,
+  permRows: Array<{ feature_key: string; can_view: boolean; can_create: boolean; can_edit: boolean; can_delete: boolean }>
+): PermissionMap {
+  // Admin bypass: full access to everything
+  if (role === UserRole.ADMIN) {
+    const map: PermissionMap = {};
+    for (const f of FEATURES) {
+      map[f.key] = { can_view: true, can_create: true, can_edit: true, can_delete: true };
+    }
+    return map;
+  }
+
+  // No permission rows (no role_id): default view-only
+  if (permRows.length === 0) {
+    const map: PermissionMap = {};
+    for (const f of FEATURES) {
+      map[f.key] = { can_view: true, can_create: false, can_edit: false, can_delete: false };
+    }
+    return map;
+  }
+
+  // Build map from DB rows
+  const map: PermissionMap = {};
+  for (const row of permRows) {
+    map[row.feature_key as FeatureKey] = {
+      can_view: row.can_view,
+      can_create: row.can_create,
+      can_edit: row.can_edit,
+      can_delete: row.can_delete,
+    };
+  }
+  return map;
+}
+
+/**
+ * Validates token by checking database.
+ * Never calls CRM - tokens are validated once in callback, then stored in DB.
+ * Returns user with resolved permissions from their assigned role.
  */
 export async function validateTokenFromDatabase(token: string): Promise<{ valid: boolean; user?: CRMUser }> {
   const client = await pool.connect();
   try {
-    const result = await client.query<AppUser>(
-      `SELECT * FROM app_users
-       WHERE active_token = $1
-         AND token_expires_at > NOW()
-         AND deleted_at IS NULL`,
+    const result = await client.query(
+      `SELECT u.external_id, u.email, u.name, u.role, u.role_id,
+              rp.feature_key, rp.can_view, rp.can_create, rp.can_edit, rp.can_delete
+       FROM app_users u
+       LEFT JOIN app_role_permissions rp ON rp.role_id = u.role_id
+       WHERE u.active_token = $1
+         AND u.token_expires_at > NOW()
+         AND u.deleted_at IS NULL`,
       [token]
     );
 
@@ -49,15 +95,18 @@ export async function validateTokenFromDatabase(token: string): Promise<{ valid:
       return { valid: false };
     }
 
-    const user = result.rows[0];
+    const first = result.rows[0];
+    const permRows = result.rows.filter((r: Record<string, unknown>) => r.feature_key != null);
+    const permissions = buildPermissionMap(first.role, permRows);
 
     return {
       valid: true,
       user: {
-        id: user.external_id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
+        id: first.external_id,
+        email: first.email,
+        name: first.name,
+        role: first.role,
+        permissions,
       },
     };
   } finally {
@@ -95,11 +144,15 @@ export async function validateTokenWithCRM(token: string): Promise<AuthValidatio
       return { success: false, error: 'Not authenticated' };
     }
 
-    // Get user from database to get current role
+    // Get user + permissions from database
     const client = await pool.connect();
     try {
-      const dbResult = await client.query<AppUser>(
-        'SELECT * FROM app_users WHERE external_id = $1 AND deleted_at IS NULL',
+      const dbResult = await client.query(
+        `SELECT u.external_id, u.email, u.name, u.role, u.role_id,
+                rp.feature_key, rp.can_view, rp.can_create, rp.can_edit, rp.can_delete
+         FROM app_users u
+         LEFT JOIN app_role_permissions rp ON rp.role_id = u.role_id
+         WHERE u.external_id = $1 AND u.deleted_at IS NULL`,
         [userData.id]
       );
 
@@ -107,15 +160,18 @@ export async function validateTokenWithCRM(token: string): Promise<AuthValidatio
         return { success: false, error: 'User not found or deleted' };
       }
 
-      const dbUser = dbResult.rows[0];
+      const first = dbResult.rows[0];
+      const permRows = dbResult.rows.filter((r: Record<string, unknown>) => r.feature_key != null);
+      const permissions = buildPermissionMap(first.role, permRows);
 
       return {
         success: true,
         user: {
-          id: dbUser.external_id,
-          email: dbUser.email,
-          name: dbUser.name,
-          role: dbUser.role,
+          id: first.external_id,
+          email: first.email,
+          name: first.name,
+          role: first.role,
+          permissions,
         },
       };
     } finally {

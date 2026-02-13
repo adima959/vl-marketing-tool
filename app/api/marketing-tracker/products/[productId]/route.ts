@@ -14,7 +14,7 @@ import {
   recordDeletion,
 } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { updateProductSchema } from '@/lib/schemas/marketingTracker';
 import { z } from 'zod';
@@ -27,7 +27,7 @@ interface RouteParams {
  * GET /api/marketing-tracker/products/[productId]
  * Get a single product with its angles
  */
-export const GET = withAuth(async (
+export const GET = withPermission('tools.marketing_tracker', 'can_view', async (
   request: NextRequest,
   user: AppUser,
   { params }: RouteParams
@@ -76,7 +76,7 @@ export const GET = withAuth(async (
  * PUT /api/marketing-tracker/products/[productId]
  * Update a product
  */
-export const PUT = withAuth(async (
+export const PUT = withPermission('admin.product_settings', 'can_edit', async (
   request: NextRequest,
   user: AppUser,
   { params }: RouteParams
@@ -100,23 +100,26 @@ export const PUT = withAuth(async (
     }
 
     // Update the product in the database
-    const updatedProductBase = await updateProduct(productId, {
+    // null = clear the field, undefined = don't touch it
+    await updateProduct(productId, {
       name: body.name,
-      sku: body.sku ?? undefined,
-      description: body.description ?? undefined,
-      notes: body.notes ?? undefined,
-      color: body.color ?? undefined,
+      sku: body.sku,
+      description: body.description,
+      notes: body.notes,
+      color: body.color,
       status: body.status,
-      ownerId: body.ownerId ?? undefined,
+      ownerId: body.ownerId,
     });
 
-    // Merge counts and owner from old product (they don't change on field updates)
-    const updatedProduct = {
-      ...updatedProductBase,
-      owner: oldProduct.owner,
-      angleCount: oldProduct.angleCount,
-      activeAngleCount: oldProduct.activeAngleCount,
-    };
+    // Re-fetch to get updated owner info (especially when ownerId changes)
+    const updatedProduct = await getProductById(productId);
+
+    if (!updatedProduct) {
+      return NextResponse.json(
+        { success: false, error: 'Failed to fetch updated product' },
+        { status: 500 }
+      );
+    }
 
     // Record update history (non-blocking for performance)
     recordUpdate(
@@ -152,7 +155,7 @@ export const PUT = withAuth(async (
  * PATCH /api/marketing-tracker/products/[productId]
  * Partially update product fields (name, description, notes)
  */
-export const PATCH = withAuth(async (
+export const PATCH = withPermission('admin.product_settings', 'can_edit', async (
   request: NextRequest,
   user: AppUser,
   { params }: RouteParams
@@ -245,7 +248,7 @@ export const PATCH = withAuth(async (
  * - { mode: "move", targetParentId: "..." } — move angles to another product, then delete
  * - No body / default — delete product only (backward compatible)
  */
-export const DELETE = withAuth(async (
+export const DELETE = withPermission('admin.product_settings', 'can_delete', async (
   request: NextRequest,
   user: AppUser,
   { params }: RouteParams

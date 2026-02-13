@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/server/db';
 import { maskErrorForClient } from '@/lib/types/errors';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { unstable_rethrow } from 'next/navigation';
 import { matchProductAndCountry } from '@/lib/utils/classificationMatching';
@@ -361,7 +361,7 @@ async function handleDelete(
   }
 }
 
-export const GET = withAuth(handleGet);
-export const POST = withAuth(handlePost);
-export const PUT = withAuth(handlePut);
-export const DELETE = withAuth(handleDelete);
+export const GET = withPermission('admin.data_maps', 'can_view', handleGet);
+export const POST = withPermission('admin.data_maps', 'can_create', handlePost);
+export const PUT = withPermission('admin.data_maps', 'can_edit', handlePut);
+export const DELETE = withPermission('admin.data_maps', 'can_delete', handleDelete);

@@ -30,6 +30,15 @@ interface ChartDataPoint extends TimeSeriesDataPoint {
   approvalRate: number | null;
 }
 
+/** Build the default set of visible metrics from config */
+function getDefaultVisibleMetrics(): Set<MetricKey> {
+  const defaults = new Set<MetricKey>();
+  for (const [key, config] of Object.entries(METRIC_CONFIG)) {
+    if (config.defaultVisible) defaults.add(key as MetricKey);
+  }
+  return defaults;
+}
+
 /**
  * Dashboard time series chart showing daily metrics for the last 14 days
  * Always shows 14 days regardless of table date range selection
@@ -38,15 +47,7 @@ export function DashboardTimeSeriesChart(): React.ReactElement {
   const [data, setData] = useState<TimeSeriesDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [visibleMetrics, setVisibleMetrics] = useState<Set<MetricKey>>(() => {
-    const defaults = new Set<MetricKey>();
-    Object.entries(METRIC_CONFIG).forEach(([key, config]) => {
-      if (config.defaultVisible) {
-        defaults.add(key as MetricKey);
-      }
-    });
-    return defaults;
-  });
+  const [visibleMetrics, setVisibleMetrics] = useState<Set<MetricKey>>(getDefaultVisibleMetrics);
 
   // Always use last 14 days - computed once on mount
   const dateRange = useMemo(() => getLast14DaysRange(), []);

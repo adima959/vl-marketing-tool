@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/server/db';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import { safeValidateRequest, savedViewCreateSchema } from '@/lib/schemas/api';
 import { maskErrorForClient } from '@/lib/types/errors';
 import type { AppUser } from '@/types/user';
@@ -201,5 +201,5 @@ async function handlePost(request: NextRequest, user: AppUser): Promise<NextResp
   }
 }
 
-export const GET = withAuth(handleGet);
-export const POST = withAuth(handlePost);
+export const GET = withPermission('shared.saved_views', 'can_view', handleGet);
+export const POST = withPermission('shared.saved_views', 'can_create', handlePost);

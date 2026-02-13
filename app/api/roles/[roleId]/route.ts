@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdmin } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import { getRoleWithPermissions, updateRole, deleteRole } from '@/lib/roles/db';
 import type { UpdateRoleRequest } from '@/types/roles';
 import { unstable_rethrow } from 'next/navigation';
@@ -17,7 +17,7 @@ type RouteParams = { params: Promise<{ roleId: string }> };
  * GET /api/roles/[roleId]
  * Returns role with all its permissions
  */
-export const GET = withAdmin(async (
+export const GET = withPermission('admin.role_permissions', 'can_view', async (
   _request: NextRequest,
   _user,
   ...[{ params }]: [RouteParams]
@@ -48,7 +48,7 @@ export const GET = withAdmin(async (
  * PATCH /api/roles/[roleId]
  * Updates role name and/or description. Blocks system roles.
  */
-export const PATCH = withAdmin(async (
+export const PATCH = withPermission('admin.role_permissions', 'can_edit', async (
   request: NextRequest,
   _user,
   ...[{ params }]: [RouteParams]
@@ -87,7 +87,7 @@ export const PATCH = withAdmin(async (
  * DELETE /api/roles/[roleId]
  * Soft deletes a role. Blocks system roles and roles with assigned users.
  */
-export const DELETE = withAdmin(async (
+export const DELETE = withPermission('admin.role_permissions', 'can_delete', async (
   _request: NextRequest,
   _user,
   ...[{ params }]: [RouteParams]

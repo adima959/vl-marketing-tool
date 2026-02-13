@@ -4,11 +4,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { deletePipelineAngle, getAngleMessageCount } from '@/lib/marketing-pipeline/db';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { unstable_rethrow } from 'next/navigation';
 
-export const DELETE = withAuth(async (
+export const DELETE = withPermission('tools.marketing_pipeline', 'can_delete', async (
   _request: NextRequest,
   user: AppUser,
   { params }: { params: Promise<{ angleId: string }> },

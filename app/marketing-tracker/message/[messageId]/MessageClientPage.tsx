@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { App, Spin, Empty, Button, Tabs } from 'antd';
 import { PlusOutlined, LinkOutlined } from '@ant-design/icons';
 import { Target, ChevronRight, Globe, ExternalLink, MessageSquare, Video } from 'lucide-react';
@@ -23,6 +23,24 @@ import { CreativeDetailModal } from './CreativeDetailModal';
 import { MessageHeaderCard } from './MessageHeaderCard';
 import styles from './page.module.css';
 
+type ModalState =
+  | null
+  | { type: 'asset-detail'; asset: Asset }
+  | { type: 'creative-detail'; creative: Creative }
+  | { type: 'asset-create' }
+  | { type: 'creative-create' }
+  | { type: 'asset-edit'; asset: Asset }
+  | { type: 'creative-edit'; creative: Creative };
+
+function formatDate(dateString?: string): string {
+  if (!dateString) return '-';
+  return new Date(dateString).toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
 interface MessageClientPageProps {
   messageId: string;
 }
@@ -41,14 +59,7 @@ export default function MessageClientPage({ messageId }: MessageClientPageProps)
   } = useMarketingTrackerStore();
   const { message: antMessage, modal } = App.useApp();
 
-  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
-  const [selectedCreative, setSelectedCreative] = useState<Creative | null>(null);
-  const [assetDetailOpen, setAssetDetailOpen] = useState(false);
-  const [creativeDetailOpen, setCreativeDetailOpen] = useState(false);
-  const [assetCreateOpen, setAssetCreateOpen] = useState(false);
-  const [creativeCreateOpen, setCreativeCreateOpen] = useState(false);
-  const [assetEditOpen, setAssetEditOpen] = useState(false);
-  const [creativeEditOpen, setCreativeEditOpen] = useState(false);
+  const [activeModal, setActiveModal] = useState<ModalState>(null);
   const [activeGeo, setActiveGeo] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<string>('assets');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -72,7 +83,6 @@ export default function MessageClientPage({ messageId }: MessageClientPageProps)
   const handleFieldChange = useCallback((field: string, value: string | string[]) => {
     if (!messageId) return;
 
-    // Clear existing timer for this field
     if (debounceTimers.current[field]) {
       clearTimeout(debounceTimers.current[field]);
     }
@@ -86,142 +96,61 @@ export default function MessageClientPage({ messageId }: MessageClientPageProps)
     }, 600);
   }, [messageId, updateMessageField]);
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  };
-
-  const openAssetDetail = (asset: Asset) => {
-    setSelectedAsset(asset);
-    setAssetDetailOpen(true);
-  };
-
-  const closeAssetDetail = () => {
-    setAssetDetailOpen(false);
-    setSelectedAsset(null);
-  };
-
-  const openCreativeDetail = (creative: Creative) => {
-    setSelectedCreative(creative);
-    setCreativeDetailOpen(true);
-  };
-
-  const closeCreativeDetail = () => {
-    setCreativeDetailOpen(false);
-    setSelectedCreative(null);
-  };
+  const closeModal = () => setActiveModal(null);
 
   const handleCreateSuccess = () => {
     if (messageId) loadMessage(messageId);
   };
 
-  const handleEditAsset = () => {
-    setAssetDetailOpen(false);
-    setAssetEditOpen(true);
-  };
-
-  const handleEditCreative = () => {
-    setCreativeDetailOpen(false);
-    setCreativeEditOpen(true);
-  };
-
-  const handleDeleteAsset = async (assetId: string) => {
+  const handleDelete = async (type: 'asset' | 'creative', id: string) => {
     try {
-      const response = await fetch(`/api/marketing-tracker/assets/${assetId}`, { method: 'DELETE' });
+      const response = await fetch(`/api/marketing-tracker/${type}s/${id}`, { method: 'DELETE' });
       const data = await response.json();
-      if (!data.success) throw new Error(data.error || 'Failed to delete asset');
-      antMessage.success('Asset deleted');
-      closeAssetDetail();
+      if (!data.success) throw new Error(data.error || `Failed to delete ${type}`);
+      antMessage.success(`${type.charAt(0).toUpperCase() + type.slice(1)} deleted`);
+      closeModal();
       if (messageId) loadMessage(messageId);
     } catch (error) {
-      antMessage.error(error instanceof Error ? error.message : 'Failed to delete asset');
+      antMessage.error(error instanceof Error ? error.message : `Failed to delete ${type}`);
     }
   };
 
-  const handleDeleteCreative = async (creativeId: string) => {
-    try {
-      const response = await fetch(`/api/marketing-tracker/creatives/${creativeId}`, { method: 'DELETE' });
-      const data = await response.json();
-      if (!data.success) throw new Error(data.error || 'Failed to delete creative');
-      antMessage.success('Creative deleted');
-      closeCreativeDetail();
-      if (messageId) loadMessage(messageId);
-    } catch (error) {
-      antMessage.error(error instanceof Error ? error.message : 'Failed to delete creative');
-    }
-  };
+  // Derived data: filter + group assets/creatives by geo, type, and format
+  const { filteredAssets, filteredCreatives, geoTabs, assetsByType, creativesByFormat } = useMemo(() => {
+    const fAssets = activeGeo === 'all' ? assets : assets.filter(a => a.geo === activeGeo);
+    const fCreatives = activeGeo === 'all' ? creatives : creatives.filter(c => c.geo === activeGeo);
 
-  // Filter assets and creatives by geo
-  const filteredAssets = activeGeo === 'all' ? assets : assets.filter((a) => a.geo === activeGeo);
+    // Geo sidebar counts
+    const totalByGeo: Record<string, number> = {};
+    for (const a of assets) totalByGeo[a.geo] = (totalByGeo[a.geo] || 0) + 1;
+    for (const c of creatives) totalByGeo[c.geo] = (totalByGeo[c.geo] || 0) + 1;
 
-  const filteredCreatives = activeGeo === 'all' ? creatives : creatives.filter((c) => c.geo === activeGeo);
+    const tabs = [
+      { key: 'all', label: 'All', flag: null as string | null, count: assets.length + creatives.length },
+      ...Object.entries(GEO_CONFIG)
+        .filter(([geo]) => (totalByGeo[geo] || 0) > 0)
+        .map(([geo, config]) => ({
+          key: geo,
+          label: config.label,
+          flag: config.flag as string | null,
+          count: totalByGeo[geo] || 0,
+        })),
+    ];
 
-  // Group assets by geo for sidebar counts
-  const assetsByGeo = assets.reduce(
-    (acc, asset) => {
-      if (!acc[asset.geo]) acc[asset.geo] = [];
-      acc[asset.geo].push(asset);
-      return acc;
-    },
-    {} as Record<Geography, Asset[]>
-  );
+    const byType: Record<string, Asset[]> = {};
+    for (const a of fAssets) (byType[a.type] ??= []).push(a);
 
-  const creativesByGeo = creatives.reduce(
-    (acc, creative) => {
-      if (!acc[creative.geo]) acc[creative.geo] = [];
-      acc[creative.geo].push(creative);
-      return acc;
-    },
-    {} as Record<Geography, Creative[]>
-  );
+    const byFormat: Record<string, Creative[]> = {};
+    for (const c of fCreatives) (byFormat[c.format] ??= []).push(c);
 
-  // Get total items per geo
-  const totalByGeo = Object.keys(GEO_CONFIG).reduce(
-    (acc, geo) => {
-      const g = geo as Geography;
-      acc[g] = (assetsByGeo[g]?.length || 0) + (creativesByGeo[g]?.length || 0);
-      return acc;
-    },
-    {} as Record<Geography, number>
-  );
+    return { filteredAssets: fAssets, filteredCreatives: fCreatives, geoTabs: tabs, assetsByType: byType, creativesByFormat: byFormat };
+  }, [assets, creatives, activeGeo]);
 
-  // Group filtered assets by type
-  const assetsByType = filteredAssets.reduce(
-    (acc, asset) => {
-      if (!acc[asset.type]) acc[asset.type] = [];
-      acc[asset.type].push(asset);
-      return acc;
-    },
-    {} as Record<AssetType, Asset[]>
-  );
-
-  // Group filtered creatives by format
-  const creativesByFormat = filteredCreatives.reduce(
-    (acc, creative) => {
-      if (!acc[creative.format]) acc[creative.format] = [];
-      acc[creative.format].push(creative);
-      return acc;
-    },
-    {} as Record<CreativeFormat, Creative[]>
-  );
-
-  // Get geo tabs with counts
-  const totalItems = assets.length + creatives.length;
-  const geoTabs = [
-    { key: 'all', label: 'All', flag: null as string | null, count: totalItems },
-    ...Object.entries(GEO_CONFIG)
-      .filter(([geo]) => totalByGeo[geo as Geography] > 0)
-      .map(([geo, config]) => ({
-        key: geo,
-        label: config.label,
-        flag: config.flag as string | null,
-        count: totalByGeo[geo as Geography],
-      })),
-  ];
+  // Derived from modal state
+  const selectedAsset = activeModal?.type === 'asset-detail' || activeModal?.type === 'asset-edit'
+    ? activeModal.asset : null;
+  const selectedCreative = activeModal?.type === 'creative-detail' || activeModal?.type === 'creative-edit'
+    ? activeModal.creative : null;
 
   if (isLoading && !currentMessage) {
     return (
@@ -319,7 +248,7 @@ export default function MessageClientPage({ messageId }: MessageClientPageProps)
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
-                onClick={() => activeTab === 'assets' ? setAssetCreateOpen(true) : setCreativeCreateOpen(true)}
+                onClick={() => setActiveModal(activeTab === 'assets' ? { type: 'asset-create' } : { type: 'creative-create' })}
               >
                 {activeTab === 'assets' ? 'Add Asset' : 'Add Creative'}
               </Button>
@@ -339,7 +268,7 @@ export default function MessageClientPage({ messageId }: MessageClientPageProps)
                     </div>
                     <div className={styles.assetTypeItems}>
                       {typeAssets.map((asset) => (
-                        <div key={asset.id} className={styles.assetItem} onClick={() => openAssetDetail(asset)}>
+                        <div key={asset.id} className={styles.assetItem} onClick={() => setActiveModal({ type: 'asset-detail', asset })}>
                           <LinkOutlined className={styles.assetIcon} />
                           <div className={styles.assetInfo}>
                             <span className={styles.assetName}>
@@ -380,7 +309,7 @@ export default function MessageClientPage({ messageId }: MessageClientPageProps)
                   </div>
                   <div className={styles.assetTypeItems}>
                     {formatCreatives.map((creative) => (
-                      <div key={creative.id} className={styles.assetItem} onClick={() => openCreativeDetail(creative)}>
+                      <div key={creative.id} className={styles.assetItem} onClick={() => setActiveModal({ type: 'creative-detail', creative })}>
                         <Video size={16} className={styles.assetIcon} />
                         <div className={styles.assetInfo}>
                           <span className={styles.assetName}>
@@ -412,24 +341,24 @@ export default function MessageClientPage({ messageId }: MessageClientPageProps)
 
       {/* Asset Create Modal */}
       <AssetModal
-        open={assetCreateOpen}
-        onClose={() => setAssetCreateOpen(false)}
+        open={activeModal?.type === 'asset-create'}
+        onClose={closeModal}
         onSuccess={handleCreateSuccess}
         messageId={messageId}
       />
 
       {/* Creative Create Modal */}
       <CreativeModal
-        open={creativeCreateOpen}
-        onClose={() => setCreativeCreateOpen(false)}
+        open={activeModal?.type === 'creative-create'}
+        onClose={closeModal}
         onSuccess={handleCreateSuccess}
         messageId={messageId}
       />
 
       {/* Asset Edit Modal */}
       <AssetModal
-        open={assetEditOpen}
-        onClose={() => { setAssetEditOpen(false); setSelectedAsset(null); }}
+        open={activeModal?.type === 'asset-edit'}
+        onClose={closeModal}
         onSuccess={handleCreateSuccess}
         messageId={messageId}
         asset={selectedAsset}
@@ -437,8 +366,8 @@ export default function MessageClientPage({ messageId }: MessageClientPageProps)
 
       {/* Creative Edit Modal */}
       <CreativeModal
-        open={creativeEditOpen}
-        onClose={() => { setCreativeEditOpen(false); setSelectedCreative(null); }}
+        open={activeModal?.type === 'creative-edit'}
+        onClose={closeModal}
         onSuccess={handleCreateSuccess}
         messageId={messageId}
         creative={selectedCreative}
@@ -446,20 +375,20 @@ export default function MessageClientPage({ messageId }: MessageClientPageProps)
 
       <AssetDetailModal
         asset={selectedAsset}
-        open={assetDetailOpen}
-        onClose={closeAssetDetail}
-        onEdit={handleEditAsset}
-        onDelete={handleDeleteAsset}
+        open={activeModal?.type === 'asset-detail'}
+        onClose={closeModal}
+        onEdit={() => activeModal?.type === 'asset-detail' && setActiveModal({ type: 'asset-edit', asset: activeModal.asset })}
+        onDelete={(id: string) => handleDelete('asset', id)}
         formatDate={formatDate}
         modal={modal}
       />
 
       <CreativeDetailModal
         creative={selectedCreative}
-        open={creativeDetailOpen}
-        onClose={closeCreativeDetail}
-        onEdit={handleEditCreative}
-        onDelete={handleDeleteCreative}
+        open={activeModal?.type === 'creative-detail'}
+        onClose={closeModal}
+        onEdit={() => activeModal?.type === 'creative-detail' && setActiveModal({ type: 'creative-edit', creative: activeModal.creative })}
+        onDelete={(id: string) => handleDelete('creative', id)}
         formatDate={formatDate}
         modal={modal}
       />

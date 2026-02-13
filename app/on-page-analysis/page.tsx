@@ -5,21 +5,22 @@ import { Button } from 'antd';
 import { SettingOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { OnPageFilterToolbar } from '@/components/on-page-analysis/OnPageFilterToolbar';
-import { OnPageDataTable } from '@/components/on-page-analysis/OnPageDataTable';
-import { OnPageColumnSettingsModal } from '@/components/on-page-analysis/OnPageColumnSettingsModal';
+import { SessionFilterToolbar } from '@/components/session-analysis/SessionFilterToolbar';
+import { SessionDataTable } from '@/components/session-analysis/SessionDataTable';
+import { SessionColumnSettingsModal } from '@/components/session-analysis/SessionColumnSettingsModal';
 import { SavedViewsDropdown } from '@/components/saved-views/SavedViewsDropdown';
-import { useOnPageUrlSync } from '@/hooks/useOnPageUrlSync';
+import { useSessionUrlSync } from '@/hooks/useSessionUrlSync';
 import { useApplyViewFromUrl } from '@/hooks/useApplyViewFromUrl';
 import { useReportPageSetup } from '@/hooks/useReportPageSetup';
 import { useSidebar } from '@/components/ui/sidebar';
-import { useOnPageStore } from '@/stores/onPageStore';
-import { useOnPageColumnStore } from '@/stores/onPageColumnStore';
-import { ON_PAGE_METRIC_COLUMNS } from '@/config/onPageColumns';
+import { useSessionStore } from '@/stores/sessionStore';
+import { useSessionColumnStore } from '@/stores/sessionColumnStore';
+import { SESSION_METRIC_COLUMNS } from '@/config/sessionColumns';
 
 import { TableInfoBanner } from '@/components/ui/TableInfoBanner';
 import { fetchUnclassifiedCount } from '@/lib/api/urlClassificationsClient';
 import { Eye } from 'lucide-react';
+import badgeStyles from '@/styles/components/badge.module.css';
 import pageStyles from '@/components/dashboard/dashboard.module.css';
 import type { ResolvedViewParams } from '@/types/savedViews';
 
@@ -28,7 +29,10 @@ function OnPageAnalysisContent() {
   const [unclassifiedCount, setUnclassifiedCount] = useState<number | null>(null);
   const { setOpen } = useSidebar();
   const hasCollapsed = useRef(false);
-  const { hasUnsavedChanges, resetFilters, dateRange, filters, setFilters } = useOnPageStore();
+
+  const { hasUnsavedChanges, resetFilters, dateRange, filters, setFilters } = useSessionStore();
+
+  useSessionUrlSync();
 
   // Fetch unclassified URL count for badge
   useEffect(() => {
@@ -37,19 +41,19 @@ function OnPageAnalysisContent() {
 
   const onApplyView = useCallback((params: ResolvedViewParams) => {
     if (params.visibleColumns) {
-      useOnPageColumnStore.getState().setVisibleColumns(params.visibleColumns);
+      useSessionColumnStore.getState().setVisibleColumns(params.visibleColumns);
     }
   }, []);
 
   const getExtraState = useCallback(() => ({
-    visibleColumns: useOnPageColumnStore.getState().visibleColumns,
-    totalColumns: ON_PAGE_METRIC_COLUMNS.length,
+    visibleColumns: useSessionColumnStore.getState().visibleColumns,
+    totalColumns: SESSION_METRIC_COLUMNS.length,
   }), []);
 
   const { includesToday, handleApplyView, getCurrentState } = useReportPageSetup({
     dateRange,
-    getStoreState: useOnPageStore.getState,
-    setStoreState: useOnPageStore.setState,
+    getStoreState: useSessionStore.getState,
+    setStoreState: useSessionStore.setState,
     onApplyView,
     getExtraState,
   });
@@ -61,9 +65,6 @@ function OnPageAnalysisContent() {
       hasCollapsed.current = true;
     }
   }, [setOpen]);
-
-  // Sync store state with URL parameters and auto-load data
-  useOnPageUrlSync();
 
   useApplyViewFromUrl(handleApplyView);
 
@@ -85,7 +86,7 @@ function OnPageAnalysisContent() {
         >
           URL Map
           {unclassifiedCount != null && unclassifiedCount > 0 && (
-            <span className={pageStyles.countBadge}>
+            <span className={badgeStyles.countBadge}>
               {unclassifiedCount}
             </span>
           )}
@@ -118,15 +119,14 @@ function OnPageAnalysisContent() {
           }
         />
         <div className={pageStyles.content}>
-          <OnPageFilterToolbar filters={filters} onFiltersChange={setFilters} />
+          <SessionFilterToolbar filters={filters} onFiltersChange={setFilters} />
           <TableInfoBanner messages={[
             ...(includesToday ? ["Today's data may be incomplete"] : []),
-            'Rows with 1 or fewer page views are hidden',
           ]} />
-          <OnPageDataTable />
+          <SessionDataTable />
         </div>
       </div>
-      <OnPageColumnSettingsModal
+      <SessionColumnSettingsModal
         open={columnSettingsOpen}
         onClose={() => setColumnSettingsOpen(false)}
       />

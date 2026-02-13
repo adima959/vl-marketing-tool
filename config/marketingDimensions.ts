@@ -22,7 +22,7 @@ export const MARKETING_DIMENSION_GROUPS: DimensionGroupConfig[] = [
     label: 'Classification',
     dimensions: [
       { id: 'classifiedProduct', label: 'Product', group: 'classification' },
-      { id: 'classifiedCountry', label: 'Market', group: 'classification' },
+      { id: 'classifiedCountry', label: 'Country', group: 'classification' },
     ],
   },
 ];

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from '@neondatabase/serverless';
-import { withAdmin, getUserByExternalId, getUserByEmail } from '@/lib/rbac';
+import { withPermission, getUserByExternalId, getUserByEmail } from '@/lib/rbac';
 import { UserRole, type CreateUserDTO } from '@/types/user';
 import { randomUUID } from 'crypto';
 import { timingSafeCompare } from '@/lib/security/timing-safe-compare';
@@ -13,12 +13,12 @@ const USER_MANAGEMENT_API_KEY = process.env.USER_MANAGEMENT_API_KEY || '';
  * GET /api/users
  * Lists all users (admin only)
  */
-export const GET = withAdmin(async (request, user) => {
+export const GET = withPermission('admin.user_management', 'can_view', async (request, user) => {
   const client = await pool.connect();
   
   try {
     const result = await client.query(
-      `SELECT id, name, email, role, role_id, is_product_owner, created_at, updated_at
+      `SELECT id, external_id, name, email, role, role_id, is_product_owner, created_at, updated_at
        FROM app_users
        WHERE deleted_at IS NULL
        ORDER BY created_at DESC`

@@ -8,7 +8,7 @@ getCreativesByMessageId,
 } from '@/lib/marketing-tracker/db';
 import { recordCreation } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { createCreativeSchema } from '@/lib/schemas/marketingTracker';
 import { z } from 'zod';
@@ -17,7 +17,7 @@ import { z } from 'zod';
  * GET /api/marketing-tracker/creatives
  * List creatives, filtered by messageId (required) and optionally by geo/format
  */
-export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
+export const GET = withPermission('tools.marketing_tracker', 'can_view', async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const { searchParams } = new URL(request.url);
     const messageId = searchParams.get('messageId');
@@ -61,7 +61,7 @@ export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise
  * POST /api/marketing-tracker/creatives
  * Create a new creative
  */
-export const POST = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
+export const POST = withPermission('tools.marketing_tracker', 'can_create', async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const rawBody = await request.json();
     const changedBy = await getChangedBy(request);

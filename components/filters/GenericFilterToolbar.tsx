@@ -168,22 +168,28 @@ export function GenericFilterToolbar({
 
         {/* Right: Date range and controls */}
         <div className={rightClass}>
-          {customDatePicker || <DateRangePicker dateRange={dateRange} setDateRange={setDateRange} />}
+          <div className={styles.rightTopRow}>
+            {customDatePicker || <DateRangePicker dateRange={dateRange} setDateRange={setDateRange} />}
 
-          <div className={styles.loadButtonWrapper}>
-            <LoadDataButton
-              isLoading={isLoading}
-              hasLoadedOnce={hasLoadedOnce}
-              hasUnsavedChanges={hasUnsavedChanges}
-              onClick={loadData}
-              size={styleModule ? 'middle' : undefined}
-            />
-            {showUnsavedDot && hasUnsavedChanges && (
-              <span className={styles.unsavedDot} title="Unsaved filter changes" />
-            )}
+            <div className={styles.loadButtonWrapper}>
+              <LoadDataButton
+                isLoading={isLoading}
+                hasLoadedOnce={hasLoadedOnce}
+                hasUnsavedChanges={hasUnsavedChanges}
+                onClick={loadData}
+                size={styleModule ? 'middle' : undefined}
+              />
+              {showUnsavedDot && hasUnsavedChanges && (
+                <span className={styles.unsavedDot} title="Unsaved filter changes" />
+              )}
+            </div>
           </div>
 
-          {additionalControls}
+          {additionalControls && (
+            <div className={styles.additionalControls}>
+              {additionalControls}
+            </div>
+          )}
         </div>
       </div>
     </div>

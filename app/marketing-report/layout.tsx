@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Marketing Report | Vitaliv Analytics',
+  title: 'Marketing Report',
   description: 'Marketing campaign performance and analytics',
 };
 

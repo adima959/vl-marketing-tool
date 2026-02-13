@@ -28,6 +28,76 @@ import compactStyles from './ValidationRateDataTable.module.css';
  * Accepts a store hook as prop for use across different rate types.
  */
 
+/** Build the fixed-left attribute column with tree expand/collapse */
+function buildAttributeColumn(
+  expandedRowKeys: string[],
+  setExpandedRowKeys: (keys: string[]) => void,
+  loadChildData: (key: string, value: string, depth: number) => Promise<void>,
+  onError: (msg: string) => void,
+): ColumnsType<ValidationRateRow>[0] {
+  return {
+    title: 'Attributes',
+    dataIndex: 'attribute',
+    key: 'attribute',
+    fixed: 'left',
+    width: 250,
+    render: (value: string, record: ValidationRateRow) => {
+      const indent = record.depth * 20;
+      const isExpanded = expandedRowKeys.includes(record.key);
+
+      if (isSkeletonRow(record)) {
+        return (
+          <div className={styles.attributeCell} style={{ paddingLeft: `${indent}px` }}>
+            <span className={styles.expandSpacer} />
+            <div className={styles.skeletonText} />
+          </div>
+        );
+      }
+
+      return (
+        <div className={styles.attributeCell} style={{ paddingLeft: `${indent}px` }}>
+          {record.hasChildren ? (
+            <span
+              className={styles.expandIcon}
+              onClick={async (e) => {
+                e.stopPropagation();
+                if (isExpanded) {
+                  setExpandedRowKeys(expandedRowKeys.filter((k) => k !== record.key));
+                } else {
+                  if (!expandedRowKeys.includes(record.key)) {
+                    setExpandedRowKeys([...expandedRowKeys, record.key]);
+                  }
+                  if (!record.children || record.children.length === 0) {
+                    try {
+                      await loadChildData(record.key, record.attribute, record.depth);
+                    } catch {
+                      setExpandedRowKeys(expandedRowKeys.filter((k) => k !== record.key));
+                      onError('Failed to load child data. Please try again.');
+                    }
+                  }
+                }
+              }}
+            >
+              {isExpanded ? '▼' : '▶'}
+            </span>
+          ) : (
+            <span className={styles.expandSpacer} />
+          )}
+          <Tooltip title={value} placement="topLeft" mouseEnterDelay={0.5}>
+            <span
+              className={`${styles.attributeText} ${
+                record.depth === 0 ? styles.attributeTextBold : ''
+              }`}
+            >
+              {value}
+            </span>
+          </Tooltip>
+        </div>
+      );
+    },
+  };
+}
+
 interface ValidationRateDataTableProps {
   useStore: UseBoundStore<StoreApi<ValidationRateStore>>;
   promptTitle?: string;
@@ -133,69 +203,7 @@ export function ValidationRateDataTable({
 
   // Build columns from period columns
   const columns: ColumnsType<ValidationRateRow> = useMemo(() => {
-    // Attribute column (fixed left)
-    const attributeColumn: ColumnsType<ValidationRateRow>[0] = {
-      title: 'Attributes',
-      dataIndex: 'attribute',
-      key: 'attribute',
-      fixed: 'left',
-      width: 250,
-      render: (value: string, record: ValidationRateRow) => {
-        const indent = record.depth * 20;
-        const isExpanded = expandedRowKeys.includes(record.key);
-
-        // Render skeleton row
-        if (isSkeletonRow(record)) {
-          return (
-            <div className={styles.attributeCell} style={{ paddingLeft: `${indent}px` }}>
-              <span className={styles.expandSpacer} />
-              <div className={styles.skeletonText} />
-            </div>
-          );
-        }
-
-        return (
-          <div className={styles.attributeCell} style={{ paddingLeft: `${indent}px` }}>
-            {record.hasChildren ? (
-              <span
-                className={styles.expandIcon}
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  if (isExpanded) {
-                    setExpandedRowKeys(expandedRowKeys.filter((k) => k !== record.key));
-                  } else {
-                    if (!expandedRowKeys.includes(record.key)) {
-                      setExpandedRowKeys([...expandedRowKeys, record.key]);
-                    }
-                    if (!record.children || record.children.length === 0) {
-                      try {
-                        await loadChildData(record.key, record.attribute, record.depth);
-                      } catch {
-                        setExpandedRowKeys(expandedRowKeys.filter((k) => k !== record.key));
-                        toast.error('Failed to load child data. Please try again.');
-                      }
-                    }
-                  }
-                }}
-              >
-                {isExpanded ? '▼' : '▶'}
-              </span>
-            ) : (
-              <span className={styles.expandSpacer} />
-            )}
-            <Tooltip title={value} placement="topLeft" mouseEnterDelay={0.5}>
-              <span
-                className={`${styles.attributeText} ${
-                  record.depth === 0 ? styles.attributeTextBold : ''
-                }`}
-              >
-                {value}
-              </span>
-            </Tooltip>
-          </div>
-        );
-      },
-    };
+    const attributeColumn = buildAttributeColumn(expandedRowKeys, setExpandedRowKeys, loadChildData, toast.error);
 
     // Period columns (dynamic based on date range and time period selection)
     const periodCols = periodColumns.map((period) => ({

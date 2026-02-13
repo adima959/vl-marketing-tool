@@ -85,6 +85,86 @@ function deserializeFilters(raw: string | null): TableFilter[] {
   }
 }
 
+/**
+ * Pure function: read URL state + config → store updates to apply on init.
+ * Returns null if the URL contains a viewId (saved-view will handle init).
+ */
+function buildInitialStateFromUrl<TRow extends BaseReportRow>(
+  urlState: Record<string, any>,
+  config: Pick<UseGenericUrlSyncConfig<TRow>, 'skipDimensions' | 'skipFilters' | 'timePeriod' | 'dimensionValidation'>
+): { storeUpdates: Partial<ReportState<TRow>>; savedExpandedKeys: string[] } | null {
+  if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('viewId')) {
+    return null;
+  }
+
+  const storeUpdates: Partial<ReportState<TRow>> = {};
+
+  if (urlState.start && urlState.end) {
+    storeUpdates.dateRange = { start: urlState.start, end: urlState.end };
+  }
+
+  if (!config.skipDimensions && urlState.dimensions?.length > 0) {
+    if (config.dimensionValidation) {
+      const valid = urlState.dimensions.filter((d: string) => d in config.dimensionValidation!.validKeys);
+      storeUpdates.dimensions = valid.length > 0 ? valid : config.dimensionValidation.defaults;
+    } else {
+      storeUpdates.dimensions = urlState.dimensions;
+    }
+  }
+
+  if (!config.skipFilters && urlState.filters) {
+    const parsed = deserializeFilters(urlState.filters);
+    if (parsed.length > 0) {
+      (storeUpdates as any).filters = parsed;
+    }
+  }
+
+  if (config.timePeriod && urlState[config.timePeriod.urlKey]) {
+    (storeUpdates as any)[config.timePeriod.storeKey] = urlState[config.timePeriod.urlKey];
+  }
+
+  const savedExpandedKeys = urlState.expanded?.length > 0
+    ? Array.from(new Set<string>(urlState.expanded))
+    : [];
+
+  return { storeUpdates, savedExpandedKeys };
+}
+
+/**
+ * Pure function: store state + config → URL update object.
+ */
+function buildUrlUpdateFromState<TRow extends BaseReportRow>(
+  state: {
+    dateRange: { start: Date; end: Date };
+    dimensions: string[];
+    filters: TableFilter[];
+    expandedRowKeys: string[];
+    sortColumn: string | null;
+    sortDirection: 'ascend' | 'descend' | null;
+    timePeriodValue?: string;
+  },
+  config: Pick<UseGenericUrlSyncConfig<TRow>, 'skipDimensions' | 'skipFilters' | 'timePeriod' | 'defaultSortColumn'>
+): Record<string, any> {
+  const update: Record<string, any> = {
+    start: state.dateRange.start,
+    end: state.dateRange.end,
+    dimensions: config.skipDimensions ? null : (state.dimensions.length > 0 ? state.dimensions : null),
+    expanded: state.expandedRowKeys.length > 0 ? Array.from(new Set(state.expandedRowKeys)) : null,
+    sortBy: state.sortColumn || config.defaultSortColumn || null,
+    sortDir: state.sortDirection || 'descend',
+  };
+
+  if (!config.skipFilters) {
+    update.filters = serializeFilters(state.filters);
+  }
+
+  if (config.timePeriod && state.timePeriodValue !== undefined) {
+    update[config.timePeriod.urlKey] = state.timePeriodValue;
+  }
+
+  return update;
+}
+
 export function useGenericUrlSync<TRow extends BaseReportRow>({
   useStore,
   fetchData,
@@ -163,59 +243,23 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
   // Initialize state from URL on mount
   useEffect(() => {
     if (!isMounted || isInitialized.current) return;
-
-    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('viewId')) {
-      isInitialized.current = true;
-      return;
-    }
-
     isInitialized.current = true;
+
+    const result = buildInitialStateFromUrl<TRow>(urlState, {
+      skipDimensions, skipFilters, timePeriod: timePeriodConfig, dimensionValidation,
+    });
+    if (!result) return; // viewId present — saved-view handles init
+
     isUpdatingFromUrl.current = true;
-
     try {
-      if (urlState.start && urlState.end) {
-        useStore.setState({
-          dateRange: { start: urlState.start, end: urlState.end }
-        });
-      }
-
-      if (!skipDimensions && urlState.dimensions && urlState.dimensions.length > 0) {
-        if (dimensionValidation) {
-          const validDimensions = urlState.dimensions.filter(
-            (d: string) => d in dimensionValidation.validKeys
-          );
-          useStore.setState({
-            dimensions: validDimensions.length > 0 ? validDimensions : dimensionValidation.defaults,
-          });
-        } else {
-          useStore.setState({ dimensions: urlState.dimensions });
-        }
-      }
-
-      if (!skipFilters && (urlState as any).filters) {
-        const parsedFilters = deserializeFilters((urlState as any).filters);
-        if (parsedFilters.length > 0) {
-          useStore.setState({ filters: parsedFilters } as Partial<ReportState<TRow>>);
-        }
-      }
-
-      if (timePeriodConfig && (urlState as any)[timePeriodConfig.urlKey]) {
-        useStore.setState({
-          [timePeriodConfig.storeKey]: (urlState as any)[timePeriodConfig.urlKey],
-        } as Partial<ReportState<TRow>>);
-      }
-
-      if (urlState.expanded && urlState.expanded.length > 0) {
-        savedExpandedKeys.current = Array.from(new Set(urlState.expanded));
-      }
+      useStore.setState(result.storeUpdates);
+      savedExpandedKeys.current = result.savedExpandedKeys;
 
       if (urlState.sortBy) {
         setSort(urlState.sortBy, urlState.sortDir || 'descend');
       }
 
-      queueMicrotask(() => {
-        loadData();
-      });
+      queueMicrotask(() => { loadData(); });
     } finally {
       isUpdatingFromUrl.current = false;
     }
@@ -261,24 +305,10 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
   useEffect(() => {
     if (!isMounted || !isInitialized.current || isUpdatingFromUrl.current) return;
 
-    const urlUpdate: Record<string, any> = {
-      start: dateRange.start,
-      end: dateRange.end,
-      dimensions: skipDimensions ? null : (dimensions.length > 0 ? dimensions : null),
-      expanded: expandedRowKeys.length > 0 ? Array.from(new Set(expandedRowKeys)) : null,
-      sortBy: sortColumn || defaultSortColumn || null,
-      sortDir: sortDirection || 'descend',
-    };
-
-    if (!skipFilters) {
-      urlUpdate.filters = serializeFilters(filters);
-    }
-
-    if (timePeriodConfig && timePeriodValue !== undefined) {
-      urlUpdate[timePeriodConfig.urlKey] = timePeriodValue;
-    }
-
-    setUrlState(urlUpdate);
+    setUrlState(buildUrlUpdateFromState<TRow>(
+      { dateRange, dimensions, filters, expandedRowKeys, sortColumn, sortDirection, timePeriodValue },
+      { skipDimensions, skipFilters, timePeriod: timePeriodConfig, defaultSortColumn },
+    ));
   }, [
     isMounted,
     dateRange,

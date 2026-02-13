@@ -1,5 +1,4 @@
 // Role & Permissions types for the RBAC system
-// Phase 1: Types + UI + DB only. Enforcement is Phase 2.
 
 // ============================================================================
 // Permission Actions & Feature Keys
@@ -17,6 +16,7 @@ export type FeatureKey =
   | 'shared.saved_views'
   | 'admin.user_management'
   | 'admin.product_settings'
+  | 'admin.data_maps'
   | 'admin.role_permissions';
 
 export type FeatureGroup = 'Analytics & Reports' | 'Tools' | 'Shared Features' | 'Administration';
@@ -47,6 +47,7 @@ export const FEATURES: FeatureDefinition[] = [
   // Administration (Full CRUD)
   { key: 'admin.user_management', label: 'User Management', group: 'Administration', applicableActions: ['can_view', 'can_create', 'can_edit', 'can_delete'] },
   { key: 'admin.product_settings', label: 'Product Settings', group: 'Administration', applicableActions: ['can_view', 'can_create', 'can_edit', 'can_delete'] },
+  { key: 'admin.data_maps', label: 'Data Maps', group: 'Administration', applicableActions: ['can_view', 'can_create', 'can_edit', 'can_delete'] },
   { key: 'admin.role_permissions', label: 'Role & Permissions', group: 'Administration', applicableActions: ['can_view', 'can_create', 'can_edit', 'can_delete'] },
 ];
 

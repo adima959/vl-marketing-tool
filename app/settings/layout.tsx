@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 import { SettingsShell } from '@/components/settings/SettingsShell';
 
 export const metadata: Metadata = {
-  title: 'Settings | Vitaliv Analytics',
+  title: {
+    default: 'Settings',
+    template: '%s - Settings',
+  },
   description: 'Application settings and configuration',
 };
 

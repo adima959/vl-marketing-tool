@@ -17,7 +17,8 @@ import { usePathname } from "next/navigation"
 import { NavMainCollapsible, type NavItem } from "@/components/nav-main-collapsible"
 import { NavFavorites } from "@/components/nav-favorites"
 import { useAuth } from "@/contexts/AuthContext"
-import { UserRole } from "@/types/user"
+import { SETTINGS_PAGES } from "@/config/settings"
+import type { FeatureKey } from "@/types/roles"
 import {
   Sidebar,
   SidebarContent,
@@ -29,8 +30,30 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar"
 
+type GatedNavItem = NavItem & { featureKey?: FeatureKey };
+
+const ALL_MENU_ITEMS: GatedNavItem[] = [
+  { title: "Dashboard", url: "/", icon: LayoutDashboard, featureKey: "analytics.dashboard" },
+  { title: "Marketing Report", url: "/marketing-report", icon: BarChart3, featureKey: "analytics.marketing_report" },
+  { title: "On Page Analysis", url: "/on-page-analysis", icon: FileSearch, featureKey: "analytics.on_page_analysis" },
+  {
+    title: "Validation Reports", url: "/validation-reports", icon: ClipboardCheck,
+    featureKey: "analytics.validation_reports",
+    items: [
+      { title: "Approval Rate", url: "/validation-reports/approval-rate" },
+      { title: "Buy Rate", url: "/validation-reports/buy-rate" },
+      { title: "Pay Rate", url: "/validation-reports/pay-rate" },
+    ],
+  },
+];
+
+const ALL_TOOL_ITEMS: GatedNavItem[] = [
+  { title: "Marketing Tracker", url: "/marketing-tracker", icon: Target, featureKey: "tools.marketing_tracker" },
+  { title: "Pipeline", url: "/marketing-pipeline", icon: Kanban, featureKey: "tools.marketing_pipeline" },
+];
+
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user, logout } = useAuth();
+  const { logout, hasPermission } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
   const pathname = usePathname();
 
@@ -39,60 +62,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     await logout();
   };
 
-  // Menu items (main navigation + validation reports)
-  const menuItems: NavItem[] = [
-    {
-      title: "Dashboard",
-      url: "/",
-      icon: LayoutDashboard,
-    },
-    {
-      title: "Marketing Report",
-      url: "/marketing-report",
-      icon: BarChart3,
-    },
-    {
-      title: "On Page Analysis",
-      url: "/on-page-analysis",
-      icon: FileSearch,
-    },
-    {
-      title: "Validation Reports",
-      url: "/validation-reports",
-      icon: ClipboardCheck,
-      items: [
-        {
-          title: "Approval Rate",
-          url: "/validation-reports/approval-rate",
-        },
-        {
-          title: "Buy Rate",
-          url: "/validation-reports/buy-rate",
-        },
-        {
-          title: "Pay Rate",
-          url: "/validation-reports/pay-rate",
-        },
-      ],
-    },
-  ];
+  const menuItems = React.useMemo(
+    () => ALL_MENU_ITEMS.filter(i => !i.featureKey || hasPermission(i.featureKey, 'can_view')),
+    [hasPermission]
+  );
 
-  // Tools items (separate section)
-  const toolItems: NavItem[] = [
-    {
-      title: "Marketing Tracker",
-      url: "/marketing-tracker",
-      icon: Target,
-    },
-    {
-      title: "Pipeline",
-      url: "/marketing-pipeline",
-      icon: Kanban,
-    },
-  ];
+  const toolItems = React.useMemo(
+    () => ALL_TOOL_ITEMS.filter(i => !i.featureKey || hasPermission(i.featureKey, 'can_view')),
+    [hasPermission]
+  );
 
-  // Check if user is admin
-  const isAdmin = user?.role === UserRole.ADMIN;
+  // Show Settings link if user can view any settings page
+  const canSeeSettings = React.useMemo(
+    () => SETTINGS_PAGES.some(p => hasPermission(p.featureKey, 'can_view')),
+    [hasPermission]
+  );
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -120,7 +104,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
-          {isAdmin && (
+          {canSeeSettings && (
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild

@@ -2447,7 +2447,7 @@ const cohortAnalysis = await executeMariaDBQuery<CohortMetrics>(
 
 ### Hierarchical Queries with Depth-Based Routing
 
-**Pattern:** Used in `dashboardQueryBuilder.ts` for dimensional drill-down.
+**Pattern:** Used in query builders (e.g., `marketingQueryBuilder.ts`) for dimensional drill-down.
 
 ```typescript
 // Example: Campaign → Ad Group → Keyword hierarchy

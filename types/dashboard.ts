@@ -1,4 +1,5 @@
 import type { BaseTableRow } from './table';
+import type { CrmMetrics } from './crm';
 
 /**
  * Dashboard row structure for hierarchical table
@@ -10,18 +11,9 @@ export interface DashboardRow extends BaseTableRow {
   depth: number;        // 0 = country, 1 = product, 2 = individual order
   hasChildren?: boolean;
   children?: DashboardRow[];
-  metrics: {
-    customers: number;        // COUNT DISTINCT new customers (registration date = subscription date)
-    subscriptions: number;    // COUNT of subscription IDs
-    trials: number;           // COUNT of trial invoices (type = 1)
-    ots: number;              // COUNT of one-time sale invoices (type = 3)
-    otsApproved: number;      // COUNT of approved OTS (type = 3, is_marked = 1)
-    trialsApproved: number;   // COUNT of approved trials (is_marked = 1)
-    approvalRate: number;     // trialsApproved / subscriptions
-    upsells: number;          // COUNT of upsells (tag-based parent-sub-id matching)
-    upsellsApproved: number;  // COUNT of approved upsells (is_marked = 1)
-    otsApprovalRate: number;    // otsApproved / ots (decimal ratio for formatPercentage)
-    upsellApprovalRate: number; // upsellsApproved / upsells (decimal ratio for formatPercentage)
+  metrics: CrmMetrics & {
+    upsellSub: number;        // COUNT of subscription-type upsells (uo.type = 1)
+    upsellOts: number;        // COUNT of OTS-type upsells (uo.type = 3)
   };
 }
 
@@ -44,8 +36,11 @@ export interface TimeSeriesDataPoint {
   ots: number;
   otsApproved: number;
   trialsApproved: number;
+  onHold: number;
   customers: number;
   upsells: number;
+  upsellSub: number;
+  upsellOts: number;
   upsellsApproved: number;
 }
 

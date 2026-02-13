@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdmin } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import { getRoles, createRole } from '@/lib/roles/db';
 import type { CreateRoleRequest } from '@/types/roles';
 import { unstable_rethrow } from 'next/navigation';
@@ -14,7 +14,7 @@ import { unstable_rethrow } from 'next/navigation';
  * GET /api/roles
  * Returns all roles with user counts
  */
-export const GET = withAdmin(async () => {
+export const GET = withPermission('admin.role_permissions', 'can_view', async () => {
   try {
     const roles = await getRoles();
     return NextResponse.json({ success: true, data: roles });
@@ -33,7 +33,7 @@ export const GET = withAdmin(async () => {
  * Creates a new role with optional permission cloning
  * Body: { name: string, description?: string, cloneFromRoleId?: string }
  */
-export const POST = withAdmin(async (request: NextRequest) => {
+export const POST = withPermission('admin.role_permissions', 'can_create', async (request: NextRequest) => {
   try {
     const body: CreateRoleRequest = await request.json();
 

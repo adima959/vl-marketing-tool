@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/server/db';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import { safeValidateRequest, savedViewRenameSchema } from '@/lib/schemas/api';
 import { maskErrorForClient } from '@/lib/types/errors';
 import type { AppUser } from '@/types/user';
@@ -204,6 +204,6 @@ async function handleGet(
   }
 }
 
-export const GET = withAuth(handleGet);
-export const PATCH = withAuth(handlePatch);
-export const DELETE = withAuth(handleDelete);
+export const GET = withPermission('shared.saved_views', 'can_view', handleGet);
+export const PATCH = withPermission('shared.saved_views', 'can_edit', handlePatch);
+export const DELETE = withPermission('shared.saved_views', 'can_delete', handleDelete);

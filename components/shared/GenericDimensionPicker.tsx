@@ -57,10 +57,15 @@ export function GenericDimensionPicker({
   groupColors = {},
   variant = 'popover',
   searchable = true,
-}: GenericDimensionPickerProps): React.ReactElement {
+}: GenericDimensionPickerProps): React.ReactElement | null {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const allSelected = useMemo(() => {
+    const allIds = dimensionGroups.flatMap((g) => g.dimensions.map((d) => d.id));
+    return allIds.every((id) => dimensions.includes(id));
+  }, [dimensionGroups, dimensions]);
 
   const query = search.toLowerCase().trim();
 
@@ -73,6 +78,8 @@ export function GenericDimensionPicker({
       }))
       .filter((g) => g.dimensions.length > 0);
   }, [query, dimensionGroups, searchable]);
+
+  if (allSelected) return null;
 
   const handleSelect = (dimId: string): void => {
     if (dimensions.includes(dimId)) return;

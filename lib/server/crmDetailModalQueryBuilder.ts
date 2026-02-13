@@ -1,5 +1,5 @@
 import type { DateRange } from '@/types/dashboard';
-import { CRM_JOINS, CRM_WHERE, OTS_JOINS, formatDateForMariaDB, buildPaginationClause, type DashboardDetailMetricId } from './crmMetrics';
+import { CRM_JOINS, CRM_WHERE, CRM_DETAIL_CONTRACTS, OTS_JOINS, formatDateForMariaDB, buildPaginationClause, type DashboardDetailMetricId } from './crmMetrics';
 import { FilterBuilder } from './queryBuilderUtils';
 
 type SqlParam = string | number | boolean | null | Date;
@@ -192,10 +192,11 @@ export class CrmDetailModalQueryBuilder {
       }
     }
 
-    // Network/source filter (maps network to source using shared logic)
+    // Network/source filter — use COALESCE to check both invoice and subscription source,
+    // matching the aggregate query's behavior (subscription source in tracking mode)
     if (filters.network) {
       const { buildSourceFilterParams } = require('./crmMetrics');
-      const sourceFilter = buildSourceFilterParams(filters.network);
+      const sourceFilter = buildSourceFilterParams(filters.network, 'COALESCE(sr.source, sr_sub.source)');
       if (sourceFilter) {
         conditions.push(sourceFilter.whereClause);
         params.push(...sourceFilter.params);
@@ -255,124 +256,156 @@ export class CrmDetailModalQueryBuilder {
   }
 
   /**
-   * Build query for Customers metric (new customers where registration date = subscription date)
+   * Shared base query for Customers and Subscriptions metrics.
+   * Customers adds `AND DATE(c.date_registered) = DATE(s.date_create)`.
    */
+  private buildSubscriptionBaseQuery(
+    filters: DetailQueryOptions,
+    pagination: PaginationOptions | undefined,
+    extraWhere: string,
+    countDistinctColumn: string = 's.id'
+  ): QueryResult {
+    const { dateField, alwaysWhere } = CRM_DETAIL_CONTRACTS.subscription;
+    const contractWhere = alwaysWhere.map(w => `AND ${w}`).join('\n        ');
+
+    const startDate = formatDateForMariaDB(filters.dateRange.start, false);
+    const endDate = formatDateForMariaDB(filters.dateRange.end, true);
+    const { whereClause, params: filterParams } = this.buildSmartFilterClause(filters);
+    const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
+    const trackingValidation = this.getTrackingValidation(filters);
+
+    const baseParams = [startDate, endDate, ...filterParams];
+
+    const query = `
+      SELECT
+        s.id as id,
+        s.id as subscriptionId,
+        CONCAT(c.first_name, ' ', c.last_name) as customerName,
+        c.email as customerEmail,
+        c.id as customerId,
+        COALESCE(MAX(sr.source), '(not set)') as source,
+        s.tracking_id as trackingId1,
+        s.tracking_id_2 as trackingId2,
+        s.tracking_id_3 as trackingId3,
+        s.tracking_id_4 as trackingId4,
+        s.tracking_id_5 as trackingId5,
+        COALESCE(MAX(i.total), s.trial_price, 0) as amount,
+        s.date_create as date,
+        GROUP_CONCAT(DISTINCT COALESCE(p.product_name, p_sub.product_name, '(not set)') SEPARATOR ', ') as productName,
+        c.country,
+        MAX(IF(i.is_marked = 1, TRUE, FALSE)) as isApproved,
+        MAX(IF(i.on_hold_date IS NOT NULL, 1, 0)) as isOnHold,
+        s.status as subscriptionStatus,
+        MAX(cr.caption) as cancelReason,
+        s.canceled_reason_about as cancelReasonAbout,
+        c.date_registered as customerDateRegistered
+      FROM subscription s
+      ${CRM_JOINS.customerInner}
+      ${CRM_JOINS.invoiceTrialLeft}
+      ${CRM_JOINS.invoiceProduct}
+      ${CRM_JOINS.product}
+      ${CRM_JOINS.productSub}
+      ${CRM_JOINS.productGroup}
+      ${CRM_JOINS.productGroupSub}
+      ${CRM_JOINS.sourceFromInvoice}
+      ${CRM_JOINS.sourceFromSubAlt}
+      ${CRM_JOINS.cancelReason}
+      WHERE ${dateField} BETWEEN ? AND ?
+        ${extraWhere}
+        ${trackingValidation}
+        ${contractWhere}
+        ${whereClause}
+      GROUP BY s.id
+      ORDER BY s.date_create DESC
+      ${limitClause}
+    `;
+
+    const needsProductJoin = !!filters.product || !!filters.productName;
+    const needsSourceJoin = !!filters.source || !!filters.network;
+    const needsInvoiceJoin = needsProductJoin || needsSourceJoin;
+
+    const countQuery = `
+      SELECT COUNT(DISTINCT ${countDistinctColumn}) as total
+      FROM subscription s
+      ${CRM_JOINS.customerInner}
+      ${needsInvoiceJoin ? CRM_JOINS.invoiceTrialLeft : ''}
+      ${needsProductJoin ? `${CRM_JOINS.invoiceProduct} ${CRM_JOINS.product} ${CRM_JOINS.productSub} ${CRM_JOINS.productGroup} ${CRM_JOINS.productGroupSub}` : ''}
+      ${needsSourceJoin ? `${CRM_JOINS.sourceFromInvoice} ${CRM_JOINS.sourceFromSubAlt}` : ''}
+      WHERE ${dateField} BETWEEN ? AND ?
+        ${extraWhere}
+        ${trackingValidation}
+        ${contractWhere}
+        ${whereClause}
+    `;
+
+    return {
+      query,
+      params: [...baseParams, ...paginationParams],
+      countQuery,
+      countParams: baseParams,
+    };
+  }
+
   private buildCustomersQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
-    const startDate = formatDateForMariaDB(filters.dateRange.start, false);
-    const endDate = formatDateForMariaDB(filters.dateRange.end, true);
-    const { whereClause, params: filterParams } = this.buildSmartFilterClause(filters);
-    const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
-    const trackingValidation = this.getTrackingValidation(filters);
-
-    const baseParams = [startDate, endDate, ...filterParams];
-
-    const query = `
-      SELECT
-        s.id as id,
-        s.id as subscriptionId,
-        CONCAT(c.first_name, ' ', c.last_name) as customerName,
-        c.email as customerEmail,
-        c.id as customerId,
-        COALESCE(MAX(sr.source), '(not set)') as source,
-        s.tracking_id as trackingId1,
-        s.tracking_id_2 as trackingId2,
-        s.tracking_id_3 as trackingId3,
-        s.tracking_id_4 as trackingId4,
-        s.tracking_id_5 as trackingId5,
-        COALESCE(MAX(i.total), s.trial_price, 0) as amount,
-        s.date_create as date,
-        GROUP_CONCAT(DISTINCT COALESCE(p.product_name, p_sub.product_name, '(not set)') SEPARATOR ', ') as productName,
-        c.country,
-        MAX(IF(i.is_marked = 1, TRUE, FALSE)) as isApproved,
-        MAX(IF(i.on_hold_date IS NOT NULL, 1, 0)) as isOnHold,
-        s.status as subscriptionStatus,
-        MAX(cr.caption) as cancelReason,
-        s.canceled_reason_about as cancelReasonAbout,
-        c.date_registered as customerDateRegistered
-      FROM subscription s
-      ${CRM_JOINS.customerInner}
-      ${CRM_JOINS.invoiceTrialLeft}
-      ${CRM_JOINS.invoiceProduct}
-      ${CRM_JOINS.product}
-      ${CRM_JOINS.productSub}
-      ${CRM_JOINS.productGroup}
-      ${CRM_JOINS.productGroupSub}
-      ${CRM_JOINS.sourceFromInvoice}
-      ${CRM_JOINS.sourceFromSubAlt}
-      ${CRM_JOINS.cancelReason}
-      WHERE s.date_create BETWEEN ? AND ?
-        AND DATE(c.date_registered) = DATE(s.date_create)
-        ${trackingValidation}
-        ${whereClause}
-      GROUP BY s.id
-      ORDER BY s.date_create DESC
-      ${limitClause}
-    `;
-
-    // Optimized count query - only include JOINs needed for filters
-    const needsProductJoin = !!filters.product || !!filters.productName;
-    const needsSourceJoin = !!filters.source || !!filters.network;
-    const needsInvoiceJoin = needsProductJoin || needsSourceJoin;
-
-    const countQuery = `
-      SELECT COUNT(DISTINCT s.id) as total
-      FROM subscription s
-      ${CRM_JOINS.customerInner}
-      ${needsInvoiceJoin ? CRM_JOINS.invoiceTrialLeft : ''}
-      ${needsProductJoin ? `${CRM_JOINS.invoiceProduct} ${CRM_JOINS.product} ${CRM_JOINS.productSub} ${CRM_JOINS.productGroup} ${CRM_JOINS.productGroupSub}` : ''}
-      ${needsSourceJoin ? `${CRM_JOINS.sourceFromInvoice} ${CRM_JOINS.sourceFromSubAlt}` : ''}
-      WHERE s.date_create BETWEEN ? AND ?
-        AND DATE(c.date_registered) = DATE(s.date_create)
-        ${trackingValidation}
-        ${whereClause}
-    `;
-
-    return {
-      query,
-      params: [...baseParams, ...paginationParams],
-      countQuery,
-      countParams: baseParams,
-    };
+    return this.buildSubscriptionBaseQuery(filters, pagination, 'AND DATE(c.date_registered) = DATE(s.date_create)', 'c.id');
   }
 
-  /**
-   * Build query for Subscriptions metric (all subscriptions)
-   */
   private buildSubscriptionsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
+    return this.buildSubscriptionBaseQuery(filters, pagination, '');
+  }
+
+  /**
+   * Shared base query for Trials and TrialsApproved metrics.
+   * TrialsApproved adds ' AND i.is_marked = 1' via invoiceWhereExtra.
+   *
+   * Matches the aggregate trial query structure: FROM invoice i with LEFT JOIN
+   * subscription, so orphaned invoices (no subscription) are included.
+   */
+  private buildTrialBaseQuery(
+    filters: DetailQueryOptions,
+    pagination: PaginationOptions | undefined,
+    invoiceWhereExtra: string
+  ): QueryResult {
+    const { dateField } = CRM_DETAIL_CONTRACTS.trial;
+
     const startDate = formatDateForMariaDB(filters.dateRange.start, false);
     const endDate = formatDateForMariaDB(filters.dateRange.end, true);
     const { whereClause, params: filterParams } = this.buildSmartFilterClause(filters);
     const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
     const trackingValidation = this.getTrackingValidation(filters);
 
+    // Extra filters only used by validation rate page — not part of the contract
+    const deletedFilter = filters.excludeDeleted ? `AND ${CRM_WHERE.deletedSubExclusion}` : '';
+
     const baseParams = [startDate, endDate, ...filterParams];
 
     const query = `
       SELECT
-        s.id as id,
+        i.id as id,
+        i.id as invoiceId,
         s.id as subscriptionId,
         CONCAT(c.first_name, ' ', c.last_name) as customerName,
         c.email as customerEmail,
         c.id as customerId,
-        COALESCE(MAX(sr.source), '(not set)') as source,
-        s.tracking_id as trackingId1,
-        s.tracking_id_2 as trackingId2,
-        s.tracking_id_3 as trackingId3,
-        s.tracking_id_4 as trackingId4,
-        s.tracking_id_5 as trackingId5,
-        COALESCE(MAX(i.total), s.trial_price, 0) as amount,
-        s.date_create as date,
+        COALESCE(sr.source, '(not set)') as source,
+        i.tracking_id as trackingId1,
+        i.tracking_id_2 as trackingId2,
+        i.tracking_id_3 as trackingId3,
+        i.tracking_id_4 as trackingId4,
+        i.tracking_id_5 as trackingId5,
+        COALESCE(i.total, 0) as amount,
+        i.order_date as date,
         GROUP_CONCAT(DISTINCT COALESCE(p.product_name, p_sub.product_name, '(not set)') SEPARATOR ', ') as productName,
         c.country,
         MAX(IF(i.is_marked = 1, TRUE, FALSE)) as isApproved,
-        MAX(IF(i.on_hold_date IS NOT NULL, 1, 0)) as isOnHold,
+        IF(i.on_hold_date IS NOT NULL, 1, 0) as isOnHold,
         s.status as subscriptionStatus,
         MAX(cr.caption) as cancelReason,
         s.canceled_reason_about as cancelReasonAbout,
         c.date_registered as customerDateRegistered
-      FROM subscription s
-      ${CRM_JOINS.customerInner}
-      ${CRM_JOINS.invoiceTrialLeft}
+      FROM invoice i
+      LEFT JOIN subscription s ON i.subscription_id = s.id
+      LEFT JOIN customer c ON c.id = i.customer_id
       ${CRM_JOINS.invoiceProduct}
       ${CRM_JOINS.product}
       ${CRM_JOINS.productSub}
@@ -381,27 +414,31 @@ export class CrmDetailModalQueryBuilder {
       ${CRM_JOINS.sourceFromInvoice}
       ${CRM_JOINS.sourceFromSubAlt}
       ${CRM_JOINS.cancelReason}
-      WHERE s.date_create BETWEEN ? AND ?
+      WHERE ${CRM_WHERE.trialBase}
+        AND ${dateField} BETWEEN ? AND ?
+        ${invoiceWhereExtra}
+        ${deletedFilter}
         ${trackingValidation}
         ${whereClause}
-      GROUP BY s.id
-      ORDER BY s.date_create DESC
+      GROUP BY i.id
+      ORDER BY i.order_date DESC
       ${limitClause}
     `;
 
-    // Optimized count query - only include JOINs needed for filters
     const needsProductJoin = !!filters.product || !!filters.productName;
     const needsSourceJoin = !!filters.source || !!filters.network;
-    const needsInvoiceJoin = needsProductJoin || needsSourceJoin;
 
     const countQuery = `
-      SELECT COUNT(DISTINCT s.id) as total
-      FROM subscription s
-      ${CRM_JOINS.customerInner}
-      ${needsInvoiceJoin ? CRM_JOINS.invoiceTrialLeft : ''}
+      SELECT COUNT(DISTINCT i.id) as total
+      FROM invoice i
+      LEFT JOIN subscription s ON i.subscription_id = s.id
+      LEFT JOIN customer c ON c.id = i.customer_id
       ${needsProductJoin ? `${CRM_JOINS.invoiceProduct} ${CRM_JOINS.product} ${CRM_JOINS.productSub} ${CRM_JOINS.productGroup} ${CRM_JOINS.productGroupSub}` : ''}
       ${needsSourceJoin ? `${CRM_JOINS.sourceFromInvoice} ${CRM_JOINS.sourceFromSubAlt}` : ''}
-      WHERE s.date_create BETWEEN ? AND ?
+      WHERE ${CRM_WHERE.trialBase}
+        AND ${dateField} BETWEEN ? AND ?
+        ${invoiceWhereExtra}
+        ${deletedFilter}
         ${trackingValidation}
         ${whereClause}
     `;
@@ -414,180 +451,16 @@ export class CrmDetailModalQueryBuilder {
     };
   }
 
-  /**
-   * Build query for Trials metric (invoices where type = 1)
-   * Optional filters: excludeDeleted, excludeUpsellTags (used by approval rate page)
-   */
   private buildTrialsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
-    const startDate = formatDateForMariaDB(filters.dateRange.start, false);
-    const endDate = formatDateForMariaDB(filters.dateRange.end, true);
-    const { whereClause, params: filterParams } = this.buildSmartFilterClause(filters);
-    const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
-    const trackingValidation = this.getTrackingValidation(filters);
-
-    // Build optional filter conditions
-    const deletedFilter = filters.excludeDeleted ? `AND ${CRM_WHERE.deletedSubExclusion}` : '';
-    const tagFilter = filters.excludeUpsellTags ? `AND ${CRM_WHERE.upsellExclusion}` : '';
-
-    const baseParams = [startDate, endDate, ...filterParams];
-
-    const query = `
-      SELECT
-        i.id as id,
-        i.id as invoiceId,
-        s.id as subscriptionId,
-        CONCAT(c.first_name, ' ', c.last_name) as customerName,
-        c.email as customerEmail,
-        c.id as customerId,
-        COALESCE(sr.source, '(not set)') as source,
-        i.tracking_id as trackingId1,
-        i.tracking_id_2 as trackingId2,
-        i.tracking_id_3 as trackingId3,
-        i.tracking_id_4 as trackingId4,
-        i.tracking_id_5 as trackingId5,
-        COALESCE(i.total, 0) as amount,
-        i.order_date as date,
-        GROUP_CONCAT(DISTINCT COALESCE(p.product_name, p_sub.product_name, '(not set)') SEPARATOR ', ') as productName,
-        c.country,
-        MAX(IF(i.is_marked = 1, TRUE, FALSE)) as isApproved,
-        IF(i.on_hold_date IS NOT NULL, 1, 0) as isOnHold,
-        s.status as subscriptionStatus,
-        MAX(cr.caption) as cancelReason,
-        s.canceled_reason_about as cancelReasonAbout,
-        c.date_registered as customerDateRegistered
-      FROM subscription s
-      ${CRM_JOINS.customerInner}
-      ${CRM_JOINS.invoiceTrialInner}
-      ${CRM_JOINS.invoiceProduct}
-      ${CRM_JOINS.product}
-      ${CRM_JOINS.productSub}
-      ${CRM_JOINS.productGroup}
-      ${CRM_JOINS.productGroupSub}
-      ${CRM_JOINS.sourceFromInvoice}
-      ${CRM_JOINS.sourceFromSubAlt}
-      ${CRM_JOINS.cancelReason}
-      WHERE s.date_create BETWEEN ? AND ?
-        ${deletedFilter}
-        ${tagFilter}
-        ${trackingValidation}
-        ${whereClause}
-      GROUP BY i.id
-      ORDER BY i.order_date DESC
-      ${limitClause}
-    `;
-
-    // Optimized count query - only include JOINs needed for filters
-    const needsProductJoin = !!filters.product || !!filters.productName;
-    const needsSourceJoin = !!filters.source || !!filters.network;
-
-    const countQuery = `
-      SELECT COUNT(DISTINCT i.id) as total
-      FROM subscription s
-      ${CRM_JOINS.customerInner}
-      ${CRM_JOINS.invoiceTrialInner}
-      ${needsProductJoin ? `${CRM_JOINS.invoiceProduct} ${CRM_JOINS.product} ${CRM_JOINS.productSub} ${CRM_JOINS.productGroup} ${CRM_JOINS.productGroupSub}` : ''}
-      ${needsSourceJoin ? `${CRM_JOINS.sourceFromInvoice} ${CRM_JOINS.sourceFromSubAlt}` : ''}
-      WHERE s.date_create BETWEEN ? AND ?
-        ${deletedFilter}
-        ${tagFilter}
-        ${trackingValidation}
-        ${whereClause}
-    `;
-
-    return {
-      query,
-      params: [...baseParams, ...paginationParams],
-      countQuery,
-      countParams: baseParams,
-    };
+    return this.buildTrialBaseQuery(filters, pagination, '');
   }
 
-  /**
-   * Build query for Trials Approved metric (invoices where type = 1 AND is_marked = 1)
-   * Optional filters: excludeDeleted, excludeUpsellTags (used by approval rate page)
-   */
   private buildTrialsApprovedQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
-    const startDate = formatDateForMariaDB(filters.dateRange.start, false);
-    const endDate = formatDateForMariaDB(filters.dateRange.end, true);
-    const { whereClause, params: filterParams } = this.buildSmartFilterClause(filters);
-    const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
-    const trackingValidation = this.getTrackingValidation(filters);
+    return this.buildTrialBaseQuery(filters, pagination, ' AND i.is_marked = 1');
+  }
 
-    // Build optional filter conditions
-    const deletedFilter = filters.excludeDeleted ? `AND ${CRM_WHERE.deletedSubExclusion}` : '';
-    const tagFilter = filters.excludeUpsellTags ? `AND ${CRM_WHERE.upsellExclusion}` : '';
-
-    const baseParams = [startDate, endDate, ...filterParams];
-
-    const query = `
-      SELECT
-        i.id as id,
-        i.id as invoiceId,
-        s.id as subscriptionId,
-        CONCAT(c.first_name, ' ', c.last_name) as customerName,
-        c.email as customerEmail,
-        c.id as customerId,
-        COALESCE(sr.source, '(not set)') as source,
-        i.tracking_id as trackingId1,
-        i.tracking_id_2 as trackingId2,
-        i.tracking_id_3 as trackingId3,
-        i.tracking_id_4 as trackingId4,
-        i.tracking_id_5 as trackingId5,
-        COALESCE(i.total, 0) as amount,
-        i.order_date as date,
-        GROUP_CONCAT(DISTINCT COALESCE(p.product_name, p_sub.product_name, '(not set)') SEPARATOR ', ') as productName,
-        c.country,
-        MAX(IF(i.is_marked = 1, TRUE, FALSE)) as isApproved,
-        IF(i.on_hold_date IS NOT NULL, 1, 0) as isOnHold,
-        s.status as subscriptionStatus,
-        MAX(cr.caption) as cancelReason,
-        s.canceled_reason_about as cancelReasonAbout,
-        c.date_registered as customerDateRegistered
-      FROM subscription s
-      ${CRM_JOINS.customerInner}
-      ${CRM_JOINS.invoiceTrialInner} AND i.is_marked = 1
-      ${CRM_JOINS.invoiceProduct}
-      ${CRM_JOINS.product}
-      ${CRM_JOINS.productSub}
-      ${CRM_JOINS.productGroup}
-      ${CRM_JOINS.productGroupSub}
-      ${CRM_JOINS.sourceFromInvoice}
-      ${CRM_JOINS.sourceFromSubAlt}
-      ${CRM_JOINS.cancelReason}
-      WHERE s.date_create BETWEEN ? AND ?
-        ${deletedFilter}
-        ${tagFilter}
-        ${trackingValidation}
-        ${whereClause}
-      GROUP BY i.id
-      ORDER BY i.order_date DESC
-      ${limitClause}
-    `;
-
-    // Optimized count query - only include JOINs needed for filters
-    const needsProductJoin = !!filters.product || !!filters.productName;
-    const needsSourceJoin = !!filters.source || !!filters.network;
-
-    const countQuery = `
-      SELECT COUNT(DISTINCT i.id) as total
-      FROM subscription s
-      ${CRM_JOINS.customerInner}
-      ${CRM_JOINS.invoiceTrialInner} AND i.is_marked = 1
-      ${needsProductJoin ? `${CRM_JOINS.invoiceProduct} ${CRM_JOINS.product} ${CRM_JOINS.productSub} ${CRM_JOINS.productGroup} ${CRM_JOINS.productGroupSub}` : ''}
-      ${needsSourceJoin ? `${CRM_JOINS.sourceFromInvoice} ${CRM_JOINS.sourceFromSubAlt}` : ''}
-      WHERE s.date_create BETWEEN ? AND ?
-        ${deletedFilter}
-        ${tagFilter}
-        ${trackingValidation}
-        ${whereClause}
-    `;
-
-    return {
-      query,
-      params: [...baseParams, ...paginationParams],
-      countQuery,
-      countParams: baseParams,
-    };
+  private buildOnHoldQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
+    return this.buildTrialBaseQuery(filters, pagination, ' AND i.on_hold_date IS NOT NULL');
   }
 
   /**
@@ -746,10 +619,14 @@ export class CrmDetailModalQueryBuilder {
   }
 
   /**
-   * Build query for Pay Rate Trials metric (matches CRM logic)
-   * Uses invoice_date, INNER JOIN invoice_proccessed, excludes refunds (type != 4)
+   * Shared base query for PayRate and BuyRate metrics.
+   * PayRate passes 'IF(ipr.date_paid IS NOT NULL, 1, 0)', BuyRate passes 'IF(ipr.date_bought IS NOT NULL, 1, 0)'.
    */
-  private buildPayRateTrialsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
+  private buildInvoiceProcessedBaseQuery(
+    filters: DetailQueryOptions,
+    pagination: PaginationOptions | undefined,
+    approvalExpr: string
+  ): QueryResult {
     const startDate = formatDateForMariaDB(filters.dateRange.start, false);
     const endDate = formatDateForMariaDB(filters.dateRange.end, true);
     const { whereClause, params: filterParams } = this.buildFilterClauseCaseInsensitive(filters);
@@ -757,7 +634,6 @@ export class CrmDetailModalQueryBuilder {
 
     const baseParams = [startDate, endDate, ...filterParams];
 
-    // Build optimized count query - only include JOINs needed for filters
     const needsProductJoin = !!filters.product;
     const needsSourceJoin = !!filters.source || !!filters.network;
 
@@ -779,7 +655,7 @@ export class CrmDetailModalQueryBuilder {
         i.invoice_date as date,
         GROUP_CONCAT(DISTINCT COALESCE(p.product_name, p_sub.product_name, '(not set)') SEPARATOR ', ') as productName,
         c.country,
-        IF(ipr.date_paid IS NOT NULL, 1, 0) as isApproved,
+        ${approvalExpr} as isApproved,
         IF(i.on_hold_date IS NOT NULL, 1, 0) as isOnHold,
         s.status as subscriptionStatus,
         MAX(cr.caption) as cancelReason,
@@ -807,7 +683,6 @@ export class CrmDetailModalQueryBuilder {
       ${limitClause}
     `;
 
-    // Optimized count query - minimal JOINs based on filters
     const countQuery = `
       SELECT COUNT(DISTINCT ipr.id) as total
       FROM invoice i
@@ -829,88 +704,12 @@ export class CrmDetailModalQueryBuilder {
     };
   }
 
-  /**
-   * Build query for Buy Rate Trials metric (matches CRM logic)
-   * Uses invoice_date, INNER JOIN invoice_proccessed, excludes refunds (type != 4)
-   */
+  private buildPayRateTrialsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
+    return this.buildInvoiceProcessedBaseQuery(filters, pagination, 'IF(ipr.date_paid IS NOT NULL, 1, 0)');
+  }
+
   private buildBuyRateTrialsQuery(filters: DetailQueryOptions, pagination?: PaginationOptions): QueryResult {
-    const startDate = formatDateForMariaDB(filters.dateRange.start, false);
-    const endDate = formatDateForMariaDB(filters.dateRange.end, true);
-    const { whereClause, params: filterParams } = this.buildFilterClauseCaseInsensitive(filters);
-    const { limitClause, params: paginationParams } = buildPaginationClause(pagination);
-
-    const baseParams = [startDate, endDate, ...filterParams];
-
-    // Build optimized count query - only include JOINs needed for filters
-    const needsProductJoin = !!filters.product;
-    const needsSourceJoin = !!filters.source || !!filters.network;
-
-    const query = `
-      SELECT
-        ipr.id as id,
-        i.id as invoiceId,
-        s.id as subscriptionId,
-        CONCAT(c.first_name, ' ', c.last_name) as customerName,
-        c.email as customerEmail,
-        c.id as customerId,
-        COALESCE(sr.source, '(not set)') as source,
-        s.tracking_id as trackingId1,
-        s.tracking_id_2 as trackingId2,
-        s.tracking_id_3 as trackingId3,
-        s.tracking_id_4 as trackingId4,
-        s.tracking_id_5 as trackingId5,
-        COALESCE(i.total, 0) as amount,
-        i.invoice_date as date,
-        GROUP_CONCAT(DISTINCT COALESCE(p.product_name, p_sub.product_name, '(not set)') SEPARATOR ', ') as productName,
-        c.country,
-        IF(ipr.date_bought IS NOT NULL, 1, 0) as isApproved,
-        IF(i.on_hold_date IS NOT NULL, 1, 0) as isOnHold,
-        s.status as subscriptionStatus,
-        MAX(cr.caption) as cancelReason,
-        s.canceled_reason_about as cancelReasonAbout,
-        c.date_registered as customerDateRegistered,
-        ipr.date_bought as dateBought,
-        ipr.date_paid as datePaid
-      FROM invoice i
-      INNER JOIN invoice_proccessed ipr ON ipr.invoice_id = i.id
-      INNER JOIN subscription s ON i.subscription_id = s.id
-      ${CRM_JOINS.customerInner}
-      ${CRM_JOINS.invoiceProduct}
-      ${CRM_JOINS.product}
-      ${CRM_JOINS.productSub}
-      ${CRM_JOINS.productGroup}
-      ${CRM_JOINS.productGroupSub}
-      ${CRM_JOINS.sourceFromSub}
-      ${CRM_JOINS.sourceFromSubAlt}
-      ${CRM_JOINS.cancelReason}
-      WHERE i.invoice_date >= ? AND i.invoice_date <= ?
-        AND i.type != 4
-        ${whereClause}
-      GROUP BY ipr.id
-      ORDER BY i.invoice_date DESC
-      ${limitClause}
-    `;
-
-    // Optimized count query - minimal JOINs based on filters
-    const countQuery = `
-      SELECT COUNT(DISTINCT ipr.id) as total
-      FROM invoice i
-      INNER JOIN invoice_proccessed ipr ON ipr.invoice_id = i.id
-      INNER JOIN subscription s ON i.subscription_id = s.id
-      ${CRM_JOINS.customerInner}
-      ${needsProductJoin ? `${CRM_JOINS.invoiceProduct} ${CRM_JOINS.product} ${CRM_JOINS.productSub} ${CRM_JOINS.productGroup} ${CRM_JOINS.productGroupSub}` : ''}
-      ${needsSourceJoin ? `${CRM_JOINS.sourceFromSub} ${CRM_JOINS.sourceFromSubAlt}` : ''}
-      WHERE i.invoice_date >= ? AND i.invoice_date <= ?
-        AND i.type != 4
-        ${whereClause}
-    `;
-
-    return {
-      query,
-      params: [...baseParams, ...paginationParams],
-      countQuery,
-      countParams: baseParams,
-    };
+    return this.buildInvoiceProcessedBaseQuery(filters, pagination, 'IF(ipr.date_bought IS NOT NULL, 1, 0)');
   }
 
   /**
@@ -921,25 +720,21 @@ export class CrmDetailModalQueryBuilder {
     filters: DetailQueryOptions,
     pagination?: PaginationOptions
   ): QueryResult {
-    // Handle pay rate and buy rate trials with their specific query logic
-    if (metricId === 'trials' && filters.rateType === 'pay') {
-      return this.buildPayRateTrialsQuery(filters, pagination);
-    }
-    if (metricId === 'trials' && filters.rateType === 'buy') {
-      return this.buildBuyRateTrialsQuery(filters, pagination);
-    }
-
     switch (metricId) {
       case 'customers':
         return this.buildCustomersQuery(filters, pagination);
       case 'subscriptions':
         return this.buildSubscriptionsQuery(filters, pagination);
       case 'trials':
+        if (filters.rateType === 'pay') return this.buildPayRateTrialsQuery(filters, pagination);
+        if (filters.rateType === 'buy') return this.buildBuyRateTrialsQuery(filters, pagination);
         return this.buildTrialsQuery(filters, pagination);
       case 'ots':
         return this.buildOtsQuery(filters, pagination);
       case 'trialsApproved':
         return this.buildTrialsApprovedQuery(filters, pagination);
+      case 'onHold':
+        return this.buildOnHoldQuery(filters, pagination);
       case 'upsells':
         return this.buildUpsellsQuery(filters, pagination);
       default:
@@ -950,6 +745,3 @@ export class CrmDetailModalQueryBuilder {
 
 // Export singleton instance (supports both Dashboard and Marketing)
 export const crmDetailModalQueryBuilder = new CrmDetailModalQueryBuilder();
-
-// Backward compatibility export for Dashboard API
-export const dashboardDrilldownQueryBuilder = crmDetailModalQueryBuilder;

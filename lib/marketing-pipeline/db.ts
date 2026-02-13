@@ -392,6 +392,21 @@ interface MoveResult {
   newMessageId?: string;
 }
 
+/** Stop active campaigns and pause all geos for a retiring message. */
+async function retireMessageResources(messageId: string): Promise<void> {
+  await executeQuery(`
+    UPDATE app_pipeline_campaigns
+    SET status = 'stopped', updated_at = NOW()
+    WHERE message_id = $1 AND status = 'active' AND deleted_at IS NULL
+  `, [messageId]);
+
+  await executeQuery(`
+    UPDATE app_pipeline_message_geos
+    SET stage = 'paused', updated_at = NOW()
+    WHERE message_id = $1 AND deleted_at IS NULL
+  `, [messageId]);
+}
+
 export async function movePipelineMessage(
   id: string,
   targetStage: PipelineStage,
@@ -417,17 +432,7 @@ export async function movePipelineMessage(
     `, [id, verdictNotes || null]);
 
     // 3. Stop active campaigns + pause all geos
-    await executeQuery(`
-      UPDATE app_pipeline_campaigns
-      SET status = 'stopped', updated_at = NOW()
-      WHERE message_id = $1 AND status = 'active' AND deleted_at IS NULL
-    `, [id]);
-
-    await executeQuery(`
-      UPDATE app_pipeline_message_geos
-      SET stage = 'paused', updated_at = NOW()
-      WHERE message_id = $1 AND deleted_at IS NULL
-    `, [id]);
+    await retireMessageResources(id);
 
     // 4. Clone as v2 in backlog (no geos copied — new message starts fresh)
     const newVersion = ((orig.version as number) || 1) + 1;
@@ -457,17 +462,7 @@ export async function movePipelineMessage(
       WHERE id = $1 AND deleted_at IS NULL
     `, [id, verdictNotes || null]);
 
-    await executeQuery(`
-      UPDATE app_pipeline_campaigns
-      SET status = 'stopped', updated_at = NOW()
-      WHERE message_id = $1 AND status = 'active' AND deleted_at IS NULL
-    `, [id]);
-
-    await executeQuery(`
-      UPDATE app_pipeline_message_geos
-      SET stage = 'paused', updated_at = NOW()
-      WHERE message_id = $1 AND deleted_at IS NULL
-    `, [id]);
+    await retireMessageResources(id);
 
     return { success: true };
 

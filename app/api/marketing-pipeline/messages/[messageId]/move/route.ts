@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { movePipelineMessage } from '@/lib/marketing-pipeline/db';
 import { recordUpdate } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { PipelineStage, VerdictType } from '@/types';
 import type { AppUser } from '@/types/user';
 import { unstable_rethrow } from 'next/navigation';
@@ -20,7 +20,7 @@ interface RouteParams {
   params: Promise<{ messageId: string }>;
 }
 
-export const PATCH = withAuth(async (
+export const PATCH = withPermission('tools.marketing_pipeline', 'can_edit', async (
   request: NextRequest,
   user: AppUser,
   { params }: RouteParams,

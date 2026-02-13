@@ -1,31 +1,29 @@
-# MANDATORY GATES
+# Process — mandatory, every session
 
-Non-negotiable. EVERY session. NO exceptions.
+## BEFORE writing code
 
-## BEFORE writing any code
-
-1. State assumptions:
+1. **State assumptions explicitly** — do NOT skip this step:
    ```
    ASSUMPTIONS I'M MAKING:
    1. [assumption]
    2. [assumption]
    → Correct me now or I'll proceed with these.
    ```
-2. Present a plan and WAIT for explicit "go ahead" — do NOT auto-proceed
-3. If requirements are ambiguous, ask — never guess and build
-
-## BEFORE committing
-
-1. Run `npm run build` (skip for docs-only changes)
-2. Use HEREDOC format + Co-Authored-By line (hook enforced)
-3. NEVER push without explicit user approval (hook warns)
+2. **Present a plan and WAIT** — do NOT write code until you receive explicit approval ("go ahead", "yes", "do it"). Silence is NOT approval.
+3. **If requirements are ambiguous — ASK.** Never guess and build.
 
 ## BEFORE editing 3+ files
 
 1. Decompose into smaller tasks
 2. Present breakdown and get approval for each chunk
 
-## AFTER any modification
+## BEFORE committing
+
+1. Run `npm run build` (skip for docs-only changes)
+2. Use HEREDOC format + Co-Authored-By line (hook enforced)
+3. NEVER push without explicit user approval
+
+## AFTER any modification — ALWAYS output this
 
 ```
 CHANGES MADE:
@@ -36,11 +34,17 @@ POTENTIAL CONCERNS:
 
 ---
 
+# Project — stack, commands, quick facts
+
 **Stack**: Next.js 16 + React 19 + TypeScript + Ant Design + Tailwind + Zustand + Neon DB + MariaDB
 
 **Commands**: `npm run dev` | `npm run build` (+ type-check) | `npm run lint` | `npm run script -- scripts/foo.ts`
 
 **Running Scripts**: ALWAYS use `npx tsx scripts/foo.ts` (or `npm run script -- scripts/foo.ts`). NEVER use bare `node` on `.ts` files — it causes MODULE_TYPELESS_PACKAGE_JSON warnings.
+
+---
+
+# Rules — pitfalls and coding conventions
 
 ## Critical Warnings
 
@@ -59,7 +63,9 @@ POTENTIAL CONCERNS:
 - Design tokens from `styles/tokens.ts` + `styles/tokens.css` — never hardcode
 - Naming: PascalCase (Components), useCamelCase (hooks), camelStore (stores)
 
-## Behavioral Rules
+---
+
+# Behavior — how to act
 
 - **No sycophancy** — push back on bad ideas with concrete downsides
 - **No overcomplication** — if 100 lines suffice, 1000 is a failure
@@ -67,18 +73,16 @@ POTENTIAL CONCERNS:
 - **Surface confusion** — STOP and ask when you see inconsistencies
 - **Dead code** — after refactoring, list unused code and ask before removing
 - **Parallel agents** — proactively use Task tool for 2+ independent subtasks. Don't ask permission — dispatch like any other tool. Use `subagent_type=Explore` for broad codebase searches
+- **Debugging data mismatches** — when asked to debug count/data discrepancies between table and modal, or between different views, ALWAYS read `docs/workflows/debug-count-mismatch.md` FIRST before investigating
 
 ---
 
-# Hooks (mechanical enforcement)
+# Hooks — inline, fire on every Edit/Write
 
-These run automatically. You cannot bypass them.
+Know these upfront to avoid wasted round-trips:
 
 | Hook | Trigger | Blocks |
 |------|---------|--------|
-| `validate-commit.js` | `git commit` | Missing HEREDOC, Co-Authored-By, or type prefix |
-| `block-push.js` | `git push` | Warning only — shows diff stats, reminds to get approval |
-| `block-dangerous-git.js` | `git *` | `--force`, `--hard`, `checkout .`, `restore .`, `clean -f`, `--no-verify`, `branch -D` |
 | `check-imports.js` | Edit/Write .ts/.tsx | Relative parent imports (`../`) |
 | `check-sql-injection.js` | Edit/Write .ts/.tsx | Template literals `${}` in query/execute calls |
 | `check-secrets.js` | Edit/Write .ts/.tsx/.js | Hardcoded API keys, passwords, tokens |
@@ -87,26 +91,20 @@ These run automatically. You cannot bypass them.
 
 ---
 
-# Documentation (all on-demand — read when relevant)
+# Docs — on-demand, read when relevant
 
 | File | When to Read |
 |------|-------------|
-| `docs/project-overview.md` | Starting a task — architecture, design direction, component library, decision tree |
-| `docs/git-workflow.md` | Committing, branching, PRs — format, safety, hook failures |
+| `docs/project-overview.md` | Starting a task — architecture, design direction, component library |
+| `docs/git-workflow.md` | Committing, branching, PRs — format, safety |
 | `docs/build-rules.md` | Deciding whether to build — decision table, common errors |
 | `docs/security.md` | Writing API routes or DB queries — validation patterns |
 | `docs/workflows/verify.md` | Pre-commit/PR verification phases |
 | `docs/workflows/new-feature-checklist.md` | Building new features — similarity scoring, path selection |
-| `docs/components/generic-table.md` | Building a hierarchical data table |
-| `docs/components/url-sync.md` | Adding URL-synced state |
-| `docs/components/store-pattern.md` | Creating a Zustand store |
-| `docs/workflows/new-dashboard.md` | Creating a new dashboard (7-8 files) |
-| `docs/workflows/add-metric.md` | Adding a metric column |
-| `docs/workflows/add-dimension.md` | Adding a dimension |
-| `docs/workflows/standalone-component.md` | Building a custom component |
-| `docs/api.md` | API patterns, query builders |
+| `docs/workflows/debug-count-mismatch.md` | **Debugging data mismatches** — 6-step methodology (MUST read when debugging count/data issues) |
+| `docs/api.md` | API patterns, response envelope, hierarchical keys |
 | `docs/state.md` | State management: dual-state, URL sync |
-| `docs/design.md` | UI components, layouts |
+| `docs/design.md` | UI components, table specs, modal pattern |
 | `docs/css.md` | Styling, tokens, Ant Design overrides, known gotchas |
 | `docs/features.md` | Feature-specific implementations |
 | `docs/mariadb.md` | CRM database (MariaDB) |

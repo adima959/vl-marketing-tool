@@ -4,7 +4,7 @@
  * Replaces the old authErrorHandler.ts with support for all error types
  */
 
-import { AppError } from '@/lib/types/errors';
+import { AppError, createAuthError, normalizeError } from '@/lib/types/errors';
 
 // Global error callback - set by AppContext on mount
 let globalErrorCallback: ((error: AppError | null) => void) | null = null;
@@ -49,13 +49,12 @@ export function isAuthError(statusCode: number): boolean {
 }
 
 /**
- * Throw an auth error with global error triggering
- * Consolidates auth error creation + trigger + throw pattern
+ * Throw an auth error.
+ * Does NOT trigger the global error UI — callers handle auth errors
+ * inline (settings pages) or via handleStoreError (stores).
  */
 export function throwAuthError(includeContext: boolean = false): never {
-  const { createAuthError } = require('@/lib/types/errors');
   const error = createAuthError(includeContext);
-  triggerError(error);
   throw error;
 }
 
@@ -67,4 +66,37 @@ export function checkAuthError(res: Response): void {
   if (isAuthError(res.status)) {
     throwAuthError();
   }
+}
+
+/**
+ * Fetch JSON API endpoint with auth check and success validation.
+ * Throws on auth error, non-success response, or network failure.
+ * Returns the `data` field from `{ success: true, data: T }` responses.
+ */
+export async function fetchApi<T = any>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, options);
+  checkAuthError(res);
+  if (!res.ok) {
+    let errorMessage = 'Request failed';
+    try {
+      const json = await res.json();
+      errorMessage = json.error || errorMessage;
+    } catch {
+      errorMessage = res.statusText || errorMessage;
+    }
+    throw new Error(errorMessage);
+  }
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error || 'Request failed');
+  return json.data as T;
+}
+
+/**
+ * Standard error handler for store actions.
+ * Normalizes, logs, and triggers the global error UI.
+ */
+export function handleStoreError(label: string, error: unknown): void {
+  const appError = normalizeError(error);
+  console.error(`Failed to ${label}:`, appError);
+  triggerError(appError);
 }

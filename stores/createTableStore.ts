@@ -2,7 +2,7 @@ import { create, type StoreApi } from 'zustand';
 import type { DateRange, QueryParams } from '@/lib/types/api';
 import type { TableFilter } from '@/types/filters';
 import { normalizeError } from '@/lib/types/errors';
-import { triggerError } from '@/lib/api/errorHandler';
+import { handleStoreError } from '@/lib/api/errorHandler';
 import {
   updateHasChildren,
   updateTreeChildren,
@@ -77,6 +77,75 @@ export interface TableStore<TRow extends BaseTableRow> {
   resetFilters: () => void;
   loadData: () => Promise<void>;
   loadChildData: (parentKey: string, parentValue: string, parentDepth: number) => Promise<void>;
+}
+
+/** Serialize active filters to API format (reused across loadData, setSort, loadChildData) */
+function buildApiFilters(filters: TableFilter[], hasFilters: boolean): QueryParams['filters'] {
+  if (!hasFilters) return undefined;
+  const valid = filters.filter(f => f.value).map(({ field, operator, value }) => ({ field, operator, value }));
+  return valid.length > 0 ? valid : undefined;
+}
+
+/** Build sort params for fetch calls */
+function buildSortParams(
+  sortColumn: string | null,
+  sortDirection: 'ascend' | 'descend' | null,
+  defaultSortColumn: string
+): { sortBy: string; sortDirection: 'ASC' | 'DESC' } {
+  return {
+    sortBy: sortColumn || defaultSortColumn,
+    sortDirection: sortDirection === 'ascend' ? 'ASC' : 'DESC',
+  };
+}
+
+/**
+ * Auto-expand all top-level rows by loading depth-1 children in batches of 10.
+ * Returns updated data with children attached.
+ */
+async function autoExpandFirstLevel<TRow extends BaseTableRow>(
+  data: TRow[],
+  opts: {
+    fetchData: (params: QueryParams) => Promise<TRow[]>;
+    dateRange: DateRange;
+    dimensions: string[];
+    filters: QueryParams['filters'];
+    sort: { sortBy: string; sortDirection: 'ASC' | 'DESC' };
+  }
+): Promise<{ updatedData: TRow[]; expandedKeys: string[] }> {
+  const expandableRows = data.filter(row => row.hasChildren);
+  if (expandableRows.length === 0) return { updatedData: data, expandedKeys: [] };
+
+  const expandedKeys = expandableRows.map(row => row.key);
+  const BATCH_SIZE = 10;
+  const allResults: PromiseSettledResult<{ success: boolean; key: string; children: TRow[] }>[] = [];
+
+  for (let i = 0; i < expandableRows.length; i += BATCH_SIZE) {
+    const batch = expandableRows.slice(i, i + BATCH_SIZE);
+    const batchPromises = batch.map((parentRow) => {
+      const parentFilters: Record<string, string> = {
+        [opts.dimensions[0]]: parentRow.attribute,
+      };
+
+      return opts.fetchData({
+        dateRange: opts.dateRange,
+        dimensions: opts.dimensions,
+        depth: 1,
+        parentFilters,
+        filters: opts.filters,
+        ...opts.sort,
+      })
+        .then((children) => ({ success: true, key: parentRow.key, children }))
+        .catch((error) => {
+          console.warn(`Failed to load children for ${parentRow.key}:`, error);
+          return { success: false, key: parentRow.key, children: [] as TRow[] };
+        });
+    });
+
+    const batchResults = await Promise.allSettled(batchPromises);
+    allResults.push(...batchResults);
+  }
+
+  return { updatedData: updateTreeWithResults(data, allResults), expandedKeys };
 }
 
 /**
@@ -171,25 +240,19 @@ export function createTableStore<TRow extends BaseTableRow>(
 
     setSort: async (column, direction) => {
       const state = get();
-      // Update sort state
       set({ sortColumn: column, sortDirection: direction });
 
-      // Only reload if data has been loaded at least once
       if (state.hasLoadedOnce) {
-        // Load top-level data with new sort
         set({ isLoading: true });
-        const apiFilters = hasFilters
-          ? state.filters.filter(f => f.value).map(({ field, operator, value }) => ({ field, operator, value }))
-          : [];
+        const sort = buildSortParams(column, direction, defaultSortColumn);
 
         try {
           const data = await fetchData({
             dateRange: state.dateRange,
             dimensions: state.dimensions,
             depth: 0,
-            ...(apiFilters.length > 0 && { filters: apiFilters }),
-            sortBy: column || defaultSortColumn,
-            sortDirection: direction === 'ascend' ? 'ASC' : 'DESC',
+            filters: buildApiFilters(state.filters, hasFilters),
+            ...sort,
           });
 
           set({
@@ -200,12 +263,10 @@ export function createTableStore<TRow extends BaseTableRow>(
             loadedDateRange: state.dateRange,
             loadedFilters: state.filters,
             reportData: data,
-            expandedRowKeys: [], // Clear expanded rows on sort change
+            expandedRowKeys: [],
           });
         } catch (error: unknown) {
-          const appError = normalizeError(error);
-          console.error('Failed to load data:', appError);
-          triggerError(appError);
+          handleStoreError('sort data', error);
           set({ isLoading: false });
         }
       }
@@ -225,18 +286,14 @@ export function createTableStore<TRow extends BaseTableRow>(
 
     loadData: async () => {
       const state = get();
-      // Save expanded keys to restore after reload
       const savedExpandedKeys = [...state.expandedRowKeys];
-      const apiFilters = hasFilters
-        ? state.filters.filter(f => f.value).map(({ field, operator, value }) => ({ field, operator, value }))
-        : [];
+      const filters = buildApiFilters(state.filters, hasFilters);
+      const sort = buildSortParams(state.sortColumn, state.sortDirection, defaultSortColumn);
 
-      // Check if dimensions have changed
       const dimensionsChanged =
         state.dimensions.length !== state.loadedDimensions.length ||
         state.dimensions.some((dim, i) => dim !== state.loadedDimensions[i]);
 
-      // Clear old data to prevent stale children from blocking fresh loads
       set({ isLoading: true, reportData: [] });
 
       try {
@@ -244,9 +301,8 @@ export function createTableStore<TRow extends BaseTableRow>(
           dateRange: state.dateRange,
           dimensions: state.dimensions,
           depth: 0,
-          ...(apiFilters.length > 0 && { filters: apiFilters }),
-          sortBy: state.sortColumn || defaultSortColumn,
-          sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
+          filters,
+          ...sort,
         });
 
         set({
@@ -262,57 +318,20 @@ export function createTableStore<TRow extends BaseTableRow>(
 
         // Auto-expand level one if this is a fresh load or dimensions changed
         if ((savedExpandedKeys.length === 0 || dimensionsChanged) && data.length > 0) {
-          const allExpandedKeys: string[] = [];
+          const expandedKeys = data.filter(r => r.hasChildren).map(r => r.key);
+          set({ isLoadingSubLevels: true, expandedRowKeys: [...expandedKeys] });
 
-          // Collect depth 0 keys that will be expanded
-          for (const row of data) {
-            if (row.hasChildren) {
-              allExpandedKeys.push(row.key);
-            }
-          }
-
-          // Set loading state and expanded keys early so skeleton rows can show
-          set({ isLoadingSubLevels: true, expandedRowKeys: [...allExpandedKeys] });
-
-          // Load depth 1 for all top-level rows in batches of 10 to avoid overwhelming the server
-          const expandableRows = data.filter(row => row.hasChildren);
-          const BATCH_SIZE = 10;
-          const allDepth1Results: PromiseSettledResult<{ success: boolean; key: string; children: TRow[] }>[] = [];
-
-          for (let i = 0; i < expandableRows.length; i += BATCH_SIZE) {
-            const batch = expandableRows.slice(i, i + BATCH_SIZE);
-            const batchPromises = batch.map((parentRow) => {
-              const parentFilters: Record<string, string> = {
-                [state.dimensions[0]]: parentRow.attribute,
-              };
-
-              return fetchData({
-                dateRange: state.dateRange,
-                dimensions: state.dimensions,
-                depth: 1,
-                parentFilters,
-                ...(apiFilters.length > 0 && { filters: apiFilters }),
-                sortBy: state.sortColumn || defaultSortColumn,
-                sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
-              })
-                .then((children) => ({ success: true, key: parentRow.key, children }))
-                .catch((error) => {
-                  console.warn(`Failed to load children for ${parentRow.key}:`, error);
-                  return { success: false, key: parentRow.key, children: [] as TRow[] };
-                });
-            });
-
-            const batchResults = await Promise.allSettled(batchPromises);
-            allDepth1Results.push(...batchResults);
-          }
+          const result = await autoExpandFirstLevel(data, {
+            fetchData, dateRange: state.dateRange, dimensions: state.dimensions, filters, sort,
+          });
 
           set({
-            reportData: updateTreeWithResults(data, allDepth1Results),
-            expandedRowKeys: allExpandedKeys,
+            reportData: result.updatedData,
+            expandedRowKeys: result.expandedKeys,
             isLoadingSubLevels: false,
           });
         }
-        // If there are saved expanded keys, restore them (manual reload)
+        // Restore saved expanded keys on manual reload
         else if (savedExpandedKeys.length > 0 && state.hasLoadedOnce) {
           set({ isLoadingSubLevels: true });
 
@@ -326,9 +345,8 @@ export function createTableStore<TRow extends BaseTableRow>(
                 dimensions: state.dimensions,
                 depth,
                 parentFilters,
-                ...(apiFilters.length > 0 && { filters: apiFilters }),
-                sortBy: state.sortColumn || defaultSortColumn,
-                sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
+                filters,
+                ...sort,
               }),
           });
 
@@ -339,16 +357,8 @@ export function createTableStore<TRow extends BaseTableRow>(
           });
         }
       } catch (error: unknown) {
-        const appError = normalizeError(error);
-        console.error('Failed to load data:', {
-          code: appError.code,
-          message: appError.message,
-        });
-        triggerError(appError);
-        set({
-          isLoading: false,
-          isLoadingSubLevels: false,
-        });
+        handleStoreError('load data', error);
+        set({ isLoading: false, isLoadingSubLevels: false });
       }
     },
 
@@ -358,18 +368,14 @@ export function createTableStore<TRow extends BaseTableRow>(
 
       try {
         const parentFilters = parseKeyToParentFilters(parentKey, state.loadedDimensions);
-        const loadedApiFilters = hasFilters
-          ? state.loadedFilters.filter(f => f.value).map(({ field, operator, value }) => ({ field, operator, value }))
-          : [];
 
         const children = await fetchData({
           dateRange: state.loadedDateRange,
           dimensions: state.loadedDimensions,
           depth: parentDepth + 1,
           parentFilters,
-          ...(loadedApiFilters.length > 0 && { filters: loadedApiFilters }),
-          sortBy: state.sortColumn || defaultSortColumn,
-          sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
+          filters: buildApiFilters(state.loadedFilters, hasFilters),
+          ...buildSortParams(state.sortColumn, state.sortDirection, defaultSortColumn),
         });
 
         set({

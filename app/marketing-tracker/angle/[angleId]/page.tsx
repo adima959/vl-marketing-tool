@@ -4,7 +4,7 @@ import AngleClientPage from './AngleClientPage';
 export async function generateMetadata({ params }: { params: Promise<{ angleId: string }> }): Promise<Metadata> {
   const { angleId } = await params;
   return {
-    title: `Angle ${angleId} | Vitaliv Analytics`,
+    title: `Angle ${angleId}`,
     description: 'Angle details and messaging hypotheses',
   };
 }

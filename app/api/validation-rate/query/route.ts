@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getValidationRateData } from '@/lib/server/validationRateQueryBuilder';
 import { maskErrorForClient } from '@/lib/types/errors';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { validationRateQueryRequestSchema } from '@/lib/schemas/api';
 import type { ValidationRateResponse, ValidationRateQueryParams } from '@/types';
@@ -74,8 +74,8 @@ async function handleValidationRateQuery(
   }
 }
 
-// Export with admin authentication
-export const POST = withAuth(handleValidationRateQuery);
+// Export with permission-based authentication
+export const POST = withPermission('analytics.validation_reports', 'can_view', handleValidationRateQuery);
 
 /**
  * GET /api/validation-rate/query

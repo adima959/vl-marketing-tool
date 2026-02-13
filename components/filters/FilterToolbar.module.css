@@ -88,9 +88,20 @@
 /* Right section: Controls */
 .rightSection {
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.rightTopRow {
+  display: flex;
   align-items: center;
   gap: 10px;
-  flex-shrink: 0;
+}
+
+.additionalControls {
+  padding-top: 8px;
 }
 
 /* Load button wrapper with unsaved indicator */

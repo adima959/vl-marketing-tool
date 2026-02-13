@@ -42,26 +42,6 @@
   flex-shrink: 0;
 }
 
-.tabBadge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 9px;
-  font-size: 11px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  background: var(--color-gray-100);
-  color: var(--color-gray-500);
-}
-
-.tabBadgeAlert {
-  background: var(--color-warning-50, #fff7e6);
-  color: var(--color-warning-600, #d48806);
-}
-
 /* Two-column layout */
 .layout {
   display: grid;

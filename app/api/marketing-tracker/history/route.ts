@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { EntityType } from '@/types/marketing-tracker';
 import { getEntityHistory, getRecentHistory } from '@/lib/marketing-tracker/historyService';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { unstable_rethrow } from 'next/navigation';
 
@@ -19,7 +19,7 @@ const VALID_ENTITY_TYPES: EntityType[] = ['product', 'angle', 'message', 'asset'
  * If entityType + entityId provided: returns history for that specific entity
  * Otherwise: returns recent history across all entities
  */
-export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
+export const GET = withPermission('tools.marketing_tracker', 'can_view', async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const { searchParams } = new URL(request.url);
     const entityType = searchParams.get('entityType') as EntityType | null;

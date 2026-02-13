@@ -3,7 +3,6 @@
 import { useState, lazy, Suspense } from 'react';
 import { App, Table, Button, Tag } from 'antd';
 import { EditOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
-import { useRouter } from 'next/navigation';
 import type { Product, TrackerUser } from '@/types/marketing-tracker';
 import type { ColumnsType } from 'antd/es/table';
 import styles from '@/styles/components/settings.module.css';
@@ -16,11 +15,11 @@ const ProductDialog = lazy(() =>
 interface ProductsClientTableProps {
   products: Product[];
   users: TrackerUser[];
+  onRefresh: () => Promise<void>;
 }
 
-export function ProductsClientTable({ products, users }: ProductsClientTableProps) {
+export function ProductsClientTable({ products, users, onRefresh }: ProductsClientTableProps) {
   const { message } = App.useApp();
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -28,8 +27,7 @@ export function ProductsClientTable({ products, users }: ProductsClientTableProp
   const handleRefresh = async () => {
     setLoading(true);
     try {
-      router.refresh();
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await onRefresh();
     } finally {
       setLoading(false);
     }
@@ -50,8 +48,8 @@ export function ProductsClientTable({ products, users }: ProductsClientTableProp
     setSelectedProduct(null);
   };
 
-  const handleDialogSuccess = () => {
-    router.refresh();
+  const handleDialogSuccess = async () => {
+    await onRefresh();
   };
 
   const columns: ColumnsType<Product> = [

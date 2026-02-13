@@ -11,8 +11,7 @@ import type {
   ProductStatus,
   Geography,
 } from '@/types';
-import { triggerError, checkAuthError } from '@/lib/api/errorHandler';
-import { normalizeError } from '@/lib/types/errors';
+import { fetchApi, handleStoreError } from '@/lib/api/errorHandler';
 
 // Activity record from history API
 export interface ActivityRecord {
@@ -134,30 +133,14 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
     const { productStatusFilter } = get();
     set({ isLoading: true });
     try {
-      // Build URL with status filter
       const statusParam = productStatusFilter !== 'all' ? `?status=${productStatusFilter}` : '';
-
-      // Fetch products and users in parallel
-      const [productsResponse, users] = await Promise.all([
-        fetch(`/api/marketing-tracker/products${statusParam}`),
+      const [products, users] = await Promise.all([
+        fetchApi<ProductWithStats[]>(`/api/marketing-tracker/products${statusParam}`),
         fetchUsers(),
       ]);
-      checkAuthError(productsResponse);
-      const productsData = await productsResponse.json();
-
-      if (!productsData.success) {
-        throw new Error(productsData.error || 'Failed to load dashboard');
-      }
-
-      set({
-        products: productsData.data as ProductWithStats[],
-        users,
-        isLoading: false,
-      });
+      set({ products, users, isLoading: false });
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to load dashboard:', appError);
-      triggerError(appError);
+      handleStoreError('load dashboard', error);
       set({ isLoading: false });
     }
   },
@@ -165,21 +148,13 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
   loadProduct: async (productId: string) => {
     set({ isLoading: true });
     try {
-      // Fetch product and users in parallel
-      const [productResponse, users] = await Promise.all([
-        fetch(`/api/marketing-tracker/products/${productId}`),
+      const [productData, users] = await Promise.all([
+        fetchApi<{ product: Product; mainAngles: Angle[] }>(`/api/marketing-tracker/products/${productId}`),
         get().users.length === 0 ? fetchUsers() : Promise.resolve(get().users),
       ]);
-      checkAuthError(productResponse);
-      const data = await productResponse.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Product not found');
-      }
-
       set({
-        currentProduct: data.data.product,
-        angles: data.data.mainAngles || [],
+        currentProduct: productData.product,
+        angles: productData.mainAngles || [],
         users: Array.isArray(users) ? users : get().users,
         currentAngle: null,
         currentMessage: null,
@@ -189,9 +164,7 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
         isLoading: false,
       });
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to load product:', appError);
-      triggerError(appError);
+      handleStoreError('load product', error);
       set({ isLoading: false });
     }
   },
@@ -211,27 +184,20 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
   loadAngle: async (angleId: string) => {
     set({ isLoading: true });
     try {
-      const response = await fetch(`/api/marketing-tracker/angles/${angleId}`);
-      checkAuthError(response);
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Angle not found');
-      }
-
+      const data = await fetchApi<{ angle: Angle; product: Product; messages: Message[] }>(
+        `/api/marketing-tracker/angles/${angleId}`
+      );
       set({
-        currentAngle: data.data.angle,
-        currentProduct: data.data.product || null,
-        messages: data.data.messages || [],
+        currentAngle: data.angle,
+        currentProduct: data.product || null,
+        messages: data.messages || [],
         currentMessage: null,
         assets: [],
         creatives: [],
         isLoading: false,
       });
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to load angle:', appError);
-      triggerError(appError);
+      handleStoreError('load angle', error);
       set({ isLoading: false });
     }
   },
@@ -239,26 +205,19 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
   loadMessage: async (messageId: string) => {
     set({ isLoading: true });
     try {
-      const response = await fetch(`/api/marketing-tracker/messages/${messageId}`);
-      checkAuthError(response);
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Message not found');
-      }
-
+      const data = await fetchApi<{ message: Message; angle: Angle; product: Product; assets: Asset[]; creatives: Creative[] }>(
+        `/api/marketing-tracker/messages/${messageId}`
+      );
       set({
-        currentMessage: data.data.message,
-        currentAngle: data.data.angle || null,
-        currentProduct: data.data.product || null,
-        assets: data.data.assets || [],
-        creatives: data.data.creatives || [],
+        currentMessage: data.message,
+        currentAngle: data.angle || null,
+        currentProduct: data.product || null,
+        assets: data.assets || [],
+        creatives: data.creatives || [],
         isLoading: false,
       });
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to load message:', appError);
-      triggerError(appError);
+      handleStoreError('load message', error);
       set({ isLoading: false });
     }
   },
@@ -271,21 +230,11 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
   // Status Update Actions
   updateAngleStatus: async (angleId: string, status: AngleStatus) => {
     try {
-      const response = await fetch(`/api/marketing-tracker/angles/${angleId}`, {
+      const updatedAngle = await fetchApi<Angle>(`/api/marketing-tracker/angles/${angleId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       });
-      checkAuthError(response);
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to update angle status');
-      }
-
-      const updatedAngle = data.data as Angle;
-
-      // Update local state with the response from server
       set((state) => ({
         angles: state.angles.map((angle) =>
           angle.id === angleId ? updatedAngle : angle
@@ -294,29 +243,17 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
           state.currentAngle?.id === angleId ? updatedAngle : state.currentAngle,
       }));
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to update angle status:', appError);
-      triggerError(appError);
+      handleStoreError('update angle status', error);
     }
   },
 
   updateMessageStatus: async (messageId: string, status: AngleStatus) => {
     try {
-      const response = await fetch(`/api/marketing-tracker/messages/${messageId}`, {
+      const updatedMessage = await fetchApi<Message>(`/api/marketing-tracker/messages/${messageId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       });
-      checkAuthError(response);
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to update message status');
-      }
-
-      const updatedMessage = data.data as Message;
-
-      // Update local state with the response from server
       set((state) => ({
         messages: state.messages.map((message) =>
           message.id === messageId ? updatedMessage : message
@@ -325,30 +262,18 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
           state.currentMessage?.id === messageId ? updatedMessage : state.currentMessage,
       }));
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to update message status:', appError);
-      triggerError(appError);
+      handleStoreError('update message status', error);
     }
   },
 
   // Inline Field Update Actions
   updateAngleField: async (angleId: string, field: string, value: string) => {
     try {
-      const response = await fetch(`/api/marketing-tracker/angles/${angleId}`, {
+      const updatedAngle = await fetchApi<Angle>(`/api/marketing-tracker/angles/${angleId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: value }),
       });
-      checkAuthError(response);
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to update angle');
-      }
-
-      const updatedAngle = data.data as Angle;
-
-      // Update local state
       set((state) => ({
         angles: state.angles.map((angle) =>
           angle.id === angleId ? updatedAngle : angle
@@ -357,29 +282,17 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
           state.currentAngle?.id === angleId ? updatedAngle : state.currentAngle,
       }));
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to update angle:', appError);
-      triggerError(appError);
+      handleStoreError('update angle', error);
     }
   },
 
   updateProductField: async (productId: string, field: string, value: string) => {
     try {
-      const response = await fetch(`/api/marketing-tracker/products/${productId}`, {
+      const updatedProduct = await fetchApi<Product>(`/api/marketing-tracker/products/${productId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: value }),
       });
-      checkAuthError(response);
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to update product');
-      }
-
-      const updatedProduct = data.data as Product;
-
-      // Update local state
       set((state) => ({
         products: state.products.map((product) =>
           product.id === productId ? { ...product, ...updatedProduct } : product
@@ -388,29 +301,17 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
           state.currentProduct?.id === productId ? updatedProduct : state.currentProduct,
       }));
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to update product:', appError);
-      triggerError(appError);
+      handleStoreError('update product', error);
     }
   },
 
   updateMessageField: async (messageId: string, field: string, value: string | string[]) => {
     try {
-      const response = await fetch(`/api/marketing-tracker/messages/${messageId}`, {
+      const updatedMessage = await fetchApi<Message>(`/api/marketing-tracker/messages/${messageId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: value }),
       });
-      checkAuthError(response);
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to update message');
-      }
-
-      const updatedMessage = data.data as Message;
-
-      // Update local state
       set((state) => ({
         messages: state.messages.map((message) =>
           message.id === messageId ? updatedMessage : message
@@ -421,9 +322,7 @@ export const useMarketingTrackerStore = create<MarketingTrackerState>((set, get)
             : state.currentMessage,
       }));
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to update message:', appError);
-      triggerError(appError);
+      handleStoreError('update message', error);
     }
   },
 

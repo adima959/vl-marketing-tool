@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import ProductListClientPage from './ProductListClientPage';
 
 export const metadata: Metadata = {
-  title: 'Marketing Tracker | Vitaliv Analytics',
+  title: 'Marketing Tracker',
   description: 'Manage marketing products, angles, and messaging',
 };
 

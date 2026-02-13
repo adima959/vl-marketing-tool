@@ -4,7 +4,7 @@ import type { QueryResponse } from '@/lib/types/api';
 import { parseQueryRequest } from '@/lib/types/api';
 import { maskErrorForClient } from '@/lib/types/errors';
 import type { ReportRow } from '@/types/report';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { marketingQueryRequestSchema } from '@/lib/schemas/api';
 import { toTitleCase } from '@/lib/formatters';
@@ -91,6 +91,7 @@ async function handleMarketingQuery(
         subscriptions: row.subscriptions,
         trials: row.trials,
         trialsApproved: row.trials_approved,
+        onHold: row.on_hold,
         ots: row.ots,
         otsApproved: row.ots_approved,
         approvalRate: row.approval_rate,
@@ -133,8 +134,8 @@ async function handleMarketingQuery(
   }
 }
 
-// Export with admin authentication
-export const POST = withAuth(handleMarketingQuery);
+// Export with permission-based authentication
+export const POST = withPermission('analytics.marketing_report', 'can_view', handleMarketingQuery);
 
 /**
  * GET /api/marketing/query

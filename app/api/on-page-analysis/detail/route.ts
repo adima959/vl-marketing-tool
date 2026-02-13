@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/server/db';
 import { onPageQueryBuilder } from '@/lib/server/onPageQueryBuilder';
 import { createValidationError, maskErrorForClient } from '@/lib/types/errors';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import type { OnPageDetailRequest } from '@/types/onPageDetails';
 import { unstable_rethrow } from 'next/navigation';
@@ -148,4 +148,4 @@ async function handleOnPageDetail(
   }
 }
 
-export const POST = withAuth(handleOnPageDetail);
+export const POST = withPermission('analytics.on_page_analysis', 'can_view', handleOnPageDetail);

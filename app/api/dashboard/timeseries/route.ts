@@ -3,7 +3,7 @@ import { executeMariaDBQuery } from '@/lib/server/mariadb';
 import { crmQueryBuilder } from '@/lib/server/crmQueryBuilder';
 import { formatMariaDBDateResult } from '@/lib/server/crmMetrics';
 import type { TimeSeriesDataPoint, TimeSeriesResponse } from '@/types/dashboard';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { maskErrorForClient } from '@/lib/types/errors';
 import { z } from 'zod';
@@ -29,6 +29,8 @@ interface RawTimeSeriesRow {
   trials: number | string;
   trialsApproved: number | string;
   upsells: number | string;
+  upsellSub: number | string;
+  upsellOts: number | string;
   upsellsApproved: number | string;
 }
 
@@ -52,14 +54,16 @@ async function handleTimeSeriesQuery(
       end: new Date(body.dateRange.end),
     };
 
-    // Build main time series query and standalone OTS time series query using shared builder
+    // Build main time series query, standalone OTS and trial time series queries
     const { query, params } = crmQueryBuilder.buildTimeSeriesQuery(dateRange);
     const { query: otsQuery, params: otsParams } = crmQueryBuilder.buildOtsTimeSeriesQuery(dateRange);
+    const { query: trialQuery, params: trialParams } = crmQueryBuilder.buildTrialTimeSeriesQuery(dateRange);
 
-    // Execute both queries in parallel
-    const [rows, otsRows] = await Promise.all([
+    // Execute all three queries in parallel
+    const [rows, otsRows, trialRows] = await Promise.all([
       executeMariaDBQuery<RawTimeSeriesRow>(query, params),
       executeMariaDBQuery<{ date: string | Date; ots: number | string; otsApproved: number | string }>(otsQuery, otsParams),
+      executeMariaDBQuery<{ date: string | Date; trials: number | string; trialsApproved: number | string; onHold: number | string }>(trialQuery, trialParams),
     ]);
 
     // Build OTS lookup by date string
@@ -74,24 +78,59 @@ async function handleTimeSeriesQuery(
       });
     }
 
-    // Transform to frontend format, merging OTS data
-    const data: TimeSeriesDataPoint[] = rows.map((row) => {
-      const dateValue = row.date instanceof Date
-        ? formatMariaDBDateResult(row.date)
-        : String(row.date).split('T')[0];
+    // Build trial lookup by date string (overrides main query's trial counts)
+    const trialMap = new Map<string, { trials: number; trialsApproved: number; onHold: number }>();
+    for (const trialRow of trialRows) {
+      const dateKey = trialRow.date instanceof Date
+        ? formatMariaDBDateResult(trialRow.date)
+        : String(trialRow.date).split('T')[0];
+      trialMap.set(dateKey, {
+        trials: Number(trialRow.trials) || 0,
+        trialsApproved: Number(trialRow.trialsApproved) || 0,
+        onHold: Number(trialRow.onHold) || 0,
+      });
+    }
 
+    // Collect all dates from main + trial queries (trial query may have dates outside s.date_create range)
+    const allDates = new Set<string>();
+    for (const row of rows) {
+      const d = row.date instanceof Date ? formatMariaDBDateResult(row.date) : String(row.date).split('T')[0];
+      allDates.add(d);
+    }
+    for (const d of trialMap.keys()) {
+      allDates.add(d);
+    }
+
+    // Build a quick lookup of main query rows by date
+    const mainRowMap = new Map<string, RawTimeSeriesRow>();
+    for (const row of rows) {
+      const d = row.date instanceof Date ? formatMariaDBDateResult(row.date) : String(row.date).split('T')[0];
+      mainRowMap.set(d, row);
+    }
+
+    // Transform to frontend format, merging OTS and trial data
+    const data: TimeSeriesDataPoint[] = [...allDates].sort().map((dateValue) => {
+      const row = mainRowMap.get(dateValue);
       const otsData = otsMap.get(dateValue) || { ots: 0, otsApproved: 0 };
+      const trialData = trialMap.get(dateValue);
+
+      const trials = trialData ? trialData.trials : (row ? Number(row.trials) || 0 : 0);
+      const trialsApproved = trialData ? trialData.trialsApproved : (row ? Number(row.trialsApproved) || 0 : 0);
+      const onHold = trialData ? trialData.onHold : 0;
 
       return {
         date: dateValue,
-        customers: Number(row.customers) || 0,
-        subscriptions: Number(row.subscriptions) || 0,
-        trials: Number(row.trials) || 0,
+        customers: row ? Number(row.customers) || 0 : 0,
+        subscriptions: row ? Number(row.subscriptions) || 0 : 0,
+        trials,
         ots: otsData.ots,
         otsApproved: otsData.otsApproved,
-        trialsApproved: Number(row.trialsApproved) || 0,
-        upsells: Number(row.upsells) || 0,
-        upsellsApproved: Number(row.upsellsApproved) || 0,
+        trialsApproved,
+        onHold,
+        upsells: row ? Number(row.upsells) || 0 : 0,
+        upsellSub: row ? Number(row.upsellSub) || 0 : 0,
+        upsellOts: row ? Number(row.upsellOts) || 0 : 0,
+        upsellsApproved: row ? Number(row.upsellsApproved) || 0 : 0,
       };
     });
 
@@ -127,8 +166,8 @@ async function handleTimeSeriesQuery(
   }
 }
 
-// Export with admin authentication
-export const POST = withAuth(handleTimeSeriesQuery);
+// Export with permission-based authentication
+export const POST = withPermission('analytics.dashboard', 'can_view', handleTimeSeriesQuery);
 
 /**
  * GET /api/dashboard/timeseries

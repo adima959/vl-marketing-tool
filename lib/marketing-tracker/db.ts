@@ -23,7 +23,8 @@ import type {
 // ============================================================================
 
 export type CreateProductData = CreateProductRequest;
-export type UpdateProductData = Partial<Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'owner' | 'angleCount' | 'activeAngleCount'>>;
+type NullablePartial<T> = { [K in keyof T]?: T[K] | null };
+export type UpdateProductData = NullablePartial<Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'owner' | 'angleCount' | 'activeAngleCount'>>;
 
 export type CreateAngleData = CreateAngleRequest;
 export type UpdateAngleData = Partial<Omit<Angle, 'id' | 'createdAt' | 'updatedAt' | 'messages' | 'messageCount'>>;

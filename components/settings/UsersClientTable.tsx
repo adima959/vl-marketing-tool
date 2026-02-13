@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { App, Table, Button, Tag, Switch } from 'antd';
 import { EditOutlined, ReloadOutlined } from '@ant-design/icons';
-import { useRouter } from 'next/navigation';
 import type { AppUser } from '@/types/user';
 import type { ColumnsType } from 'antd/es/table';
 import styles from '@/styles/components/settings.module.css';
@@ -15,20 +14,23 @@ const EditRoleDialog = lazy(() =>
 
 interface UsersClientTableProps {
   users: AppUser[];
+  onRefresh: () => Promise<void>;
 }
 
-export function UsersClientTable({ users }: UsersClientTableProps) {
+export function UsersClientTable({ users, onRefresh }: UsersClientTableProps) {
   const { message } = App.useApp();
-  const router = useRouter();
+  const [optimisticUsers, setOptimisticUsers] = useState(users);
   const [loading, setLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  // Sync optimistic state when prop updates (after refetch)
+  useEffect(() => { setOptimisticUsers(users); }, [users]);
+
   const handleRefresh = async () => {
     setLoading(true);
     try {
-      router.refresh();
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await onRefresh();
     } finally {
       setLoading(false);
     }
@@ -45,10 +47,16 @@ export function UsersClientTable({ users }: UsersClientTableProps) {
   };
 
   const handleDialogSuccess = () => {
-    router.refresh();
+    onRefresh();
   };
 
   const handleToggleProductOwner = async (record: AppUser, checked: boolean) => {
+    // Optimistic update — flip immediately, revert on failure
+    const prev = optimisticUsers;
+    setOptimisticUsers(optimisticUsers.map(u =>
+      u.id === record.id ? { ...u, is_product_owner: checked } : u
+    ));
+
     try {
       const response = await fetch(`/api/users/${record.id}`, {
         method: 'PATCH',
@@ -57,8 +65,8 @@ export function UsersClientTable({ users }: UsersClientTableProps) {
         credentials: 'same-origin',
       });
       if (!response.ok) throw new Error('Failed to update');
-      router.refresh();
     } catch {
+      setOptimisticUsers(prev);
       message.error('Failed to update product owner status');
     }
   };
@@ -150,7 +158,7 @@ export function UsersClientTable({ users }: UsersClientTableProps) {
           <div className={styles.sectionInfo}>
             <h2 className={styles.sectionTitle}>Team members</h2>
             <p className={styles.sectionSubtitle}>
-              {users.length > 0 ? `${users.length} user${users.length !== 1 ? 's' : ''}` : 'Manage user accounts and roles'}
+              {optimisticUsers.length > 0 ? `${optimisticUsers.length} user${optimisticUsers.length !== 1 ? 's' : ''}` : 'Manage user accounts and roles'}
             </p>
           </div>
           <div className={styles.sectionActions}>
@@ -168,7 +176,7 @@ export function UsersClientTable({ users }: UsersClientTableProps) {
         <div className={`${styles.tableCard} ${stickyStyles.stickyTable}`}>
           <Table
             columns={columns}
-            dataSource={users}
+            dataSource={optimisticUsers}
             loading={loading}
             rowKey="id"
             size="small"

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeMariaDBQuery } from '@/lib/server/mariadb';
 import { executeQuery } from '@/lib/server/db';
 import { CRM_DIMENSION_MAP } from '@/lib/server/onPageCrmQueries';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import type { DetailRecord } from '@/types/dashboardDetails';
 import { maskErrorForClient } from '@/lib/types/errors';
@@ -345,4 +345,4 @@ async function handleOnPageCrmDetails(
   }
 }
 
-export const POST = withAuth(handleOnPageCrmDetails);
+export const POST = withPermission('analytics.on_page_analysis', 'can_view', handleOnPageCrmDetails);

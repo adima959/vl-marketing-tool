@@ -28,8 +28,8 @@ export function DashboardDataTable() {
   const [modalOpen, setModalOpen] = useState(false);
 
   const handleMetricClick = (context: MetricClickContext) => {
-    // Dashboard aggregate always excludes upsell-tagged invoices from trials,
-    // so detail query must match by setting excludeUpsellTags
+    // Subscription aggregate always excludes upsell subs (CRM_DETAIL_CONTRACTS.subscription.alwaysWhere).
+    // Trial/OTS queries ignore this flag — their contracts have no upsell exclusion.
     context.filters.excludeUpsellTags = true;
     setModalContext(context);
     setModalOpen(true);

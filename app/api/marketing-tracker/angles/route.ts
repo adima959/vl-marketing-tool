@@ -8,7 +8,7 @@ getAnglesByProductId,
 } from '@/lib/marketing-tracker/db';
 import { recordCreation } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { createAngleSchema } from '@/lib/schemas/marketingTracker';
 import { z } from 'zod';
@@ -17,7 +17,7 @@ import { z } from 'zod';
  * GET /api/marketing-tracker/angles
  * List angles, filtered by productId (required)
  */
-export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
+export const GET = withPermission('tools.marketing_tracker', 'can_view', async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const { searchParams } = new URL(request.url);
     const productId = searchParams.get('productId');
@@ -55,7 +55,7 @@ export const GET = withAuth(async (request: NextRequest, user: AppUser): Promise
  * POST /api/marketing-tracker/angles
  * Create a new angle
  */
-export const POST = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
+export const POST = withPermission('tools.marketing_tracker', 'can_create', async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const rawBody = await request.json();
     const changedBy = await getChangedBy(request);

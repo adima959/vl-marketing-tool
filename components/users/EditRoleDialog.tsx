@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { App, Modal, Form, Select, Switch } from 'antd';
 import type { AppUser } from '@/types/user';
 import type { Role } from '@/types/roles';
+import { useAuth } from '@/contexts/AuthContext';
 import modalStyles from '@/styles/components/modal.module.css';
 import { checkAuthError } from '@/lib/api/errorHandler';
 
@@ -17,6 +18,7 @@ interface EditRoleDialogProps {
 export function EditRoleDialog({ user, open, onClose, onSuccess }: EditRoleDialogProps) {
   const [form] = Form.useForm();
   const { message } = App.useApp();
+  const { checkAuth } = useAuth();
   const [loading, setLoading] = useState(false);
   const [roles, setRoles] = useState<Role[]>([]);
   const [rolesLoading, setRolesLoading] = useState(false);
@@ -70,6 +72,13 @@ export function EditRoleDialog({ user, open, onClose, onSuccess }: EditRoleDialo
 
       message.success('User role updated successfully');
       form.resetFields();
+
+      // Refresh auth state: if we changed our own role, the server revoked
+      // our session — checkAuth will detect the 401 and show the session
+      // refresh page. If we changed another user's role, checkAuth updates
+      // our permissions (no-op if unchanged).
+      await checkAuth();
+
       onSuccess();
       onClose();
     } catch (error) {

@@ -80,6 +80,122 @@ async function fetchRecords(
   }
 }
 
+// ============================================================================
+// Column builder — extracted to reduce component CC
+// ============================================================================
+
+/** Render subscription status badge (cancelled, on hold, approved, or null) */
+function renderStatusBadge(record: DetailRecord): React.ReactNode {
+  if (record.subscriptionStatus === 4 || record.subscriptionStatus === 5) {
+    return (
+      <Tooltip
+        title={
+          <div>
+            <div style={{ fontWeight: 600 }}>{record.subscriptionStatus === 4 ? 'Soft Cancel' : 'Cancel Forever'}</div>
+            {record.cancelReason && <div style={{ marginTop: 4 }}>{record.cancelReason}</div>}
+            {record.cancelReasonAbout && <div style={{ marginTop: 2, opacity: 0.85 }}>{record.cancelReasonAbout}</div>}
+          </div>
+        }
+      >
+        <span className={styles.badgeCancelled}>✕</span>
+      </Tooltip>
+    );
+  }
+  if (record.isOnHold) return <Tooltip title="On Hold"><span className={styles.badgeOnHold}>●</span></Tooltip>;
+  if (record.isApproved) return <Tooltip title="Approved"><span className={styles.badgeApproved}>✓</span></Tooltip>;
+  return null;
+}
+
+function buildCrmDetailColumns(
+  variant: CrmDetailVariant,
+  isBuyOrPayRate: boolean
+): ColumnsType<DetailRecord> {
+  // --- Shared cell renderers ---
+  const monoRender = (val: string | null) => (
+    <Tooltip title={val || '–'}><span className={styles.monoCell}>{val || '–'}</span></Tooltip>
+  );
+  const sourceRender = (val: string | null) => (
+    <Tooltip title={val || '–'}><span className={styles.sourceCell}>{val || '–'}</span></Tooltip>
+  );
+  const renderDateTime = (val: string | null) => {
+    if (!val) return <span className={styles.dateCell}>–</span>;
+    const d = new Date(val);
+    const date = d.toLocaleDateString('en-GB');
+    const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    return <span className={styles.dateCell}>{date} - {time}</span>;
+  };
+
+  // --- Fixed-left columns ---
+  const cols: ColumnsType<DetailRecord> = [
+    {
+      title: 'Date', dataIndex: 'date', width: 130, fixed: 'left',
+      render: (val) => {
+        const d = new Date(val);
+        return <span className={styles.dateCell}>{d.toLocaleDateString('en-GB')} - {d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>;
+      },
+    },
+    {
+      title: 'Status', key: 'status', width: 56, align: 'center', fixed: 'left',
+      render: (_: unknown, record: DetailRecord) => renderStatusBadge(record),
+    },
+    {
+      title: 'Customer', dataIndex: 'customerName', width: 190, fixed: 'left', ellipsis: { showTitle: false },
+      render: (name: string, record: DetailRecord) => (
+        <div className={styles.customerCell}>
+          <span className={styles.customerNameWrap}>
+            <Tooltip title={name} placement="topLeft">
+              <a href={`https://vitaliv.no/admin/customers/${encodeURIComponent(record.customerId)}`} target="_blank" rel="noopener noreferrer" className={styles.customerLink}>{name}</a>
+            </Tooltip>
+          </span>
+          {record.customerDateRegistered && new Date(record.customerDateRegistered).toDateString() === new Date(record.date).toDateString() && (
+            <span className={styles.badgeNew}>NEW</span>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  // --- Source (all variants) ---
+  cols.push({
+    title: 'Source', dataIndex: 'source', width: 100, ellipsis: { showTitle: false },
+    render: (val) => <Tooltip title={val}><span className={styles.sourceCell}>{val}</span></Tooltip>,
+  });
+
+  // --- Variant-specific tracking columns ---
+  if (variant === 'dashboard') {
+    for (let i = 1; i <= 5; i++) {
+      cols.push({ title: `Tracking ${i}`, dataIndex: `trackingId${i}`, width: 110, ellipsis: { showTitle: false }, render: monoRender });
+    }
+  } else {
+    cols.push(
+      { title: 'Campaign ID', dataIndex: 'trackingId4', width: 120, ellipsis: { showTitle: false }, render: monoRender },
+      { title: 'Ad Set ID', dataIndex: 'trackingId2', width: 120, ellipsis: { showTitle: false }, render: monoRender },
+      { title: 'Ad ID', dataIndex: 'trackingId1', width: 120, ellipsis: { showTitle: false }, render: monoRender },
+      { title: 'Product', dataIndex: 'productName', width: 150, ellipsis: { showTitle: false }, render: sourceRender },
+    );
+  }
+
+  // --- Amount ---
+  cols.push({
+    title: 'Amount', dataIndex: 'amount', width: 90, align: 'right',
+    render: (val) => <span className={styles.amountCell}>{val !== null && val !== undefined ? Number(val).toFixed(2) : '0.00'}</span>,
+  });
+
+  // --- Buy/pay rate extra columns ---
+  if (isBuyOrPayRate) {
+    cols.push(
+      { title: 'Bought at', dataIndex: 'dateBought', width: 130, render: renderDateTime },
+      { title: 'Paid at', dataIndex: 'datePaid', width: 130, render: renderDateTime },
+    );
+  }
+
+  return cols;
+}
+
+// ============================================================================
+// Component
+// ============================================================================
+
 /**
  * Unified CRM detail modal used by Dashboard, Marketing Report, and On-Page Analysis.
  * Shows individual subscription/order records with status, customer info, and tracking data.
@@ -174,163 +290,10 @@ export function CrmDetailModal({ open, onClose, variant, context }: CrmDetailMod
 
   const filterTags = context ? getFilterTags(variant, context) : [];
 
-  const columns: ColumnsType<DetailRecord> = useMemo(() => {
-    // --- Status column (shared by all variants) ---
-    const statusColumn: ColumnsType<DetailRecord>[number] = {
-      title: 'Status',
-      key: 'status',
-      width: 56,
-      align: 'center',
-      fixed: 'left',
-      render: (_: unknown, record: DetailRecord) => {
-        if (record.subscriptionStatus === 4 || record.subscriptionStatus === 5) {
-          return (
-            <Tooltip
-              title={
-                <div>
-                  <div style={{ fontWeight: 600 }}>
-                    {record.subscriptionStatus === 4 ? 'Soft Cancel' : 'Cancel Forever'}
-                  </div>
-                  {record.cancelReason && <div style={{ marginTop: 4 }}>{record.cancelReason}</div>}
-                  {record.cancelReasonAbout && <div style={{ marginTop: 2, opacity: 0.85 }}>{record.cancelReasonAbout}</div>}
-                </div>
-              }
-            >
-              <span className={styles.badgeCancelled}>✕</span>
-            </Tooltip>
-          );
-        }
-        if (record.isOnHold) {
-          return (
-            <Tooltip title="On Hold">
-              <span className={styles.badgeOnHold}>●</span>
-            </Tooltip>
-          );
-        }
-        if (record.isApproved) {
-          return (
-            <Tooltip title="Approved">
-              <span className={styles.badgeApproved}>✓</span>
-            </Tooltip>
-          );
-        }
-        return null;
-      },
-    };
-
-    // --- Customer column (shared by all variants) ---
-    const customerColumn: ColumnsType<DetailRecord>[number] = {
-      title: 'Customer',
-      dataIndex: 'customerName',
-      width: 190,
-      fixed: 'left',
-      ellipsis: { showTitle: false },
-      render: (name: string, record: DetailRecord) => (
-        <div className={styles.customerCell}>
-          <span className={styles.customerNameWrap}>
-            <Tooltip title={name} placement="topLeft">
-              <a
-                href={`https://vitaliv.no/admin/customers/${encodeURIComponent(record.customerId)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.customerLink}
-              >
-                {name}
-              </a>
-            </Tooltip>
-          </span>
-          {record.customerDateRegistered &&
-           new Date(record.customerDateRegistered).toDateString() === new Date(record.date).toDateString() && (
-            <span className={styles.badgeNew}>NEW</span>
-          )}
-        </div>
-      ),
-    };
-
-    // --- Shared cell renderers ---
-    const monoRender = (val: string | null) => (
-      <Tooltip title={val || '–'}><span className={styles.monoCell}>{val || '–'}</span></Tooltip>
-    );
-    const sourceRender = (val: string | null) => (
-      <Tooltip title={val || '–'}><span className={styles.sourceCell}>{val || '–'}</span></Tooltip>
-    );
-
-    // --- Date column (first after status) ---
-    const dateColumn: ColumnsType<DetailRecord>[number] = {
-      title: 'Date',
-      dataIndex: 'date',
-      width: 130,
-      fixed: 'left',
-      render: (val) => {
-        const d = new Date(val);
-        const date = d.toLocaleDateString('en-GB');
-        const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-        return <span className={styles.dateCell}>{date} - {time}</span>;
-      },
-    };
-
-    const cols: ColumnsType<DetailRecord> = [dateColumn, statusColumn, customerColumn];
-
-    // Source (all variants)
-    cols.push({
-      title: 'Source',
-      dataIndex: 'source',
-      width: 100,
-      ellipsis: { showTitle: false },
-      render: (val) => <Tooltip title={val}><span className={styles.sourceCell}>{val}</span></Tooltip>,
-    });
-
-    if (variant === 'dashboard') {
-      // Tracking 1-5
-      for (let i = 1; i <= 5; i++) {
-        cols.push({
-          title: `Tracking ${i}`,
-          dataIndex: `trackingId${i}`,
-          width: 110,
-          ellipsis: { showTitle: false },
-          render: monoRender,
-        });
-      }
-    } else {
-      // Campaign ID, Ad Set ID, Ad ID, Product
-      cols.push(
-        { title: 'Campaign ID', dataIndex: 'trackingId4', width: 120, ellipsis: { showTitle: false }, render: monoRender },
-        { title: 'Ad Set ID', dataIndex: 'trackingId2', width: 120, ellipsis: { showTitle: false }, render: monoRender },
-        { title: 'Ad ID', dataIndex: 'trackingId1', width: 120, ellipsis: { showTitle: false }, render: monoRender },
-        { title: 'Product', dataIndex: 'productName', width: 150, ellipsis: { showTitle: false }, render: sourceRender },
-      );
-    }
-
-    // Amount
-    cols.push({
-      title: 'Amount',
-      dataIndex: 'amount',
-      width: 90,
-      align: 'right',
-      render: (val) => {
-        const formatted = val !== null && val !== undefined ? Number(val).toFixed(2) : '0.00';
-        return <span className={styles.amountCell}>{formatted}</span>;
-      },
-    });
-
-    // Buy/pay rate extra columns
-    if (isBuyOrPayRate) {
-      const renderDateTime = (val: string | null) => {
-        if (!val) return <span className={styles.dateCell}>–</span>;
-        const d = new Date(val);
-        const date = d.toLocaleDateString('en-GB');
-        const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-        return <span className={styles.dateCell}>{date} - {time}</span>;
-      };
-
-      cols.push(
-        { title: 'Bought at', dataIndex: 'dateBought', width: 130, render: renderDateTime },
-        { title: 'Paid at', dataIndex: 'datePaid', width: 130, render: renderDateTime },
-      );
-    }
-
-    return cols;
-  }, [variant, isBuyOrPayRate]);
+  const columns: ColumnsType<DetailRecord> = useMemo(
+    () => buildCrmDetailColumns(variant, isBuyOrPayRate),
+    [variant, isBuyOrPayRate]
+  );
 
   // Scroll width: status(56) + date(130) + customer(190) + source(100) + variant columns + amount(90)
   const scrollX = useMemo(() => {

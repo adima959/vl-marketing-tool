@@ -1,10 +1,12 @@
+import type { CrmMetrics } from './crm';
+
 export interface ReportRow {
   key: string;
   attribute: string;
   depth: number;
   hasChildren?: boolean;
   children?: ReportRow[];
-  metrics: {
+  metrics: CrmMetrics & {
     cost: number;
     clicks: number;
     impressions: number;
@@ -13,17 +15,6 @@ export interface ReportRow {
     cpc: number;
     cpm: number;
     conversionRate: number;
-    customers: number;
-    subscriptions: number;
-    trials: number;
-    trialsApproved: number;
-    ots: number;
-    otsApproved: number;
-    approvalRate: number;
-    otsApprovalRate: number;
-    upsells: number;
-    upsellsApproved: number;
-    upsellApprovalRate: number;
     realCpa: number;
   };
 }

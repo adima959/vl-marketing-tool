@@ -19,7 +19,11 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Spin } from 'antd';
 import { Megaphone, Globe, Link2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { AccessDenied } from '@/components/AccessDenied';
+import { fetchUnclassifiedCount as fetchCampaignCount } from '@/lib/api/campaignClassificationsClient';
+import { fetchUnclassifiedCount as fetchUrlCount } from '@/lib/api/urlClassificationsClient';
 import settingsStyles from '@/styles/components/settings.module.css';
+import badgeStyles from '@/styles/components/badge.module.css';
 import styles from '@/components/settings/data-maps.module.css';
 
 const CampaignMapPanel = lazy(() =>
@@ -49,10 +53,15 @@ const TABS: Tab[] = [
 ];
 
 export default function DataMapsPage(): React.ReactNode {
-  const { isAuthenticated, isLoading: authLoading, authError } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, hasPermission } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey>('campaign');
+  const [counts, setCounts] = useState<Record<TabKey, number | null>>({
+    campaign: null,
+    url: null,
+    affiliate: null,
+  });
 
   // Set initial tab from URL parameter
   useEffect(() => {
@@ -61,6 +70,12 @@ export default function DataMapsPage(): React.ReactNode {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
+
+  // Fetch unclassified counts for tab badges
+  useEffect(() => {
+    fetchCampaignCount().then((n) => setCounts((prev) => ({ ...prev, campaign: n }))).catch(() => {});
+    fetchUrlCount().then((n) => setCounts((prev) => ({ ...prev, url: n }))).catch(() => {});
+  }, []);
 
   // Update URL when tab changes
   const handleTabChange = (tabKey: TabKey) => {
@@ -72,9 +87,12 @@ export default function DataMapsPage(): React.ReactNode {
     return <div className={settingsStyles.centeredState}><Spin size="small" /></div>;
   }
 
-  // AuthContext handles authError globally via ErrorPage
   if (!isAuthenticated) {
     return null;
+  }
+
+  if (!hasPermission('admin.data_maps', 'can_view')) {
+    return <AccessDenied feature="Data Maps" />;
   }
 
   return (
@@ -93,6 +111,7 @@ export default function DataMapsPage(): React.ReactNode {
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.key;
+          const count = counts[tab.key];
           return (
             <button
               key={tab.key}
@@ -101,6 +120,9 @@ export default function DataMapsPage(): React.ReactNode {
             >
               <Icon className={styles.tabIcon} />
               {tab.label}
+              {count != null && count > 0 && (
+                <span className={badgeStyles.countBadge}>{count}</span>
+              )}
             </button>
           );
         })}

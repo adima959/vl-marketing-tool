@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cascadeRestoreProduct, findDeletedProductByName } from '@/lib/marketing-tracker/db';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { restoreProductSchema } from '@/lib/schemas/marketingTracker';
 import { z } from 'zod';
@@ -11,7 +11,7 @@ import { unstable_rethrow } from 'next/navigation';
  * Restore a soft-deleted product and all its descendants.
  * Body: { name: "ProductName" } or { id: "uuid" }
  */
-export const POST = withAuth(async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
+export const POST = withPermission('tools.marketing_tracker', 'can_edit', async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
     const rawBody = await request.json();
 

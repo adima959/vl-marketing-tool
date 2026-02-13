@@ -296,6 +296,20 @@ export function GeoTracksSection({
   );
 }
 
+function renderCpaBadge(cpa: number, target: number | undefined): React.ReactNode {
+  const health = getCpaHealth(cpa, target);
+  const colorClass = health === 'green' ? styles.cpaGreen
+    : health === 'yellow' ? styles.cpaYellow
+    : health === 'red' ? styles.cpaRed
+    : '';
+  return (
+    <span className={`${styles.cpaBadge} ${colorClass}`}>
+      ${cpa}
+      {health !== 'none' && <span className={`${styles.cpaDot} ${styles[health]}`} />}
+    </span>
+  );
+}
+
 function buildCampaignColumns(
   product: Product | undefined,
   onOpenCampaignModal: (geo: Geography | undefined, campaign: Campaign | null) => void,
@@ -324,17 +338,7 @@ function buildCampaignColumns(
       render: (cpa: number | undefined, record: Campaign) => {
         if (cpa == null) return '—';
         const target = product ? getCpaTarget(product, record.geo) : undefined;
-        const health = getCpaHealth(cpa, target);
-        const colorClass = health === 'green' ? styles.cpaGreen
-          : health === 'yellow' ? styles.cpaYellow
-          : health === 'red' ? styles.cpaRed
-          : '';
-        return (
-          <span className={`${styles.cpaBadge} ${colorClass}`}>
-            ${cpa}
-            {health !== 'none' && <span className={`${styles.cpaDot} ${styles[health]}`} />}
-          </span>
-        );
+        return renderCpaBadge(cpa, target);
       },
     },
     {

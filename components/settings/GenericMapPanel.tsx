@@ -35,6 +35,24 @@ export interface AutoMatchResult<TClassified> {
   matched: TClassified[];
 }
 
+/** Wraps an async action with id-based loading state and error handling */
+async function runIdAction(
+  id: string,
+  setLoadingId: (id: string | null) => void,
+  action: () => Promise<void>,
+  setError: (msg: string | null) => void,
+  errorLabel: string,
+): Promise<void> {
+  setLoadingId(id);
+  try {
+    await action();
+  } catch (err) {
+    setError(err instanceof Error ? err.message : errorLabel);
+  } finally {
+    setLoadingId(null);
+  }
+}
+
 export interface GenericMapPanelProps<TUnclassified, TClassified, TIgnored> {
   api: {
     fetchData: () => Promise<ClassificationData<TUnclassified, TClassified, TIgnored>>;
@@ -143,85 +161,64 @@ export function GenericMapPanel<TUnclassified, TClassified, TIgnored>({
     }));
   };
 
+  const removeDraft = (itemId: string): void => {
+    setDrafts((prev) => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+  };
+
+  /** Move an unclassified item back into the sorted unclassified list */
+  const restoreToUnclassified = (itemId: string, name: string): void => {
+    setUnclassified((prev) =>
+      [...prev, accessors.reconstructUnclassified(itemId, name)].sort((a, b) =>
+        accessors.unclassified.getName(a).localeCompare(accessors.unclassified.getName(b))
+      )
+    );
+  };
+
   const handleClassify = async (item: TUnclassified): Promise<void> => {
     const itemId = accessors.unclassified.getId(item);
     const draft = drafts[itemId];
     if (!draft?.countryCode || !draft?.productId) return;
 
-    setSavingId(itemId);
-    try {
-      const result = await api.classify(itemId, draft.productId, draft.countryCode);
+    await runIdAction(itemId, setSavingId, async () => {
+      const result = await api.classify(itemId, draft.productId!, draft.countryCode!);
       setUnclassified((prev) => prev.filter((i) => accessors.unclassified.getId(i) !== itemId));
       setClassified((prev) => [...prev, result]);
-      setDrafts((prev) => {
-        const next = { ...prev };
-        delete next[itemId];
-        return next;
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : `Failed to classify ${labels.singular}`);
-    } finally {
-      setSavingId(null);
-    }
+      removeDraft(itemId);
+    }, setError, `Failed to classify ${labels.singular}`);
   };
 
   const handleIgnore = async (item: TUnclassified): Promise<void> => {
     const itemId = accessors.unclassified.getId(item);
-    setIgnoringId(itemId);
-    try {
+    await runIdAction(itemId, setIgnoringId, async () => {
       const result = await api.ignore(itemId);
       setUnclassified((prev) => prev.filter((i) => accessors.unclassified.getId(i) !== itemId));
       setIgnored((prev) =>
         [...prev, result].sort((a, b) => accessors.ignored.getName(a).localeCompare(accessors.ignored.getName(b)))
       );
-      setDrafts((prev) => {
-        const next = { ...prev };
-        delete next[itemId];
-        return next;
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : `Failed to ignore ${labels.singular}`);
-    } finally {
-      setIgnoringId(null);
-    }
+      removeDraft(itemId);
+    }, setError, `Failed to ignore ${labels.singular}`);
   };
 
   const handleUnignore = async (item: TIgnored): Promise<void> => {
     const id = accessors.ignored.getId(item);
-    setRemovingId(id);
-    try {
+    await runIdAction(id, setRemovingId, async () => {
       const itemId = await api.unclassify(id);
-      const name = accessors.ignored.getName(item);
       setIgnored((prev) => prev.filter((i) => accessors.ignored.getId(i) !== id));
-      setUnclassified((prev) =>
-        [...prev, accessors.reconstructUnclassified(itemId, name)].sort((a, b) =>
-          accessors.unclassified.getName(a).localeCompare(accessors.unclassified.getName(b))
-        )
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : `Failed to unignore ${labels.singular}`);
-    } finally {
-      setRemovingId(null);
-    }
+      restoreToUnclassified(itemId, accessors.ignored.getName(item));
+    }, setError, `Failed to unignore ${labels.singular}`);
   };
 
   const handleUnclassify = async (item: TClassified): Promise<void> => {
     const id = accessors.classified.getId(item);
-    setRemovingId(id);
-    try {
+    await runIdAction(id, setRemovingId, async () => {
       const itemId = await api.unclassify(id);
-      const name = accessors.classified.getName(item);
       setClassified((prev) => prev.filter((i) => accessors.classified.getId(i) !== id));
-      setUnclassified((prev) =>
-        [...prev, accessors.reconstructUnclassified(itemId, name)].sort((a, b) =>
-          accessors.unclassified.getName(a).localeCompare(accessors.unclassified.getName(b))
-        )
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to remove classification');
-    } finally {
-      setRemovingId(null);
-    }
+      restoreToUnclassified(itemId, accessors.classified.getName(item));
+    }, setError, 'Failed to remove classification');
   };
 
   const handleAutoMatch = async (): Promise<void> => {
@@ -245,17 +242,79 @@ export function GenericMapPanel<TUnclassified, TClassified, TIgnored>({
     ? productGroups.find((g) => g.product.id === activeCategory)
     : null;
 
-  const contentTitle = activeCategory === 'unclassified'
-    ? 'Unclassified'
-    : activeCategory === 'ignored'
-      ? 'Ignored'
-      : activeProductGroup?.product.name ?? '';
+  // Compute header info for active category (replaces nested ternary chains)
+  const { contentTitle, activeCount } = useMemo(() => {
+    if (activeCategory === 'unclassified') return { contentTitle: 'Unclassified', activeCount: unclassified.length };
+    if (activeCategory === 'ignored') return { contentTitle: 'Ignored', activeCount: ignored.length };
+    if (activeProductGroup) return { contentTitle: activeProductGroup.product.name, activeCount: activeProductGroup.items.length };
+    return { contentTitle: '', activeCount: 0 };
+  }, [activeCategory, unclassified.length, ignored.length, activeProductGroup]);
 
-  const activeCount = activeCategory === 'unclassified'
-    ? unclassified.length
-    : activeCategory === 'ignored'
-      ? ignored.length
-      : activeProductGroup?.items.length ?? 0;
+  const renderUnclassifiedList = (): React.ReactNode => {
+    if (unclassified.length === 0) return <div className={styles.emptyState}>All {labels.plural} are classified</div>;
+    return unclassified.map((item) => {
+      const itemId = accessors.unclassified.getId(item);
+      const itemName = accessors.unclassified.getName(item);
+      const draft = drafts[itemId] || { countryCode: null, productId: null };
+      const canSave = draft.countryCode && draft.productId;
+      const isSaving = savingId === itemId;
+      const isIgnoring = ignoringId === itemId;
+      return (
+        <div key={itemId} className={styles.itemRow}>
+          <Tooltip title={itemName}><span className={itemNameClass}>{itemName}</span></Tooltip>
+          <div className={styles.selectWrap}>
+            <Select size="small" placeholder="Country" options={COUNTRY_OPTIONS} value={draft.countryCode} onChange={(val) => handleDraftChange(itemId, 'countryCode', val)} style={{ width: '100%' }} />
+          </div>
+          <div className={styles.productSelectWrap}>
+            <Select size="small" placeholder="Product" options={productOptions} value={draft.productId} onChange={(val) => handleDraftChange(itemId, 'productId', val)} style={{ width: '100%' }} popupMatchSelectWidth={false} virtual={false} />
+          </div>
+          <Button className={styles.classifyBtn} type="primary" size="small" icon={<CheckOutlined />} disabled={!canSave || isSaving} loading={isSaving} onClick={() => handleClassify(item)} />
+          <Tooltip title="Ignore">
+            <Button className={styles.ignoreBtn} type="text" size="small" icon={<StopOutlined />} loading={isIgnoring} disabled={isSaving} onClick={() => handleIgnore(item)} />
+          </Tooltip>
+        </div>
+      );
+    });
+  };
+
+  const renderIgnoredList = (): React.ReactNode => {
+    if (ignored.length === 0) return <div className={styles.emptyState}>No ignored {labels.plural}</div>;
+    return ignored.map((item) => {
+      const id = accessors.ignored.getId(item);
+      const name = accessors.ignored.getName(item);
+      return (
+        <div key={id} className={styles.itemRow}>
+          <Tooltip title={name}><span className={itemNameClass}>{name}</span></Tooltip>
+          <Button className={styles.removeBtn} type="text" size="small" icon={<CloseOutlined />} danger loading={removingId === id} onClick={() => handleUnignore(item)} />
+        </div>
+      );
+    });
+  };
+
+  const renderClassifiedList = (): React.ReactNode => {
+    if (!activeProductGroup || activeProductGroup.items.length === 0) {
+      return <div className={styles.emptyState}>No {labels.plural} classified under this product</div>;
+    }
+    return activeProductGroup.items.map((item) => {
+      const id = accessors.classified.getId(item);
+      const name = accessors.classified.getName(item);
+      const countryCode = accessors.classified.getCountry(item);
+      return (
+        <div key={id} className={styles.itemRow}>
+          <Tooltip title={name}><span className={itemNameClass}>{name}</span></Tooltip>
+          <span className={styles.countryBadge}>{countryCode}</span>
+          <Button className={styles.removeBtn} type="text" size="small" icon={<CloseOutlined />} danger loading={removingId === id} onClick={() => handleUnclassify(item)} />
+        </div>
+      );
+    });
+  };
+
+  const renderCategoryContent = (): React.ReactNode => {
+    if (activeCategory === 'unclassified') return renderUnclassifiedList();
+    if (activeCategory === 'ignored') return renderIgnoredList();
+    if (activeProductGroup) return renderClassifiedList();
+    return <div className={styles.emptyState}>Select a category</div>;
+  };
 
   return (
     <div className={styles.layout}>
@@ -319,123 +378,8 @@ export function GenericMapPanel<TUnclassified, TClassified, TIgnored>({
 
           {loading ? (
             <div className={styles.loadingState}><Spin /></div>
-          ) : activeCategory === 'unclassified' ? (
-            unclassified.length === 0 ? (
-              <div className={styles.emptyState}>All {labels.plural} are classified</div>
-            ) : (
-              unclassified.map((item) => {
-                const itemId = accessors.unclassified.getId(item);
-                const itemName = accessors.unclassified.getName(item);
-                const draft = drafts[itemId] || { countryCode: null, productId: null };
-                const canSave = draft.countryCode && draft.productId;
-                const isSaving = savingId === itemId;
-                const isIgnoring = ignoringId === itemId;
-
-                return (
-                  <div key={itemId} className={styles.itemRow}>
-                    <Tooltip title={itemName}>
-                      <span className={itemNameClass}>{itemName}</span>
-                    </Tooltip>
-                    <div className={styles.selectWrap}>
-                      <Select
-                        size="small"
-                        placeholder="Country"
-                        options={COUNTRY_OPTIONS}
-                        value={draft.countryCode}
-                        onChange={(val) => handleDraftChange(itemId, 'countryCode', val)}
-                        style={{ width: '100%' }}
-                      />
-                    </div>
-                    <div className={styles.productSelectWrap}>
-                      <Select
-                        size="small"
-                        placeholder="Product"
-                        options={productOptions}
-                        value={draft.productId}
-                        onChange={(val) => handleDraftChange(itemId, 'productId', val)}
-                        style={{ width: '100%' }}
-                        popupMatchSelectWidth={false}
-                        virtual={false}
-                      />
-                    </div>
-                    <Button
-                      className={styles.classifyBtn}
-                      type="primary"
-                      size="small"
-                      icon={<CheckOutlined />}
-                      disabled={!canSave || isSaving}
-                      loading={isSaving}
-                      onClick={() => handleClassify(item)}
-                    />
-                    <Tooltip title="Ignore">
-                      <Button
-                        className={styles.ignoreBtn}
-                        type="text"
-                        size="small"
-                        icon={<StopOutlined />}
-                        loading={isIgnoring}
-                        disabled={isSaving}
-                        onClick={() => handleIgnore(item)}
-                      />
-                    </Tooltip>
-                  </div>
-                );
-              })
-            )
-          ) : activeCategory === 'ignored' ? (
-            ignored.length === 0 ? (
-              <div className={styles.emptyState}>No ignored {labels.plural}</div>
-            ) : (
-              ignored.map((item) => {
-                const id = accessors.ignored.getId(item);
-                const name = accessors.ignored.getName(item);
-                return (
-                  <div key={id} className={styles.itemRow}>
-                    <Tooltip title={name}>
-                      <span className={itemNameClass}>{name}</span>
-                    </Tooltip>
-                    <Button
-                      className={styles.removeBtn}
-                      type="text"
-                      size="small"
-                      icon={<CloseOutlined />}
-                      danger
-                      loading={removingId === id}
-                      onClick={() => handleUnignore(item)}
-                    />
-                  </div>
-                );
-              })
-            )
-          ) : activeProductGroup ? (
-            activeProductGroup.items.length === 0 ? (
-              <div className={styles.emptyState}>No {labels.plural} classified under this product</div>
-            ) : (
-              activeProductGroup.items.map((item) => {
-                const id = accessors.classified.getId(item);
-                const name = accessors.classified.getName(item);
-                const countryCode = accessors.classified.getCountry(item);
-                return (
-                  <div key={id} className={styles.itemRow}>
-                    <Tooltip title={name}>
-                      <span className={itemNameClass}>{name}</span>
-                    </Tooltip>
-                    <span className={styles.countryBadge}>{countryCode}</span>
-                    <Button
-                      className={styles.removeBtn}
-                      type="text"
-                      size="small"
-                      icon={<CloseOutlined />}
-                      danger
-                      loading={removingId === id}
-                      onClick={() => handleUnclassify(item)}
-                    />
-                  </div>
-                );
-              })
-            )
           ) : (
-            <div className={styles.emptyState}>Select a category</div>
+            renderCategoryContent()
           )}
         </div>
       </div>

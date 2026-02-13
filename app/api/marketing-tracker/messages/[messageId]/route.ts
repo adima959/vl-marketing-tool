@@ -17,7 +17,7 @@ import {
   recordDeletion,
 } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { updateMessageSchema } from '@/lib/schemas/marketingTracker';
 import { z } from 'zod';
@@ -30,7 +30,7 @@ interface RouteParams {
  * GET /api/marketing-tracker/messages/[messageId]
  * Get a single message with its assets and creatives
  */
-export const GET = withAuth(async (
+export const GET = withPermission('tools.marketing_tracker', 'can_view', async (
   request: NextRequest,
   user: AppUser,
   { params }: RouteParams
@@ -89,7 +89,7 @@ export const GET = withAuth(async (
  * PUT /api/marketing-tracker/messages/[messageId]
  * Update a message
  */
-export const PUT = withAuth(async (
+export const PUT = withPermission('tools.marketing_tracker', 'can_edit', async (
   request: NextRequest,
   user: AppUser,
   { params }: RouteParams
@@ -166,7 +166,7 @@ export const PUT = withAuth(async (
  * PATCH /api/marketing-tracker/messages/[messageId]
  * Partial update of message fields (status, hypothesis fields, etc.)
  */
-export const PATCH = withAuth(async (
+export const PATCH = withPermission('tools.marketing_tracker', 'can_edit', async (
   request: NextRequest,
   user: AppUser,
   { params }: RouteParams
@@ -257,7 +257,7 @@ export const PATCH = withAuth(async (
  * - { mode: "move", targetParentId: "..." } — move assets/creatives to another message, then delete
  * - No body / default — delete message only (backward compatible)
  */
-export const DELETE = withAuth(async (
+export const DELETE = withPermission('tools.marketing_tracker', 'can_delete', async (
   request: NextRequest,
   user: AppUser,
   { params }: RouteParams

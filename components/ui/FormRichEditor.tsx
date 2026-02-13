@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useMemo, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -48,6 +48,10 @@ function ToolbarButton({
 }
 
 export function FormRichEditor({ value, onChange, placeholder = 'Write something...' }: FormRichEditorProps) {
+  // Ref to always have the latest onChange — avoids stale closure in TipTap's onUpdate
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
   // Memoize extensions to prevent re-registration warnings
   const extensions = useMemo(
     () => [
@@ -65,7 +69,7 @@ export function FormRichEditor({ value, onChange, placeholder = 'Write something
     onUpdate: ({ editor: ed }) => {
       const html = ed.getHTML();
       const isEmpty = html === '<p></p>' || html === '';
-      onChange?.(isEmpty ? '' : html);
+      onChangeRef.current?.(isEmpty ? '' : html);
     },
   });
 

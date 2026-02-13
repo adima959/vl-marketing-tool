@@ -4,7 +4,7 @@ import ProductClientPage from './ProductClientPage';
 export async function generateMetadata({ params }: { params: Promise<{ productId: string }> }): Promise<Metadata> {
   const { productId } = await params;
   return {
-    title: `Product ${productId} | Vitaliv Analytics`,
+    title: `Product ${productId}`,
     description: 'Product details and marketing angles',
   };
 }

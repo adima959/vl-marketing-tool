@@ -32,7 +32,7 @@ Would you like me to push them to remote now?"
 ```bash
 <type>: <description>
 
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
 ```
 
 **Types**: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`
@@ -42,7 +42,7 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
 git commit -m "$(cat <<'EOF'
 feat: Add GenericDataTable
 
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
 EOF
 )"
 ```

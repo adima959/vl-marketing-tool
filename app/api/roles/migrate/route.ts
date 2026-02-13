@@ -157,6 +157,33 @@ export const POST = withAdmin(async (_request: NextRequest, _user: AppUser): Pro
       `, [viewerRoleId]);
     }
 
+    // Step 6b: Reconcile permissions for system roles
+    // Ensures any features added to FEATURES after initial seed get permission rows
+    const systemRoles = await executeQuery<{ id: string }>(`
+      SELECT id FROM app_roles WHERE is_system = true AND deleted_at IS NULL
+    `);
+
+    const allFeatureKeys = FEATURES.map(f => f.key);
+
+    for (const sysRole of systemRoles) {
+      const placeholders: string[] = [];
+      const vals: unknown[] = [sysRole.id];
+      let idx = 2;
+
+      for (const key of allFeatureKeys) {
+        placeholders.push(`($1, $${idx}, true, true, true, true)`);
+        vals.push(key);
+        idx += 1;
+      }
+
+      await executeQuery(`
+        INSERT INTO app_role_permissions (role_id, feature_key, can_view, can_create, can_edit, can_delete)
+        VALUES ${placeholders.join(', ')}
+        ON CONFLICT (role_id, feature_key) DO UPDATE SET
+          can_view = true, can_create = true, can_edit = true, can_delete = true
+      `, vals);
+    }
+
     // Step 7: Add is_product_owner column to app_users
     await executeQuery(`
       ALTER TABLE app_users ADD COLUMN IF NOT EXISTS is_product_owner BOOLEAN NOT NULL DEFAULT false;

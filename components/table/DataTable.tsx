@@ -16,7 +16,7 @@ const COLUMN_GROUPS: ColumnGroup[] = [
   },
   {
     title: 'CRM Data',
-    metricIds: [...CRM_METRIC_IDS],
+    metricIds: [...CRM_METRIC_IDS, 'realCpa'],
   },
 ];
 

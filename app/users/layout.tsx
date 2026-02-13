@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Users | Vitaliv Analytics',
+  title: 'Users',
   description: 'Manage user access and permissions',
 };
 

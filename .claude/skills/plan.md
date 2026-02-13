@@ -6,7 +6,7 @@ allowed-tools: Read, Glob, Grep
 
 Restate the user's request in concrete terms. Then follow these steps:
 
-1. **Search for similar** — Check existing components/patterns per `rules/workflows/new-feature-checklist.md`
+1. **Search for similar** — Check existing components/patterns per `docs/workflows/new-feature-checklist.md`
 2. **Surface assumptions** — List every assumption explicitly
 3. **Identify risks** — What could go wrong, what's unclear
 4. **Decompose into steps** — Break into ordered tasks with file targets
@@ -39,5 +39,5 @@ Rules:
 - Do NOT write any code until explicit approval
 - If requirements are ambiguous, ask clarifying questions FIRST
 - If touching 3+ files, each step should be reviewable independently
-- Reference existing patterns from `rules/` and `docs/` when relevant
+- Reference existing patterns from `docs/` when relevant
 - Include verification step (build + type check) as final step

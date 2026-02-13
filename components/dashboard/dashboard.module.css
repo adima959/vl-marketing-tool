@@ -102,20 +102,3 @@
   color: var(--color-primary-500);
 }
 
-/* === Count Badge (shared) === */
-.countBadge {
-  margin-left: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 9px;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--color-white, #fff);
-  background: var(--color-error);
-}
-

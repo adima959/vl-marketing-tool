@@ -17,6 +17,7 @@ import { MARKETING_DIMENSION_GROUPS } from '@/config/marketingDimensions';
 import { BarChart3 } from 'lucide-react';
 import { TableInfoBanner } from '@/components/ui/TableInfoBanner';
 import { fetchUnclassifiedCount } from '@/lib/api/campaignClassificationsClient';
+import badgeStyles from '@/styles/components/badge.module.css';
 import pageStyles from '@/components/dashboard/dashboard.module.css';
 import type { MarketingMetricClickContext } from '@/types/marketingDetails';
 
@@ -92,7 +93,7 @@ function MarketingReportContent() {
         >
           Campaign Map
           {unclassifiedCount != null && unclassifiedCount > 0 && (
-            <span className={pageStyles.countBadge}>
+            <span className={badgeStyles.countBadge}>
               {unclassifiedCount}
             </span>
           )}

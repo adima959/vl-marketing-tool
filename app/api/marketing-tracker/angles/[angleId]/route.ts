@@ -15,7 +15,7 @@ import {
   recordDeletion,
 } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { updateAngleSchema } from '@/lib/schemas/marketingTracker';
 import { z } from 'zod';
@@ -28,7 +28,7 @@ interface RouteParams {
  * GET /api/marketing-tracker/angles/[angleId]
  * Get a single angle with its messages and parent product
  */
-export const GET = withAuth(async (
+export const GET = withPermission('tools.marketing_tracker', 'can_view', async (
   request: NextRequest,
   user: AppUser,
   { params }: RouteParams
@@ -80,7 +80,7 @@ export const GET = withAuth(async (
  * PUT /api/marketing-tracker/angles/[angleId]
  * Update an angle
  */
-export const PUT = withAuth(async (
+export const PUT = withPermission('tools.marketing_tracker', 'can_edit', async (
   request: NextRequest,
   user: AppUser,
   { params }: RouteParams
@@ -151,7 +151,7 @@ export const PUT = withAuth(async (
  * PATCH /api/marketing-tracker/angles/[angleId]
  * Partially update angle fields (name, description, status)
  */
-export const PATCH = withAuth(async (
+export const PATCH = withPermission('tools.marketing_tracker', 'can_edit', async (
   request: NextRequest,
   user: AppUser,
   { params }: RouteParams
@@ -236,7 +236,7 @@ export const PATCH = withAuth(async (
  * - { mode: "move", targetParentId: "..." } — move messages to another angle, then delete
  * - No body / default — delete angle only (backward compatible)
  */
-export const DELETE = withAuth(async (
+export const DELETE = withPermission('tools.marketing_tracker', 'can_delete', async (
   request: NextRequest,
   user: AppUser,
   { params }: RouteParams

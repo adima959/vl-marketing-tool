@@ -14,8 +14,7 @@ import type {
   MessageDetail,
 } from '@/types';
 import { groupByStage } from '@/lib/marketing-pipeline/cpaUtils';
-import { triggerError, checkAuthError } from '@/lib/api/errorHandler';
-import { normalizeError } from '@/lib/types/errors';
+import { checkAuthError, fetchApi, handleStoreError } from '@/lib/api/errorHandler';
 
 export interface HistoryEntry {
   id: string;
@@ -99,6 +98,13 @@ function buildBoardUrl(state: Pick<PipelineState, 'ownerFilter' | 'productFilter
   return `/api/marketing-pipeline/board${qs ? `?${qs}` : ''}`;
 }
 
+/** Shared helper: refresh detail panel if open, then reload board */
+function refreshAfterMutation(get: () => PipelineState, messageId?: string): void {
+  const msgId = messageId ?? get().selectedMessageId;
+  if (msgId) get().selectMessage(msgId);
+  get().loadPipeline();
+}
+
 export const usePipelineStore = create<PipelineState>((set, get) => ({
   stages: emptyStages,
   summary: { totalSpend: 0, scalingCount: 0, totalMessages: 0 },
@@ -123,22 +129,10 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   loadPipeline: async () => {
     set({ isLoading: true });
     try {
-      const url = buildBoardUrl(get());
-      const res = await fetch(url);
-      const json = await res.json();
-
-      if (!json.success) {
-        throw new Error(json.error || 'Failed to load pipeline');
-      }
-
-      const { cards, summary, users, products, angles } = json.data;
-      const stages = groupByStage(cards);
-
-      set({ stages, summary, users, products, angles, isLoading: false });
+      const { cards, summary, users, products, angles } = await fetchApi(buildBoardUrl(get()));
+      set({ stages: groupByStage(cards), summary, users, products, angles, isLoading: false });
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to load pipeline:', appError);
-      triggerError(appError);
+      handleStoreError('load pipeline', error);
       set({ isLoading: false });
     }
   },
@@ -174,7 +168,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       checkAuthError(res);
       const json = await res.json();
       if (!json.success) {
-        console.error('Move failed:', json.error);
+        handleStoreError('move message', new Error(json.error || 'Move failed'));
         if (isSimpleMove) set({ stages: prevStages });
         return;
       }
@@ -194,9 +188,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         }
       }
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to move message:', appError);
-      triggerError(appError);
+      handleStoreError('move message', error);
       if (isSimpleMove) set({ stages: prevStages });
     }
   },
@@ -213,7 +205,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       const historyJson = await historyRes.json();
 
       if (!detailJson.success) {
-        console.error('Failed to fetch message detail:', detailJson.error);
+        handleStoreError('select message', new Error(detailJson.error || 'Failed to fetch message detail'));
         return;
       }
 
@@ -224,9 +216,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         isPanelOpen: true,
       });
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to select message:', appError);
-      triggerError(appError);
+      handleStoreError('select message', error);
     }
   },
 
@@ -236,94 +226,51 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
 
   updateMessageField: async (messageId, field, value) => {
     try {
-      const res = await fetch(`/api/marketing-pipeline/messages/${messageId}`, {
+      const data = await fetchApi(`/api/marketing-pipeline/messages/${messageId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: value }),
       });
-      checkAuthError(res);
-      const json = await res.json();
-      if (!json.success) {
-        console.error('Update failed:', json.error);
-        return;
-      }
-
-      // Update panel with fresh data
-      if (get().selectedMessageId === messageId) {
-        set({ selectedMessage: json.data });
-      }
-
-      // Refresh board (name changes affect cards)
+      if (get().selectedMessageId === messageId) set({ selectedMessage: data });
       get().loadPipeline();
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to update message field:', appError);
-      triggerError(appError);
+      handleStoreError('update message field', error);
     }
   },
 
   createMessage: async (data) => {
     try {
-      const res = await fetch('/api/marketing-pipeline/messages', {
+      await fetchApi('/api/marketing-pipeline/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      checkAuthError(res);
-      const json = await res.json();
-      if (!json.success) {
-        console.error('Create message failed:', json.error);
-        return;
-      }
       get().loadPipeline();
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to create message:', appError);
-      triggerError(appError);
+      handleStoreError('create message', error);
     }
   },
 
   deleteMessage: async (messageId) => {
     try {
-      const res = await fetch(`/api/marketing-pipeline/messages/${messageId}`, {
-        method: 'DELETE',
-      });
-      checkAuthError(res);
-      const json = await res.json();
-      if (!json.success) {
-        console.error('Delete message failed:', json.error);
-        return;
-      }
-      // Close panel if this message was open
-      if (get().selectedMessageId === messageId) {
-        get().closePanel();
-      }
+      await fetchApi(`/api/marketing-pipeline/messages/${messageId}`, { method: 'DELETE' });
+      if (get().selectedMessageId === messageId) get().closePanel();
       get().loadPipeline();
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to delete message:', appError);
-      triggerError(appError);
+      handleStoreError('delete message', error);
     }
   },
 
   createAngle: async (data) => {
     try {
-      const res = await fetch('/api/marketing-pipeline/angles', {
+      const result = await fetchApi<{ id: string }>('/api/marketing-pipeline/angles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      checkAuthError(res);
-      const json = await res.json();
-      if (!json.success) {
-        console.error('Create angle failed:', json.error);
-        return null;
-      }
-      return { id: json.data.id };
+      return { id: result.id };
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to create angle:', appError);
-      triggerError(appError);
+      handleStoreError('create angle', error);
       return null;
     }
   },
@@ -338,214 +285,129 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       if (!json.success) {
         return { success: false, error: json.error };
       }
-      // Remove from local state
-      const angles = get().angles.filter(a => a.id !== angleId);
-      set({ angles });
+      set({ angles: get().angles.filter(a => a.id !== angleId) });
       return { success: true };
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to delete angle:', appError);
-      triggerError(appError);
+      handleStoreError('delete angle', error);
       return { success: false, error: 'Failed to delete angle' };
     }
   },
 
   addCampaign: async (messageId, data) => {
     try {
-      const res = await fetch('/api/marketing-pipeline/campaigns', {
+      await fetchApi('/api/marketing-pipeline/campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messageId, ...data }),
       });
-      checkAuthError(res);
-      const json = await res.json();
-      if (!json.success) {
-        console.error('Add campaign failed:', json.error);
-        return;
-      }
-
-      // Refresh panel and board
-      if (get().selectedMessageId === messageId) {
-        get().selectMessage(messageId);
-      }
-      get().loadPipeline();
+      refreshAfterMutation(get, messageId);
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to add campaign:', appError);
-      triggerError(appError);
+      handleStoreError('add campaign', error);
     }
   },
 
   updateCampaign: async (campaignId, data) => {
     try {
-      const res = await fetch(`/api/marketing-pipeline/campaigns/${campaignId}`, {
+      await fetchApi(`/api/marketing-pipeline/campaigns/${campaignId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      checkAuthError(res);
-      const json = await res.json();
-      if (!json.success) {
-        console.error('Update campaign failed:', json.error);
-        return;
-      }
-
-      // Refresh panel and board
-      const { selectedMessageId } = get();
-      if (selectedMessageId) {
-        get().selectMessage(selectedMessageId);
-      }
-      get().loadPipeline();
+      refreshAfterMutation(get);
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to update campaign:', appError);
-      triggerError(appError);
+      handleStoreError('update campaign', error);
     }
   },
 
   deleteCampaign: async (campaignId) => {
     try {
-      const res = await fetch(`/api/marketing-pipeline/campaigns/${campaignId}`, {
-        method: 'DELETE',
-      });
-      checkAuthError(res);
-      const json = await res.json();
-      if (!json.success) {
-        console.error('Delete campaign failed:', json.error);
-        return;
-      }
-
-      // Refresh panel and board
-      const { selectedMessageId } = get();
-      if (selectedMessageId) {
-        get().selectMessage(selectedMessageId);
-      }
-      get().loadPipeline();
+      await fetchApi(`/api/marketing-pipeline/campaigns/${campaignId}`, { method: 'DELETE' });
+      refreshAfterMutation(get);
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to delete campaign:', appError);
-      triggerError(appError);
+      handleStoreError('delete campaign', error);
     }
   },
 
   addAsset: async (messageId, data) => {
     try {
-      const res = await fetch('/api/marketing-pipeline/assets', {
+      await fetchApi('/api/marketing-pipeline/assets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messageId, ...data }),
       });
-      checkAuthError(res);
-      const json = await res.json();
-      if (!json.success) { console.error('Add asset failed:', json.error); return; }
-      if (get().selectedMessageId === messageId) get().selectMessage(messageId);
+      const msgId = messageId ?? get().selectedMessageId;
+      if (msgId) get().selectMessage(msgId);
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to add asset:', appError);
-      triggerError(appError);
+      handleStoreError('add asset', error);
     }
   },
 
   deleteAsset: async (assetId) => {
     try {
-      const res = await fetch(`/api/marketing-pipeline/assets/${assetId}`, { method: 'DELETE' });
-      checkAuthError(res);
-      const json = await res.json();
-      if (!json.success) { console.error('Delete asset failed:', json.error); return; }
+      await fetchApi(`/api/marketing-pipeline/assets/${assetId}`, { method: 'DELETE' });
       const { selectedMessageId } = get();
       if (selectedMessageId) get().selectMessage(selectedMessageId);
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to delete asset:', appError);
-      triggerError(appError);
+      handleStoreError('delete asset', error);
     }
   },
 
   addCreative: async (messageId, data) => {
     try {
-      const res = await fetch('/api/marketing-pipeline/creatives', {
+      await fetchApi('/api/marketing-pipeline/creatives', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messageId, ...data }),
       });
-      checkAuthError(res);
-      const json = await res.json();
-      if (!json.success) { console.error('Add creative failed:', json.error); return; }
-      if (get().selectedMessageId === messageId) get().selectMessage(messageId);
+      const msgId = messageId ?? get().selectedMessageId;
+      if (msgId) get().selectMessage(msgId);
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to add creative:', appError);
-      triggerError(appError);
+      handleStoreError('add creative', error);
     }
   },
 
   deleteCreative: async (creativeId) => {
     try {
-      const res = await fetch(`/api/marketing-pipeline/creatives/${creativeId}`, { method: 'DELETE' });
-      checkAuthError(res);
-      const json = await res.json();
-      if (!json.success) { console.error('Delete creative failed:', json.error); return; }
+      await fetchApi(`/api/marketing-pipeline/creatives/${creativeId}`, { method: 'DELETE' });
       const { selectedMessageId } = get();
       if (selectedMessageId) get().selectMessage(selectedMessageId);
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to delete creative:', appError);
-      triggerError(appError);
+      handleStoreError('delete creative', error);
     }
   },
 
   addGeo: async (messageId, data) => {
     try {
-      const res = await fetch('/api/marketing-pipeline/geos', {
+      await fetchApi('/api/marketing-pipeline/geos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messageId, ...data }),
       });
-      checkAuthError(res);
-      const json = await res.json();
-      if (!json.success) { console.error('Add geo failed:', json.error); return; }
-      if (get().selectedMessageId === messageId) get().selectMessage(messageId);
-      get().loadPipeline();
+      refreshAfterMutation(get, messageId);
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to add geo:', appError);
-      triggerError(appError);
+      handleStoreError('add geo', error);
     }
   },
 
   updateGeoStage: async (geoId, data) => {
     try {
-      const res = await fetch(`/api/marketing-pipeline/geos/${geoId}`, {
+      await fetchApi(`/api/marketing-pipeline/geos/${geoId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      checkAuthError(res);
-      const json = await res.json();
-      if (!json.success) { console.error('Update geo failed:', json.error); return; }
-      const { selectedMessageId } = get();
-      if (selectedMessageId) get().selectMessage(selectedMessageId);
-      get().loadPipeline();
+      refreshAfterMutation(get);
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to update geo:', appError);
-      triggerError(appError);
+      handleStoreError('update geo stage', error);
     }
   },
 
   removeGeo: async (geoId) => {
     try {
-      const res = await fetch(`/api/marketing-pipeline/geos/${geoId}`, { method: 'DELETE' });
-      checkAuthError(res);
-      const json = await res.json();
-      if (!json.success) { console.error('Remove geo failed:', json.error); return; }
-      const { selectedMessageId } = get();
-      if (selectedMessageId) get().selectMessage(selectedMessageId);
-      get().loadPipeline();
+      await fetchApi(`/api/marketing-pipeline/geos/${geoId}`, { method: 'DELETE' });
+      refreshAfterMutation(get);
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to remove geo:', appError);
-      triggerError(appError);
+      handleStoreError('remove geo', error);
     }
   },
 
@@ -567,30 +429,15 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
 
   updateProductField: async (productId, field, value) => {
     try {
-      const res = await fetch(`/api/marketing-pipeline/products/${productId}`, {
+      await fetchApi(`/api/marketing-pipeline/products/${productId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: value }),
       });
-      checkAuthError(res);
-      const json = await res.json();
-      if (!json.success) {
-        console.error('Update product failed:', json.error);
-        return;
-      }
-
-      // Update products in state
-      const products = get().products.map(p =>
-        p.id === productId ? { ...p, [field]: value } : p,
-      );
-      set({ products });
-
-      // Refresh pipeline (CPA targets affect card colors)
-      get().loadPipeline();
+      set({ products: get().products.map(p => p.id === productId ? { ...p, [field]: value } : p) });
+      refreshAfterMutation(get);
     } catch (error) {
-      const appError = normalizeError(error);
-      console.error('Failed to update product field:', appError);
-      triggerError(appError);
+      handleStoreError('update product field', error);
     }
   },
 }));

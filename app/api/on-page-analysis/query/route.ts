@@ -7,7 +7,7 @@ import { parseQueryRequest } from '@/lib/types/api';
 import { createValidationError, maskErrorForClient } from '@/lib/types/errors';
 import { buildTrackingCrmMatch, buildVisitorCrmMatch } from '@/lib/server/onPageTransforms';
 import { toTitleCase } from '@/lib/formatters';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { unstable_rethrow } from 'next/navigation';
 
@@ -54,6 +54,45 @@ interface VisitorMatchRow {
   ff_visitor_id: string;
 }
 
+/** Validate required fields; returns error response or null if valid */
+function validateOnPageBody(body: QueryRequest): NextResponse | null {
+  if (!body.dateRange?.start || !body.dateRange?.end) {
+    const error = createValidationError('dateRange is required');
+    return NextResponse.json({ success: false, error: error.message }, { status: error.statusCode });
+  }
+  if (!Array.isArray(body.dimensions) || body.dimensions.length === 0) {
+    const error = createValidationError('dimensions array is required');
+    return NextResponse.json({ success: false, error: error.message }, { status: error.statusCode });
+  }
+  if (typeof body.depth !== 'number' || body.depth < 0) {
+    const error = createValidationError('depth must be a non-negative number');
+    return NextResponse.json({ success: false, error: error.message }, { status: error.statusCode });
+  }
+  return null;
+}
+
+/** Build direct CRM lookup index, normalizing NULL/empty values to 'unknown' */
+function buildDirectCrmIndex(
+  directCrmRows: Array<{ dimension_value: string | null; trials: number; approved: number }>,
+  crmNullValue: string | undefined
+): Map<string, { dimension_value: string; trials: number; approved: number }> {
+  const index = new Map<string, { dimension_value: string; trials: number; approved: number }>();
+  for (const r of directCrmRows) {
+    const raw = r.dimension_value != null ? String(r.dimension_value).toLowerCase() : null;
+    const key = (raw === null || raw === 'null' || (crmNullValue !== undefined && raw === crmNullValue))
+      ? 'unknown'
+      : raw;
+    const existing = index.get(key);
+    if (existing) {
+      existing.trials = existing.trials + Number(r.trials);
+      existing.approved = existing.approved + Number(r.approved);
+    } else {
+      index.set(key, { dimension_value: String(r.dimension_value), trials: Number(r.trials), approved: Number(r.approved) });
+    }
+  }
+  return index;
+}
+
 /**
  * POST /api/on-page-analysis/query
  * API endpoint for querying on-page analytics data
@@ -66,30 +105,8 @@ async function handleOnPageQuery(
   try {
     const body: QueryRequest = await request.json();
 
-    // Validate required fields
-    if (!body.dateRange?.start || !body.dateRange?.end) {
-      const error = createValidationError('dateRange is required');
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: error.statusCode }
-      );
-    }
-
-    if (!Array.isArray(body.dimensions) || body.dimensions.length === 0) {
-      const error = createValidationError('dimensions array is required');
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: error.statusCode }
-      );
-    }
-
-    if (typeof body.depth !== 'number' || body.depth < 0) {
-      const error = createValidationError('depth must be a non-negative number');
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: error.statusCode }
-      );
-    }
+    const validationError = validateOnPageBody(body);
+    if (validationError) return validationError;
 
     // Parse and build SQL query
     const queryParams = parseQueryRequest(body);
@@ -165,27 +182,9 @@ async function handleOnPageQuery(
     ]);
 
     // Build CRM lookup: direct index for matchable dims, tracking match for others
-    // Normalize NULL, string 'null' (n8n artifact), and nullValue (e.g. '' for campaign) to 'unknown'
     const crmNullValue = crmMapping?.nullValue;
     const directCrmIndex = directCrmRows
-      ? (() => {
-          const index = new Map<string, { dimension_value: string; trials: number; approved: number }>();
-          for (const r of directCrmRows) {
-            const raw = r.dimension_value != null ? String(r.dimension_value).toLowerCase() : null;
-            const key = (raw === null || raw === 'null' || (crmNullValue !== undefined && raw === crmNullValue))
-              ? 'unknown'
-              : raw;
-            // Accumulate when multiple CRM groups map to 'unknown' (NULL + '' + 'null')
-            const existing = index.get(key);
-            if (existing) {
-              existing.trials = existing.trials + Number(r.trials);
-              existing.approved = existing.approved + Number(r.approved);
-            } else {
-              index.set(key, { dimension_value: String(r.dimension_value), trials: Number(r.trials), approved: Number(r.approved) });
-            }
-          }
-          return index;
-        })()
+      ? buildDirectCrmIndex(directCrmRows, crmNullValue)
       : null;
     // Determine fields to exclude from tracking combo:
     // 1. Exclude current dimension's field (if it's a tracking dimension)
@@ -338,5 +337,5 @@ async function handleOnPageQuery(
   }
 }
 
-// Export with admin authentication
-export const POST = withAuth(handleOnPageQuery);
+// Export with permission-based authentication
+export const POST = withPermission('analytics.on_page_analysis', 'can_view', handleOnPageQuery);

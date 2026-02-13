@@ -6,8 +6,7 @@ import type {
   ValidationRateRow,
   ValidationRateStore,
 } from '@/types/validationRate';
-import { normalizeError } from '@/lib/types/errors';
-import { triggerError } from '@/lib/api/errorHandler';
+import { handleStoreError } from '@/lib/api/errorHandler';
 import {
   updateHasChildren,
   updateTreeChildren,
@@ -31,6 +30,11 @@ const getDefaultDateRange = (): DateRange => {
 
   return { start, end };
 };
+
+/** Convert store sort direction to API format */
+function apiSortDir(dir: 'ascend' | 'descend' | null): 'ASC' | 'DESC' {
+  return dir === 'ascend' ? 'ASC' : 'DESC';
+}
 
 /**
  * Factory function to create a Zustand store for any validation rate type.
@@ -134,7 +138,7 @@ export function createValidationRateStore(rateType: ValidationRateType) {
             depth: 0,
             timePeriod: state.timePeriod,
             sortBy: column || undefined,
-            sortDirection: direction === 'ascend' ? 'ASC' : 'DESC',
+            sortDirection: apiSortDir(direction),
           });
 
           set({
@@ -149,9 +153,7 @@ export function createValidationRateStore(rateType: ValidationRateType) {
             expandedRowKeys: [],
           });
         } catch (error: unknown) {
-          const appError = normalizeError(error);
-          console.error('Failed to load data:', appError);
-          triggerError(appError);
+          handleStoreError('load data', error);
           set({ isLoading: false });
         }
       }
@@ -186,6 +188,7 @@ export function createValidationRateStore(rateType: ValidationRateType) {
 
       // Increment request ID to track this specific request
       const requestId = ++currentLoadRequestId;
+      const isStale = () => requestId !== currentLoadRequestId;
 
       set({ isLoading: true, reportData: [] });
 
@@ -197,13 +200,11 @@ export function createValidationRateStore(rateType: ValidationRateType) {
           depth: 0,
           timePeriod: state.timePeriod,
           sortBy: state.sortColumn || undefined,
-          sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
+          sortDirection: apiSortDir(state.sortDirection),
         });
 
         // Ignore stale response if a newer request was made
-        if (requestId !== currentLoadRequestId) {
-          return;
-        }
+        if (isStale()) return;
 
         set({
           isLoading: false,
@@ -235,14 +236,14 @@ export function createValidationRateStore(rateType: ValidationRateType) {
                 parentFilters,
                 timePeriod: state.timePeriod,
                 sortBy: state.sortColumn || undefined,
-                sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
+                sortDirection: apiSortDir(state.sortDirection),
               });
               return children;
             },
           });
 
           // Check staleness before applying results
-          if (requestId !== currentLoadRequestId) return;
+          if (isStale()) return;
 
           set({
             reportData: updatedData,
@@ -252,12 +253,8 @@ export function createValidationRateStore(rateType: ValidationRateType) {
         }
       } catch (error: unknown) {
         // Ignore errors from stale requests
-        if (requestId !== currentLoadRequestId) {
-          return;
-        }
-        const appError = normalizeError(error);
-        console.error('Failed to load data:', appError);
-        triggerError(appError);
+        if (isStale()) return;
+        handleStoreError('load data', error);
         set({ isLoading: false });
       }
     },
@@ -276,7 +273,7 @@ export function createValidationRateStore(rateType: ValidationRateType) {
           parentFilters,
           timePeriod: state.loadedTimePeriod,
           sortBy: state.sortColumn || undefined,
-          sortDirection: state.sortDirection === 'ascend' ? 'ASC' : 'DESC',
+          sortDirection: apiSortDir(state.sortDirection),
         });
 
         set({
@@ -285,9 +282,8 @@ export function createValidationRateStore(rateType: ValidationRateType) {
         });
       } catch (error: unknown) {
         set({ isLoadingSubLevels: false });
-        const appError = normalizeError(error);
-        console.error('Failed to load child data:', appError);
-        throw appError;
+        // Re-throw error so UI can handle it with toast
+        throw error;
       }
     },
   }));

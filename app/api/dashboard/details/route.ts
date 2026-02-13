@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeMariaDBQuery } from '@/lib/server/mariadb';
-import { dashboardDrilldownQueryBuilder } from '@/lib/server/crmDetailModalQueryBuilder';
+import { crmDetailModalQueryBuilder } from '@/lib/server/crmDetailModalQueryBuilder';
 import { safeValidateRequest, dashboardDetailsRequestSchema } from '@/lib/schemas/api';
 import type { DetailRecord, DetailQueryResponse } from '@/types/dashboardDetails';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { maskErrorForClient } from '@/lib/types/errors';
 import { logDebug } from '@/lib/server/debugLogger';
@@ -59,7 +59,7 @@ async function handleDashboardDetails(
     };
 
     // Build queries
-    const { query, params, countQuery, countParams } = dashboardDrilldownQueryBuilder.buildDetailQuery(
+    const { query, params, countQuery, countParams } = crmDetailModalQueryBuilder.buildDetailQuery(
       metricId,
       {
         dateRange,
@@ -144,5 +144,5 @@ async function handleDashboardDetails(
   }
 }
 
-// Export with admin authentication
-export const POST = withAuth(handleDashboardDetails);
+// Export with permission-based authentication
+export const POST = withPermission('analytics.dashboard', 'can_view', handleDashboardDetails);

@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { updateMessageGeo, deleteMessageGeo } from '@/lib/marketing-pipeline/db';
 import { recordUpdate, recordDeletion } from '@/lib/marketing-tracker/historyService';
 import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { GeoStage } from '@/types';
 import type { AppUser } from '@/types/user';
 import { unstable_rethrow } from 'next/navigation';
@@ -18,7 +18,7 @@ interface RouteParams {
   params: Promise<{ geoId: string }>;
 }
 
-export const PATCH = withAuth(async (
+export const PATCH = withPermission('tools.marketing_pipeline', 'can_edit', async (
   request: NextRequest,
   user: AppUser,
   { params }: RouteParams,
@@ -61,7 +61,7 @@ export const PATCH = withAuth(async (
   }
 });
 
-export const DELETE = withAuth(async (
+export const DELETE = withPermission('tools.marketing_pipeline', 'can_delete', async (
   request: NextRequest,
   user: AppUser,
   { params }: RouteParams,

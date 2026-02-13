@@ -62,7 +62,7 @@ export const useColumnStore = create<ColumnState>()(
     },
     {
       name: 'column-settings',
-      version: 1,
+      version: 2,
       migrate: (persistedState: any) => {
         // Ensure all columns in persisted state are still valid
         const currentColumns = persistedState?.visibleColumns || [];

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from '@neondatabase/serverless';
 import { validateRequest } from '@/lib/auth';
 import { UserRole, type AppUser } from '@/types/user';
+import type { FeatureKey, PermissionAction, RolePermission } from '@/types/roles';
+import { getPermissionsByRoleId } from '@/lib/roles/db';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
@@ -164,4 +166,72 @@ export function withAdmin<TArgs extends unknown[]>(
   handler: (request: NextRequest, user: AppUser, ...args: TArgs) => Promise<NextResponse>
 ) {
   return withRole(UserRole.ADMIN, handler);
+}
+
+// ============================================================================
+// Permission-based access control (Phase 2 RBAC)
+// ============================================================================
+
+const ACTION_TO_FIELD: Record<PermissionAction, keyof Pick<RolePermission, 'canView' | 'canCreate' | 'canEdit' | 'canDelete'>> = {
+  can_view: 'canView',
+  can_create: 'canCreate',
+  can_edit: 'canEdit',
+  can_delete: 'canDelete',
+};
+
+/**
+ * Checks if a user has a specific permission on a feature.
+ * Admin users always pass. Users without role_id get view-only access.
+ */
+async function checkUserPermission(
+  user: AppUser,
+  featureKey: FeatureKey,
+  action: PermissionAction
+): Promise<boolean> {
+  if (user.role === UserRole.ADMIN) return true;
+
+  if (!user.role_id) {
+    return action === 'can_view';
+  }
+
+  const permissions = await getPermissionsByRoleId(user.role_id);
+  const perm = permissions.find(p => p.featureKey === featureKey);
+  if (!perm) return false;
+
+  return Boolean(perm[ACTION_TO_FIELD[action]]);
+}
+
+/**
+ * Higher-order function to protect API routes with feature-level permissions.
+ *
+ * Usage:
+ * export const GET = withPermission('analytics.dashboard', 'can_view', async (request, user) => {
+ *   return NextResponse.json({ data: '...' });
+ * });
+ */
+export function withPermission<TArgs extends unknown[]>(
+  featureKey: FeatureKey,
+  action: PermissionAction,
+  handler: (request: NextRequest, user: AppUser, ...args: TArgs) => Promise<NextResponse>
+) {
+  return async (request: NextRequest, ...args: TArgs): Promise<NextResponse> => {
+    const user = await getUserFromRequest(request);
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const allowed = await checkUserPermission(user, featureKey, action);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Forbidden - You do not have permission to access this resource' },
+        { status: 403 }
+      );
+    }
+
+    return handler(request, user, ...args);
+  };
 }

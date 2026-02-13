@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Pool } from '@neondatabase/serverless';
-import { withAdmin } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import { UserRole, type UpdateUserRoleDTO } from '@/types/user';
 import { revokeUserSessions } from '@/lib/auth';
 import { unstable_rethrow } from 'next/navigation';
@@ -12,7 +12,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
  * Updates user role/permissions (admin cookie authentication only)
  * For CRM API-key access, use /api/users/[id]/external
  */
-export const PATCH = withAdmin(async (request, _user, { params }: { params: Promise<{ id: string }> }) => {
+export const PATCH = withPermission('admin.user_management', 'can_edit', async (request, _user, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
 
   let body: Record<string, unknown>;
@@ -28,6 +28,16 @@ export const PATCH = withAdmin(async (request, _user, { params }: { params: Prom
   const client = await pool.connect();
 
   try {
+    // Fetch current user to compare role before update
+    const currentResult = await client.query(
+      'SELECT role_id, role FROM app_users WHERE id = $1 AND deleted_at IS NULL',
+      [id]
+    );
+    if (currentResult.rows.length === 0) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    const currentUser = currentResult.rows[0] as { role_id: string | null; role: string };
+
     // Build dynamic SET clause from allowed fields
     const setClauses: string[] = ['updated_at = CURRENT_TIMESTAMP'];
     const values: unknown[] = [];
@@ -86,9 +96,17 @@ export const PATCH = withAdmin(async (request, _user, { params }: { params: Prom
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Revoke active sessions so updated role/permissions take effect immediately
     const updatedUser = result.rows[0];
-    await revokeUserSessions(updatedUser.external_id);
+
+    // Only revoke sessions when role actually CHANGED (not just present in request)
+    // The EditRoleDialog always sends role_id + is_product_owner together,
+    // so we must compare against the previous value to avoid revoking on no-op
+    const roleActuallyChanged =
+      (body.role_id && typeof body.role_id === 'string' && body.role_id !== currentUser.role_id) ||
+      (body.role && body.role !== currentUser.role);
+    if (roleActuallyChanged) {
+      await revokeUserSessions(updatedUser.external_id);
+    }
 
     return NextResponse.json({ success: true, user: updatedUser });
   } catch (error) {
@@ -108,7 +126,7 @@ export const PATCH = withAdmin(async (request, _user, { params }: { params: Prom
  * Soft deletes a user (admin cookie authentication only)
  * For CRM API-key access, use /api/users/[id]/external
  */
-export const DELETE = withAdmin(async (_request, _user, { params }: { params: Promise<{ id: string }> }) => {
+export const DELETE = withPermission('admin.user_management', 'can_delete', async (_request, _user, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
 
   const client = await pool.connect();

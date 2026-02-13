@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeMariaDBQuery } from '@/lib/server/mariadb';
-import { crmQueryBuilder } from '@/lib/server/crmQueryBuilder';
+import { fetchCrmData } from '@/lib/server/crmQueryBuilder';
 import type { DashboardRow } from '@/types/dashboard';
-import { withAuth } from '@/lib/rbac';
+import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { maskErrorForClient } from '@/lib/types/errors';
 import { queryRequestSchema } from '@/lib/schemas/api';
-import { buildOtsMap, transformDashboardRow, buildOtsOnlyRows } from '@/lib/server/dashboardTransforms';
+import { buildOtsMap, buildTrialMap, transformDashboardRow, buildOtsOnlyRows } from '@/lib/server/geographyTransforms';
 import { z } from 'zod';
-import { logDebug } from '@/lib/server/debugLogger';
 import { unstable_rethrow } from 'next/navigation';
 
 /**
@@ -52,43 +50,17 @@ async function handleDashboardQuery(
       end: new Date(body.dateRange.end),
     };
 
-    // Build main subscription query and standalone OTS query using shared builder
-    const { query, params } = crmQueryBuilder.buildQuery({
+    // Fetch all CRM data (subscription + OTS + trial) via unified orchestrator
+    const crmOptions = {
       dateRange,
-      groupBy: { type: 'geography', dimensions: body.dimensions },
+      groupBy: { type: 'geography' as const, dimensions: body.dimensions },
       depth: body.depth,
       parentFilters: body.parentFilters,
       sortBy: body.sortBy || 'subscriptions',
       sortDirection: (body.sortDirection || 'DESC') as 'ASC' | 'DESC',
       limit: MAX_DASHBOARD_QUERY_LIMIT,
-    });
-    const { query: otsQuery, params: otsParams } = crmQueryBuilder.buildOtsQuery({
-      dateRange,
-      groupBy: { type: 'geography', dimensions: body.dimensions },
-      depth: body.depth,
-      parentFilters: body.parentFilters,
-    });
-
-    // DEBUG: Log OTS query details
-    logDebug('OTS QUERY', {
-      dimensions: body.dimensions,
-      depth: body.depth,
-      parentFilters: body.parentFilters,
-      query: otsQuery,
-      params: otsParams,
-    });
-
-    // Execute both queries in parallel
-    const [rows, otsRows] = await Promise.all([
-      executeMariaDBQuery<any>(query, params),
-      executeMariaDBQuery<any>(otsQuery, otsParams),
-    ]);
-
-    // DEBUG: Log raw OTS results
-    logDebug('OTS RAW RESULTS', {
-      rowCount: otsRows.length,
-      rows: otsRows,
-    });
+    };
+    const { subscriptionRows: rows, otsRows, trialRows } = await fetchCrmData(crmOptions);
 
     // Check if there are more dimensions (children available)
     const hasMoreDimensions = body.depth < body.dimensions.length - 1;
@@ -118,36 +90,19 @@ async function handleDashboardQuery(
       throw new Error(`Invalid dimension at depth ${body.depth}: ${currentDimension}`);
     }
 
-    // Build OTS lookup map keyed by display value (after toTitleCase)
+    // Build OTS and trial lookup maps keyed by display value (after toTitleCase)
     const otsMap = buildOtsMap(otsRows, columnName, keyPrefix);
+    const trialMap = buildTrialMap(trialRows, columnName, keyPrefix);
 
-    logDebug('OTS KEY BUILDING', {
-      currentDimension,
-      columnName,
-      keyPrefix: keyPrefix || '(none)',
-      otsMapSize: otsMap.size,
-      otsMapKeys: Array.from(otsMap.keys()),
-    });
-
-    // Transform database rows to frontend format, merging OTS data
+    // Transform database rows to frontend format, merging OTS and trial data
     const matchedOtsKeys = new Set<string>();
 
-    const data: DashboardRow[] = rows.map((row, index) => {
+    const data: DashboardRow[] = rows.map((row) => {
       const { dashboardRow, otsKey } = transformDashboardRow(
-        row, otsMap, columnName, keyPrefix, body.depth, hasMoreDimensions
+        row, otsMap, trialMap, columnName, keyPrefix, body.depth, hasMoreDimensions
       );
 
       if (otsMap.has(otsKey)) matchedOtsKeys.add(otsKey);
-
-      if (index < 5) {
-        logDebug(`ROW ${index + 1}`, {
-          key: dashboardRow.key,
-          attribute: dashboardRow.attribute,
-          otsDataFound: otsMap.has(otsKey),
-          ots: dashboardRow.metrics.ots,
-          otsApproved: dashboardRow.metrics.otsApproved,
-        });
-      }
 
       return dashboardRow;
     });
@@ -155,12 +110,6 @@ async function handleDashboardQuery(
     // Add OTS-only rows (OTS data with no matching subscription row)
     const otsOnlyRows = buildOtsOnlyRows(otsMap, matchedOtsKeys, keyPrefix, body.depth, hasMoreDimensions);
     data.push(...otsOnlyRows);
-
-    logDebug('SUBSCRIPTION ROWS & KEY MATCHING', {
-      subscriptionRowCount: rows.length,
-      otsOnlyRowCount: otsOnlyRows.length,
-      otsOnlyRows,
-    });
 
     return NextResponse.json({
       success: true,
@@ -192,8 +141,8 @@ async function handleDashboardQuery(
   }
 }
 
-// Export with admin authentication
-export const POST = withAuth(handleDashboardQuery);
+// Export with permission-based authentication
+export const POST = withPermission('analytics.dashboard', 'can_view', handleDashboardQuery);
 
 /**
  * GET /api/dashboard/query
