@@ -62,7 +62,7 @@ export default function RootLayout({
                   <NuqsAdapter>
                     <SidebarProvider>
                       <AppSidebar />
-                      <SidebarInset className="flex flex-col overflow-hidden isolate">
+                      <SidebarInset className="flex flex-col overflow-clip isolate">
                         {children}
                       </SidebarInset>
                     </SidebarProvider>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense, useEffect, useRef, useCallback } from 'react';
+import { useState, Suspense, useEffect, useCallback } from 'react';
 import { Button } from 'antd';
 import { SettingOutlined } from '@ant-design/icons';
 import Link from 'next/link';
@@ -12,7 +12,6 @@ import { SavedViewsDropdown } from '@/components/saved-views/SavedViewsDropdown'
 import { useSessionUrlSync } from '@/hooks/useSessionUrlSync';
 import { useApplyViewFromUrl } from '@/hooks/useApplyViewFromUrl';
 import { useReportPageSetup } from '@/hooks/useReportPageSetup';
-import { useSidebar } from '@/components/ui/sidebar';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useSessionColumnStore } from '@/stores/sessionColumnStore';
 import { SESSION_METRIC_COLUMNS } from '@/config/sessionColumns';
@@ -27,9 +26,6 @@ import type { ResolvedViewParams } from '@/types/savedViews';
 function OnPageAnalysisContent() {
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
   const [unclassifiedCount, setUnclassifiedCount] = useState<number | null>(null);
-  const { setOpen } = useSidebar();
-  const hasCollapsed = useRef(false);
-
   const { hasUnsavedChanges, resetFilters, dateRange, filters, setFilters } = useSessionStore();
 
   useSessionUrlSync();
@@ -57,14 +53,6 @@ function OnPageAnalysisContent() {
     onApplyView,
     getExtraState,
   });
-
-  // Auto-collapse sidebar on mount only once
-  useEffect(() => {
-    if (!hasCollapsed.current) {
-      setOpen(false);
-      hasCollapsed.current = true;
-    }
-  }, [setOpen]);
 
   useApplyViewFromUrl(handleApplyView);
 

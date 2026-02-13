@@ -21,10 +21,14 @@
   overflow: visible !important;
 }
 
-/* Ensure sticky header holder has proper z-index and background */
+/* Ensure sticky header holder has proper z-index and background.
+   will-change + backface-visibility promote to GPU compositing layer,
+   preventing sticky breakage during rapid scrolling. */
 .stickyTable :global(.ant-table-sticky-holder) {
   z-index: 100 !important;
   background: var(--color-background-primary) !important;
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 /* Hide scrollbar on synced header (scrollLeft is synced via JS by Ant Design) */

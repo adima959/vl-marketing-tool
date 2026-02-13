@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense, useEffect, useRef, lazy } from 'react';
+import { useState, Suspense, useEffect, lazy } from 'react';
 import { Button } from 'antd';
 import { SettingOutlined } from '@ant-design/icons';
 import Link from 'next/link';
@@ -11,7 +11,6 @@ import { SavedViewsDropdown } from '@/components/saved-views/SavedViewsDropdown'
 import { useUrlSync } from '@/hooks/useUrlSync';
 import { useApplyViewFromUrl } from '@/hooks/useApplyViewFromUrl';
 import { useReportPageSetup } from '@/hooks/useReportPageSetup';
-import { useSidebar } from '@/components/ui/sidebar';
 import { useReportStore } from '@/stores/reportStore';
 import { MARKETING_DIMENSION_GROUPS } from '@/config/marketingDimensions';
 import { BarChart3 } from 'lucide-react';
@@ -34,8 +33,6 @@ function MarketingReportContent() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailModalContext, setDetailModalContext] = useState<MarketingMetricClickContext | null>(null);
   const [unclassifiedCount, setUnclassifiedCount] = useState<number | null>(null);
-  const { setOpen } = useSidebar();
-  const hasCollapsed = useRef(false);
   const { hasUnsavedChanges, resetFilters, dateRange, filters, setFilters } = useReportStore();
 
   // Fetch unclassified campaign count for badge
@@ -61,14 +58,6 @@ function MarketingReportContent() {
     getStoreState: useReportStore.getState,
     setStoreState: useReportStore.setState,
   });
-
-  // Auto-collapse sidebar on mount only once
-  useEffect(() => {
-    if (!hasCollapsed.current) {
-      setOpen(false);
-      hasCollapsed.current = true;
-    }
-  }, [setOpen]);
 
   // Sync store state with URL parameters and auto-load data
   useUrlSync();
