@@ -64,20 +64,3 @@ export async function POST(request: Request) {
 }
 ```
 
-## Before Commit Checklist
-
-- [ ] No hardcoded secrets (API keys, passwords, connection strings)
-- [ ] All SQL uses parameterized queries (correct placeholder per DB)
-- [ ] User input validated before database queries
-- [ ] Error responses don't leak stack traces or internal details
-- [ ] `.env` files in `.gitignore`
-- [ ] No sensitive data in `console.log` statements
-
-## Common Mistakes
-
-| Mistake | Fix |
-|---------|-----|
-| Template literal in SQL | Use `$1` / `?` placeholders |
-| `error.message` in API response | Return generic "Internal server error" |
-| Logging full request body | Log only non-sensitive fields |
-| Hardcoded DB connection string | Use `process.env.DATABASE_URL` |

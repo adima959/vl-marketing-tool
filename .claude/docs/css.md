@@ -252,23 +252,3 @@ Project uses Ant Design **v6.2.0** — NOT v5.
 
 ---
 
-## Performance Tips
-
-1. **Use CSS variables**: Faster than JS-based theming
-2. **Minimize CSS Modules**: Scope only what needs to be scoped
-3. **Prefer Tailwind for utilities**: Already optimized and purged
-4. **Avoid deep nesting**: Max 3 levels in CSS
-5. **Use will-change sparingly**: Only for animations
-6. **Leverage browser defaults**: Don't reset everything
-
----
-
-## Checklist
-
-Before writing custom CSS:
-- [ ] Can I use Tailwind utilities? (layout, spacing)
-- [ ] Can I customize via Ant theme? (global component styles)
-- [ ] Do I need component-specific styles? (use CSS Modules)
-- [ ] Am I using design tokens? (no hardcoded values)
-- [ ] For table numbers, did I use `tabular-nums`? (not monospace)
-- [ ] Do I need Ant overrides? (use :global() + !important)

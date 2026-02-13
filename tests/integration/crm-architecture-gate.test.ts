@@ -5,9 +5,10 @@
  * This prevents metric drift (e.g., one route counting customers differently)
  * by enforcing that CRM queries go through builders backed by crmMetrics.ts.
  *
- * Two rules enforced:
+ * Three rules enforced:
  * 1. API routes using executeMariaDBQuery must import an approved builder
  * 2. Builder modules querying raw CRM tables must import from crmMetrics.ts
+ * 3. Source-level trial/OTS queries must use same COALESCE + upsell exclusion as dashboard
  */
 
 import * as fs from 'fs';
@@ -39,20 +40,22 @@ const APPROVED_BUILDER_IMPORTS = new Set([
 const ALLOWED_EXCEPTIONS = [
   // Health check — runs SELECT 1, no CRM metrics
   'app/api/verify/mariadb/route.ts',
+  // On-page CRM details — queries crm_subscription_enriched (pre-computed), not raw CRM tables
+  'app/api/on-page-analysis/crm-details/route.ts',
 ];
 
 /**
  * Builder modules that query raw CRM tables (subscription, invoice, etc.)
  * must import shared definitions from crmMetrics.ts.
  *
- * onPageCrmQueries is excluded — it queries crm_subscription_enriched
- * where metrics are pre-computed at ETL time.
+ * Excluded modules:
+ * - onPageCrmQueries: queries crm_subscription_enriched (pre-computed at ETL time)
+ * - marketingQueryBuilder: delegates CRM queries to crmQueryBuilder, no raw CRM SQL
  */
 const BUILDER_MODULES_REQUIRING_CRM_METRICS = [
   'lib/server/crmQueryBuilder.ts',
   'lib/server/crmDetailModalQueryBuilder.ts',
   'lib/server/validationRateQueryBuilder.ts',
-  'lib/server/marketingQueryBuilder.ts',
 ];
 
 function findTsFiles(dir: string): string[] {
@@ -81,6 +84,40 @@ function getImportedNames(content: string): string[] {
     }
   }
   return names;
+}
+
+const CRM_QUERY_BUILDER_PATH = path.join(ROOT, 'lib/server/crmQueryBuilder.ts');
+
+/**
+ * Required patterns for trial/OTS queries that must stay in sync
+ * between the dashboard query builder and source-level fetch functions.
+ *
+ * When the dashboard query builder (buildTrialModeConfig / buildOtsModeConfig)
+ * adds new JOINs or WHERE clauses, the source-level functions must also be updated.
+ * This test catches the drift statically — no DB connection needed.
+ */
+const TRIAL_OTS_REQUIRED_PATTERNS = [
+  { label: 'subscription JOIN (for upsell exclusion + COALESCE)', pattern: 'OTS_JOINS.subscription' },
+  { label: 'source-from-sub JOIN (for COALESCE fallback)', pattern: 'OTS_JOINS.sourceFromSub' },
+  { label: 'upsell exclusion WHERE clause', pattern: 'CRM_WHERE.upsellExclusion' },
+  { label: 'COALESCE source column', pattern: 'COALESCE(sr.source, sr_sub.source)' },
+];
+
+/**
+ * Extract a full exported function region from source code.
+ * Finds `export ... function name(` and captures everything until the
+ * next top-level `export` or end of file.
+ */
+function extractFunctionRegion(source: string, functionName: string): string | null {
+  const marker = `function ${functionName}(`;
+  const funcStart = source.indexOf(marker);
+  if (funcStart === -1) return null;
+
+  // Find the next top-level export after this function
+  const nextExport = source.indexOf('\nexport ', funcStart + marker.length);
+  return nextExport === -1
+    ? source.slice(funcStart)
+    : source.slice(funcStart, nextExport);
 }
 
 describe('CRM Architecture Gate', () => {
@@ -143,5 +180,25 @@ describe('CRM Architecture Gate', () => {
         expect(fs.existsSync(fullPath)).toBe(true);
       }
     });
+  });
+
+  describe('Rule 3: Source-level trial/OTS queries must match dashboard logic', () => {
+    const source = fs.readFileSync(CRM_QUERY_BUILDER_PATH, 'utf-8');
+
+    for (const funcName of ['fetchSourceCrmData', 'fetchSourceCountryCrmData']) {
+      describe(funcName, () => {
+        const body = extractFunctionRegion(source, funcName);
+
+        it('should exist in crmQueryBuilder.ts', () => {
+          expect(body).not.toBeNull();
+        });
+
+        for (const { label, pattern } of TRIAL_OTS_REQUIRED_PATTERNS) {
+          it(`should use ${label}`, () => {
+            expect(body).toContain(pattern);
+          });
+        }
+      });
+    }
   });
 });

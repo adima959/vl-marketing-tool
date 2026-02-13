@@ -159,6 +159,18 @@ export const POST = withAdmin(async (request: NextRequest, user: AppUser): Promi
     `);
     console.log('✅ app_entity_history table created');
 
+    // Step 3b: Create usage heartbeats table
+    await executeQuery(`
+      CREATE TABLE IF NOT EXISTS app_usage_heartbeats (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES app_users(id),
+        page VARCHAR(255) NOT NULL,
+        params JSONB DEFAULT '{}',
+        heartbeat_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    console.log('✅ app_usage_heartbeats table created');
+
     // Step 4: Create indexes (with IF NOT EXISTS where possible)
     const indexStatements = [
       `CREATE INDEX IF NOT EXISTS idx_products_owner ON app_products(owner_id) WHERE deleted_at IS NULL;`,
@@ -173,6 +185,8 @@ export const POST = withAdmin(async (request: NextRequest, user: AppUser): Promi
       `CREATE INDEX IF NOT EXISTS idx_assets_type ON app_assets(type) WHERE deleted_at IS NULL;`,
       `CREATE INDEX IF NOT EXISTS idx_history_entity ON app_entity_history(entity_type, entity_id);`,
       `CREATE INDEX IF NOT EXISTS idx_history_changed_at ON app_entity_history(changed_at DESC);`,
+      `CREATE INDEX IF NOT EXISTS idx_heartbeats_user_at ON app_usage_heartbeats(user_id, heartbeat_at DESC);`,
+      `CREATE INDEX IF NOT EXISTS idx_heartbeats_page ON app_usage_heartbeats(page);`,
     ];
 
     for (const stmt of indexStatements) {

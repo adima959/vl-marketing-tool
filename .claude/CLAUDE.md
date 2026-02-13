@@ -73,7 +73,7 @@ POTENTIAL CONCERNS:
 - **Surface confusion** — STOP and ask when you see inconsistencies
 - **Dead code** — after refactoring, list unused code and ask before removing
 - **Parallel agents** — proactively use Task tool for 2+ independent subtasks. Don't ask permission — dispatch like any other tool. Use `subagent_type=Explore` for broad codebase searches
-- **Debugging data mismatches** — when asked to debug count/data discrepancies between table and modal, or between different views, ALWAYS read `docs/workflows/debug-count-mismatch.md` FIRST before investigating
+- **Debugging data mismatches** — when asked to debug count/data discrepancies between table and modal, or between different views, ALWAYS read `.claude/docs/workflows/debug-count-mismatch.md` FIRST before investigating
 
 ---
 
@@ -93,22 +93,24 @@ Know these upfront to avoid wasted round-trips:
 
 # Docs — on-demand, read when relevant
 
+**Auto-loaded rules** (`.claude/rules/`): `security.md` loads for `app/api/**`, `lib/server/**`. `css-gotchas.md` loads for `styles/**`, `components/**`.
+
 | File | When to Read |
 |------|-------------|
-| `docs/project-overview.md` | Starting a task — architecture, design direction, component library |
-| `docs/git-workflow.md` | Committing, branching, PRs — format, safety |
-| `docs/build-rules.md` | Deciding whether to build — decision table, common errors |
-| `docs/security.md` | Writing API routes or DB queries — validation patterns |
-| `docs/workflows/verify.md` | Pre-commit/PR verification phases |
-| `docs/workflows/new-feature-checklist.md` | Building new features — similarity scoring, path selection |
-| `docs/workflows/debug-count-mismatch.md` | **Debugging data mismatches** — 6-step methodology (MUST read when debugging count/data issues) |
-| `docs/api.md` | API patterns, response envelope, hierarchical keys |
-| `docs/state.md` | State management: dual-state, URL sync |
-| `docs/design.md` | UI components, table specs, modal pattern |
-| `docs/css.md` | Styling, tokens, Ant Design overrides, known gotchas |
-| `docs/features.md` | Feature-specific implementations |
-| `docs/mariadb.md` | CRM database (MariaDB) |
-| `docs/postgres.md` | PostgreSQL patterns, app schema |
+| `.claude/docs/project-overview.md` | Starting a task — architecture, design direction, component library |
+| `.claude/docs/git-workflow.md` | Committing, branching, PRs — format, safety |
+| `.claude/docs/build-rules.md` | Deciding whether to build — decision table, common errors |
+| `.claude/docs/security.md` | Full security reference (rules auto-load key points) |
+| `.claude/docs/workflows/verify.md` | Pre-commit/PR verification phases |
+| `.claude/docs/workflows/new-feature-checklist.md` | Building new features — similarity scoring, path selection |
+| `.claude/docs/workflows/debug-count-mismatch.md` | **Debugging data mismatches** — 6-step methodology (MUST read when debugging count/data issues) |
+| `.claude/docs/api.md` | API patterns, response envelope, hierarchical keys |
+| `.claude/docs/state.md` | State management: dual-state, URL sync |
+| `.claude/docs/design.md` | UI components, table specs, modal pattern |
+| `.claude/docs/css.md` | Full CSS reference (rules auto-load key gotchas) |
+| `.claude/docs/features.md` | Feature-specific implementations |
+| `.claude/docs/mariadb.md` | CRM database schema, UTM mapping, business logic |
+| `.claude/docs/postgres.md` | PostgreSQL patterns, app schema |
 
 ## Slash Commands
 
