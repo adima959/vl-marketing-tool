@@ -9,6 +9,7 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { RouteGuard } from '@/components/auth/RouteGuard';
+import { ActiveTimeTracker } from '@/components/ActiveTimeTracker';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import './globals.css';
 import type { Metadata } from 'next';
@@ -56,6 +57,7 @@ export default function RootLayout({
             <AuthProvider>
               <Suspense fallback={<LoadingFallback />}>
                 <RouteGuard>
+                  <ActiveTimeTracker>
                   <NuqsAdapter>
                     <SidebarProvider>
                       <AppSidebar />
@@ -66,6 +68,7 @@ export default function RootLayout({
                     <ToastContainer />
                     <KeyboardShortcuts />
                   </NuqsAdapter>
+                </ActiveTimeTracker>
                 </RouteGuard>
               </Suspense>
             </AuthProvider>
