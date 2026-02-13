@@ -1,137 +1,123 @@
-import { type RefObject, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 /**
  * Enables click-and-drag horizontal scrolling on Ant Design tables.
  *
- * Handles two Ant Design DOM structures:
- * - scroll.x only: single `.ant-table-content` container
- * - scroll.x + scroll.y: separate `.ant-table-header` + `.ant-table-body`
+ * Returns a callback ref to attach to the table wrapper div.
  *
- * Uses a `data-drag-scroll` attribute on the wrapper div for cursor control.
- * CSS in base.module.css handles the actual cursor styling via this attribute.
+ * Key design decisions:
+ * - Callback ref (not useRef) so the effect re-runs when the DOM element mounts
+ * - All scroll-container lookups are dynamic (never cached) because Ant Design
+ *   recreates .ant-table-body when table data changes (e.g. skeleton rows)
+ * - mousedown delegated on the wrapper (stable) — finds scroll target on each click
+ * - MutationObserver re-checks scrollability when table DOM changes
  *
- * Only enables drag-to-scroll when the content is wider than the container
- * (i.e., when horizontal scrolling is actually possible).
+ * CSS cursor styling via `data-drag-scroll` attribute (see base.module.css).
  */
-export function useDragScroll(tableRef: RefObject<HTMLDivElement | null>): void {
+export function useDragScroll(): (node: HTMLDivElement | null) => void {
+  const [wrapper, setWrapper] = useState<HTMLDivElement | null>(null);
+
+  const ref = useCallback((node: HTMLDivElement | null) => {
+    setWrapper(node);
+  }, []);
+
   useEffect(() => {
-    const wrapper = tableRef.current;
     if (!wrapper) return;
 
-    // Ant Design uses different DOM structures depending on scroll config:
-    // - scroll={{ x }} only → single .ant-table-content wrapping everything
-    // - scroll={{ x, y }}  → separate .ant-table-header + .ant-table-body
-    const header = wrapper.querySelector('.ant-table-header') as HTMLElement | null;
-    const body = wrapper.querySelector('.ant-table-body') as HTMLElement | null;
-    const content = wrapper.querySelector('.ant-table-content') as HTMLElement | null;
-
-    // The primary scroll container is .ant-table-body (split mode) or .ant-table-content (single mode)
-    const scrollEl = body || content;
-    if (!scrollEl) return;
-
-    // Check if horizontal scrolling is possible
-    const checkScrollable = () => {
-      const isScrollable = scrollEl.scrollWidth > scrollEl.clientWidth;
-      if (isScrollable) {
-        // Only show grab cursor if we're not currently dragging
-        if (wrapper.getAttribute('data-drag-scroll') !== 'dragging') {
-          wrapper.setAttribute('data-drag-scroll', 'idle');
-        }
-      } else {
-        // Remove the attribute entirely when not scrollable
-        wrapper.removeAttribute('data-drag-scroll');
-      }
-      return isScrollable;
-    };
-
-    // Initial check
-    let isScrollable = checkScrollable();
-
-    // Re-check on resize
-    const resizeObserver = new ResizeObserver(() => {
-      isScrollable = checkScrollable();
-    });
-
-    // --- Scroll sync (only needed in split mode) ---
-    let syncScroll: (() => void) | null = null;
-    if (header && body) {
-      syncScroll = () => { header.scrollLeft = body.scrollLeft; };
-      body.addEventListener('scroll', syncScroll);
+    /** Find the current scroll container (may change when Ant Design re-renders) */
+    function getScrollEl(): HTMLElement | null {
+      return wrapper!.querySelector<HTMLElement>('.ant-table-body')
+        || wrapper!.querySelector<HTMLElement>('.ant-table-content');
     }
 
-    // --- Drag state ---
+    /** Check if horizontal scrolling is possible and update cursor attribute */
+    function checkScrollable(): boolean {
+      const el = getScrollEl();
+      if (!el) return false;
+      const isScrollable = el.scrollWidth > el.clientWidth;
+      if (isScrollable) {
+        if (wrapper!.getAttribute('data-drag-scroll') !== 'dragging') {
+          wrapper!.setAttribute('data-drag-scroll', 'idle');
+        }
+      } else {
+        wrapper!.removeAttribute('data-drag-scroll');
+      }
+      return isScrollable;
+    }
+
+    // Initial check
+    checkScrollable();
+
+    // Re-check when table DOM changes (data load, skeleton swap, column resize)
+    const observer = new MutationObserver(() => {
+      checkScrollable();
+    });
+    observer.observe(wrapper, { childList: true, subtree: true });
+
+    // Drag state
     let isDown = false;
     let isDragging = false;
     let startX = 0;
     let scrollStart = 0;
-    const DRAG_THRESHOLD = 5; // px before drag activates (allows clicks through)
+    let activeScrollEl: HTMLElement | null = null;
+    const DRAG_THRESHOLD = 5;
 
-    const handleMouseDown = (e: MouseEvent) => {
-      // Don't enable drag if not scrollable
-      if (!isScrollable) return;
+    const handleMouseDown = (e: MouseEvent): void => {
+      const scrollEl = getScrollEl();
+      if (!scrollEl || scrollEl.scrollWidth <= scrollEl.clientWidth) return;
 
       const target = e.target as HTMLElement;
-      // Don't hijack interactive elements
+      // Don't hijack interactive elements or the fixed first column
       if (target.closest('button, a, .ant-table-column-sorters, .expandIcon')) return;
+      // Don't drag from the sticky attribute column
+      if (target.closest('.ant-table-cell-fix-left')) return;
 
       isDown = true;
       isDragging = false;
       startX = e.clientX;
       scrollStart = scrollEl.scrollLeft;
+      activeScrollEl = scrollEl;
     };
 
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDown) return;
-
+    const handleMouseMove = (e: MouseEvent): void => {
+      if (!isDown || !activeScrollEl) return;
       const dx = e.clientX - startX;
-
-      // Wait until movement exceeds threshold before activating drag
       if (!isDragging && Math.abs(dx) < DRAG_THRESHOLD) return;
 
       if (!isDragging) {
         isDragging = true;
         wrapper.setAttribute('data-drag-scroll', 'dragging');
-        scrollEl.style.userSelect = 'none';
+        activeScrollEl.style.userSelect = 'none';
       }
 
       e.preventDefault();
-      scrollEl.scrollLeft = scrollStart - dx * 2; // 2× speed multiplier
+      activeScrollEl.scrollLeft = scrollStart - dx * 2;
     };
 
-    const handleMouseUp = () => {
+    const handleMouseUp = (): void => {
       if (!isDown) return;
       isDown = false;
       isDragging = false;
-      // Re-check scrollable state and set appropriate cursor
       checkScrollable();
-      scrollEl.style.userSelect = '';
+      if (activeScrollEl) {
+        activeScrollEl.style.userSelect = '';
+        activeScrollEl = null;
+      }
     };
 
-    // Start observing for size changes
-    resizeObserver.observe(scrollEl);
-
-    // Attach mousedown to all scrollable areas
-    scrollEl.addEventListener('mousedown', handleMouseDown);
-    if (header) header.addEventListener('mousedown', handleMouseDown);
-
-    // mousemove/mouseup on document so drag continues even outside the table
+    // Delegate mousedown on the stable wrapper element
+    wrapper.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
 
-    // Also stop drag when mouse leaves the scroll area
-    scrollEl.addEventListener('mouseleave', handleMouseUp);
-
     return () => {
       wrapper.removeAttribute('data-drag-scroll');
-      resizeObserver.disconnect();
-      if (syncScroll && body) {
-        body.removeEventListener('scroll', syncScroll);
-      }
-      scrollEl.removeEventListener('mousedown', handleMouseDown);
-      if (header) header.removeEventListener('mousedown', handleMouseDown);
+      observer.disconnect();
+      wrapper.removeEventListener('mousedown', handleMouseDown);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
-      scrollEl.removeEventListener('mouseleave', handleMouseUp);
     };
-  }, [tableRef]);
+  }, [wrapper]);
+
+  return ref;
 }

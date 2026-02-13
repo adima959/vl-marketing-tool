@@ -1,6 +1,6 @@
 import { Table, Tooltip } from 'antd';
 import type { ColumnsType, TableProps } from 'antd/es/table';
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import { MetricCell } from './MetricCell';
 import { ClickableMetricCell } from '@/components/dashboard/ClickableMetricCell';
 import { MarketingClickableMetricCell } from './MarketingClickableMetricCell';
@@ -257,11 +257,8 @@ export function GenericDataTable<TRow extends BaseTableRow>({
     }
   };
 
-  // Ref for table container
-  const tableRef = useRef<HTMLDivElement>(null);
-
-  // Drag-to-scroll + header/body scroll sync
-  useDragScroll(tableRef);
+  // Drag-to-scroll: callback ref so effect re-runs when table div mounts
+  const tableRef = useDragScroll();
 
   // Show loading skeleton when loading and no data
   if (isLoading && reportData.length === 0) {

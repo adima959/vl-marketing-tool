@@ -2,7 +2,7 @@
 
 import { Table, Tooltip } from 'antd';
 import type { ColumnsType, TableProps } from 'antd/es/table';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ValidationRateCell, MIN_SUBSCRIPTIONS_THRESHOLD } from './ValidationRateCell';
 import { useToast } from '@/hooks/useToast';
 import { useDragScroll } from '@/hooks/useDragScroll';
@@ -129,10 +129,8 @@ export function ValidationRateDataTable({
     dimensions,
   } = useStore();
   const toast = useToast();
-  const tableRef = useRef<HTMLDivElement>(null);
-
-  // Drag-to-scroll + header/body scroll sync
-  useDragScroll(tableRef);
+  // Drag-to-scroll: callback ref so effect re-runs when table div mounts
+  const tableRef = useDragScroll();
 
   // Modal state
   const [modalContext, setModalContext] = useState<MetricClickContext | null>(null);
