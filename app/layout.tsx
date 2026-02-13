@@ -1,3 +1,4 @@
+// Root layout — app shell with auth, sidebar, and providers
 import { Suspense } from 'react';
 import { Inter } from 'next/font/google';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
