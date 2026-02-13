@@ -1,8 +1,8 @@
 import { executeQuery } from './db';
-import { fetchCrmData, fetchSourceCrmData } from './crmQueryBuilder';
+import { fetchCrmData, fetchSourceCrmData, fetchSourceCountryCrmData } from './crmQueryBuilder';
 import { validateSortDirection } from './types';
 import { FilterBuilder } from './queryBuilderUtils';
-import { buildCrmIndex, buildOtsIndex, buildTrialIndex, matchAdsToCrm, buildSourceIndex, matchAdsToCrmBySource, computeSourceTotals } from './trackingTransforms';
+import { buildCrmIndex, buildOtsIndex, buildTrialIndex, matchAdsToCrm, buildSourceIndex, matchAdsToCrmBySource, buildSourceCountryIndex, matchAdsToCrmBySourceCountry, computeSourceTotals } from './trackingTransforms';
 import { formatLocalDate } from '@/lib/types/api';
 
 type SqlParam = string | number | boolean | null | Date;
@@ -330,11 +330,18 @@ export async function getMarketingData(
   };
 
   // Determine CRM matching strategy based on current dimension
-  // Network dimension: source-level matching (accurate COUNT DISTINCT totals)
-  // All others: tracking matching + "Unknown" row for unmatched gap
+  // Network (no country parent): source-level matching (accurate COUNT DISTINCT totals)
+  // Country, or Network with country parent: source+country matching (prevents cross-country contamination)
+  // All others (product, campaign, adset, ad, date): tracking matching + optional "Unknown" row
+  //   Product uses tracking because each product has different campaign/ad arrays from PG.
+  //   Source+country would give identical numbers to all products (same country|source key).
   const trackingDims = new Set(['campaign', 'adset', 'ad']);
-  const useSourceMatching = currentDimension === 'network';
-  const needsUnknownRow = !useSourceMatching && !trackingDims.has(currentDimension);
+  const countryParentFilter = parentFilters?.classifiedCountry;
+  const useSourceMatching = currentDimension === 'network' && !countryParentFilter;
+  const useSourceCountryMatching =
+    currentDimension === 'classifiedCountry' ||
+    (!!countryParentFilter && currentDimension === 'network');
+  const needsUnknownRow = !useSourceMatching && !useSourceCountryMatching && !trackingDims.has(currentDimension);
 
   /** Normalize an ads row into the shape needed by matching functions */
   const toAdsInput = (row: AdsRowWithMappings) => ({
@@ -369,6 +376,26 @@ export async function getMarketingData(
     );
   }
 
+  if (useSourceCountryMatching) {
+    // Source+country: CRM grouped by source + LOWER(country)
+    // Used for: country dimension, or any non-tracking dimension with country parent filter
+    const [adsData, countryCrm] = await Promise.all([
+      executeQuery<AdsRowWithMappings>(adsQuery, pgParams),
+      fetchSourceCountryCrmData({ dateRange, productFilter: effectiveProductFilter }),
+    ]);
+
+    const subIdx = buildSourceCountryIndex(countryCrm.subscriptionRows);
+    const otsIdx = buildSourceCountryIndex(countryCrm.otsRows);
+    const trialIdx = buildSourceCountryIndex(countryCrm.trialRows);
+
+    return adsData.map((row: AdsRowWithMappings) =>
+      matchAdsToCrmBySourceCountry(
+        toAdsInput(row), subIdx, otsIdx, trialIdx,
+        countryParentFilter || undefined
+      )
+    );
+  }
+
   // Tracking-level: tiered matching + optional "Unknown" row
   const crmOptions = {
     dateRange,
@@ -382,7 +409,7 @@ export async function getMarketingData(
     executeQuery<AdsRowWithMappings>(adsQuery, pgParams),
     fetchCrmData(crmOptions),
     needsUnknownRow
-      ? fetchSourceCrmData({ dateRange, productFilter: effectiveProductFilter })
+      ? fetchSourceCrmData({ dateRange, productFilter: effectiveProductFilter, countryFilter: countryParentFilter })
       : Promise.resolve(null),
   ]);
 

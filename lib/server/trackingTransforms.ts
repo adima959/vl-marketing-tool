@@ -1,6 +1,6 @@
-import type { CRMSubscriptionRow, CRMOtsRow, CRMTrialRow, SourceSubscriptionRow, SourceOtsRow, SourceTrialRow } from './crmQueryBuilder';
+import type { CRMSubscriptionRow, CRMOtsRow, CRMTrialRow, SourceSubscriptionRow, SourceOtsRow, SourceTrialRow, SourceCountrySubscriptionRow, SourceCountryOtsRow, SourceCountryTrialRow } from './crmQueryBuilder';
 import type { AggregatedMetrics } from './marketingQueryBuilder';
-import { SOURCE_MAPPING, matchNetworkToSource } from './crmMetrics';
+import { SOURCE_MAPPING, COUNTRY_CODE_TO_CRM, matchNetworkToSource } from './crmMetrics';
 
 /**
  * Pure transform functions extracted from marketingQueryBuilder.
@@ -395,4 +395,95 @@ export function computeSourceTotals(
   }
 
   return { subscriptions, customers, upsells, upsells_approved, ots, ots_approved, trials, trials_approved, on_hold };
+}
+
+// ---------------------------------------------------------------------------
+// Source+Country matching (for country dimension)
+// ---------------------------------------------------------------------------
+
+/** Build an index keyed by `country|source` from rows with both fields */
+export function buildSourceCountryIndex<T extends { source: string | null; country: string }>(
+  rows: T[]
+): Map<string, T[]> {
+  const index = new Map<string, T[]>();
+  for (const row of rows) {
+    const key = `${(row.country || '').toLowerCase()}|${(row.source || '').toLowerCase()}`;
+    if (!index.has(key)) index.set(key, []);
+    index.get(key)!.push(row);
+  }
+  return index;
+}
+
+/**
+ * Match a single ads row to source+country CRM data.
+ * Maps PG country_code (e.g. 'DK') to CRM country name (e.g. 'denmark'),
+ * then looks up by country|source for accurate per-country totals.
+ *
+ * @param countryCode - Override PG country code. When omitted, uses adsRow.dimension_value.
+ *   Pass this when the country comes from a parent filter (e.g. expanding DK → Network).
+ */
+export function matchAdsToCrmBySourceCountry(
+  adsRow: AdsRowInput,
+  subIndex: Map<string, SourceCountrySubscriptionRow[]>,
+  otsIndex: Map<string, SourceCountryOtsRow[]>,
+  trialIndex: Map<string, SourceCountryTrialRow[]>,
+  countryCode?: string
+): AggregatedMetrics {
+  let subscriptions = 0, customers = 0, upsells = 0, upsells_approved = 0;
+  let ots = 0, ots_approved = 0;
+  let trials = 0, trials_approved = 0, on_hold = 0;
+
+  const code = countryCode || adsRow.dimension_value;
+  const crmCountry = COUNTRY_CODE_TO_CRM[code] || code.toLowerCase();
+
+  const visited = new Set<string>();
+  for (const network of adsRow.networks) {
+    const validSources = SOURCE_MAPPING[network.toLowerCase()] || [];
+    for (const src of validSources) {
+      const lookupKey = `${crmCountry}|${src}`;
+      if (visited.has(lookupKey)) continue;
+      visited.add(lookupKey);
+
+      for (const r of subIndex.get(lookupKey) || []) {
+        subscriptions += Number(r.subscription_count || 0);
+        customers += Number(r.customer_count || 0);
+        upsells += Number(r.upsell_count || 0);
+        upsells_approved += Number(r.upsells_approved_count || 0);
+      }
+      for (const r of otsIndex.get(lookupKey) || []) {
+        ots += Number(r.ots_count || 0);
+        ots_approved += Number(r.ots_approved_count || 0);
+      }
+      for (const r of trialIndex.get(lookupKey) || []) {
+        trials += Number(r.trial_count || 0);
+        trials_approved += Number(r.trials_approved_count || 0);
+        on_hold += Number(r.on_hold_count || 0);
+      }
+    }
+  }
+
+  return {
+    dimension_value: adsRow.dimension_value,
+    cost: adsRow.cost,
+    clicks: adsRow.clicks,
+    impressions: adsRow.impressions,
+    conversions: adsRow.conversions,
+    ctr_percent: adsRow.ctr_percent,
+    cpc: adsRow.cpc,
+    cpm: adsRow.cpm,
+    conversion_rate: adsRow.conversion_rate,
+    subscriptions,
+    trials_approved,
+    trials,
+    customers,
+    ots,
+    ots_approved,
+    upsells,
+    upsells_approved,
+    on_hold,
+    approval_rate: subscriptions > 0 ? trials_approved / subscriptions : 0,
+    ots_approval_rate: ots > 0 ? ots_approved / ots : 0,
+    upsell_approval_rate: upsells > 0 ? upsells_approved / upsells : 0,
+    real_cpa: trials_approved > 0 ? adsRow.cost / trials_approved : 0,
+  };
 }

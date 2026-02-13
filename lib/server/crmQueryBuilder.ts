@@ -119,8 +119,8 @@ export class CRMQueryBuilder {
   };
 
   /**
-   * Geography mode dimension mappings for OTS queries
-   * OTS invoices are standalone (no subscription), so we only use invoice path
+   * Geography mode dimension mappings for OTS/Trial queries (invoice-based).
+   * Uses COALESCE to fall back to subscription fields when invoice fields are NULL.
    */
   private readonly geographyOtsDimensions: Record<string, { selectExpr: string; groupByExpr: string }> = {
     country: {
@@ -128,16 +128,16 @@ export class CRMQueryBuilder {
       groupByExpr: 'c.country',
     },
     productName: {
-      selectExpr: 'pg.group_name AS product_group_name',
-      groupByExpr: 'pg.group_name',
+      selectExpr: 'COALESCE(pg.group_name, pg_sub.group_name) AS product_group_name',
+      groupByExpr: 'COALESCE(pg.group_name, pg_sub.group_name)',
     },
     product: {
-      selectExpr: 'p.product_name',
-      groupByExpr: 'p.product_name',
+      selectExpr: 'COALESCE(p.product_name, p_sub.product_name) AS product_name',
+      groupByExpr: 'COALESCE(p.product_name, p_sub.product_name)',
     },
     source: {
-      selectExpr: 'sr.source',
-      groupByExpr: 'sr.source',
+      selectExpr: 'COALESCE(sr.source, sr_sub.source) AS source',
+      groupByExpr: 'COALESCE(sr.source, sr_sub.source)',
     },
   };
 
@@ -165,21 +165,21 @@ export class CRMQueryBuilder {
   };
 
   /**
-   * Tracking mode dimension mappings for OTS (Marketing) — invoice table
-   * Uses i. prefix and order_date instead of s. prefix and date_create
+   * Tracking mode dimension mappings for OTS/Trial (Marketing) — invoice table
+   * with subscription fallback. Uses COALESCE(i.field, s.field) for tracking IDs.
    */
   private readonly otsTrackingDimensions: Record<string, { selectExpr: string; groupByExpr: string }> = {
     campaign: {
-      selectExpr: 'i.tracking_id_4 AS campaign_id',
-      groupByExpr: 'i.tracking_id_4',
+      selectExpr: 'COALESCE(i.tracking_id_4, s.tracking_id_4) AS campaign_id',
+      groupByExpr: 'COALESCE(i.tracking_id_4, s.tracking_id_4)',
     },
     adset: {
-      selectExpr: 'i.tracking_id_2 AS adset_id',
-      groupByExpr: 'i.tracking_id_2',
+      selectExpr: 'COALESCE(i.tracking_id_2, s.tracking_id_2) AS adset_id',
+      groupByExpr: 'COALESCE(i.tracking_id_2, s.tracking_id_2)',
     },
     ad: {
-      selectExpr: 'i.tracking_id AS ad_id',
-      groupByExpr: 'i.tracking_id',
+      selectExpr: 'COALESCE(i.tracking_id, s.tracking_id) AS ad_id',
+      groupByExpr: 'COALESCE(i.tracking_id, s.tracking_id)',
     },
     date: {
       selectExpr: 'DATE(i.order_date) AS date',
@@ -356,7 +356,7 @@ export class CRMQueryBuilder {
     };
   }
 
-  /** Mode-specific JOINs and WHERE for OTS queries */
+  /** Mode-specific JOINs and WHERE for OTS queries (with subscription fallback) */
   private buildOtsModeConfig(groupBy: GroupByStrategy): {
     modeJoins: string; modeWhere: string; sourceColumn: string;
     sourceGroupBy: string;
@@ -365,6 +365,8 @@ export class CRMQueryBuilder {
     return {
       modeJoins: isTracking ? `
       ${OTS_JOINS.source}
+      ${OTS_JOINS.subscription}
+      ${OTS_JOINS.sourceFromSub}
     ` : `
       ${OTS_JOINS.customer}
       LEFT JOIN (
@@ -375,14 +377,18 @@ export class CRMQueryBuilder {
       ${OTS_JOINS.product}
       ${OTS_JOINS.productGroup}
       ${OTS_JOINS.source}
+      ${OTS_JOINS.subscription}
+      ${OTS_JOINS.sourceFromSub}
+      ${OTS_JOINS.productSub}
+      ${OTS_JOINS.productGroupSub}
     `,
-      modeWhere: '',
-      sourceColumn: isTracking ? ',\n        sr.source AS source' : '',
-      sourceGroupBy: isTracking ? ', sr.source' : '',
+      modeWhere: `AND ${CRM_WHERE.upsellExclusion}`,
+      sourceColumn: isTracking ? ',\n        COALESCE(sr.source, sr_sub.source) AS source' : '',
+      sourceGroupBy: isTracking ? ', COALESCE(sr.source, sr_sub.source)' : '',
     };
   }
 
-  /** Mode-specific JOINs and WHERE for trial queries (same structure as OTS) */
+  /** Mode-specific JOINs and WHERE for trial queries (with subscription fallback) */
   private buildTrialModeConfig(groupBy: GroupByStrategy): {
     modeJoins: string; modeWhere: string; sourceColumn: string;
     sourceGroupBy: string;
@@ -391,6 +397,8 @@ export class CRMQueryBuilder {
     return {
       modeJoins: isTracking ? `
       ${OTS_JOINS.source}
+      ${OTS_JOINS.subscription}
+      ${OTS_JOINS.sourceFromSub}
     ` : `
       ${OTS_JOINS.customer}
       LEFT JOIN (
@@ -401,10 +409,14 @@ export class CRMQueryBuilder {
       ${OTS_JOINS.product}
       ${OTS_JOINS.productGroup}
       ${OTS_JOINS.source}
+      ${OTS_JOINS.subscription}
+      ${OTS_JOINS.sourceFromSub}
+      ${OTS_JOINS.productSub}
+      ${OTS_JOINS.productGroupSub}
     `,
-      modeWhere: '',
-      sourceColumn: isTracking ? ',\n        sr.source AS source' : '',
-      sourceGroupBy: isTracking ? ', sr.source' : '',
+      modeWhere: `AND ${CRM_WHERE.upsellExclusion}`,
+      sourceColumn: isTracking ? ',\n        COALESCE(sr.source, sr_sub.source) AS source' : '',
+      sourceGroupBy: isTracking ? ', COALESCE(sr.source, sr_sub.source)' : '',
     };
   }
 
@@ -559,7 +571,7 @@ export class CRMQueryBuilder {
    *
    * Matches CRM trial counting:
    * - Uses i.order_date for date attribution (not s.date_create)
-   * - No upsell exclusion (trials from upsell subscriptions are included)
+   * - Excludes trials from upsell subscriptions (they appear in the upsell column)
    * - i.type = 1 AND i.deleted = 0
    *
    * Results override the main subscription query's trial_count and
@@ -696,6 +708,7 @@ export interface SourceTrialRow {
 export async function fetchSourceCrmData(options: {
   dateRange: DateRange;
   productFilter?: string;
+  countryFilter?: string;
 }): Promise<{
   subscriptionRows: SourceSubscriptionRow[];
   otsRows: SourceOtsRow[];
@@ -712,9 +725,13 @@ export async function fetchSourceCrmData(options: {
       )` : '';
   const productParams: SqlParam[] = options.productFilter ? [options.productFilter] : [];
 
+  // Country filter — scopes source totals to a specific country (e.g., for Unknown row computation)
+  const countryWhere = options.countryFilter ? `AND LOWER(c.country) = ?` : '';
+  const countryParams: SqlParam[] = options.countryFilter ? [options.countryFilter.toLowerCase()] : [];
+
   const subQuery = `
     SELECT
-      sr.source AS source,
+      COALESCE(sr.source, sr_sub.source) AS source,
       ${CRM_METRICS.customerCount.expr} AS ${CRM_METRICS.customerCount.alias},
       ${CRM_METRICS.subscriptionCount.expr} AS ${CRM_METRICS.subscriptionCount.alias},
       ${CRM_METRICS.upsellCount.expr} AS ${CRM_METRICS.upsellCount.alias},
@@ -722,43 +739,165 @@ export async function fetchSourceCrmData(options: {
     FROM subscription s
     ${CRM_JOINS.customer}
     ${CRM_JOINS.invoiceTrialLeft}
-    ${CRM_JOINS.sourceFromSub}
+    ${CRM_JOINS.sourceFromInvoice}
+    ${CRM_JOINS.sourceFromSubAlt}
     ${CRM_JOINS.upsell}
     WHERE s.date_create BETWEEN ? AND ?
       AND ${CRM_WHERE.upsellExclusion}
+      ${countryWhere}
       ${productFilterWhere}
-    GROUP BY sr.source
+    GROUP BY COALESCE(sr.source, sr_sub.source)
   `;
 
   const otsQuery = `
     SELECT
-      sr.source AS source,
+      COALESCE(sr.source, sr_sub.source) AS source,
       ${OTS_METRICS.otsCount.expr} AS ${OTS_METRICS.otsCount.alias},
       ${OTS_METRICS.otsApprovedCount.expr} AS ${OTS_METRICS.otsApprovedCount.alias}
     FROM invoice i
+    ${OTS_JOINS.customer}
     ${OTS_JOINS.source}
+    ${OTS_JOINS.subscription}
+    ${OTS_JOINS.sourceFromSub}
     WHERE ${CRM_WHERE.otsBase}
       AND i.order_date BETWEEN ? AND ?
-    GROUP BY sr.source
+      AND ${CRM_WHERE.upsellExclusion}
+      ${countryWhere}
+    GROUP BY COALESCE(sr.source, sr_sub.source)
   `;
 
   const trialQuery = `
     SELECT
-      sr.source AS source,
+      COALESCE(sr.source, sr_sub.source) AS source,
       ${TRIAL_METRICS.trialCount.expr} AS ${TRIAL_METRICS.trialCount.alias},
       ${TRIAL_METRICS.trialsApprovedCount.expr} AS ${TRIAL_METRICS.trialsApprovedCount.alias},
       ${TRIAL_METRICS.onHoldCount.expr} AS ${TRIAL_METRICS.onHoldCount.alias}
     FROM invoice i
+    ${OTS_JOINS.customer}
     ${OTS_JOINS.source}
+    ${OTS_JOINS.subscription}
+    ${OTS_JOINS.sourceFromSub}
     WHERE ${CRM_WHERE.trialBase}
       AND i.order_date BETWEEN ? AND ?
-    GROUP BY sr.source
+      AND ${CRM_WHERE.upsellExclusion}
+      ${countryWhere}
+    GROUP BY COALESCE(sr.source, sr_sub.source)
+  `;
+
+  const subParams = [startDate, endDate, ...countryParams, ...productParams];
+  const invoiceParams = [startDate, endDate, ...countryParams];
+
+  const [subscriptionRows, otsRows, trialRows] = await Promise.all([
+    executeMariaDBQuery<SourceSubscriptionRow>(subQuery, subParams),
+    executeMariaDBQuery<SourceOtsRow>(otsQuery, invoiceParams),
+    executeMariaDBQuery<SourceTrialRow>(trialQuery, invoiceParams),
+  ]);
+
+  return { subscriptionRows, otsRows, trialRows };
+}
+
+// ---------------------------------------------------------------------------
+// Source+Country CRM data (for marketing report country dimension matching)
+// ---------------------------------------------------------------------------
+
+export interface SourceCountrySubscriptionRow extends SourceSubscriptionRow {
+  country: string;
+}
+
+export interface SourceCountryOtsRow extends SourceOtsRow {
+  country: string;
+}
+
+export interface SourceCountryTrialRow extends SourceTrialRow {
+  country: string;
+}
+
+/**
+ * Fetch CRM data aggregated by source + country.
+ * Like fetchSourceCrmData but adds LOWER(c.country) to GROUP BY so each
+ * country gets its own accurate COUNT(DISTINCT ...) totals.
+ *
+ * Used by marketing report country dimension to avoid cross-country contamination
+ * (a DK-classified campaign might have customers from multiple countries in CRM).
+ */
+export async function fetchSourceCountryCrmData(options: {
+  dateRange: DateRange;
+  productFilter?: string;
+}): Promise<{
+  subscriptionRows: SourceCountrySubscriptionRow[];
+  otsRows: SourceCountryOtsRow[];
+  trialRows: SourceCountryTrialRow[];
+}> {
+  const startDate = formatDateForMariaDB(options.dateRange.start, false);
+  const endDate = formatDateForMariaDB(options.dateRange.end, true);
+
+  const productFilterWhere = options.productFilter ? `
+      AND EXISTS (
+        SELECT 1 FROM invoice_product ip_pf
+        INNER JOIN product p_pf ON p_pf.id = ip_pf.product_id
+        WHERE ip_pf.invoice_id = i.id AND p_pf.product_name LIKE ?
+      )` : '';
+  const productParams: SqlParam[] = options.productFilter ? [options.productFilter] : [];
+
+  const subQuery = `
+    SELECT
+      COALESCE(sr.source, sr_sub.source) AS source,
+      LOWER(c.country) AS country,
+      ${CRM_METRICS.customerCount.expr} AS ${CRM_METRICS.customerCount.alias},
+      ${CRM_METRICS.subscriptionCount.expr} AS ${CRM_METRICS.subscriptionCount.alias},
+      ${CRM_METRICS.upsellCount.expr} AS ${CRM_METRICS.upsellCount.alias},
+      ${CRM_METRICS.upsellsApprovedCount.expr} AS ${CRM_METRICS.upsellsApprovedCount.alias}
+    FROM subscription s
+    ${CRM_JOINS.customer}
+    ${CRM_JOINS.invoiceTrialLeft}
+    ${CRM_JOINS.sourceFromInvoice}
+    ${CRM_JOINS.sourceFromSubAlt}
+    ${CRM_JOINS.upsell}
+    WHERE s.date_create BETWEEN ? AND ?
+      AND ${CRM_WHERE.upsellExclusion}
+      ${productFilterWhere}
+    GROUP BY COALESCE(sr.source, sr_sub.source), LOWER(c.country)
+  `;
+
+  const otsQuery = `
+    SELECT
+      COALESCE(sr.source, sr_sub.source) AS source,
+      LOWER(c.country) AS country,
+      ${OTS_METRICS.otsCount.expr} AS ${OTS_METRICS.otsCount.alias},
+      ${OTS_METRICS.otsApprovedCount.expr} AS ${OTS_METRICS.otsApprovedCount.alias}
+    FROM invoice i
+    ${OTS_JOINS.customer}
+    ${OTS_JOINS.source}
+    ${OTS_JOINS.subscription}
+    ${OTS_JOINS.sourceFromSub}
+    WHERE ${CRM_WHERE.otsBase}
+      AND i.order_date BETWEEN ? AND ?
+      AND ${CRM_WHERE.upsellExclusion}
+    GROUP BY COALESCE(sr.source, sr_sub.source), LOWER(c.country)
+  `;
+
+  const trialQuery = `
+    SELECT
+      COALESCE(sr.source, sr_sub.source) AS source,
+      LOWER(c.country) AS country,
+      ${TRIAL_METRICS.trialCount.expr} AS ${TRIAL_METRICS.trialCount.alias},
+      ${TRIAL_METRICS.trialsApprovedCount.expr} AS ${TRIAL_METRICS.trialsApprovedCount.alias},
+      ${TRIAL_METRICS.onHoldCount.expr} AS ${TRIAL_METRICS.onHoldCount.alias}
+    FROM invoice i
+    ${OTS_JOINS.customer}
+    ${OTS_JOINS.source}
+    ${OTS_JOINS.subscription}
+    ${OTS_JOINS.sourceFromSub}
+    WHERE ${CRM_WHERE.trialBase}
+      AND i.order_date BETWEEN ? AND ?
+      AND ${CRM_WHERE.upsellExclusion}
+    GROUP BY COALESCE(sr.source, sr_sub.source), LOWER(c.country)
   `;
 
   const [subscriptionRows, otsRows, trialRows] = await Promise.all([
-    executeMariaDBQuery<SourceSubscriptionRow>(subQuery, [startDate, endDate, ...productParams]),
-    executeMariaDBQuery<SourceOtsRow>(otsQuery, [startDate, endDate]),
-    executeMariaDBQuery<SourceTrialRow>(trialQuery, [startDate, endDate]),
+    executeMariaDBQuery<SourceCountrySubscriptionRow>(subQuery, [startDate, endDate, ...productParams]),
+    executeMariaDBQuery<SourceCountryOtsRow>(otsQuery, [startDate, endDate]),
+    executeMariaDBQuery<SourceCountryTrialRow>(trialQuery, [startDate, endDate]),
   ]);
 
   return { subscriptionRows, otsRows, trialRows };

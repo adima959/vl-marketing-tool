@@ -78,11 +78,11 @@ export const OTS_METRICS = {
 } as const;
 
 /**
- * Trial metric SQL expressions (invoice-based, no upsell exclusion).
+ * Trial metric SQL expressions (invoice-based).
  *
  * Used by the separate trial query that counts trials using i.order_date
- * instead of s.date_create, and includes trials from upsell subscriptions.
- * This matches CRM trial counting: i.type=1, i.deleted=0, i.order_date in range.
+ * instead of s.date_create. Excludes trials from upsell subscriptions
+ * (they appear in the upsell column instead).
  */
 export const TRIAL_METRICS = {
   trialCount: {
@@ -155,13 +155,19 @@ export const CRM_JOINS = {
   ) ip ON ip.invoice_id = i.id`,
 } as const;
 
-/** OTS JOINs (standalone invoice-based, no subscription). */
+/** OTS/Trial JOINs (invoice-based, with optional subscription fallback). */
 export const OTS_JOINS = {
   customer: 'LEFT JOIN customer c ON c.id = i.customer_id',
   invoiceProduct: 'LEFT JOIN invoice_product ip ON ip.invoice_id = i.id',
   product: 'LEFT JOIN product p ON p.id = ip.product_id',
   productGroup: 'LEFT JOIN product_group pg ON pg.id = p.product_group_id',
   source: 'LEFT JOIN source sr ON sr.id = i.source_id',
+
+  /** Subscription fallback — when invoice fields are NULL, fall back to subscription */
+  subscription: 'LEFT JOIN subscription s ON i.subscription_id = s.id',
+  sourceFromSub: 'LEFT JOIN source sr_sub ON sr_sub.id = s.source_id',
+  productSub: 'LEFT JOIN product p_sub ON p_sub.id = s.product_id',
+  productGroupSub: 'LEFT JOIN product_group pg_sub ON pg_sub.id = p_sub.product_group_id',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -294,6 +300,17 @@ export const RATE_TYPE_CONFIGS = {
 export const SOURCE_MAPPING: Record<string, string[]> = {
   'google ads': ['adwords', 'google'],
   'facebook': ['facebook', 'meta', 'fb'],
+};
+
+/**
+ * Maps PostgreSQL country codes to CRM country names (lowercased).
+ * PG stores ISO codes (DK, SE, NO) while CRM stores full names (denmark, sweden, norway).
+ */
+export const COUNTRY_CODE_TO_CRM: Record<string, string> = {
+  'DK': 'denmark',
+  'SE': 'sweden',
+  'NO': 'norway',
+  'FI': 'finland',
 };
 
 /**
