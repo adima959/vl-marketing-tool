@@ -6,8 +6,8 @@
 .page {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow: auto;
+  flex: 1;
+  min-height: 0;
   background: #f7f8fa;
 }
 
