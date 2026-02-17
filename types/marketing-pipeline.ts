@@ -312,7 +312,7 @@ export interface Campaign {
   geo: Geography;
   externalId?: string;
   externalUrl?: string;
-  status: CampaignStatus;
+  status?: CampaignStatus; // DEPRECATED: Status is now derived from performance data (lastActivityDate)
   spend: number;
   conversions: number;
   cpa?: number;
@@ -366,6 +366,8 @@ export interface CampaignPerformanceData {
   conversions: number;
   ctr: number;
   cpc: number;
+  lastActivityDate?: string; // Most recent date with ad spend > 0
+  campaignStatus?: CampaignStatus; // Derived from lastActivityDate (≤3d: active, 4-30d: paused, 30+d: stopped)
   // CRM metrics (from SaleRow filtered by tracking_id_4)
   subscriptions: number;
   trials: number;

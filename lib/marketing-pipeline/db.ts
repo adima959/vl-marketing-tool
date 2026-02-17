@@ -71,7 +71,6 @@ export type UpdateCampaignData = Partial<{
   geo: Geography;
   externalId: string;
   externalUrl: string;
-  status: string;
   spend: number;
   conversions: number;
   cpa: number;
@@ -124,7 +123,7 @@ export async function getPipelineBoard(filters: PipelineBoardFilters): Promise<P
   const messageIds = messageRows.map(r => r.id as string);
   const campaignRows = await executeQuery<Record<string, unknown>>(`
     SELECT
-      id, message_id, name, channel, geo, status, spend, conversions, cpa,
+      id, message_id, name, channel, geo, spend, conversions, cpa,
       external_id, external_url, last_data_update, created_at, updated_at
     FROM app_pipeline_campaigns
     WHERE message_id = ANY($1) AND deleted_at IS NULL
@@ -158,7 +157,6 @@ export async function getPipelineBoard(filters: PipelineBoardFilters): Promise<P
   // 4. Build PipelineCard objects
   let cards: PipelineCard[] = messageRows.map(row => {
     const msgCampaigns = campaignsByMessage[row.id as string] || [];
-    const activeCampaigns = msgCampaigns.filter(c => c.status === 'active');
     const totalSpend = msgCampaigns.reduce((sum, c) => sum + Number(c.spend), 0);
     const totalConversions = msgCampaigns.reduce((sum, c) => sum + Number(c.conversions), 0);
     const blendedCpa = totalConversions > 0 ? totalSpend / totalConversions : undefined;
@@ -176,7 +174,7 @@ export async function getPipelineBoard(filters: PipelineBoardFilters): Promise<P
       ownerName: (row.owner_name as string) || '',
       totalSpend,
       blendedCpa,
-      activeCampaignCount: activeCampaigns.length,
+      activeCampaignCount: msgCampaigns.length,
       campaigns: msgCampaigns,
       geos: geosByMessage[row.id as string] || [],
       verdictType: row.verdict_type as VerdictType | undefined,

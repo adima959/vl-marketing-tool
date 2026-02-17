@@ -104,7 +104,8 @@ export function CampaignDetailContent({
   const cpa = perf?.trueCpa ?? campaign.cpa ?? undefined;
   const health = getCpaHealth(cpa, target);
   const healthCfg = HEALTH_LABELS[health];
-  const statusCfg = CAMPAIGN_STATUS_CONFIG[campaign.status];
+  const derivedStatus = perf?.campaignStatus || 'stopped';
+  const statusCfg = CAMPAIGN_STATUS_CONFIG[derivedStatus];
   const channelLabel = CHANNEL_CONFIG[campaign.channel]?.label ?? campaign.channel;
   const geoLabel = GEO_CONFIG[campaign.geo as Geography]?.flag ?? campaign.geo;
 
@@ -187,7 +188,38 @@ export function CampaignDetailContent({
     <div className={styles.campaignDetailContent}>
       {/* Campaign header bar */}
       <div className={styles.cdHeader}>
-        <div className={styles.cdHeaderLeft}>
+        {/* Row 1: Meta + Date Picker */}
+        <div className={styles.cdHeaderMeta}>
+          <span className={styles.cdMetaChannel}>{channelLabel}</span>
+          <span className={styles.cdMetaSep}>&middot;</span>
+          <span>{geoLabel} {GEO_CONFIG[campaign.geo as Geography]?.label}</span>
+          {statusCfg && (
+            <span
+              className={styles.cdMetaStatus}
+              style={{ color: statusCfg.color, background: statusCfg.bgColor }}
+            >
+              {statusCfg.label}
+            </span>
+          )}
+          {hierarchy?.funnelFluxIds.map(id => (
+            <Tooltip key={id} title={`Open in FunnelFlux (${id})`} mouseEnterDelay={0.15}>
+              <a
+                href={`https://ui.funnelflux.pro/funnels/editor/${id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.cdFunnelFluxLink}
+              >
+                <FunnelFluxIcon />
+              </a>
+            </Tooltip>
+          ))}
+          <div className={styles.cdHeaderControls}>
+            <DateRangePicker dateRange={dateRange} setDateRange={onDateRangeChange} />
+          </div>
+        </div>
+
+        {/* Row 2: Campaign Name */}
+        <div className={styles.cdHeaderTitle}>
           {externalUrl ? (
             <a href={externalUrl} target="_blank" rel="noopener noreferrer" className={styles.cdCampaignName} title={`Open in ${channelLabel}`}>
               {displayName}
@@ -198,33 +230,7 @@ export function CampaignDetailContent({
               {displayName}
             </span>
           )}
-          <div className={styles.cdHeaderMeta}>
-            <span className={styles.cdMetaChannel}>{channelLabel}</span>
-            <span className={styles.cdMetaSep}>&middot;</span>
-            <span>{geoLabel} {GEO_CONFIG[campaign.geo as Geography]?.label}</span>
-            {statusCfg && (
-              <span
-                className={styles.cdMetaStatus}
-                style={{ color: statusCfg.color, background: statusCfg.bgColor }}
-              >
-                {statusCfg.label}
-              </span>
-            )}
-            {hierarchy?.funnelFluxIds.map(id => (
-              <Tooltip key={id} title={`Open in FunnelFlux (${id})`} mouseEnterDelay={0.15}>
-                <a
-                  href={`https://ui.funnelflux.pro/funnels/editor/${id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={styles.cdFunnelFluxLink}
-                >
-                  <FunnelFluxIcon />
-                </a>
-              </Tooltip>
-            ))}
-          </div>
         </div>
-        <DateRangePicker dateRange={dateRange} setDateRange={onDateRangeChange} />
       </div>
 
       {performanceLoading ? (

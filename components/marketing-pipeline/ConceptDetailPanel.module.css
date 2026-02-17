@@ -57,6 +57,34 @@
   100% { background-position: -200% 0; }
 }
 
+/* ── Generic List/Table Styles (reusable) ─────────────── */
+
+/* Gray header row - for section headers, column headers */
+.listHeader {
+  padding: 10px 18px 8px;
+  background: var(--color-gray-50);
+  border-bottom: 1px solid var(--color-gray-200);
+  transition: background var(--transition-fast);
+  cursor: pointer;
+  user-select: none;
+}
+
+.listHeader:hover {
+  background: var(--color-gray-100);
+}
+
+/* White data row - for content rows */
+.listRow {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--color-gray-100);
+  transition: background var(--transition-fast);
+  cursor: pointer;
+}
+
+.listRow:hover {
+  background: var(--color-gray-50);
+}
+
 /* ── Header ────────────────────────────────────────────── */
 
 .header {
@@ -374,47 +402,175 @@
 
 .bodyContent {}
 
-/* ── Hypothesis Section ────────────────────────────────── */
+/* ── Strategy & Copy Tabs (same structure as Geo Tracks) ── */
 
-.strategySectionToggle {
+/* Section container */
+.strategySection {
+  margin-bottom: 32px;
+}
+
+/* White container with border (like geoTracksBody) */
+.strategyContainer {
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+/* Tab bar (inside white container, at top) */
+.strategyTabBar {
+  composes: listHeader;
+  display: flex;
+  padding: 0 20px;
+  cursor: default;
+}
+
+.strategyTabBar:hover {
+  background: var(--color-gray-50);
+}
+
+/* Individual tab button */
+.strategyTab {
   all: unset;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
-  padding: 8px 0;
-  margin-bottom: 16px;
-  transition: opacity var(--transition-fast);
+  padding: 16px 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-gray-500);
+  border-bottom: 2px solid transparent;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
 }
 
-.strategySectionToggle:hover {
-  opacity: 0.7;
+.strategyTab:hover {
+  color: var(--color-gray-700);
 }
 
-.strategySectionIcon {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #fffbeb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
+.strategyTabActive {
+  color: var(--color-primary-600);
+  border-bottom-color: var(--color-primary-600);
+}
+
+.strategyTabChevron {
+  font-size: 10px;
+  color: var(--color-gray-500);
+  width: 12px;
+  text-align: center;
   flex-shrink: 0;
 }
 
-.strategySectionTitle {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--color-gray-900);
+.strategyTabIcon {
+  font-size: 16px;
+  flex-shrink: 0;
 }
+
+/* Content area (inside white container, below tabs) */
+.strategyTabContent {
+  padding: 24px;
+}
+
+/* Hypothesis Content - Compact Form Layout */
+.hypothesisWrapper {
+  /* Wrapper - styling handled by parent .strategyTabContent */
+}
+
+.hypothesisCompact {
+  /* Padding removed - handled by parent .strategyTabContent */
+}
+
+.hypothesisRow {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+.hypothesisRow:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.hypothesisRow:first-child {
+  padding-top: 0;
+}
+
+.hypothesisLabel {
+  display: flex;
+  align-items: flex-start;
+  padding-top: 10px;
+}
+
+.hypothesisLabelText {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-gray-900);
+  line-height: 1.4;
+}
+
+.hypothesisInput {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hypothesisTextarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: var(--font-family-base);
+  line-height: 1.5;
+  color: var(--color-gray-800);
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  resize: vertical;
+  min-height: 56px;
+  transition: all var(--transition-fast);
+}
+
+.hypothesisTextarea:hover {
+  border-color: var(--color-gray-300);
+  background: var(--color-background-primary);
+}
+
+.hypothesisTextarea:focus {
+  outline: none;
+  border-color: var(--color-primary-500);
+  background: var(--color-background-primary);
+  box-shadow: 0 0 0 3px rgba(0, 185, 107, 0.1);
+}
+
+.hypothesisTextarea::placeholder {
+  color: var(--color-gray-400);
+}
+
+.hypothesisHelper {
+  font-size: 12px;
+  color: var(--color-gray-500);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Copy & Notes */
+.copyVariationsWrapper {
+  /* Wrapper for copy variations section */
+}
+
+.notesWrapper {
+  /* Wrapper for notes editor */
+}
+
+/* ── Hypothesis Section ────────────────────────────────── */
 
 .hypothesisGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
-  margin-bottom: 32px;
 }
 
 .hypothesisCard {
@@ -451,6 +607,12 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--color-gray-500);
+}
+
+/* ── Notes Section ─────────────────────────────────────── */
+
+.notesSection {
+  padding: 0;
 }
 
 /* ── Stats Grid ────────────────────────────────────────── */
@@ -889,23 +1051,13 @@
 
 /* ── Geo Tracks ────────────────────────────────────────── */
 
-.geoTrack + .geoTrack {
-  border-top: 1px solid var(--color-gray-200);
-}
+/* No separator needed - using border-bottom on each header */
 
 .geoTrackHeader {
+  composes: listHeader;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
-  cursor: pointer;
-  user-select: none;
-  background: #f1f5f9; /* slate-100 — distinct from white campaign rows */
-  transition: background var(--transition-fast);
-}
-
-.geoTrackHeader:hover {
-  background: #e2e8f0; /* slate-200 */
 }
 
 .geoExpandIcon {
@@ -917,14 +1069,16 @@
 }
 
 .geoTrackFlag {
-  font-size: 18px;
+  font-size: 14px;
   flex-shrink: 0;
+  line-height: 1;
 }
 
 .geoTrackName {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-gray-900);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-gray-800);
+  line-height: 1;
 }
 
 .geoDriveLink {
@@ -1032,19 +1186,21 @@
 /* ── Campaign rows (flat, no nested border) ──────────── */
 
 .campaignRow {
+  composes: listRow;
   position: relative;
-  padding: 12px 16px 12px 18px;
-  border-bottom: 1px solid var(--color-gray-100);
-  cursor: pointer;
-  transition: background 0.1s;
 }
 
 .campaignRow:last-of-type {
   border-bottom: none;
 }
 
-.campaignRow:hover {
-  background: #fafbfc;
+/* Dimmed styling for campaigns with no data */
+.campaignRowNoData {
+  opacity: 0.5;
+}
+
+.campaignRowNoData:hover {
+  opacity: 0.65;
 }
 
 /* Health left accent */
@@ -1068,8 +1224,10 @@
 }
 
 .campaignName {
-  flex: 1;
+  flex-shrink: 1;
   min-width: 0;
+  max-width: 70%;
+  margin-right: auto;
   font-size: 15px;
   font-weight: 500;
   color: var(--color-gray-800);
@@ -1088,14 +1246,21 @@
 }
 
 .campaignNamePlain {
-  flex: 1;
+  flex-shrink: 1;
   min-width: 0;
+  max-width: 70%;
+  margin-right: auto;
   font-size: 15px;
   font-weight: 500;
   color: var(--color-gray-800);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: pointer;
+}
+
+.campaignNamePlain:hover {
+  color: #2563eb;
 }
 
 .campaignExternalLink {
@@ -1134,7 +1299,8 @@
   opacity: 0;
 }
 
-.campaignRow:hover .campaignDeleteBtn {
+.campaignRowTop:hover .campaignDeleteBtn,
+.campaignDeleteBtn:hover {
   opacity: 1;
 }
 
@@ -1481,28 +1647,43 @@
 /* ── Campaign header ── */
 .cdHeader {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 0 18px;
+  flex-direction: column;
+  padding: 0;
 }
 
-.cdHeaderLeft {
+.cdHeaderMeta {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 24px 0;
+  font-size: 12px;
+  color: var(--color-gray-500);
+}
+
+.cdHeaderControls {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
   gap: 6px;
-  min-width: 0;
-  flex: 1;
+  flex-shrink: 0;
+}
+
+.cdHeaderTitle {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 24px 18px;
 }
 
 .cdCampaignName {
-  font-size: 19px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--color-gray-900);
   display: inline-flex;
   align-items: center;
   gap: 8px;
   line-height: 1.3;
+  letter-spacing: -0.01em;
   text-decoration: none;
 }
 
@@ -1527,15 +1708,6 @@ a.cdCampaignName:hover .cdNameLinkIcon {
   color: var(--color-blue-600, #2563eb);
 }
 
-.cdHeaderMeta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--color-gray-500);
-  flex-wrap: wrap;
-}
-
 .cdMetaChannel {
   font-weight: 500;
   color: var(--color-gray-600);
@@ -1557,44 +1729,18 @@ a.cdCampaignName:hover .cdNameLinkIcon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   background: #da365b;
-  border-radius: 5px;
+  border-radius: 4px;
   text-decoration: none;
   opacity: 0.85;
   transition: opacity var(--transition-fast);
+  flex-shrink: 0;
 }
 
 .cdFunnelFluxLink:hover {
   opacity: 1;
-}
-
-.cdDatePicker {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-gray-600);
-  background: var(--color-background-primary);
-  border: 1px solid var(--color-gray-200);
-  border-radius: 8px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all var(--transition-fast);
-  flex-shrink: 0;
-}
-
-.cdDatePicker:hover {
-  border-color: var(--color-gray-300);
-  background: var(--color-gray-50);
-}
-
-.cdDatePickerArrow {
-  font-size: 10px;
-  color: var(--color-gray-400);
 }
 
 .cdEmpty {
@@ -1616,7 +1762,6 @@ a.cdCampaignName:hover .cdNameLinkIcon {
 }
 
 .cdSection {
-  padding: 14px 18px 16px;
   display: flex;
   flex-direction: column;
 }
@@ -1626,27 +1771,26 @@ a.cdCampaignName:hover .cdNameLinkIcon {
 }
 
 .cdSectionTitle {
+  composes: listHeader;
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   color: var(--color-gray-400);
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--color-gray-200);
+  margin: 0;
 }
 
 .cdSectionIcon {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 11px;
   flex-shrink: 0;
 }
 
@@ -1654,16 +1798,25 @@ a.cdCampaignName:hover .cdNameLinkIcon {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  padding: 4px 0;
+  padding: 4px 18px;
+}
+
+.cdSectionTitle + .cdMetricRow {
+  padding-top: 18px;
+}
+
+.cdSectionLinkWrap + * .cdMetricRow:last-child,
+.cdMetricRow:last-of-type {
+  padding-bottom: 12px;
 }
 
 .cdMetricLabel {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--color-gray-500);
 }
 
 .cdMetricValue {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--color-gray-800);
   font-variant-numeric: tabular-nums;
@@ -1673,7 +1826,7 @@ a.cdCampaignName:hover .cdNameLinkIcon {
 }
 
 .cdMetricPrimary {
-  font-size: 14px;
+  font-size: 14.5px;
   font-weight: 700;
   color: var(--color-gray-900);
   font-variant-numeric: tabular-nums;
@@ -1699,8 +1852,9 @@ a.cdCampaignName:hover .cdNameLinkIcon {
 
 .cdSectionLinkWrap {
   margin-top: auto;
-  padding-top: 8px;
-  border-top: 1px solid var(--color-gray-200);
+  padding: 0 18px 12px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .cdSectionLink {
@@ -1731,12 +1885,10 @@ a.cdCampaignName:hover .cdNameLinkIcon {
 
 /* Column header row */
 .v2ColHeader {
+  composes: listHeader;
   display: grid;
   grid-template-columns: 1fr 90px 70px 62px 52px;
   gap: 0 12px;
-  padding: 10px 18px 8px;
-  border-bottom: 1px solid var(--color-gray-200);
-  background: var(--color-gray-50);
 }
 
 .v2ColLabel {
@@ -1754,18 +1906,11 @@ a.cdCampaignName:hover .cdNameLinkIcon {
 
 /* Adset row (level 0) */
 .v2AdsetRow {
+  composes: listRow;
   display: grid;
   grid-template-columns: 1fr 90px 70px 62px 52px;
   gap: 0 12px;
   align-items: center;
-  padding: 12px 18px;
-  cursor: pointer;
-  transition: background var(--transition-fast);
-  border-bottom: 1px solid var(--color-gray-100);
-}
-
-.v2AdsetRow:hover {
-  background: var(--color-gray-50);
 }
 
 .v2AdsetRow:last-child {

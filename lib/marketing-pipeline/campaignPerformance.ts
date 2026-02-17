@@ -42,24 +42,55 @@ interface AdsRow {
 async function fetchAdsMetrics(
   externalIds: string[],
   dateRange: DateRange,
-): Promise<Map<string, Pick<CampaignPerformanceData, 'campaignName' | 'spend' | 'clicks' | 'impressions' | 'conversions' | 'ctr' | 'cpc'>>> {
+): Promise<Map<string, Pick<CampaignPerformanceData, 'campaignName' | 'spend' | 'clicks' | 'impressions' | 'conversions' | 'ctr' | 'cpc' | 'lastActivityDate'>>> {
   if (externalIds.length === 0) return new Map();
 
-  const rows = await executeQuery<AdsRow>(`
-    SELECT
-      m.campaign_id,
-      MAX(m.campaign_name) AS campaign_name,
-      ROUND(SUM(m.cost::numeric), 2) AS cost,
-      SUM(m.clicks::integer) AS clicks,
-      SUM(m.impressions::integer) AS impressions,
-      ROUND(SUM(m.conversions::numeric), 0) AS conversions
-    FROM merged_ads_spending m
-    WHERE m.date::date BETWEEN $1::date AND $2::date
-      AND m.campaign_id = ANY($3)
-    GROUP BY m.campaign_id
-  `, [formatLocalDate(dateRange.start), formatLocalDate(dateRange.end), externalIds]);
+  const [rows, lastActivityRows] = await Promise.all([
+    executeQuery<AdsRow>(`
+      SELECT
+        m.campaign_id,
+        MAX(m.campaign_name) AS campaign_name,
+        ROUND(SUM(m.cost::numeric), 2) AS cost,
+        SUM(m.clicks::integer) AS clicks,
+        SUM(m.impressions::integer) AS impressions,
+        ROUND(SUM(m.conversions::numeric), 0) AS conversions
+      FROM merged_ads_spending m
+      WHERE m.date >= $1::date AND m.date <= $2::date
+        AND m.campaign_id = ANY($3)
+      GROUP BY m.campaign_id
+    `, [formatLocalDate(dateRange.start), formatLocalDate(dateRange.end), externalIds]),
+    executeQuery<{ campaign_id: string; last_date: string }>(`
+      SELECT
+        m.campaign_id,
+        MAX(m.date) AS last_date
+      FROM merged_ads_spending m
+      WHERE m.campaign_id = ANY($1)
+        AND m.cost::numeric > 0
+      GROUP BY m.campaign_id
+    `, [externalIds]),
+  ]);
 
-  const result = new Map<string, Pick<CampaignPerformanceData, 'campaignName' | 'spend' | 'clicks' | 'impressions' | 'conversions' | 'ctr' | 'cpc'>>();
+  const lastActivityMap = new Map<string, string>();
+  for (const row of lastActivityRows) {
+    lastActivityMap.set(row.campaign_id, row.last_date);
+  }
+
+  // Derive status from last activity date
+  const statusMap = new Map<string, 'active' | 'paused' | 'stopped'>();
+  const now = new Date();
+  for (const [campaignId, lastDate] of lastActivityMap) {
+    const diffMs = now.getTime() - new Date(lastDate).getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    let status: 'active' | 'paused' | 'stopped';
+    if (diffDays <= 3) status = 'active';
+    else if (diffDays <= 30) status = 'paused';
+    else status = 'stopped';
+    statusMap.set(campaignId, status);
+  }
+
+  const result = new Map<string, Pick<CampaignPerformanceData, 'campaignName' | 'spend' | 'clicks' | 'impressions' | 'conversions' | 'ctr' | 'cpc' | 'lastActivityDate' | 'campaignStatus'>>();
+
+  // First, process campaigns with data in the current date range
   for (const row of rows) {
     const spend = Number(row.cost) || 0;
     const clicks = Number(row.clicks) || 0;
@@ -73,8 +104,28 @@ async function fetchAdsMetrics(
       conversions,
       ctr: impressions > 0 ? clicks / impressions : 0,
       cpc: clicks > 0 ? spend / clicks : 0,
+      lastActivityDate: lastActivityMap.get(row.campaign_id),
+      campaignStatus: statusMap.get(row.campaign_id),
     });
   }
+
+  // Then, add campaigns that have historical activity but no data in current range
+  for (const [campaignId, lastDate] of lastActivityMap) {
+    if (!result.has(campaignId)) {
+      result.set(campaignId, {
+        campaignName: undefined,
+        spend: 0,
+        clicks: 0,
+        impressions: 0,
+        conversions: 0,
+        ctr: 0,
+        cpc: 0,
+        lastActivityDate: lastDate,
+        campaignStatus: statusMap.get(campaignId),
+      });
+    }
+  }
+
   return result;
 }
 
@@ -152,6 +203,8 @@ async function fetchOnPageMetrics(
 ): Promise<Map<string, OnPageFields>> {
   if (externalIds.length === 0) return new Map();
 
+  const startTs = `${formatLocalDate(dateRange.start)}T00:00:00`;
+  const endTs = `${formatLocalDate(dateRange.end)}T23:59:59.999`;
   const rows = await executeQuery<OnPageRow>(`
     SELECT
       pv.utm_campaign AS campaign_id,
@@ -167,10 +220,10 @@ async function fetchOnPageMetrics(
       COUNT(*) FILTER (WHERE pv.hero_scroll_passed = true) AS scroll_past_hero,
       ROUND(AVG(pv.active_time_s)::numeric, 2) AS avg_time_on_page
     FROM remote_session_tracker.event_page_view_enriched_v2 pv
-    WHERE pv.created_at::date BETWEEN $1::date AND $2::date
+    WHERE pv.created_at >= $1::timestamp AND pv.created_at <= $2::timestamp
       AND pv.utm_campaign = ANY($3)
     GROUP BY pv.utm_campaign
-  `, [formatLocalDate(dateRange.start), formatLocalDate(dateRange.end), externalIds]);
+  `, [startTs, endTs, externalIds]);
 
   const result = new Map<string, OnPageFields>();
   for (const row of rows) {
@@ -257,7 +310,7 @@ async function fetchAdsetMetrics(
       SUM(m.impressions::integer) AS impressions,
       ROUND(SUM(m.conversions::numeric), 0) AS conversions
     FROM merged_ads_spending m
-    WHERE m.date::date BETWEEN $1::date AND $2::date
+    WHERE m.date >= $1::date AND m.date <= $2::date
       AND m.campaign_id = $3
       AND m.adset_id IS NOT NULL AND m.adset_id != ''
     GROUP BY m.adset_id
@@ -306,7 +359,7 @@ async function fetchAdMetrics(
       SUM(m.impressions::integer) AS impressions,
       ROUND(SUM(m.conversions::numeric), 0) AS conversions
     FROM merged_ads_spending m
-    WHERE m.date::date BETWEEN $1::date AND $2::date
+    WHERE m.date >= $1::date AND m.date <= $2::date
       AND m.campaign_id = $3
       AND m.ad_id IS NOT NULL AND m.ad_id != ''
     GROUP BY m.ad_id, m.adset_id
@@ -350,6 +403,8 @@ async function fetchAdLandingPages(
   campaignExternalId: string,
   dateRange: DateRange,
 ): Promise<Record<string, AdLandingPage[]>> {
+  const startTs = `${formatLocalDate(dateRange.start)}T00:00:00`;
+  const endTs = `${formatLocalDate(dateRange.end)}T23:59:59.999`;
   const rows = await executeQuery<LandingPageRow>(`
     SELECT
       pv.utm_medium AS ad_id,
@@ -365,12 +420,12 @@ async function fetchAdLandingPages(
       COUNT(*) FILTER (WHERE pv.form_started = true) AS form_starters,
       ROUND(AVG(pv.active_time_s)::numeric, 2) AS avg_time_on_page
     FROM remote_session_tracker.event_page_view_enriched_v2 pv
-    WHERE pv.created_at::date BETWEEN $1::date AND $2::date
+    WHERE pv.created_at >= $1::timestamp AND pv.created_at <= $2::timestamp
       AND pv.utm_campaign = $3
       AND pv.utm_medium IS NOT NULL AND pv.utm_medium != ''
     GROUP BY pv.utm_medium, pv.url_path
     ORDER BY pv.utm_medium, COUNT(*) DESC
-  `, [formatLocalDate(dateRange.start), formatLocalDate(dateRange.end), campaignExternalId]);
+  `, [startTs, endTs, campaignExternalId]);
 
   const result: Record<string, AdLandingPage[]> = {};
   for (const row of rows) {
@@ -403,14 +458,16 @@ async function fetchFunnelFluxIds(
   campaignExternalId: string,
   dateRange: DateRange,
 ): Promise<string[]> {
+  const startTs = `${formatLocalDate(dateRange.start)}T00:00:00`;
+  const endTs = `${formatLocalDate(dateRange.end)}T23:59:59.999`;
   const rows = await executeQuery<{ ff_funnel_id: string }>(`
     SELECT DISTINCT pv.ff_funnel_id
     FROM remote_session_tracker.event_page_view_enriched_v2 pv
-    WHERE pv.created_at::date BETWEEN $1::date AND $2::date
+    WHERE pv.created_at >= $1::timestamp AND pv.created_at <= $2::timestamp
       AND pv.utm_campaign = $3
       AND pv.ff_funnel_id IS NOT NULL AND pv.ff_funnel_id != ''
     LIMIT 10
-  `, [formatLocalDate(dateRange.start), formatLocalDate(dateRange.end), campaignExternalId]);
+  `, [startTs, endTs, campaignExternalId]);
   return rows.map(r => r.ff_funnel_id);
 }
 

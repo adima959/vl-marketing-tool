@@ -359,15 +359,19 @@ function CampaignRows({
         const healthCfg = HEALTH_CONFIG[health];
         const channelCfg = CHANNEL_CONFIG[c.channel];
         const displayName = c.name || perf?.campaignName || c.externalId || channelCfg.label;
-        const statusCfg = CAMPAIGN_STATUS_CONFIG[c.status];
+        const derivedStatus = perf?.campaignStatus || 'stopped';
+        const statusCfg = CAMPAIGN_STATUS_CONFIG[derivedStatus];
         const externalUrl = getExternalCampaignUrl(c);
 
         const loading = performanceLoading;
 
+        const isNoData = health === 'none';
+        const lastActivity = perf?.lastActivityDate ? formatLastActivity(perf.lastActivityDate) : null;
+
         return (
           <div
             key={c.id}
-            className={styles.campaignRow}
+            className={`${styles.campaignRow} ${isNoData ? styles.campaignRowNoData : ''}`}
             style={{ '--health-color': loading ? '#d1d5db' : healthCfg.color } as React.CSSProperties}
             onClick={() => onCampaignClick(c)}
           >
@@ -388,7 +392,14 @@ function CampaignRows({
               ) : (
                 <span className={styles.campaignNamePlain}>{displayName}</span>
               )}
-              <Tooltip title={`Campaign status: ${statusCfg.label}`} mouseEnterDelay={0.15}>
+              <Tooltip
+                title={
+                  derivedStatus === 'active' ? 'Active in last 3 days' :
+                  derivedStatus === 'paused' ? 'Last active 4-30 days ago' :
+                  'No activity in 30+ days'
+                }
+                mouseEnterDelay={0.15}
+              >
                 <span
                   className={styles.campaignStatus}
                   style={{ color: statusCfg.color, background: statusCfg.bgColor }}
@@ -474,6 +485,7 @@ function CampaignRows({
                         <div><span style={{ color: '#4ade80' }}>●</span> Good — within 5% of target</div>
                         <div><span style={{ color: '#fbbf24' }}>●</span> Warning — 5–25% over target</div>
                         <div><span style={{ color: '#f87171' }}>●</span> Over target — more than 25% over</div>
+                        {lastActivity && <div style={{ marginTop: 4, color: '#9ca3af' }}>Last activity: {lastActivity}</div>}
                       </div>
                     }
                     mouseEnterDelay={0.15}
@@ -483,6 +495,11 @@ function CampaignRows({
                       {healthCfg.label}
                     </span>
                   </Tooltip>
+                  {isNoData && lastActivity && (
+                    <span className={styles.campaignChip} style={{ fontSize: '11px', color: 'var(--color-gray-400)' }}>
+                      Last activity {lastActivity}
+                    </span>
+                  )}
                 </>
               )}
             </div>
@@ -515,5 +532,28 @@ function getExternalCampaignUrl(campaign: Campaign): string | undefined {
 function formatNok(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k NOK`;
   return `${Math.round(n)} NOK`;
+}
+
+/** Format date as relative time (e.g. "2 days ago") or absolute date if old */
+function formatLastActivity(dateStr: string | undefined): string | null {
+  if (!dateStr) return null;
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return 'today';
+  if (diffDays === 1) return 'yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7);
+    return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
+  }
+  if (diffDays < 365) {
+    const months = Math.floor(diffDays / 30);
+    return `${months} month${months > 1 ? 's' : ''} ago`;
+  }
+  // For very old dates, show the actual date
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 

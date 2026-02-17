@@ -36,7 +36,6 @@ export const PATCH = withPermission('tools.marketing_pipeline', 'can_edit', asyn
       geo: body.geo,
       externalId: body.externalId,
       externalUrl: body.externalUrl,
-      status: body.status,
       spend: body.spend,
       conversions: body.conversions,
       cpa: body.cpa,

@@ -1,7 +1,8 @@
 'use client';
 
 import { memo } from 'react';
-import { FolderOpen } from 'lucide-react';
+import { Tooltip } from 'antd';
+import { FolderOpenOutlined } from '@ant-design/icons';
 import type { PipelineCard as PipelineCardType, PipelineStage } from '@/types';
 import { GEO_CONFIG, GEO_STAGE_CONFIG, PIPELINE_STAGES_ORDER, PIPELINE_STAGE_CONFIG } from '@/types';
 import { usePipelineStore } from '@/stores/pipelineStore';
@@ -95,16 +96,17 @@ export const PipelineCard = memo(function PipelineCard({ card }: PipelineCardPro
           ].filter(Boolean).join(' · ')}
         </span>
         {card.driveFolderId && (
-          <a
-            href={`https://drive.google.com/drive/folders/${card.driveFolderId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.driveLink}
-            onClick={(e) => e.stopPropagation()}
-            title="Open Drive folder"
-          >
-            <FolderOpen size={13} />
-          </a>
+          <Tooltip title="Open Drive folder" mouseEnterDelay={0.15}>
+            <a
+              href={`https://drive.google.com/drive/folders/${card.driveFolderId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.driveLink}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <FolderOpenOutlined />
+            </a>
+          </Tooltip>
         )}
         {card.version > 1 && (
           <span className={styles.versionBadge}>v{card.version}</span>

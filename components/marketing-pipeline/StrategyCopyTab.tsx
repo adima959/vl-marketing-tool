@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { BulbOutlined } from '@ant-design/icons';
-import { EditableField } from '@/components/ui/EditableField';
+import { BulbOutlined, FileTextOutlined, RightOutlined, DownOutlined } from '@ant-design/icons';
+import { Languages } from 'lucide-react';
+import { RichEditableField } from '@/components/ui/RichEditableField';
 import type { MessageDetail, CopyVariation, Campaign, CampaignPerformanceData, Geography, GeoStage, Channel } from '@/types';
 import { CopyVariationsSection } from './CopyVariationsSection';
 import { GeoTracksSection } from './GeoTracksSection';
@@ -23,11 +24,33 @@ interface StrategyCopyTabProps {
   onCampaignClick: (campaign: Campaign) => void;
 }
 
+type TabType = 'hypothesis' | 'copy' | 'notes' | null;
+
 const HYPOTHESIS_FIELDS = [
-  { key: 'specificPainPoint', label: 'Pain Point', placeholder: 'What specific pain does the customer feel?', quoted: true, color: '#ef4444', bgColor: '#fef2f2', icon: '\uD83C\uDFAF' },
-  { key: 'corePromise', label: 'Core Promise', placeholder: 'What do we promise to solve?', quoted: true, color: '#059669', bgColor: '#ecfdf5', icon: '\u2728' },
-  { key: 'keyIdea', label: 'Key Idea', placeholder: 'The insight that connects pain to solution', quoted: false, color: '#d97706', bgColor: '#fffbeb', icon: '\uD83D\uDCA1' },
-  { key: 'primaryHookDirection', label: 'Hook Direction', placeholder: 'Creative direction for the hook', quoted: false, color: '#7c3aed', bgColor: '#f5f3ff', icon: '\uD83D\uDE80' },
+  {
+    key: 'specificPainPoint',
+    label: 'Core Hypothesis',
+    placeholder: 'Using \'bloating\' as the primary pain point will increase CTR by 15% among the target demographic compared to generic \'wellness\' hooks.',
+    helper: 'What measurable outcome do you expect? Be specific with metrics and target audience.'
+  },
+  {
+    key: 'corePromise',
+    label: 'Strategy Execution',
+    placeholder: 'Test 3 hook variations across NO, SE, and DK markets. Focus on direct-response style copy for the primary text.',
+    helper: 'How will you test and execute this hypothesis? Define your approach and success criteria.'
+  },
+  {
+    key: 'keyIdea',
+    label: 'Key Insight',
+    placeholder: 'The insight that connects customer pain to our solution',
+    helper: 'What central insight connects the customer pain to your solution?'
+  },
+  {
+    key: 'primaryHookDirection',
+    label: 'Creative Direction',
+    placeholder: 'Creative direction for the hook and messaging',
+    helper: 'What is the creative approach for communicating this concept?'
+  }
 ] as const;
 
 export function StrategyCopyTab({
@@ -44,61 +67,121 @@ export function StrategyCopyTab({
   onAddCampaign,
   onCampaignClick,
 }: StrategyCopyTabProps): React.ReactNode {
-  const [hypothesisOpen, setHypothesisOpen] = useState(false);
-  const [copyOpen, setCopyOpen] = useState(true);
+  // All tabs closed by default
+  const [activeTab, setActiveTab] = useState<TabType>(null);
 
   const handleVariationsChange = useCallback((variations: CopyVariation[]): void => {
     onFieldChange('copyVariations', variations);
   }, [onFieldChange]);
 
+  const handleNotesChange = useCallback((value: string): void => {
+    onFieldChange('notes', value);
+  }, [onFieldChange]);
+
+  const handleFieldChange = useCallback((key: string, value: string): void => {
+    onFieldChange(key, value);
+  }, [onFieldChange]);
+
+  const toggleTab = (tab: TabType) => {
+    setActiveTab(activeTab === tab ? null : tab);
+  };
+
   return (
     <>
-      {/* Collapsible Hypothesis & Strategy */}
-      <button
-        type="button"
-        className={styles.strategySectionToggle}
-        onClick={() => setHypothesisOpen(prev => !prev)}
-      >
-        <span className={styles.strategySectionIcon}>
-          <BulbOutlined />
-        </span>
-        <span className={styles.strategySectionTitle}>Hypothesis & Strategy</span>
-      </button>
+      {/* Strategy Tabs Section */}
+      <div className={styles.strategySection}>
+        <div className={styles.strategyContainer}>
+          {/* Tab Navigation */}
+          <div className={styles.strategyTabBar}>
+            <button
+              type="button"
+              className={`${styles.strategyTab} ${activeTab === 'hypothesis' ? styles.strategyTabActive : ''}`}
+              onClick={() => toggleTab('hypothesis')}
+            >
+              <span className={styles.strategyTabChevron}>
+                {activeTab === 'hypothesis' ? <DownOutlined /> : <RightOutlined />}
+              </span>
+              <BulbOutlined className={styles.strategyTabIcon} />
+              <span>Hypothesis & Strategy</span>
+            </button>
+            <button
+              type="button"
+              className={`${styles.strategyTab} ${activeTab === 'copy' ? styles.strategyTabActive : ''}`}
+              onClick={() => toggleTab('copy')}
+            >
+              <span className={styles.strategyTabChevron}>
+                {activeTab === 'copy' ? <DownOutlined /> : <RightOutlined />}
+              </span>
+              <Languages size={16} className={styles.strategyTabIcon} />
+              <span>Copy Variations</span>
+            </button>
+            <button
+              type="button"
+              className={`${styles.strategyTab} ${activeTab === 'notes' ? styles.strategyTabActive : ''}`}
+              onClick={() => toggleTab('notes')}
+            >
+              <span className={styles.strategyTabChevron}>
+                {activeTab === 'notes' ? <DownOutlined /> : <RightOutlined />}
+              </span>
+              <FileTextOutlined className={styles.strategyTabIcon} />
+              <span>Notes</span>
+            </button>
+          </div>
 
-      {hypothesisOpen && (
-        <div className={styles.hypothesisGrid}>
-          {HYPOTHESIS_FIELDS.map(({ key, label, placeholder, quoted, color, bgColor, icon }) => (
-            <div key={key} className={styles.hypothesisCard} style={{ borderLeftColor: color }}>
-              <div className={styles.hypothesisCardHeader}>
-                <span
-                  className={styles.hypothesisCardIcon}
-                  style={{ background: bgColor }}
-                >
-                  {icon}
-                </span>
-                <span className={styles.hypothesisCardLabel} style={{ color }}>{label}</span>
-              </div>
-              <EditableField
-                value={(message[key] as string) || ''}
-                onChange={(val) => onFieldChange(key, val)}
-                placeholder={placeholder}
-                quoted={quoted}
-                multiline
-              />
+          {/* Tab Content - Only show when tab is active */}
+          {activeTab && (
+            <div className={styles.strategyTabContent}>
+              {activeTab === 'hypothesis' && (
+                <div className={styles.hypothesisWrapper}>
+                  <div className={styles.hypothesisCompact}>
+                    {HYPOTHESIS_FIELDS.map((field, index) => (
+                      <div key={field.key} className={styles.hypothesisRow}>
+                        <div className={styles.hypothesisLabel}>
+                          <span className={styles.hypothesisLabelText}>{field.label}</span>
+                        </div>
+                        <div className={styles.hypothesisInput}>
+                          <textarea
+                            className={styles.hypothesisTextarea}
+                            placeholder={field.placeholder}
+                            value={(message[field.key] as string) || ''}
+                            onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                            rows={2}
+                          />
+                          <p className={styles.hypothesisHelper}>{field.helper}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'copy' && (
+                <div className={styles.copyVariationsWrapper}>
+                  <CopyVariationsSection
+                    variations={message.copyVariations || []}
+                    onChange={handleVariationsChange}
+                    open={true}
+                    onToggle={() => {}}
+                  />
+                </div>
+              )}
+
+              {activeTab === 'notes' && (
+                <div className={styles.notesWrapper}>
+                  <RichEditableField
+                    value={(message.notes as string) || ''}
+                    onChange={handleNotesChange}
+                    placeholder="Add notes about this concept, learnings, hypotheses to test..."
+                    maxCollapsedHeight={0}
+                  />
+                </div>
+              )}
             </div>
-          ))}
+          )}
         </div>
-      )}
+      </div>
 
-      {/* Copy Variations */}
-      <CopyVariationsSection
-        variations={message.copyVariations || []}
-        onChange={handleVariationsChange}
-        open={copyOpen}
-        onToggle={() => setCopyOpen(prev => !prev)}
-      />
-
-      {/* Geo Tracks */}
+      {/* Geo Tracks Section - Separate from strategy tabs */}
       <GeoTracksSection
         message={message}
         performanceData={performanceData}

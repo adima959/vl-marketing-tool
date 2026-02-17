@@ -142,7 +142,6 @@ async function createTables(): Promise<void> {
       geo app_geography NOT NULL,
       external_id VARCHAR(255),
       external_url TEXT,
-      status app_campaign_status NOT NULL DEFAULT 'active',
       spend NUMERIC NOT NULL DEFAULT 0,
       conversions INTEGER NOT NULL DEFAULT 0,
       cpa NUMERIC,
@@ -264,7 +263,6 @@ async function createIndexes(): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_pl_messages_stage ON app_pipeline_messages(pipeline_stage) WHERE deleted_at IS NULL;`,
     `CREATE INDEX IF NOT EXISTS idx_pl_messages_parent ON app_pipeline_messages(parent_message_id) WHERE deleted_at IS NULL AND parent_message_id IS NOT NULL;`,
     `CREATE INDEX IF NOT EXISTS idx_pl_campaigns_message ON app_pipeline_campaigns(message_id) WHERE deleted_at IS NULL;`,
-    `CREATE INDEX IF NOT EXISTS idx_pl_campaigns_status ON app_pipeline_campaigns(status) WHERE deleted_at IS NULL;`,
     `CREATE INDEX IF NOT EXISTS idx_pl_assets_message ON app_pipeline_assets(message_id) WHERE deleted_at IS NULL;`,
     `CREATE INDEX IF NOT EXISTS idx_pl_creatives_message ON app_pipeline_creatives(message_id) WHERE deleted_at IS NULL;`,
     `CREATE INDEX IF NOT EXISTS idx_pl_msg_geos_message ON app_pipeline_message_geos(message_id) WHERE deleted_at IS NULL;`,
@@ -305,7 +303,6 @@ interface SeedCampaign {
   messageId: string;
   channel: string;
   geo: string;
-  status: string;
   spend: number;
   conversions: number;
   cpa: number;

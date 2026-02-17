@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Button, Input, Dropdown, Modal, Tooltip } from 'antd';
+import { useQueryState, parseAsString } from 'nuqs';
+import { App, Button, Input, Dropdown, Tooltip } from 'antd';
 import type { MenuProps } from 'antd';
 import { CloseOutlined, DeleteOutlined, CalendarOutlined, SwapOutlined, MoreOutlined, StopOutlined, ArrowLeftOutlined, LeftOutlined, RightOutlined, HistoryOutlined, AimOutlined } from '@ant-design/icons';
 import { FolderOpen } from 'lucide-react';
@@ -30,6 +31,7 @@ interface ConceptDetailPanelProps {
 }
 
 export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPanelProps) {
+  const { modal } = App.useApp();
   const {
     moveMessage, updateMessageField, selectMessage, deleteMessage,
     addCampaign, deleteCampaign,
@@ -50,6 +52,12 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
   });
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
   const bodyRef = useRef<HTMLDivElement>(null);
+
+  // URL state for campaign view
+  const [urlCampaignId, setUrlCampaignId] = useQueryState('campaignId', parseAsString.withOptions({
+    history: 'replace',
+    shallow: true,
+  }));
 
   // Version navigation stack — stores {id, name} of messages we navigated away from
   // IMPORTANT: Only update versionStackRef inside handlers — never overwrite it during render,
@@ -102,8 +110,15 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
     return () => { document.title = prev; };
   }, [open, message?.name, message?.id, campaignView, campaignPerformance]);
 
+  // Sync campaignView to URL
+  useEffect(() => {
+    setUrlCampaignId(campaignView?.id ?? null);
+  }, [campaignView, setUrlCampaignId]);
+
   // Reset tab when opening a fresh message (not via version navigation)
   const prevMessageId = useRef<string | null>(null);
+  const prevCampaignId = useRef<string | null>(null);
+
   useEffect(() => {
     if (open && message?.id !== prevMessageId.current) {
       if (!isVersionNav.current) {
@@ -118,10 +133,30 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
       setActiveTab('strategy');
       setShowIterateForm(false);
       setIterateReason('');
-      setCampaignView(null);
       prevMessageId.current = message?.id ?? null;
+
+      // Set campaign view from URL or clear
+      if (urlCampaignId && message?.campaigns) {
+        const campaign = message.campaigns.find(c => c.id === urlCampaignId);
+        setCampaignView(campaign ?? null);
+        prevCampaignId.current = urlCampaignId;
+      } else {
+        setCampaignView(null);
+        prevCampaignId.current = null;
+      }
     }
-  }, [open, message?.id]);
+    // Also handle case where URL campaignId changes without message changing
+    else if (open && message && urlCampaignId !== prevCampaignId.current) {
+      if (urlCampaignId && message.campaigns) {
+        const campaign = message.campaigns.find(c => c.id === urlCampaignId);
+        setCampaignView(campaign ?? null);
+        prevCampaignId.current = urlCampaignId;
+      } else if (!urlCampaignId) {
+        setCampaignView(null);
+        prevCampaignId.current = null;
+      }
+    }
+  }, [open, message?.id, message?.campaigns, urlCampaignId, message]);
 
   const handleFieldChange = useCallback((field: string, value: string | string[] | unknown[]) => {
     if (!message) return;
@@ -480,7 +515,7 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
                               icon: <StopOutlined />,
                               danger: true,
                               onClick: () => {
-                                Modal.confirm({
+                                modal.confirm({
                                   title: 'Kill this message?',
                                   content: 'Retires the message and stops all campaigns.',
                                   okText: 'Kill',
@@ -497,7 +532,7 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
                             icon: <DeleteOutlined />,
                             danger: true,
                             onClick: () => {
-                              Modal.confirm({
+                              modal.confirm({
                                 title: 'Delete this message?',
                                 content: 'This action cannot be undone.',
                                 okText: 'Delete',
