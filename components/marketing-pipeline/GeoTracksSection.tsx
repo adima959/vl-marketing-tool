@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Select, Button, Popconfirm, Dropdown, Spin, Tooltip } from 'antd';
-import { PlusOutlined, DeleteOutlined, RightOutlined, GlobalOutlined, ExportOutlined, FolderOpenOutlined } from '@ant-design/icons';
+import type { MenuProps } from 'antd';
+import { PlusOutlined, DeleteOutlined, DownOutlined, RightOutlined, GlobalOutlined, ExportOutlined, FolderOpenOutlined } from '@ant-design/icons';
 import { DateRangePicker } from '@/components/filters/DateRangePicker';
 import type { MessageDetail, Campaign, CampaignPerformanceData, Geography, Product, GeoStage, Channel } from '@/types';
 import { GEO_CONFIG, CHANNEL_CONFIG, CAMPAIGN_STATUS_CONFIG } from '@/types';
@@ -11,13 +12,6 @@ import type { CpaHealth } from '@/lib/marketing-pipeline/cpaUtils';
 import { GeoStageBadge } from './GeoStageBadge';
 import styles from './ConceptDetailPanel.module.css';
 
-const DATE_RANGE_OPTIONS = [
-  { key: '3', label: 'Last 3 days', days: 3 },
-  { key: '7', label: 'Last 7 days', days: 7 },
-  { key: '14', label: 'Last 14 days', days: 14 },
-  { key: '30', label: 'Last 30 days', days: 30 },
-  { key: '60', label: 'Last 60 days', days: 60 },
-] as const;
 
 interface AdCampaignOption {
   campaignId: string;
