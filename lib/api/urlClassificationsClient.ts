@@ -110,9 +110,9 @@ export async function unclassifyUrl(id: string): Promise<string> {
   return json.data.urlPath;
 }
 
-/** Lightweight count-only fetch */
+/** Lightweight count-only fetch for badge display */
 export async function fetchUnclassifiedCount(): Promise<number> {
-  const res = await fetch('/api/on-page-analysis/url-classifications');
+  const res = await fetch('/api/on-page-analysis/url-classifications?count=true');
 
   if (isAuthError(res.status)) {
     throwAuthError();
@@ -120,5 +120,5 @@ export async function fetchUnclassifiedCount(): Promise<number> {
 
   const json = await res.json();
   if (!json.success) return 0;
-  return json.data.unclassified.length;
+  return json.data.unclassifiedCount;
 }

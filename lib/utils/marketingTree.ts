@@ -9,14 +9,18 @@ export type MarketingFlatRow = Record<string, string | number>;
 /** CRM metrics computed from a group of SaleRow records */
 interface CrmMetrics {
   customers: number;
+  upsellNewCustomers: number;
   subscriptions: number;
+  upsellSubs: number;
+  upsellSubTrials: number;
   trials: number;
   trialsApproved: number;
   onHold: number;
   ots: number;
   otsApproved: number;
-  upsellsApproved: number;
   upsells: number;
+  upsellsApproved: number;
+  upsellsDeleted: number;
 }
 
 // ─── CRM matching ────────────────────────────────────────────────────────────
@@ -58,6 +62,8 @@ function marketingDateToCrmDate(dateStr: string): string {
 function computeCrmMetrics(rows: SaleRow[]): CrmMetrics {
   let customers = 0;
   let subscriptions = 0;
+  let upsellSubs = 0;
+  let upsellSubTrials = 0;
   let trials = 0;
   let trialsApproved = 0;
   let onHold = 0;
@@ -65,12 +71,18 @@ function computeCrmMetrics(rows: SaleRow[]): CrmMetrics {
   let otsApproved = 0;
   let upsells = 0;
   let upsellsApproved = 0;
+  let upsellsDeleted = 0;
 
   const newCustomerIds = new Set<number>();
+  const upsellNewCustomerIds = new Set<number>();
 
   for (const row of rows) {
     if (row.type === 'subscription') {
-      if (!row.is_upsell_sub) {
+      if (row.is_upsell_sub) {
+        upsellSubs++;
+        if (row.has_trial) upsellSubTrials++;
+        if (row.is_new_customer) upsellNewCustomerIds.add(row.customer_id);
+      } else {
         subscriptions++;
         if (row.has_trial) trials++;
         if (row.is_approved) trialsApproved++;
@@ -82,17 +94,19 @@ function computeCrmMetrics(rows: SaleRow[]): CrmMetrics {
       if (row.is_approved) otsApproved++;
     } else if (row.type === 'upsell') {
       upsells++;
+      if (row.is_deleted) upsellsDeleted++;
       if (row.is_approved && !row.is_deleted) upsellsApproved++;
     }
   }
 
   customers = newCustomerIds.size;
+  const upsellNewCustomers = [...upsellNewCustomerIds].filter((id) => !newCustomerIds.has(id)).length;
 
-  return { customers, subscriptions, trials, trialsApproved, onHold, ots, otsApproved, upsells, upsellsApproved };
+  return { customers, upsellNewCustomers, subscriptions, upsellSubs, upsellSubTrials, trials, trialsApproved, onHold, ots, otsApproved, upsells, upsellsApproved, upsellsDeleted };
 }
 
 /** Empty CRM metrics (used for rows with no CRM match) */
-const EMPTY_CRM: CrmMetrics = { customers: 0, subscriptions: 0, trials: 0, trialsApproved: 0, onHold: 0, ots: 0, otsApproved: 0, upsells: 0, upsellsApproved: 0 };
+const EMPTY_CRM: CrmMetrics = { customers: 0, upsellNewCustomers: 0, subscriptions: 0, upsellSubs: 0, upsellSubTrials: 0, trials: 0, trialsApproved: 0, onHold: 0, ots: 0, otsApproved: 0, upsells: 0, upsellsApproved: 0, upsellsDeleted: 0 };
 
 /**
  * Attach CRM metrics to each marketing flat row by matching on ad tracking dimensions.
@@ -176,7 +190,10 @@ export function attachCrmMetrics(
       ...row,
       ...prefixCrm({
         customers: crm.customers * proportion,
+        upsellNewCustomers: crm.upsellNewCustomers * proportion,
         subscriptions: crm.subscriptions * proportion,
+        upsellSubs: crm.upsellSubs * proportion,
+        upsellSubTrials: crm.upsellSubTrials * proportion,
         trials: crm.trials * proportion,
         trialsApproved: crm.trialsApproved * proportion,
         onHold: crm.onHold * proportion,
@@ -184,6 +201,7 @@ export function attachCrmMetrics(
         otsApproved: crm.otsApproved * proportion,
         upsells: crm.upsells * proportion,
         upsellsApproved: crm.upsellsApproved * proportion,
+        upsellsDeleted: crm.upsellsDeleted * proportion,
       }),
     };
   });
@@ -204,7 +222,10 @@ function buildMarketingMatchKey(row: MarketingFlatRow, matchDims: string[]): str
 function prefixCrm(crm: CrmMetrics): Record<string, number> {
   return {
     _crm_customers: crm.customers,
+    _crm_upsellNewCustomers: crm.upsellNewCustomers,
     _crm_subscriptions: crm.subscriptions,
+    _crm_upsellSubs: crm.upsellSubs,
+    _crm_upsellSubTrials: crm.upsellSubTrials,
     _crm_trials: crm.trials,
     _crm_trialsApproved: crm.trialsApproved,
     _crm_onHold: crm.onHold,
@@ -212,6 +233,7 @@ function prefixCrm(crm: CrmMetrics): Record<string, number> {
     _crm_otsApproved: crm.otsApproved,
     _crm_upsells: crm.upsells,
     _crm_upsellsApproved: crm.upsellsApproved,
+    _crm_upsellsDeleted: crm.upsellsDeleted,
   };
 }
 
@@ -277,7 +299,10 @@ function buildLevel(
     let conversions = 0;
     // CRM base metrics
     let customers = 0;
+    let upsellNewCustomers = 0;
     let subscriptions = 0;
+    let upsellSubs = 0;
+    let upsellSubTrials = 0;
     let trials = 0;
     let trialsApproved = 0;
     let onHold = 0;
@@ -285,6 +310,7 @@ function buildLevel(
     let otsApproved = 0;
     let upsells = 0;
     let upsellsApproved = 0;
+    let upsellsDeleted = 0;
 
     for (const r of groupRows) {
       cost += Number(r.cost) || 0;
@@ -293,7 +319,10 @@ function buildLevel(
       conversions += Number(r.conversions) || 0;
       // CRM
       customers += Number(r._crm_customers) || 0;
+      upsellNewCustomers += Number(r._crm_upsellNewCustomers) || 0;
       subscriptions += Number(r._crm_subscriptions) || 0;
+      upsellSubs += Number(r._crm_upsellSubs) || 0;
+      upsellSubTrials += Number(r._crm_upsellSubTrials) || 0;
       trials += Number(r._crm_trials) || 0;
       trialsApproved += Number(r._crm_trialsApproved) || 0;
       onHold += Number(r._crm_onHold) || 0;
@@ -301,6 +330,7 @@ function buildLevel(
       otsApproved += Number(r._crm_otsApproved) || 0;
       upsells += Number(r._crm_upsells) || 0;
       upsellsApproved += Number(r._crm_upsellsApproved) || 0;
+      upsellsDeleted += Number(r._crm_upsellsDeleted) || 0;
     }
 
     const row: ReportRow = {
@@ -319,7 +349,10 @@ function buildLevel(
         conversionRate: impressions > 0 ? conversions / impressions : 0,
         // CRM
         customers: Math.round(customers),
+        upsellNewCustomers: Math.round(upsellNewCustomers),
         subscriptions: Math.round(subscriptions),
+        upsellSubs: Math.round(upsellSubs),
+        upsellSubTrials: Math.round(upsellSubTrials),
         trials: Math.round(trials),
         trialsApproved: Math.round(trialsApproved),
         approvalRate: subscriptions > 0 ? trialsApproved / subscriptions : 0,
@@ -328,7 +361,9 @@ function buildLevel(
         ots: Math.round(ots),
         otsApproved: Math.round(otsApproved),
         otsApprovalRate: ots > 0 ? otsApproved / ots : 0,
+        upsells: Math.round(upsells),
         upsellsApproved: Math.round(upsellsApproved),
+        upsellsDeleted: Math.round(upsellsDeleted),
         upsellApprovalRate: upsells > 0 ? upsellsApproved / upsells : 0,
       },
     };

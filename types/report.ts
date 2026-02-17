@@ -16,7 +16,10 @@ export interface ReportRow {
     conversionRate: number;
     // CRM metrics
     customers: number;
+    upsellNewCustomers: number;
     subscriptions: number;
+    upsellSubs: number;
+    upsellSubTrials: number;
     trials: number;
     trialsApproved: number;
     approvalRate: number;
@@ -25,7 +28,9 @@ export interface ReportRow {
     ots: number;
     otsApproved: number;
     otsApprovalRate: number;
+    upsells: number;
     upsellsApproved: number;
+    upsellsDeleted: number;
     upsellApprovalRate: number;
   };
 }

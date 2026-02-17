@@ -93,6 +93,15 @@ export const METRIC_COLUMNS: MetricColumn[] = [
     defaultVisible: false,
     width: 80,
     align: 'right',
+    tooltipFn: (m) => {
+      const customers = num(m, 'customers');
+      const upsellNew = num(m, 'upsellNewCustomers');
+      if (!customers) return null;
+      const lines = [`${formatNumber(customers)} new customers`];
+      if (upsellNew > 0) lines.push(`+ ${formatNumber(upsellNew)} cross-sell only`);
+      if (upsellNew > 0) lines.push(`= ${formatNumber(customers + upsellNew)} CRM total`);
+      return lines;
+    },
   },
   {
     id: 'subscriptions',
@@ -103,6 +112,15 @@ export const METRIC_COLUMNS: MetricColumn[] = [
     defaultVisible: true,
     width: 80,
     align: 'right',
+    tooltipFn: (m) => {
+      const subs = num(m, 'subscriptions');
+      const upsellSubs = num(m, 'upsellSubs');
+      if (!subs) return null;
+      const lines = [`${formatNumber(subs)} subs`];
+      if (upsellSubs > 0) lines.push(`+ ${formatNumber(upsellSubs)} cross-sell subs`);
+      if (upsellSubs > 0) lines.push(`= ${formatNumber(subs + upsellSubs)} CRM total`);
+      return lines;
+    },
   },
   {
     id: 'trials',
@@ -113,6 +131,15 @@ export const METRIC_COLUMNS: MetricColumn[] = [
     defaultVisible: true,
     width: 80,
     align: 'right',
+    tooltipFn: (m) => {
+      const trials = num(m, 'trials');
+      const upsellTrials = num(m, 'upsellSubTrials');
+      if (!trials) return null;
+      const lines = [`${formatNumber(trials)} trials`];
+      if (upsellTrials > 0) lines.push(`+ ${formatNumber(upsellTrials)} cross-sell trials`);
+      if (upsellTrials > 0) lines.push(`= ${formatNumber(trials + upsellTrials)} CRM total`);
+      return lines;
+    },
   },
   {
     id: 'onHold',
@@ -187,6 +214,16 @@ export const METRIC_COLUMNS: MetricColumn[] = [
     defaultVisible: true,
     width: 80,
     align: 'right',
+    tooltipFn: (m) => {
+      const total = num(m, 'upsells');
+      const approved = num(m, 'upsellsApproved');
+      const deleted = num(m, 'upsellsDeleted');
+      if (!total) return null;
+      const lines = [`${formatNumber(total)} total upsells`];
+      if (deleted > 0) lines.push(`${formatNumber(deleted)} deleted`);
+      lines.push(`${formatNumber(approved)} approved`);
+      return lines;
+    },
   },
   {
     id: 'upsellApprovalRate',

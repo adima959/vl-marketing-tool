@@ -16,6 +16,8 @@ export const COUNTRY_PATTERNS: Record<string, string> = {
  * Product: matched by exact normalized name or prefix (min 3 chars).
  *   Both sides are normalized by stripping hyphens/spaces for comparison,
  *   e.g. segment "sleep-repair" -> "sleeprepair" matches product "SleepRepair".
+ *   Also tries consecutive segment pairs/triples to handle compound names
+ *   split across segments, e.g. ["t","formula"] -> "tformula" matches "T-Formula".
  *
  * Returns null unless both product and country are detected.
  */
@@ -31,14 +33,25 @@ export function matchProductAndCountry(
     }
   }
 
+  // Build candidate strings: individual segments + consecutive pairs/triples
+  // This handles cases like "T-Formula" split into ["t","formula"] → joined "tformula"
+  const candidates: string[] = segments.map((s) => s.replace(/-/g, ''));
+  for (let i = 0; i < segments.length - 1; i++) {
+    candidates.push(segments[i].replace(/-/g, '') + segments[i + 1].replace(/-/g, ''));
+    if (i < segments.length - 2) {
+      candidates.push(
+        segments[i].replace(/-/g, '') + segments[i + 1].replace(/-/g, '') + segments[i + 2].replace(/-/g, '')
+      );
+    }
+  }
+
   let productId: string | null = null;
   for (const product of products) {
     const productNorm = product.name.toLowerCase().replace(/[-\s]+/g, '');
-    for (const seg of segments) {
-      const segNorm = seg.replace(/-/g, '');
+    for (const candidate of candidates) {
       if (
-        segNorm === productNorm ||
-        (segNorm.length >= 3 && productNorm.startsWith(segNorm))
+        candidate === productNorm ||
+        (candidate.length >= 3 && productNorm.startsWith(candidate))
       ) {
         productId = product.id;
         break;

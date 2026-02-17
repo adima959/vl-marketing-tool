@@ -189,9 +189,29 @@ export function GenericDataTable<TRow extends BaseTableRow>({
             if (isSkeletonRow(record)) return <div className={styles.skeletonMetric} />;
             if (value === null || value === undefined) return <span style={{ color: 'var(--color-gray-300)' }}>–</span>;
 
-            // On-page clickable metrics: inline click handler that extracts dimension filters from row key
+            const cell = <MetricCell value={value ?? 0} format={col.format} hideZero={hideZeroValues} />;
+
+            // Compute tooltip content (if any)
+            let tooltipTitle: React.ReactNode = null;
+            if (col.tooltipFormula && value) {
+              const numerator = Number(record.metrics[col.tooltipFormula.numerator] ?? 0);
+              const denominator = Number(record.metrics[col.tooltipFormula.denominator] ?? 0);
+              tooltipTitle = `${formatNumber(numerator)} / ${formatNumber(denominator)} = ${formatPercentage(value)}`;
+            } else if (col.tooltipFn && value) {
+              const lines = col.tooltipFn(record.metrics);
+              if (lines?.length) {
+                tooltipTitle = (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {lines.map((line, i) => <div key={i}>{line}</div>)}
+                  </div>
+                );
+              }
+            }
+
+            // Build click handler for clickable metrics
+            let handleClick: ((e: React.MouseEvent) => void) | undefined;
             if (onOnPageMetricClick && loadedDateRange && clickableOnPageMetrics.includes(col.id)) {
-              const handleClick = (e: React.MouseEvent) => {
+              handleClick = (e: React.MouseEvent) => {
                 e.stopPropagation();
                 const parts = record.key.split('::');
                 const dimensionFilters: Record<string, string> = {};
@@ -206,16 +226,8 @@ export function GenericDataTable<TRow extends BaseTableRow>({
                   filters: { dateRange: loadedDateRange, dimensionFilters },
                 });
               };
-              return (
-                <div className={styles.clickableMetric} onClick={handleClick}>
-                  <MetricCell value={value ?? 0} format={col.format} hideZero={hideZeroValues} />
-                </div>
-              );
-            }
-
-            // Generic clickable metrics (dashboard CRM detail modal)
-            if (onMetricClick && loadedDateRange && clickableMetrics.includes(col.id)) {
-              const handleClick = (e: React.MouseEvent) => {
+            } else if (onMetricClick && loadedDateRange && clickableMetrics.includes(col.id)) {
+              handleClick = (e: React.MouseEvent) => {
                 e.stopPropagation();
                 const parts = record.key.split('::');
                 const dimensionFilters: Record<string, string> = {};
@@ -230,36 +242,22 @@ export function GenericDataTable<TRow extends BaseTableRow>({
                   filters: { dateRange: loadedDateRange, dimensionFilters },
                 });
               };
+            }
+
+            // Assemble: clickable wrapper (optional) + tooltip (optional)
+            if (handleClick && tooltipTitle) {
               return (
-                <div className={styles.clickableMetric} onClick={handleClick}>
-                  <MetricCell value={value ?? 0} format={col.format} hideZero={hideZeroValues} />
-                </div>
+                <Tooltip title={tooltipTitle} placement="top" mouseEnterDelay={0.3}>
+                  <div className={styles.clickableMetric} onClick={handleClick}>{cell}</div>
+                </Tooltip>
               );
             }
-
-            const cell = <MetricCell value={value ?? 0} format={col.format} hideZero={hideZeroValues} />;
-
-            // Wrap calculated metrics in tooltip showing formula (e.g. "722 / 956 = 75.5%")
-            if (col.tooltipFormula && value) {
-              const numerator = Number(record.metrics[col.tooltipFormula.numerator] ?? 0);
-              const denominator = Number(record.metrics[col.tooltipFormula.denominator] ?? 0);
-              const tip = `${formatNumber(numerator)} / ${formatNumber(denominator)} = ${formatPercentage(value)}`;
-              return <Tooltip title={tip} placement="top" mouseEnterDelay={0.3}><span>{cell}</span></Tooltip>;
+            if (handleClick) {
+              return <div className={styles.clickableMetric} onClick={handleClick}>{cell}</div>;
             }
-
-            // Custom tooltip function for count metrics
-            if (col.tooltipFn && value) {
-              const lines = col.tooltipFn(record.metrics);
-              if (lines?.length) {
-                const tip = (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {lines.map((line, i) => <div key={i}>{line}</div>)}
-                  </div>
-                );
-                return <Tooltip title={tip} placement="top" mouseEnterDelay={0.3}><span>{cell}</span></Tooltip>;
-              }
+            if (tooltipTitle) {
+              return <Tooltip title={tooltipTitle} placement="top" mouseEnterDelay={0.3}><span>{cell}</span></Tooltip>;
             }
-
             return cell;
           },
         }));

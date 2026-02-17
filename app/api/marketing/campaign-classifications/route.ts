@@ -37,23 +37,59 @@ const VALID_COUNTRY_CODES = ['NO', 'SE', 'DK', 'FI'];
 
 /** Shared query: unclassified campaigns not yet in the mapping table */
 const UNCLASSIFIED_QUERY = `
-  SELECT DISTINCT ON (campaign_id) campaign_id, campaign_name
-  FROM merged_ads_spending
-  WHERE campaign_id IS NOT NULL
-    AND campaign_id != ''
-    AND campaign_id NOT IN (SELECT campaign_id FROM app_campaign_classifications)
-  ORDER BY campaign_id, campaign_name
+  SELECT DISTINCT ON (m.campaign_id) m.campaign_id, m.campaign_name
+  FROM merged_ads_spending m
+  WHERE m.campaign_id IS NOT NULL
+    AND m.campaign_id != ''
+    AND NOT EXISTS (
+      SELECT 1 FROM app_campaign_classifications cc
+      WHERE cc.campaign_id = m.campaign_id
+    )
+  ORDER BY m.campaign_id, m.campaign_name
   LIMIT 500`;
+
+/** Lightweight count-only version */
+const UNCLASSIFIED_COUNT_QUERY = `
+  SELECT COUNT(*) as count FROM (
+    SELECT DISTINCT m.campaign_id
+    FROM merged_ads_spending m
+    WHERE m.campaign_id IS NOT NULL
+      AND m.campaign_id != ''
+      AND NOT EXISTS (
+        SELECT 1 FROM app_campaign_classifications cc
+        WHERE cc.campaign_id = m.campaign_id
+      )
+    LIMIT 500
+  ) t`;
 
 /**
  * GET /api/marketing/campaign-classifications
- * Returns unclassified campaigns, classified entries, ignored entries, and product list
+ * ?count=true → returns only unclassified count (lightweight)
+ * Otherwise → returns full data: unclassified, classified, ignored, products
  */
 async function handleGet(
-  _request: NextRequest,
+  request: NextRequest,
   _user: AppUser
 ): Promise<NextResponse> {
   try {
+    // Lightweight count-only mode for badge display
+    if (request.nextUrl.searchParams.get('count') === 'true') {
+      const rows = await executeQuery<{ count: string }>(UNCLASSIFIED_COUNT_QUERY);
+      return NextResponse.json({
+        success: true,
+        data: { unclassifiedCount: Number(rows[0].count) },
+      });
+    }
+
+    // Campaign name lookup CTE — single pass instead of per-row LATERAL
+    const campaignNamesCte = `
+      WITH campaign_names AS (
+        SELECT DISTINCT ON (campaign_id) campaign_id, campaign_name
+        FROM merged_ads_spending
+        WHERE campaign_id IS NOT NULL AND campaign_id != ''
+        ORDER BY campaign_id, campaign_name
+      )`;
+
     const [products, classified, ignored, unclassified] = await Promise.all([
       // Active products for the dropdown
       executeQuery<ProductRow>(
@@ -65,29 +101,25 @@ async function handleGet(
 
       // Classified campaigns (not ignored) with product info
       executeQuery<ClassifiedRow>(
-        `SELECT cc.id, cc.campaign_id,
-                COALESCE(m.campaign_name, cc.campaign_id) as campaign_name,
+        `${campaignNamesCte}
+         SELECT cc.id, cc.campaign_id,
+                COALESCE(cn.campaign_name, cc.campaign_id) as campaign_name,
                 cc.product_id, cc.country_code,
                 p.name as product_name, COALESCE(p.color, '#6b7280') as product_color
          FROM app_campaign_classifications cc
          JOIN app_products p ON p.id = cc.product_id
-         LEFT JOIN LATERAL (
-           SELECT DISTINCT campaign_name FROM merged_ads_spending
-           WHERE campaign_id = cc.campaign_id LIMIT 1
-         ) m ON true
+         LEFT JOIN campaign_names cn ON cn.campaign_id = cc.campaign_id
          WHERE cc.is_ignored = false
          ORDER BY p.name, campaign_name`
       ),
 
       // Ignored campaigns
       executeQuery<IgnoredRow>(
-        `SELECT cc.id, cc.campaign_id,
-                COALESCE(m.campaign_name, cc.campaign_id) as campaign_name
+        `${campaignNamesCte}
+         SELECT cc.id, cc.campaign_id,
+                COALESCE(cn.campaign_name, cc.campaign_id) as campaign_name
          FROM app_campaign_classifications cc
-         LEFT JOIN LATERAL (
-           SELECT DISTINCT campaign_name FROM merged_ads_spending
-           WHERE campaign_id = cc.campaign_id LIMIT 1
-         ) m ON true
+         LEFT JOIN campaign_names cn ON cn.campaign_id = cc.campaign_id
          WHERE cc.is_ignored = true
          ORDER BY campaign_name`
       ),
