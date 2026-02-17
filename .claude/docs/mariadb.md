@@ -372,16 +372,16 @@ END as clean_click_id
 
 ## Cross-Database Value Mappings (CRM ↔ PostgreSQL)
 
-CRM and PG represent the same dimensions differently. When joining data across databases, use the mapping constants in `lib/server/crmMetrics.ts`.
+CRM and PG represent the same dimensions differently.
 
-| Dimension | PostgreSQL | MariaDB CRM | Mapping constant |
-|-----------|-----------|-------------|------------------|
-| Country | ISO codes: `DK`, `SE`, `NO`, `FI` | Full names (inconsistent casing): `denmark`, `Denmark`, `sweden` | `COUNTRY_CODE_TO_CRM` |
-| Network/Source | `Google Ads`, `Facebook` | `adwords`, `google`, `facebook`, `meta`, `fb` | `SOURCE_MAPPING` |
+| Dimension | PostgreSQL | MariaDB CRM |
+|-----------|-----------|-------------|
+| Country | ISO codes: `DK`, `SE`, `NO`, `FI` | Full names (inconsistent casing): `denmark`, `Denmark`, `sweden` |
+| Network/Source | `Google Ads`, `Facebook` | `adwords`, `google`, `facebook`, `meta`, `fb` |
 
 **Always use `LOWER(c.country)`** when matching CRM countries — casing is inconsistent.
 
-**When adding a new country:** update `COUNTRY_CODE_TO_CRM` in `lib/server/crmMetrics.ts` AND verify the CRM stores the expected full name by querying: `SELECT DISTINCT country FROM customer WHERE LOWER(country) LIKE '%<name>%'`.
+**When adding a new country:** verify the CRM stores the expected full name by querying: `SELECT DISTINCT country FROM customer WHERE LOWER(country) LIKE '%<name>%'`.
 
 ---
 
@@ -389,4 +389,46 @@ CRM and PG represent the same dimensions differently. When joining data across d
 
 **File**: `lib/server/mariadb.ts` — read source for pool config, `executeMariaDBQuery()`, `testMariaDBConnection()`.
 **Placeholders**: `?` (NOT `$1`). **Env vars**: `MARIADB_HOST`, `MARIADB_PORT`, `MARIADB_USER`, `MARIADB_PASSWORD`, `MARIADB_DATABASE`.
-For query builders, read: `lib/server/crmQueryBuilder.ts`, `lib/server/crmDetailModalQueryBuilder.ts`.
+For query builders, read: `lib/server/crmQueryBuilder.ts`.
+
+---
+
+## CRM Sales Query Builder (`fetchCRMSales`)
+
+**File**: `lib/server/crmQueryBuilder.ts`
+**API routes**: `POST /api/crm/sales`, `POST /api/crm/timeseries`
+**Client**: `lib/api/crmClient.ts` — `fetchCRMSales()`, `fetchCRMTimeseries()`
+
+Runs 3 parallel queries returning flat `SaleRow[]`:
+- **Q1**: Subscriptions (date = `s.date_create`)
+- **Q2**: OTS invoices, type=3 (date = `i.order_date`)
+- **Q3**: Upsell invoices with `parent-sub-id` tag (date = parent sub's `date_create`)
+
+### Options
+
+| Option | Default | Effect |
+|--------|---------|--------|
+| `includeCancelInfo` | `false` | When `true`: adds `status` (CASE on s.status) and `cancel_reason` (cr.caption) fields + 2 JOINs each in Q1 and Q3 (`subscription_cancel_reason` + `cancel_reason`). When `false`: returns `NULL` for both fields, skips the 4 JOINs. |
+
+**Why gated**: The cancel_reason JOINs add 4 extra table lookups (2 per Q1/Q3) with no benefit for the default dashboard view. Enable only when building features that need status/cancel_reason data.
+
+### Usage
+
+**Server-side** (e.g. in API routes or server functions):
+```typescript
+import { fetchCRMSales } from '@/lib/server/crmQueryBuilder';
+
+const rows = await fetchCRMSales(dateRange);                              // default: no cancel info
+const rows = await fetchCRMSales(dateRange, { includeCancelInfo: true }); // with status + cancel_reason
+```
+
+**Client-side** (via API):
+```typescript
+// POST /api/crm/sales
+{ "dateRange": { "start": "2026-01-01", "end": "2026-01-31" } }
+
+// With cancel info:
+{ "dateRange": { "start": "2026-01-01", "end": "2026-01-31" }, "includeCancelInfo": true }
+```
+
+Both `/api/crm/sales` and `/api/crm/timeseries` accept the same `includeCancelInfo` boolean in the request body. When omitted or `false`, `status` and `cancel_reason` will be `null` in the response.

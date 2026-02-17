@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense, useEffect, useRef, useCallback } from 'react';
+import { useState, Suspense, useEffect, useRef, useCallback, lazy } from 'react';
 import { Button } from 'antd';
 import { SettingOutlined } from '@ant-design/icons';
 import Link from 'next/link';
@@ -23,14 +23,31 @@ import { Eye } from 'lucide-react';
 import badgeStyles from '@/styles/components/badge.module.css';
 import pageStyles from '@/components/dashboard/dashboard.module.css';
 import type { ResolvedViewParams } from '@/types/savedViews';
+import type { OnPageViewClickContext } from '@/types/onPageDetails';
+
+const OnPageViewsModal = lazy(() =>
+  import('@/components/on-page-analysis/OnPageViewsModal').then((mod) => ({ default: mod.OnPageViewsModal }))
+);
 
 function OnPageAnalysisContent() {
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailModalContext, setDetailModalContext] = useState<OnPageViewClickContext | null>(null);
   const [unclassifiedCount, setUnclassifiedCount] = useState<number | null>(null);
   const { setOpen } = useSidebar();
   const hasCollapsed = useRef(false);
 
   const { hasUnsavedChanges, resetFilters, dateRange, filters, setFilters } = useSessionStore();
+
+  const handleMetricClick = (context: OnPageViewClickContext) => {
+    setDetailModalContext(context);
+    setDetailModalOpen(true);
+  };
+
+  const handleDetailModalClose = () => {
+    setDetailModalOpen(false);
+    setTimeout(() => setDetailModalContext(null), 300);
+  };
 
   useSessionUrlSync();
 
@@ -119,17 +136,27 @@ function OnPageAnalysisContent() {
           }
         />
         <div className={pageStyles.content}>
-          <SessionFilterToolbar filters={filters} onFiltersChange={setFilters} />
-          <TableInfoBanner messages={[
-            ...(includesToday ? ["Today's data may be incomplete"] : []),
-          ]} />
-          <SessionDataTable />
+          <SessionFilterToolbar
+            filters={filters}
+            onFiltersChange={setFilters}
+            infoBanner={includesToday ? <TableInfoBanner messages={["Today's data may be incomplete"]} /> : undefined}
+          />
+          <SessionDataTable onMetricClick={handleMetricClick} />
         </div>
       </div>
       <SessionColumnSettingsModal
         open={columnSettingsOpen}
         onClose={() => setColumnSettingsOpen(false)}
       />
+      {detailModalOpen && (
+        <Suspense fallback={null}>
+          <OnPageViewsModal
+            open={detailModalOpen}
+            onClose={handleDetailModalClose}
+            context={detailModalContext}
+          />
+        </Suspense>
+      )}
     </>
   );
 }

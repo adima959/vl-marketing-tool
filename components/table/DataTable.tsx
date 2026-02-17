@@ -1,14 +1,17 @@
+import { useCallback, useState } from 'react';
 import { GenericDataTable } from './GenericDataTable';
 import { useReportStore } from '@/stores/reportStore';
 import { useColumnStore } from '@/stores/columnStore';
 import { METRIC_COLUMNS, MARKETING_METRIC_IDS, CRM_METRIC_IDS } from '@/config/columns';
+import { CLICKABLE_METRIC_IDS } from '@/lib/utils/saleRowFilters';
+import { SaleDetailModal } from '@/components/dashboard/SaleDetailModal';
+import { filterCrmForMarketingRow } from '@/lib/utils/marketingTree';
+import { buildOnPageUrl } from '@/lib/utils/onPageLink';
+import type { SaleRow } from '@/types/sales';
 import type { ReportRow } from '@/types';
-import type { ColumnGroup } from '@/types/table';
-import type { MarketingMetricClickContext } from '@/types/marketingDetails';
-import { MARKETING_DETAIL_METRIC_IDS } from '@/lib/server/crmMetrics';
+import type { ColumnGroup, MetricClickContext } from '@/types/table';
 import themeStyles from '@/styles/tables/themes/marketing.module.css';
 
-// Define column groups for marketing report
 const COLUMN_GROUPS: ColumnGroup[] = [
   {
     title: 'Marketing Data',
@@ -16,34 +19,68 @@ const COLUMN_GROUPS: ColumnGroup[] = [
   },
   {
     title: 'CRM Data',
-    metricIds: [...CRM_METRIC_IDS, 'realCpa'],
+    metricIds: [...CRM_METRIC_IDS],
+    cellClassName: themeStyles.crmCell,
   },
 ];
-
-// Define which CRM metrics are clickable (show detail modal on click)
-const CLICKABLE_MARKETING_METRICS = [...MARKETING_DETAIL_METRIC_IDS];
-
-interface DataTableProps {
-  /** Optional callback when a CRM metric cell is clicked (for detail modals) */
-  onMarketingMetricClick?: (context: MarketingMetricClickContext) => void;
-}
 
 /**
  * Marketing Report Data Table Component
  * Displays hierarchical marketing campaign data with expand/collapse functionality
  */
-export function DataTable({ onMarketingMetricClick }: DataTableProps) {
+export function DataTable() {
+  const { loadedDateRange, loadedDimensions } = useReportStore();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalContext, setModalContext] = useState<MetricClickContext | null>(null);
+  const [modalSales, setModalSales] = useState<SaleRow[]>([]);
+
+  const handleMetricClick = useCallback((context: MetricClickContext) => {
+    const { crmSales, flatData, loadedDimensions: dims } = useReportStore.getState();
+    const filtered = filterCrmForMarketingRow(
+      crmSales,
+      context.filters.dimensionFilters,
+      flatData,
+      dims,
+    );
+    setModalSales(filtered);
+    setModalContext(context);
+    setModalOpen(true);
+  }, []);
+
+  const handleModalClose = useCallback(() => setModalOpen(false), []);
+
+  const getAttributeActionUrl = useCallback(
+    (record: ReportRow): string | null => {
+      if (!loadedDateRange) return null;
+      return buildOnPageUrl({
+        dateRange: loadedDateRange,
+        dimensions: loadedDimensions,
+        rowKey: record.key,
+      });
+    },
+    [loadedDateRange, loadedDimensions]
+  );
+
   return (
-    <GenericDataTable<ReportRow>
-      useStore={useReportStore}
-      useColumnStore={useColumnStore}
-      metricColumns={METRIC_COLUMNS}
-      columnGroups={COLUMN_GROUPS}
-      colorClassName={themeStyles.theme}
-      showColumnTooltips={false}
-      hideZeroValues={true}
-      onMarketingMetricClick={onMarketingMetricClick}
-      clickableMarketingMetrics={onMarketingMetricClick ? CLICKABLE_MARKETING_METRICS : []}
-    />
+    <>
+      <GenericDataTable<ReportRow>
+        useStore={useReportStore}
+        useColumnStore={useColumnStore}
+        metricColumns={METRIC_COLUMNS}
+        columnGroups={COLUMN_GROUPS}
+        colorClassName={themeStyles.theme}
+        showColumnTooltips={false}
+        hideZeroValues={true}
+        getAttributeActionUrl={getAttributeActionUrl}
+        onMetricClick={handleMetricClick}
+        clickableMetrics={CLICKABLE_METRIC_IDS}
+      />
+      <SaleDetailModal
+        open={modalOpen}
+        onClose={handleModalClose}
+        context={modalContext}
+        salesData={modalSales}
+      />
+    </>
   );
 }

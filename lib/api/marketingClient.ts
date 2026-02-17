@@ -1,21 +1,38 @@
-import { serializeQueryParams } from '@/lib/types/api';
-import type { QueryParams, QueryRequest } from '@/lib/types/api';
-import type { ReportRow } from '@/types/report';
 import { createQueryClient } from '@/lib/api/createApiClient';
+import { formatLocalDate } from '@/lib/types/api';
+import type { MarketingFlatRow } from '@/lib/utils/marketingTree';
 
-const queryMarketing = createQueryClient<QueryRequest & { productFilter?: string }, ReportRow[]>('/api/marketing/query');
+interface MarketingFlatRequest {
+  dateRange: { start: string; end: string };
+  dimensions: string[];
+  filters?: Array<{ field: string; operator: string; value: string }>;
+}
+
+const queryMarketing = createQueryClient<MarketingFlatRequest, MarketingFlatRow[]>('/api/marketing/query');
+
+export interface FetchMarketingFlatParams {
+  dateRange: { start: Date; end: Date };
+  dimensions: string[];
+  filters?: Array<{ field: string; operator: string; value: string }>;
+}
 
 /**
- * Fetch marketing report data from two-database API with timeout support
- * Uses PostgreSQL for ads data and MariaDB for CRM data with product filtering
+ * Fetch flat marketing data from the API.
+ * Returns rows grouped by all dimensions with base metrics only.
  */
-export async function fetchMarketingData(
-  params: QueryParams & { productFilter?: string },
-  timeoutMs: number = 30000
-): Promise<ReportRow[]> {
-  const body = {
-    ...serializeQueryParams(params),
-    productFilter: params.productFilter,
-  };
-  return queryMarketing(body, timeoutMs);
+export async function fetchMarketingDataFlat(
+  params: FetchMarketingFlatParams,
+  timeoutMs: number = 30000,
+): Promise<MarketingFlatRow[]> {
+  return queryMarketing(
+    {
+      dateRange: {
+        start: formatLocalDate(params.dateRange.start),
+        end: formatLocalDate(params.dateRange.end),
+      },
+      dimensions: params.dimensions,
+      filters: params.filters,
+    },
+    timeoutMs,
+  );
 }

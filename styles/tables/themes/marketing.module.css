@@ -2,77 +2,41 @@
  * Marketing Report Table Theme
  *
  * Column groups:
- *   - Marketing Data (columns 2-8): Blue tint
- *   - CRM Data (columns 9-12): Green tint
+ *   - Marketing Data: Blue tint (via nth-child on group header)
+ *   - CRM Data: Green tint (via .crmCell class on each column)
  */
 
 /* =============================================================================
-   GROUP HEADERS
+   GROUP HEADERS (first row of thead)
    ============================================================================= */
 
-/* Marketing Data group - blue tint */
+/* Marketing Data group header - blue tint */
 .theme :global(.ant-table-thead > tr:first-child > th:nth-child(2)) {
   background: #e3f2ff !important;
   border-bottom: 2px solid #bfdbfe !important;
 }
 
-/* CRM Data group - green tint (matches brand primary) */
+/* CRM Data group header - green tint */
 .theme :global(.ant-table-thead > tr:first-child > th:nth-child(3)) {
   background: var(--color-primary-50) !important;
   border-bottom: 2px solid var(--color-primary-100) !important;
 }
 
 /* =============================================================================
-   METRIC HEADERS
+   CRM CELLS — class-based (robust to column show/hide)
    ============================================================================= */
 
-/* Marketing Data columns - subtle blue accent */
-.theme :global(.ant-table-thead > tr:last-child > th:nth-child(2)),
-.theme :global(.ant-table-thead > tr:last-child > th:nth-child(3)),
-.theme :global(.ant-table-thead > tr:last-child > th:nth-child(4)),
-.theme :global(.ant-table-thead > tr:last-child > th:nth-child(5)),
-.theme :global(.ant-table-thead > tr:last-child > th:nth-child(6)),
-.theme :global(.ant-table-thead > tr:last-child > th:nth-child(7)),
-.theme :global(.ant-table-thead > tr:last-child > th:nth-child(8)) {
-  background: #fafcff !important;
+/* CRM metric headers (sub-header row) */
+.theme :global(.ant-table-thead) .crmCell {
+  background: color-mix(in srgb, var(--color-primary-50) 30%, #ffffff) !important;
 }
 
-/* CRM Data columns - subtle green accent */
-.theme :global(.ant-table-thead > tr:last-child > th:nth-child(9)),
-.theme :global(.ant-table-thead > tr:last-child > th:nth-child(10)),
-.theme :global(.ant-table-thead > tr:last-child > th:nth-child(11)),
-.theme :global(.ant-table-thead > tr:last-child > th:nth-child(12)) {
-  background: color-mix(in srgb, var(--color-primary-50) 20%, #ffffff) !important;
+/* CRM body cells - subtle green tint */
+.theme :global(.ant-table-tbody) .crmCell {
+  background: color-mix(in srgb, var(--color-primary-50) 15%, #ffffff) !important;
 }
 
-/* =============================================================================
-   BODY CELLS
-   ============================================================================= */
-
-/* Group separator border */
-.theme :global(.ant-table-tbody > tr > td:nth-child(8)) {
-  border-right: 1px solid rgba(191, 219, 254, 0.4) !important;
-}
-
-/* =============================================================================
-   HOVER STATES
-   ============================================================================= */
-
-/* Marketing Data cells hover - enhanced blue */
-.theme :global(.ant-table-tbody > tr:hover > td:nth-child(2)),
-.theme :global(.ant-table-tbody > tr:hover > td:nth-child(3)),
-.theme :global(.ant-table-tbody > tr:hover > td:nth-child(4)),
-.theme :global(.ant-table-tbody > tr:hover > td:nth-child(5)),
-.theme :global(.ant-table-tbody > tr:hover > td:nth-child(6)),
-.theme :global(.ant-table-tbody > tr:hover > td:nth-child(7)),
-.theme :global(.ant-table-tbody > tr:hover > td:nth-child(8)) {
-  background: rgba(219, 234, 254, 0.5) !important;
-}
-
-/* CRM Data cells hover - enhanced green */
-.theme :global(.ant-table-tbody > tr:hover > td:nth-child(9)),
-.theme :global(.ant-table-tbody > tr:hover > td:nth-child(10)),
-.theme :global(.ant-table-tbody > tr:hover > td:nth-child(11)),
-.theme :global(.ant-table-tbody > tr:hover > td:nth-child(12)) {
-  background: color-mix(in srgb, var(--color-primary-50) 50%, #ffffff) !important;
+/* CRM body cells on hover - enhanced green */
+.theme :global(.ant-table-tbody > tr:hover) > .crmCell {
+  background: color-mix(in srgb, var(--color-primary-50) 40%, #ffffff) !important;
 }

@@ -4,27 +4,6 @@
  */
 
 /**
- * Calculate total table width for horizontal scroll
- * @param attributeWidth - Width of the first attribute column
- * @param metricWidth - Width of each metric column
- * @param metricCount - Number of visible metric columns
- * @returns Total width in pixels
- *
- * @example
- * ```ts
- * const scrollX = calculateTableWidth(350, 110, 5); // 900px
- * <Table scroll={{ x: scrollX }} />
- * ```
- */
-export function calculateTableWidth(
-  attributeWidth: number,
-  metricWidth: number,
-  metricCount: number
-): number {
-  return attributeWidth + metricWidth * metricCount;
-}
-
-/**
  * Inject skeleton placeholder rows for expanded parents that are still loading children
  * Used to show loading state while fetching sub-levels in hierarchical tables
  *

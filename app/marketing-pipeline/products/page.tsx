@@ -2,11 +2,11 @@
 
 import { useEffect } from 'react';
 import { Table, InputNumber } from 'antd';
-import { Settings } from 'lucide-react';
+import { Settings, FolderOpen } from 'lucide-react';
 import type { ColumnsType } from 'antd/es/table';
 import type { Product } from '@/types';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { ProductStatusBadge } from '@/components/marketing-tracker';
+import { ProductStatusBadge } from '@/components/marketing-pipeline';
 import { usePipelineStore } from '@/stores/pipelineStore';
 import stickyStyles from '@/styles/tables/sticky.module.css';
 import styles from './page.module.css';
@@ -104,6 +104,25 @@ export default function ProductsSettingsPage() {
           className={styles.cpaInput}
         />
       ),
+    },
+    {
+      title: 'Drive',
+      dataIndex: 'driveFolderId',
+      key: 'drive',
+      width: 60,
+      align: 'center' as const,
+      render: (folderId: string | null) => folderId ? (
+        <a
+          href={`https://drive.google.com/drive/folders/${folderId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open Drive folder"
+          onClick={(e) => e.stopPropagation()}
+          style={{ color: 'var(--color-gray-400)' }}
+        >
+          <FolderOpen size={16} />
+        </a>
+      ) : null,
     },
   ];
 

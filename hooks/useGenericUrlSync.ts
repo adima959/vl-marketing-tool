@@ -1,13 +1,33 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   useQueryStates,
-  parseAsIsoDate,
+  createParser,
   parseAsArrayOf,
   parseAsString,
   parseAsStringLiteral,
 } from 'nuqs';
 import type { TableFilter } from '@/types/filters';
 import { restoreExpandedRows } from '@/lib/utils/treeUtils';
+import { formatLocalDate } from '@/lib/types/api';
+
+/**
+ * Local-timezone-safe date parser for URL query strings.
+ * nuqs's built-in parseAsIsoDate uses toISOString().slice(0,10) which shifts
+ * dates back by 1 day in UTC+ timezones (e.g. CET). This parser uses
+ * formatLocalDate for serialization and constructs dates at local midnight.
+ */
+const parseAsLocalDate = createParser({
+  parse: (v: string) => {
+    const match = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    return date.valueOf() === date.valueOf() ? date : null;
+  },
+  serialize: (v: Date) => formatLocalDate(v),
+  eq: (a: Date, b: Date) => a.getTime() === b.getTime(),
+});
+
+const EMPTY_FILTERS: TableFilter[] = [];
 
 interface BaseReportRow {
   key: string;
@@ -192,8 +212,8 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
   };
 
   const baseParsers = {
-    start: parseAsIsoDate.withDefault(getDefaultStart()),
-    end: parseAsIsoDate.withDefault(getDefaultEnd()),
+    start: parseAsLocalDate.withDefault(getDefaultStart()),
+    end: parseAsLocalDate.withDefault(getDefaultEnd()),
     dimensions: parseAsArrayOf(parseAsString).withDefault(defaultDimensions ?? []),
     expanded: parseAsArrayOf(parseAsString).withDefault([]),
     sortBy: parseAsString.withDefault(defaultSortColumn),
@@ -233,7 +253,7 @@ export function useGenericUrlSync<TRow extends BaseReportRow>({
     loadData,
     setExpandedRowKeys,
   } = storeState;
-  const filters = storeState.filters ?? [];
+  const filters = storeState.filters ?? EMPTY_FILTERS;
 
   // Read timePeriod from store if config is provided
   const timePeriodValue = timePeriodConfig

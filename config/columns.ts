@@ -1,4 +1,10 @@
 import type { MetricColumn } from '@/types';
+import { formatNumber } from '@/lib/formatters';
+
+/** Helper: safe number extraction from metrics record */
+function num(metrics: Record<string, number | string | null>, key: string): number {
+  return Number(metrics[key] ?? 0);
+}
 
 export const METRIC_COLUMNS: MetricColumn[] = [
   // Basic Metrics
@@ -77,121 +83,144 @@ export const METRIC_COLUMNS: MetricColumn[] = [
     align: 'right',
   },
 
-  // CRM Metrics (order matches dashboard: Cust, Subs, Trials, Trial Appv, Trial Appr.%, OTS, OTS Appr.%, Upsells, Ups. Appv %, Real CPA)
+  // CRM Metrics
   {
     id: 'customers',
-    label: 'Customers',
+    label: 'New Customers',
     shortLabel: 'Cust',
-    description: 'Registration date = subscription date. Date range on subscription creation. Excludes parent-sub-id tagged.',
     format: 'number',
-    category: 'conversions',
-    defaultVisible: true,
-    width: 90,
+    category: 'crm',
+    defaultVisible: false,
+    width: 80,
     align: 'right',
   },
   {
     id: 'subscriptions',
     label: 'Subscriptions',
     shortLabel: 'Subs',
-    description: 'Unique subscription count. Date range on subscription creation. Excludes parent-sub-id tagged.',
     format: 'number',
-    category: 'conversions',
+    category: 'crm',
     defaultVisible: true,
-    width: 90,
+    width: 80,
     align: 'right',
   },
   {
-    id: 'trialsApproved',
+    id: 'trials',
     label: 'Trials',
     shortLabel: 'Trials',
-    description: 'Invoice type 1, not deleted, marked as approved. Date range on invoice order date. Upsells counted separately.',
     format: 'number',
-    category: 'conversions',
+    category: 'crm',
     defaultVisible: true,
-    width: 90,
-    align: 'right',
-  },
-  {
-    id: 'approvalRate',
-    label: 'Trial Appr. %',
-    shortLabel: 'Trial Appr. %',
-    description: 'Approved trials / subscriptions.',
-    format: 'percentage',
-    category: 'conversions',
-    defaultVisible: true,
-    width: 100,
+    width: 80,
     align: 'right',
   },
   {
     id: 'onHold',
     label: 'On Hold',
     shortLabel: 'On Hold',
-    description: 'Invoice type 1, not deleted, on-hold date set. Date range on invoice order date.',
     format: 'number',
-    category: 'conversions',
-    defaultVisible: true,
-    width: 90,
+    category: 'crm',
+    defaultVisible: false,
+    width: 80,
     align: 'right',
+  },
+  {
+    id: 'trialsApproved',
+    label: 'Approved Trials',
+    shortLabel: 'Appr. Trials',
+    format: 'number',
+    category: 'crm',
+    defaultVisible: false,
+    width: 100,
+    align: 'right',
+    tooltipFn: (m) => {
+      const t = num(m, 'trials');
+      const approved = num(m, 'trialsApproved');
+      if (!t) return null;
+      return [`${formatNumber(approved)} of ${formatNumber(t)} trials approved`];
+    },
+  },
+  {
+    id: 'approvalRate',
+    label: 'Trial Approval Rate (Approved / Subscriptions)',
+    shortLabel: 'Trial Appr. %',
+    format: 'percentage',
+    category: 'crm',
+    defaultVisible: true,
+    width: 110,
+    align: 'right',
+    tooltipFormula: { numerator: 'trialsApproved', denominator: 'subscriptions' },
   },
   {
     id: 'ots',
-    label: 'OTS',
+    label: 'One-Time Sales',
     shortLabel: 'OTS',
-    description: 'Invoice type 3, not deleted. Date range on invoice order date.',
     format: 'number',
-    category: 'conversions',
-    defaultVisible: true,
-    width: 90,
+    category: 'crm',
+    defaultVisible: false,
+    width: 80,
     align: 'right',
+    tooltipFn: (m) => {
+      const o = num(m, 'ots');
+      const approved = num(m, 'otsApproved');
+      if (!o) return null;
+      return [`${formatNumber(o)} OTS · ${formatNumber(approved)} approved`];
+    },
   },
   {
     id: 'otsApprovalRate',
-    label: 'OTS Appr. %',
+    label: 'OTS Approval Rate (OTS Approved / OTS)',
     shortLabel: 'OTS Appr. %',
-    description: 'Approved OTS / total OTS.',
     format: 'percentage',
-    category: 'conversions',
-    defaultVisible: true,
-    width: 120,
+    category: 'crm',
+    defaultVisible: false,
+    width: 110,
     align: 'right',
+    tooltipFormula: { numerator: 'otsApproved', denominator: 'ots' },
   },
   {
-    id: 'upsells',
-    label: 'Upsells',
+    id: 'upsellsApproved',
+    label: 'Upsells (Approved)',
     shortLabel: 'Upsells',
-    description: 'Invoices matched via parent-sub-id tag. Includes trial and OTS types. Date range on parent subscription creation.',
     format: 'number',
-    category: 'conversions',
+    category: 'crm',
     defaultVisible: true,
-    width: 90,
+    width: 80,
     align: 'right',
   },
   {
     id: 'upsellApprovalRate',
-    label: 'Upsell Appv %',
+    label: 'Upsell Approval Rate (Upsells Approved / Upsells)',
     shortLabel: 'Ups. Appv %',
-    description: 'Approved upsells / total upsells.',
     format: 'percentage',
-    category: 'conversions',
-    defaultVisible: true,
-    width: 120,
+    category: 'crm',
+    defaultVisible: false,
+    width: 110,
     align: 'right',
+    tooltipFormula: { numerator: 'upsellsApproved', denominator: 'upsells' },
   },
   {
     id: 'realCpa',
-    label: 'Real CPA',
+    label: 'Real CPA (Cost / Trials)',
     shortLabel: 'Real CPA',
-    description: 'Ad spend / approved trials.',
-    format: 'currency',
-    category: 'conversions',
+    format: 'number',
+    category: 'crm',
     defaultVisible: true,
-    width: 110,
+    width: 100,
     align: 'right',
+    tooltipFormula: { numerator: 'cost', denominator: 'trials' },
   },
 ];
 
 export const MARKETING_METRIC_IDS = ['impressions', 'clicks', 'ctr', 'cost', 'cpc', 'cpm', 'conversions'] as const;
-export const CRM_METRIC_IDS = ['customers', 'subscriptions', 'trialsApproved', 'approvalRate', 'onHold', 'ots', 'otsApprovalRate', 'upsells', 'upsellApprovalRate'] as const;
+
+export const CRM_METRIC_IDS = [
+  'customers', 'subscriptions', 'trials', 'onHold',
+  'trialsApproved', 'approvalRate',
+  'ots', 'otsApprovalRate',
+  'upsellsApproved', 'upsellApprovalRate',
+  'realCpa',
+] as const;
 
 export const DEFAULT_VISIBLE_COLUMNS = METRIC_COLUMNS
   .filter((col) => col.defaultVisible)

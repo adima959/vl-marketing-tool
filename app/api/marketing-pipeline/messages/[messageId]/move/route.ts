@@ -5,8 +5,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { movePipelineMessage } from '@/lib/marketing-pipeline/db';
-import { recordUpdate } from '@/lib/marketing-tracker/historyService';
-import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
+import { recordUpdate } from '@/lib/marketing-pipeline/historyService';
+import { getChangedBy } from '@/lib/marketing-pipeline/getChangedBy';
 import { withPermission } from '@/lib/rbac';
 import type { PipelineStage, VerdictType } from '@/types';
 import type { AppUser } from '@/types/user';
@@ -50,8 +50,7 @@ export const PATCH = withPermission('tools.marketing_pipeline', 'can_edit', asyn
       );
     }
 
-    // Record history (non-blocking)
-    recordUpdate(
+    await recordUpdate(
       'pipeline_message',
       messageId,
       { pipelineStage: 'unknown' },

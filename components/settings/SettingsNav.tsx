@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { SETTINGS_PAGES } from '@/config/settings';
@@ -19,7 +19,7 @@ export function SettingsNav() {
     return SETTINGS_PAGES.filter((page) => hasPermission(page.featureKey, 'can_view'));
   }, [hasPermission]);
 
-  useEffect(() => {
+  const refreshCounts = useCallback(() => {
     Promise.all([
       fetchCampaignCount().catch(() => 0),
       fetchUrlCount().catch(() => 0),
@@ -27,6 +27,16 @@ export function SettingsNav() {
       setTotalUnclassified(campaigns + urls);
     });
   }, []);
+
+  useEffect(() => {
+    refreshCounts();
+  }, [refreshCounts]);
+
+  // Re-fetch when classification panels report changes
+  useEffect(() => {
+    window.addEventListener('data-maps-count-change', refreshCounts);
+    return () => window.removeEventListener('data-maps-count-change', refreshCounts);
+  }, [refreshCounts]);
 
   return (
     <nav className={styles.nav}>

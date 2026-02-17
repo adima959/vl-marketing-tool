@@ -6,7 +6,6 @@ import { useOnPageStore } from '@/stores/onPageStore';
 import { useOnPageColumnStore } from '@/stores/onPageColumnStore';
 import { ON_PAGE_METRIC_COLUMNS } from '@/config/onPageColumns';
 import { OnPageViewsModal } from './OnPageViewsModal';
-import { CrmDetailModal } from '@/components/modals/CrmDetailModal';
 import type { OnPageReportRow } from '@/types/onPageReport';
 import type { ColumnGroup } from '@/types/table';
 import type { OnPageViewClickContext } from '@/types/onPageDetails';
@@ -22,15 +21,9 @@ const COLUMN_GROUPS: ColumnGroup[] = [
     title: 'Interactions',
     metricIds: ['scrollPastHero', 'scrollRate', 'formViews', 'formViewRate', 'formStarters', 'formStartRate'],
   },
-  {
-    title: 'CRM Data',
-    metricIds: ['crmConvRate', 'crmTrials', 'crmApproved', 'crmApprovalRate'],
-  },
 ];
 
-const CLICKABLE_METRICS = ['pageViews', 'uniqueVisitors', 'scrollPastHero', 'formViews', 'formStarters', 'crmTrials', 'crmApproved'];
-
-const CRM_METRIC_IDS = new Set(['crmTrials', 'crmApproved']);
+const CLICKABLE_METRICS = ['pageViews', 'uniqueVisitors', 'scrollPastHero', 'formViews', 'formStarters'];
 
 /**
  * On-Page Analysis Data Table Component
@@ -39,17 +32,10 @@ const CRM_METRIC_IDS = new Set(['crmTrials', 'crmApproved']);
 export function OnPageDataTable() {
   const [viewsModalContext, setViewsModalContext] = useState<OnPageViewClickContext | null>(null);
   const [viewsModalOpen, setViewsModalOpen] = useState(false);
-  const [crmModalContext, setCrmModalContext] = useState<OnPageViewClickContext | null>(null);
-  const [crmModalOpen, setCrmModalOpen] = useState(false);
 
   const handleMetricClick = (context: OnPageViewClickContext) => {
-    if (CRM_METRIC_IDS.has(context.metricId)) {
-      setCrmModalContext(context);
-      setCrmModalOpen(true);
-    } else {
-      setViewsModalContext(context);
-      setViewsModalOpen(true);
-    }
+    setViewsModalContext(context);
+    setViewsModalOpen(true);
   };
 
   return (
@@ -68,12 +54,6 @@ export function OnPageDataTable() {
         open={viewsModalOpen}
         onClose={() => { setViewsModalOpen(false); setViewsModalContext(null); }}
         context={viewsModalContext}
-      />
-      <CrmDetailModal
-        open={crmModalOpen}
-        onClose={() => { setCrmModalOpen(false); setTimeout(() => setCrmModalContext(null), 300); }}
-        variant="onPage"
-        context={crmModalContext}
       />
     </>
   );

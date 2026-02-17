@@ -4,9 +4,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { updateMessageGeo, deleteMessageGeo } from '@/lib/marketing-pipeline/db';
-import { recordUpdate, recordDeletion } from '@/lib/marketing-tracker/historyService';
-import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
+import { getMessageGeoById, updateMessageGeo, deleteMessageGeo } from '@/lib/marketing-pipeline/db';
+import { renameDriveFolder } from '@/lib/server/googleDrive';
+import { recordUpdate, recordDeletion } from '@/lib/marketing-pipeline/historyService';
+import { getChangedBy } from '@/lib/marketing-pipeline/getChangedBy';
 import { withPermission } from '@/lib/rbac';
 import type { GeoStage } from '@/types';
 import type { AppUser } from '@/types/user';
@@ -35,6 +36,8 @@ export const PATCH = withPermission('tools.marketing_pipeline', 'can_edit', asyn
       );
     }
 
+    const existing = await getMessageGeoById(geoId);
+
     const updated = await updateMessageGeo(geoId, {
       stage: body.stage,
       spendThreshold: body.spendThreshold,
@@ -42,10 +45,10 @@ export const PATCH = withPermission('tools.marketing_pipeline', 'can_edit', asyn
       launchedAt: body.launchedAt,
     });
 
-    recordUpdate(
+    await recordUpdate(
       'pipeline_message',
       geoId,
-      {} as Record<string, unknown>,
+      (existing ?? {}) as Record<string, unknown>,
       updated as unknown as Record<string, unknown>,
       changedBy,
     ).catch(err => console.error('Failed to record geo update:', err));
@@ -70,12 +73,19 @@ export const DELETE = withPermission('tools.marketing_pipeline', 'can_delete', a
     const { geoId } = await params;
     const changedBy = await getChangedBy(request);
 
+    const existing = await getMessageGeoById(geoId);
+
     await deleteMessageGeo(geoId);
 
-    recordDeletion(
+    // Rename Drive folder to signal deletion (non-blocking)
+    if (existing?.driveFolderId) {
+      renameDriveFolder(existing.driveFolderId, `[deleted] ${existing.geo}`).catch(() => {});
+    }
+
+    await recordDeletion(
       'pipeline_message',
       geoId,
-      {} as Record<string, unknown>,
+      (existing ?? { id: geoId }) as Record<string, unknown>,
       changedBy,
     ).catch(err => console.error('Failed to record geo deletion:', err));
 

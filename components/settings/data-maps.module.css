@@ -296,6 +296,60 @@
   margin-bottom: 4px;
 }
 
+/* === Angle delete confirmation row === */
+.itemRowConfirm {
+  background: #fef2f2;
+  border-bottom-color: #fecaca;
+}
+
+.itemRowConfirm:hover {
+  background: #fef2f2;
+}
+
+.confirmText {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: #991b1b;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.confirmYes {
+  all: unset;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: #dc2626;
+  padding: 3px 10px;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.confirmYes:hover {
+  background: #fee2e2;
+}
+
+.confirmCancel {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--color-gray-500);
+  transition: all var(--transition-fast);
+}
+
+.confirmCancel:hover {
+  color: var(--color-gray-700);
+  background: var(--color-gray-100);
+}
+
 /* Placeholder panel for Affiliate Map */
 .placeholder {
   display: flex;

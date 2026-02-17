@@ -12,7 +12,46 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const CRM_BASE_URL = process.env.CRM_BASE_URL || 'https://vitaliv.no/admin';
 const CRM_VALIDATE_ENDPOINT = process.env.CRM_VALIDATE_ENDPOINT || '/site/marketing';
 const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || 'crm_auth_token';
-const AUTH_COOKIE_MAX_AGE = parseInt(process.env.AUTH_COOKIE_MAX_AGE || '86400', 10);
+
+/**
+ * Gets the UTC offset in ms for Europe/Oslo at a given instant.
+ * Handles CET (UTC+1) / CEST (UTC+2) automatically.
+ */
+function getOsloOffsetMs(date: Date): number {
+  const utcStr = date.toLocaleString('en-US', { timeZone: 'UTC' });
+  const osloStr = date.toLocaleString('en-US', { timeZone: 'Europe/Oslo' });
+  return new Date(osloStr).getTime() - new Date(utcStr).getTime();
+}
+
+/**
+ * Returns next Sunday 23:59:59 Europe/Oslo as a UTC Date.
+ * All sessions expire at this fixed weekly boundary.
+ */
+function getNextSundayExpiry(): Date {
+  const now = new Date();
+  const osloOffset = getOsloOffsetMs(now);
+
+  // Shift into "Oslo-as-UTC" space — UTC methods now read Oslo wall-clock
+  const osloMs = now.getTime() + osloOffset;
+  const oslo = new Date(osloMs);
+
+  const day = oslo.getUTCDay(); // 0=Sun
+  const daysUntil = day === 0 ? 0 : 7 - day;
+
+  // Build Sunday 23:59:59 in Oslo-as-UTC space
+  const target = new Date(osloMs);
+  target.setUTCDate(oslo.getUTCDate() + daysUntil);
+  target.setUTCHours(23, 59, 59, 0);
+
+  // If already past this Sunday's deadline, use next week
+  if (target.getTime() <= osloMs) {
+    target.setUTCDate(target.getUTCDate() + 7);
+  }
+
+  // Convert back to real UTC (re-check offset — DST may differ at target)
+  const targetOffset = getOsloOffsetMs(new Date(target.getTime() - osloOffset));
+  return new Date(target.getTime() - targetOffset);
+}
 
 /**
  * Saves session token to database
@@ -21,7 +60,7 @@ const AUTH_COOKIE_MAX_AGE = parseInt(process.env.AUTH_COOKIE_MAX_AGE || '86400',
 export async function saveSessionToDatabase(token: string, userId: string): Promise<void> {
   const client = await pool.connect();
   try {
-    const expiresAt = new Date(Date.now() + AUTH_COOKIE_MAX_AGE * 1000);
+    const expiresAt = getNextSundayExpiry();
     await client.query(
       `UPDATE app_users
        SET active_token = $1, token_expires_at = $2, updated_at = NOW()
@@ -194,16 +233,19 @@ export function getAuthToken(request: NextRequest): string | null {
 }
 
 /**
- * Sets authentication cookie on response
+ * Sets authentication cookie on response.
+ * Cookie maxAge matches the Sunday 23:59:59 Oslo session expiry.
  */
 export function setAuthCookie(token: string, response: NextResponse): void {
+  const expiresAt = getNextSundayExpiry();
+  const maxAge = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000));
   response.cookies.set({
     name: AUTH_COOKIE_NAME,
     value: token,
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
-    maxAge: AUTH_COOKIE_MAX_AGE,
+    maxAge,
     path: '/',
   });
 }

@@ -62,21 +62,23 @@ export const useColumnStore = create<ColumnState>()(
     },
     {
       name: 'column-settings',
-      version: 2,
-      migrate: (persistedState: any) => {
-        // Ensure all columns in persisted state are still valid
-        const currentColumns = persistedState?.visibleColumns || [];
-        const validColumns = currentColumns.filter((col: string) =>
-          DEFAULT_VISIBLE_COLUMNS.includes(col)
-        );
-        // Add any new default columns that weren't in the persisted state
-        const newColumns = DEFAULT_VISIBLE_COLUMNS.filter(
-          (col) => !validColumns.includes(col)
-        );
-        return {
-          ...persistedState,
-          visibleColumns: [...validColumns, ...newColumns],
-        };
+      version: 5,
+      migrate: (persistedState: any, version: number) => {
+        let columns: string[] = persistedState?.visibleColumns || [];
+
+        if (version < 5) {
+          // v5: Reset CRM columns — only show subs, trials, approval %, real CPA, upsells by default
+          // Remove all previous CRM columns, then add the new defaults
+          const allCrm = [
+            'customers', 'subscriptions', 'trials', 'onHold',
+            'trialsApproved', 'approvalRate', 'realCpa',
+            'ots', 'otsApprovalRate', 'upsellsApproved', 'upsellApprovalRate',
+          ];
+          columns = columns.filter((col) => !allCrm.includes(col));
+          columns = [...columns, 'subscriptions', 'trials', 'approvalRate', 'realCpa', 'upsellsApproved'];
+        }
+
+        return { ...persistedState, visibleColumns: columns };
       },
     }
   )

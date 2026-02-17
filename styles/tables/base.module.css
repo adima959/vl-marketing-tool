@@ -49,9 +49,12 @@
    ============================================================================= */
 
 /* Scroll containers — horizontal scrolling only */
-/* Split mode (sticky): .ant-table-body — let Ant Design control overflow-y for proper scrollbar compensation */
+/* Split mode (sticky): .ant-table-body — override Ant Design's overflow-y:auto
+   which creates a scroll trap that captures wheel events and prevents page scroll.
+   Safe because we don't use scroll.y (no fixed body height). */
 .dataTable :global(.ant-table-body) {
   overflow-x: auto !important;
+  overflow-y: visible !important;
 }
 
 /* Single mode (fallback): .ant-table-content — force visible overflow-y so page scrolls */
@@ -124,6 +127,12 @@
   background: var(--color-background-primary);
 }
 
+/* Shadow under header — applied to the header scroll container, not thead,
+   because .ant-table-header has overflow-x:auto which clips inner shadows */
+.dataTable :global(.ant-table-header) {
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08);
+}
+
 /* Remove any gaps between header rows */
 .dataTable :global(.ant-table-thead > tr) {
   background: inherit;
@@ -143,7 +152,7 @@
 /* First header row (group headers) */
 .dataTable :global(.ant-table-thead > tr:first-child > th) {
   background: #f8f9fa !important;
-  border-bottom: 2px solid var(--color-gray-300) !important;
+  border-bottom: 1px solid var(--color-gray-200) !important;
   border-right: 1px solid var(--color-gray-200) !important;
   font-size: 11px !important;
   font-weight: var(--font-weight-bold) !important;
@@ -169,7 +178,7 @@
 .dataTable :global(.ant-table-thead > tr:last-child > th) {
   background: var(--color-gray-50) !important;
   border-bottom: 1px solid var(--color-gray-200) !important;
-  border-right: 1px solid var(--color-gray-200) !important;
+  border-right: none !important;
   font-size: var(--font-size-xs) !important;
   font-weight: var(--font-weight-medium) !important;
   color: var(--color-navy-primary) !important;
@@ -177,21 +186,15 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: background var(--transition-fast), border var(--transition-fast);
+  transition: background var(--transition-fast);
   box-sizing: border-box !important;
   vertical-align: middle !important;
   line-height: 1.2 !important;
 }
 
-.dataTable :global(.ant-table-thead > tr:last-child > th:last-child) {
-  border-right: none !important;
-}
-
 /* Metric header hover */
 .dataTable :global(.ant-table-thead > tr:last-child > th:hover) {
   background: #f0f4ff !important;
-  border-right: 1px solid rgba(59, 130, 246, 0.2) !important;
-  transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
   z-index: 1;
 }
@@ -209,7 +212,7 @@
   position: sticky !important;
   left: 0 !important;
   z-index: 200 !important;
-  width: 350px !important;
+  width: 300px !important;
 }
 
 .dataTable :global(.ant-table-cell-fix-left) {
@@ -251,7 +254,7 @@
 
 .dataTable :global(.ant-table-tbody > tr > td) {
   border-bottom: 1px solid var(--color-gray-100) !important;
-  border-right: 1px solid var(--color-gray-200) !important;
+  border-right: none !important;
   color: var(--color-navy-primary);
   background: var(--color-background-primary);
   padding: 6px 12px !important;
@@ -261,10 +264,6 @@
   line-height: 1.2 !important;
 }
 
-.dataTable :global(.ant-table-tbody > tr > td:last-child) {
-  border-right: none !important;
-}
-
 /* Attributes column body cells */
 .dataTable :global(.ant-table-tbody > tr > td:first-child) {
   border-right: 1px solid var(--color-gray-200) !important;
@@ -272,7 +271,7 @@
   position: sticky !important;
   left: 0 !important;
   z-index: 3 !important;
-  width: 350px !important;
+  width: 300px !important;
 }
 
 /* =============================================================================
@@ -288,12 +287,24 @@
   box-shadow: inset 3px 0 0 0 var(--color-primary-500);
 }
 
+/* All cells hover background — must be scoped to .dataTable to match the
+   non-hover rule's specificity. Theme files override per-column-group. */
+.dataTable :global(.ant-table-tbody > tr:hover > td) {
+  background: var(--color-background-hover) !important;
+}
+
 /* Attributes column hover */
 .dataTable :global(.ant-table-tbody > tr:hover > td:first-child) {
   background: #f0f3f5 !important;
   position: sticky !important;
   left: 0 !important;
   z-index: 3 !important;
+}
+
+/* Show attribute action button on attributes cell hover */
+.dataTable :global(.ant-table-tbody > tr > td:first-child:hover) .attributeAction {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* =============================================================================
@@ -352,6 +363,7 @@
   overflow: hidden;
   max-width: 100%;
   min-width: 0;
+  position: relative;
 }
 
 .expandIcon {
@@ -400,6 +412,33 @@
   font-weight: var(--font-weight-semibold);
   color: var(--color-navy-primary);
 }
+
+.attributeAction {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  color: var(--color-primary-600);
+  font-size: 13px;
+  background: var(--color-background-primary);
+  z-index: 1;
+}
+
+.attributeAction:hover {
+  color: var(--color-primary-700);
+  background: var(--color-primary-50);
+}
+
+
 
 /* =============================================================================
    NUMERIC COLUMNS
@@ -517,6 +556,27 @@
   margin: 0;
   max-width: 500px;
   line-height: 1.6;
+}
+
+/* =============================================================================
+   CLICKABLE METRIC CELLS
+   ============================================================================= */
+
+.clickableMetric {
+  cursor: pointer;
+  transition: color var(--transition-fast);
+  display: inline-block;
+  color: var(--color-accent-blue);
+}
+
+.clickableMetric:hover {
+  color: var(--color-info);
+  text-decoration: underline;
+}
+
+.clickableMetric:active {
+  color: var(--color-accent-blue);
+  opacity: 0.8;
 }
 
 /* =============================================================================

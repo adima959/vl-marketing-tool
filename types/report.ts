@@ -1,12 +1,11 @@
-import type { CrmMetrics } from './crm';
-
 export interface ReportRow {
   key: string;
   attribute: string;
   depth: number;
   hasChildren?: boolean;
   children?: ReportRow[];
-  metrics: CrmMetrics & {
+  metrics: {
+    // Ad spend metrics
     cost: number;
     clicks: number;
     impressions: number;
@@ -15,11 +14,18 @@ export interface ReportRow {
     cpc: number;
     cpm: number;
     conversionRate: number;
+    // CRM metrics
+    customers: number;
+    subscriptions: number;
+    trials: number;
+    trialsApproved: number;
+    approvalRate: number;
     realCpa: number;
+    onHold: number;
+    ots: number;
+    otsApproved: number;
+    otsApprovalRate: number;
+    upsellsApproved: number;
+    upsellApprovalRate: number;
   };
-}
-
-export interface DateRange {
-  start: Date;
-  end: Date;
 }

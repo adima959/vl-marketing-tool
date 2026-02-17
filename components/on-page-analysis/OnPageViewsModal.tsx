@@ -5,6 +5,7 @@ import { Modal, Table, Button } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import type { OnPageViewClickContext, OnPageDetailRecord } from '@/types/onPageDetails';
 import { fetchOnPageDetails } from '@/lib/api/onPageDetailsClient';
+import { formatLocalDate } from '@/lib/types/api';
 import { fetchAllRecords, downloadCsv, ExportCancelledError } from '@/lib/utils/csvExport';
 import { getOnPageDimensionLabel } from '@/config/onPageDimensions';
 import modalStyles from '@/styles/components/modal.module.css';
@@ -48,8 +49,8 @@ function buildOnPageCsvRow(r: OnPageDetailRecord): string {
 
 function buildOnPageExportFilename(context: OnPageViewClickContext): string {
   const { start, end } = context.filters.dateRange;
-  const dateStr = start.toISOString().split('T')[0];
-  const endDateStr = end.toISOString().split('T')[0];
+  const dateStr = formatLocalDate(start);
+  const endDateStr = formatLocalDate(end);
   const dateRangeStr = dateStr === endDateStr ? dateStr : `${dateStr}_${endDateStr}`;
   const filterParts = Object.values(context.filters.dimensionFilters)
     .map(value => value.replace(/[^a-zA-Z0-9-_]/g, '_').substring(0, 20));

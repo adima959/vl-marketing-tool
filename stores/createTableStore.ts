@@ -1,6 +1,7 @@
 import { create, type StoreApi } from 'zustand';
 import type { DateRange, QueryParams } from '@/lib/types/api';
 import type { TableFilter } from '@/types/filters';
+import type { BaseTableRow } from '@/types/table';
 import { normalizeError } from '@/lib/types/errors';
 import { handleStoreError } from '@/lib/api/errorHandler';
 import {
@@ -10,18 +11,6 @@ import {
   parseKeyToParentFilters,
   restoreExpandedRows,
 } from '@/lib/utils/treeUtils';
-
-/**
- * Base row interface that all table row types must extend
- */
-export interface BaseTableRow {
-  key: string;
-  attribute: string;
-  depth: number;
-  hasChildren?: boolean;
-  children?: BaseTableRow[];
-  metrics: Record<string, number | null>;
-}
 
 /**
  * Configuration for creating a table store
@@ -317,7 +306,7 @@ export function createTableStore<TRow extends BaseTableRow>(
         });
 
         // Auto-expand level one if this is a fresh load or dimensions changed
-        if ((savedExpandedKeys.length === 0 || dimensionsChanged) && data.length > 0) {
+        if (dimensionsChanged && data.length > 0) {
           const expandedKeys = data.filter(r => r.hasChildren).map(r => r.key);
           set({ isLoadingSubLevels: true, expandedRowKeys: [...expandedKeys] });
 

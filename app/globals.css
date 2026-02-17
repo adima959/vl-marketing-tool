@@ -16,6 +16,7 @@
 html,
 body {
   height: 100%;
+  overflow: hidden;
   min-width: 900px;
   font-family: var(--font-inter), var(--font-family-base);
   -webkit-font-smoothing: antialiased;
@@ -107,11 +108,6 @@ textarea:focus-visible {
   transition: background-color var(--transition-fast);
 }
 
-/* Subtle zebra striping */
-.ant-table-tbody > tr:nth-child(even) > td {
-  background-color: var(--color-gray-50);
-}
-
 /* Table row states */
 .ant-table-row-expanded > td {
   background-color: var(--color-primary-50) !important;
@@ -187,6 +183,11 @@ textarea:focus-visible {
   background-color: var(--color-gray-50) !important;
   font-weight: var(--font-weight-semibold);
   border-bottom: 1px solid var(--color-gray-200) !important;
+  border-right: none !important;
+}
+
+.ant-modal-body .ant-table-tbody > tr > td {
+  border-right: none !important;
 }
 
 .ant-modal-body .ant-table-tbody > tr:hover > td {

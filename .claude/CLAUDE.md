@@ -42,6 +42,16 @@ POTENTIAL CONCERNS:
 
 **Running Scripts**: ALWAYS use `npx tsx scripts/foo.ts` (or `npm run script -- scripts/foo.ts`). NEVER use bare `node` on `.ts` files — it causes MODULE_TYPELESS_PACKAGE_JSON warnings.
 
+**Architecture**:
+```
+app/          - Next.js routes, API endpoints
+components/   - table/ (GenericDataTable), filters/, modals/, ui/, marketing-pipeline/
+hooks/        - useGenericUrlSync, useUrlSync, useOnPageUrlSync, usePipelineUrlSync
+stores/       - dashboardStore, reportStore, onPageStore, sessionStore, pipelineStore, columnStore
+types/        - report.ts, table.ts, dimensions.ts, metrics.ts, sales.ts, marketing-pipeline.ts
+lib/          - server/ (crmQueryBuilder, marketingQueryBuilder, onPageQueryBuilder), utils/, formatters
+```
+
 ---
 
 # Rules — pitfalls and coding conventions
@@ -73,7 +83,7 @@ POTENTIAL CONCERNS:
 - **Surface confusion** — STOP and ask when you see inconsistencies
 - **Dead code** — after refactoring, list unused code and ask before removing
 - **Parallel agents** — proactively use Task tool for 2+ independent subtasks. Don't ask permission — dispatch like any other tool. Use `subagent_type=Explore` for broad codebase searches
-- **Debugging data mismatches** — when asked to debug count/data discrepancies between table and modal, or between different views, ALWAYS read `.claude/docs/workflows/debug-count-mismatch.md` FIRST before investigating
+- **Debugging data mismatches** — when asked to debug count/data discrepancies between different views, trace the exact query on each side, find delta records, then root-cause
 
 ---
 
@@ -97,18 +107,10 @@ Know these upfront to avoid wasted round-trips:
 
 | File | When to Read |
 |------|-------------|
-| `.claude/docs/project-overview.md` | Starting a task — architecture, design direction, component library |
-| `.claude/docs/git-workflow.md` | Committing, branching, PRs — format, safety |
-| `.claude/docs/build-rules.md` | Deciding whether to build — decision table, common errors |
-| `.claude/docs/security.md` | Full security reference (rules auto-load key points) |
-| `.claude/docs/workflows/verify.md` | Pre-commit/PR verification phases |
-| `.claude/docs/workflows/new-feature-checklist.md` | Building new features — similarity scoring, path selection |
-| `.claude/docs/workflows/debug-count-mismatch.md` | **Debugging data mismatches** — 6-step methodology (MUST read when debugging count/data issues) |
+| `.claude/docs/design.md` | Design direction, component library, generic components, table specs, modal pattern |
 | `.claude/docs/api.md` | API patterns, response envelope, hierarchical keys |
-| `.claude/docs/state.md` | State management: dual-state, URL sync |
-| `.claude/docs/design.md` | UI components, table specs, modal pattern |
 | `.claude/docs/css.md` | Full CSS reference (rules auto-load key gotchas) |
-| `.claude/docs/features.md` | Feature-specific implementations |
+| `.claude/docs/git-workflow.md` | Build decisions, pre-commit verification, committing, branching, PRs |
 | `.claude/docs/mariadb.md` | CRM database schema, UTM mapping, business logic |
 | `.claude/docs/postgres.md` | PostgreSQL patterns, app schema |
 

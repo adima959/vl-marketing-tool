@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   ComposedChart,
   Line,
@@ -8,277 +8,255 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
 } from 'recharts';
-import type { TimeSeriesDataPoint } from '@/types/dashboard';
-import type { MetricClickContext } from '@/types/dashboardDetails';
-import { fetchDashboardTimeSeries } from '@/lib/api/dashboardClient';
-import { METRIC_CONFIG, type MetricKey } from '@/config/dashboardChartMetrics';
-import { getLast14DaysRange, parseLocalDate, formatXAxisDate } from '@/lib/utils/chartDateUtils';
-import { CustomTooltip } from './ChartTooltip';
-import { ChartSkeleton } from './ChartSkeleton';
-import { CrmDetailModal } from '@/components/modals/CrmDetailModal';
+import type { DailyAggregate } from '@/types/sales';
 import styles from './DashboardTimeSeriesChart.module.css';
 
+/**
+ * Metric configuration — key order controls legend & tooltip order.
+ * Colors from project memory (confirmed design).
+ */
+const METRIC_CONFIG = {
+  customers:      { label: 'Customers',      color: '#8b5cf6', type: 'line' as const, defaultEnabled: false },
+  subscriptions:  { label: 'Subscriptions',  color: '#3b82f6', type: 'line' as const, defaultEnabled: true },
+  trialsApproved: { label: 'Trials',         color: '#00B96B', type: 'line' as const, defaultEnabled: true },
+  onHold:         { label: 'On Hold',        color: '#ef4444', type: 'line' as const, defaultEnabled: false },
+  approvalRate:   { label: 'Trial Appr. %',  color: '#10b981', type: 'area' as const, defaultEnabled: true },
+  upsells:        { label: 'Upsells',        color: '#d97706', type: 'line' as const, defaultEnabled: true },
+  ots:            { label: 'OTS',            color: '#7c8db5', type: 'line' as const, defaultEnabled: true },
+} as const;
+
+type MetricKey = keyof typeof METRIC_CONFIG;
+const METRIC_KEYS = Object.keys(METRIC_CONFIG) as MetricKey[];
 const CHART_HEIGHT = 300;
 
-/**
- * Extended data point with calculated approval rate
- */
-interface ChartDataPoint extends TimeSeriesDataPoint {
-  approvalRate: number | null;
+function formatDateLong(dateStr: string): string {
+  const date = new Date(dateStr + 'T12:00:00');
+  return date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-/** Build the default set of visible metrics from config */
-function getDefaultVisibleMetrics(): Set<MetricKey> {
-  const defaults = new Set<MetricKey>();
-  for (const [key, config] of Object.entries(METRIC_CONFIG)) {
-    if (config.defaultVisible) defaults.add(key as MetricKey);
-  }
-  return defaults;
+function formatDateShort(dateStr: string): string {
+  const [, m, d] = dateStr.split('-');
+  return `${d}/${m}`;
 }
 
-/**
- * Dashboard time series chart showing daily metrics for the last 14 days
- * Always shows 14 days regardless of table date range selection
- */
-export function DashboardTimeSeriesChart(): React.ReactElement {
-  const [data, setData] = useState<TimeSeriesDataPoint[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [visibleMetrics, setVisibleMetrics] = useState<Set<MetricKey>>(getDefaultVisibleMetrics);
+function formatTooltipValue(key: MetricKey, value: number): string {
+  if (key === 'approvalRate') return `${value.toFixed(1)}%`;
+  return value.toLocaleString();
+}
 
-  // Always use last 14 days - computed once on mount
-  const dateRange = useMemo(() => getLast14DaysRange(), []);
+interface ChartTooltipProps {
+  active?: boolean;
+  payload?: Array<{ dataKey: string; value: number }>;
+  label?: string;
+  enabledMetrics: Set<MetricKey>;
+}
 
-  // Fetch data on mount (only once since dateRange is stable)
-  useEffect(() => {
-    let cancelled = false;
+function ChartTooltip({ active, payload, label, enabledMetrics }: ChartTooltipProps) {
+  if (!active || !payload?.length || !label) return null;
 
-    async function loadData(): Promise<void> {
-      setLoading(true);
-      setError(null);
+  const dataMap = new Map(payload.map((p) => [p.dataKey, p.value]));
 
-      try {
-        const result = await fetchDashboardTimeSeries(dateRange);
-        if (!cancelled) {
-          setData(result);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load chart data');
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
+  return (
+    <div className={styles.tooltip}>
+      <div className={styles.tooltipDate}>{formatDateLong(label)}</div>
+      <div className={styles.tooltipMetrics}>
+        {METRIC_KEYS.filter((k) => enabledMetrics.has(k)).map((key) => {
+          const cfg = METRIC_CONFIG[key];
+          const val = dataMap.get(key);
+          if (val === undefined) return null;
+          return (
+            <div key={key} className={styles.tooltipRow}>
+              <span className={styles.tooltipLabel}>
+                <span className={styles.tooltipDot} style={{ background: cfg.color }} />
+                {cfg.label}
+              </span>
+              <span className={styles.tooltipValue}>{formatTooltipValue(key, val)}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+interface DashboardTimeSeriesChartProps {
+  data: DailyAggregate[];
+  isLoading?: boolean;
+}
+
+export function DashboardTimeSeriesChart({ data, isLoading }: DashboardTimeSeriesChartProps) {
+  const [enabledMetrics, setEnabledMetrics] = useState<Set<MetricKey>>(() => {
+    const initial = new Set<MetricKey>();
+    for (const key of METRIC_KEYS) {
+      if (METRIC_CONFIG[key].defaultEnabled) initial.add(key);
     }
+    return initial;
+  });
 
-    loadData();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [dateRange]);
-
-  // Toggle metric visibility
-  const toggleMetric = useCallback((metricKey: MetricKey) => {
-    setVisibleMetrics((prev) => {
+  const toggleMetric = useCallback((key: MetricKey) => {
+    setEnabledMetrics((prev) => {
       const next = new Set(prev);
-      if (next.has(metricKey)) {
-        // Don't allow removing the last visible metric
-        if (next.size > 1) {
-          next.delete(metricKey);
-        }
+      if (next.has(key)) {
+        if (next.size > 1) next.delete(key);
       } else {
-        next.add(metricKey);
+        next.add(key);
       }
       return next;
     });
   }, []);
 
-  // Detail modal state
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalContext, setModalContext] = useState<MetricClickContext | null>(null);
+  const showRightAxis = enabledMetrics.has('approvalRate');
 
-  const handlePointClick = useCallback((metricKey: MetricKey, payload: ChartDataPoint) => {
-    if (metricKey === 'approvalRate') return;
-    const config = METRIC_CONFIG[metricKey];
-    const date = parseLocalDate(payload.date);
-    setModalContext({
-      metricId: metricKey as MetricClickContext['metricId'],
-      metricLabel: config.label,
-      value: payload[metricKey] as number,
-      filters: {
-        dateRange: { start: date, end: date },
-        excludeUpsellTags: true,
-      },
-    });
-    setModalOpen(true);
-  }, []);
-
-  const handleModalClose = useCallback(() => {
-    setModalOpen(false);
-    setModalContext(null);
-  }, []);
-
-  // Memoize chart data with calculated approval rate
-  const chartData = useMemo((): ChartDataPoint[] => {
-    return data.map((point) => ({
-      ...point,
-      // Trial approval rate: trialsApproved / subscriptions
-      approvalRate: point.subscriptions > 0
-        ? (point.trialsApproved / point.subscriptions) * 100
-        : null,
-    }));
-  }, [data]);
-
-  // Check if any percentage metric is visible (to show right axis)
-  const showRightAxis = visibleMetrics.has('approvalRate');
-
-  // Render legend (always visible)
-  const legendContent = (
-    <div className={styles.legend}>
-      {Object.entries(METRIC_CONFIG).map(([key, config]) => {
-        const metricKey = key as MetricKey;
-        const isActive = visibleMetrics.has(metricKey);
-        return (
-          <button
-            key={key}
-            type="button"
-            className={`${styles.legendItem} ${isActive ? styles.legendItemActive : ''} ${config.isArea ? styles.legendItemArea : ''}`}
-            onClick={() => toggleMetric(metricKey)}
-            style={{
-              '--metric-color': config.color,
-            } as React.CSSProperties}
-          >
-            <span className={`${styles.legendDot} ${config.isArea ? styles.legendDotArea : ''}`} />
-            {config.label}
-          </button>
-        );
-      })}
-    </div>
+  // Scale approval rate from 0-1 to 0-100 for the percentage axis
+  const chartData = useMemo(
+    () => data.map((d) => ({ ...d, approvalRate: d.approvalRate * 100 })),
+    [data],
   );
+
+  if (isLoading && data.length === 0) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <span className={styles.title}>14-Day Overview</span>
+        </div>
+        <div className={styles.skeleton}>
+          <div className={styles.skeletonYAxis}>
+            {[100, 75, 50, 25, 0].map((tick) => (
+              <div key={tick} className={styles.skeletonTick} />
+            ))}
+          </div>
+          <div className={styles.skeletonContent}>
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className={styles.skeletonGridLine} />
+            ))}
+            <div className={styles.skeletonLine} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <span className={styles.title}>14-Day Overview</span>
+        </div>
+        <div className={styles.emptyChart}>Load data to see the chart</div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <div className={styles.title}>Daily Metrics</div>
-        {legendContent}
-      </div>
-      <div className={styles.chartWrapper}>
-        {loading ? (
-          <div style={{ height: CHART_HEIGHT }}><ChartSkeleton /></div>
-        ) : error ? (
-          <div className={styles.error} style={{ height: CHART_HEIGHT }}>{error}</div>
-        ) : data.length === 0 ? (
-          <div className={styles.empty} style={{ height: CHART_HEIGHT }}>No data available</div>
-        ) : (
-          <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-            <ComposedChart
-              data={chartData}
-              margin={{ top: 16, right: 8, left: 0, bottom: 0 }}
-            >
-              <defs>
-                <linearGradient id="approvalRateGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity={0.14} />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="var(--color-border, #e8eaed)"
-                vertical={false}
-              />
-              <XAxis
-                dataKey="date"
-                tickFormatter={formatXAxisDate}
-                tick={{ fontSize: 12, fill: 'var(--color-text-secondary, #6b7280)' }}
-                axisLine={{ stroke: 'var(--color-border, #e8eaed)' }}
-                tickLine={false}
-                dy={8}
-              />
-              <YAxis
-                yAxisId="left"
-                tick={{ fontSize: 12, fill: 'var(--color-text-secondary, #6b7280)' }}
-                axisLine={false}
-                tickLine={false}
-                dx={-8}
-                width={40}
-              />
-              {showRightAxis && (
-                <YAxis
-                  yAxisId="right"
-                  orientation="right"
-                  domain={[0, 100]}
-                  tick={{ fontSize: 12, fill: 'var(--color-text-secondary, #6b7280)' }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(value) => `${value}%`}
-                  width={45}
-                />
-              )}
-              <Tooltip content={<CustomTooltip />} />
-
-              {/* Render Area first (approval rate) so it appears behind lines */}
-              {visibleMetrics.has('approvalRate') && (
-                <Area
-                  type="monotone"
-                  dataKey="approvalRate"
-                  name="Trial Appr. %"
-                  yAxisId="right"
-                  stroke="none"
-                  fill="url(#approvalRateGradient)"
-                  connectNulls
-                />
-              )}
-
-              {/* Render Lines on top — dots are clickable to open detail modal */}
-              {Object.entries(METRIC_CONFIG).map(([key, config]) => {
-                const metricKey = key as MetricKey;
-                // Skip area metrics (handled above) and non-visible metrics
-                if (config.isArea || !visibleMetrics.has(metricKey)) return null;
-                return (
-                  <Line
-                    key={key}
-                    type="monotone"
-                    dataKey={config.key}
-                    name={config.label}
-                    stroke={config.color}
-                    strokeWidth={2}
-                    yAxisId={config.yAxisId}
-                    dot={{ r: 3, fill: config.color, strokeWidth: 0, cursor: 'pointer' }}
-                    activeDot={(props: { cx?: number; cy?: number; payload?: ChartDataPoint }) => {
-                      const { cx, cy, payload } = props;
-                      if (cx == null || cy == null || !payload) return null;
-                      return (
-                        <circle
-                          cx={cx}
-                          cy={cy}
-                          r={5}
-                          fill={config.color}
-                          strokeWidth={0}
-                          cursor="pointer"
-                          onClick={() => handlePointClick(metricKey, payload)}
-                        />
-                      );
-                    }}
-                    connectNulls
+        <span className={styles.title}>14-Day Overview</span>
+        <div className={styles.legend}>
+          {METRIC_KEYS.map((key) => {
+            const cfg = METRIC_CONFIG[key];
+            const isEnabled = enabledMetrics.has(key);
+            return (
+              <button
+                key={key}
+                type="button"
+                className={`${styles.legendItem} ${isEnabled ? styles.legendItemActive : ''}`}
+                style={isEnabled ? { borderColor: cfg.color } : undefined}
+                onClick={() => toggleMetric(key)}
+              >
+                {cfg.type === 'area' ? (
+                  <span
+                    className={styles.legendDotArea}
+                    style={{ background: `linear-gradient(180deg, ${cfg.color}40 0%, ${cfg.color}15 100%)`, borderColor: cfg.color }}
                   />
-                );
-              })}
-            </ComposedChart>
-          </ResponsiveContainer>
-        )}
+                ) : (
+                  <span
+                    className={styles.legendDot}
+                    style={{ background: cfg.color, opacity: isEnabled ? 1 : 0.4 }}
+                  />
+                )}
+                {cfg.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
-      <CrmDetailModal
-        open={modalOpen}
-        onClose={handleModalClose}
-        variant="dashboard"
-        context={modalContext}
-      />
+
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+        <ComposedChart data={chartData} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="approvalRateGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10b981" stopOpacity={0.14} />
+              <stop offset="100%" stopColor="#10b981" stopOpacity={0.02} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-gray-100)" />
+          <XAxis
+            dataKey="date"
+            tickFormatter={formatDateShort}
+            tick={{ fontSize: 11, fill: 'var(--color-gray-400)' }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            yAxisId="left"
+            tick={{ fontSize: 11, fill: 'var(--color-gray-400)' }}
+            axisLine={false}
+            tickLine={false}
+            width={40}
+          />
+          {showRightAxis && (
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              domain={[0, 100]}
+              tick={{ fontSize: 11, fill: 'var(--color-gray-400)' }}
+              tickFormatter={(v: number) => `${v}%`}
+              axisLine={false}
+              tickLine={false}
+              width={45}
+            />
+          )}
+          <RechartsTooltip
+            content={<ChartTooltip enabledMetrics={enabledMetrics} />}
+            cursor={{ stroke: 'var(--color-gray-300)', strokeDasharray: '4 4' }}
+          />
+
+          {/* Render area first (behind lines) */}
+          {enabledMetrics.has('approvalRate') && (
+            <Area
+              dataKey="approvalRate"
+              stroke="none"
+              fill="url(#approvalRateGradient)"
+              type="monotone"
+              yAxisId="right"
+              connectNulls
+            />
+          )}
+
+          {/* Render lines */}
+          {METRIC_KEYS.map((key) => {
+            if (!enabledMetrics.has(key)) return null;
+            const cfg = METRIC_CONFIG[key];
+            if (cfg.type !== 'line') return null;
+
+            return (
+              <Line
+                key={key}
+                dataKey={key}
+                stroke={cfg.color}
+                strokeWidth={2}
+                dot={{ r: 3, fill: cfg.color, strokeWidth: 0 }}
+                activeDot={{ r: 5 }}
+                type="monotone"
+                yAxisId="left"
+              />
+            );
+          })}
+        </ComposedChart>
+      </ResponsiveContainer>
     </div>
   );
 }

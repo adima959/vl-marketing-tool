@@ -10,6 +10,7 @@ import type { AppUser } from '@/types/user';
 import { unstable_rethrow } from 'next/navigation';
 
 interface SessionAggregatedRow {
+  dimension_id?: string;
   dimension_value: string | Date;
   page_views: number;
   unique_visitors: number;
@@ -78,9 +79,15 @@ async function handleSessionQuery(
         ? `${row.dimension_value.getUTCFullYear()}-${String(row.dimension_value.getUTCMonth() + 1).padStart(2, '0')}-${String(row.dimension_value.getUTCDate()).padStart(2, '0')}`
         : row.dimension_value;
 
-      const keyValue = dimValue != null ? String(dimValue) : 'Unknown';
+      // Enriched dimensions (campaign/adset/ad) have a separate dimension_id.
+      // Use it for the key so parent filters match against the raw ID.
+      const hasEnrichedId = row.dimension_id != null;
+      const keyValue = hasEnrichedId
+        ? String(row.dimension_id)
+        : (dimValue != null ? String(dimValue) : 'Unknown');
+      // Enriched dims already have proper names from merged_ads_spending; others get toTitleCase
       const displayValue = dimValue != null
-        ? toTitleCase(String(dimValue))
+        ? (hasEnrichedId ? String(dimValue) : toTitleCase(String(dimValue)))
         : 'Unknown';
 
       return {

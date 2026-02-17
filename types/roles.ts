@@ -11,7 +11,6 @@ export type FeatureKey =
   | 'analytics.marketing_report'
   | 'analytics.on_page_analysis'
   | 'analytics.validation_reports'
-  | 'tools.marketing_tracker'
   | 'tools.marketing_pipeline'
   | 'shared.saved_views'
   | 'admin.user_management'
@@ -40,7 +39,6 @@ export const FEATURES: FeatureDefinition[] = [
   { key: 'analytics.on_page_analysis', label: 'On-Page Analysis', group: 'Analytics & Reports', applicableActions: ['can_view'] },
   { key: 'analytics.validation_reports', label: 'Validation Reports', group: 'Analytics & Reports', applicableActions: ['can_view'] },
   // Tools (Full CRUD)
-  { key: 'tools.marketing_tracker', label: 'Marketing Tracker', group: 'Tools', applicableActions: ['can_view', 'can_create', 'can_edit', 'can_delete'] },
   { key: 'tools.marketing_pipeline', label: 'Marketing Pipeline', group: 'Tools', applicableActions: ['can_view', 'can_create', 'can_edit', 'can_delete'] },
   // Shared Features (Full CRUD)
   { key: 'shared.saved_views', label: 'Saved Views', group: 'Shared Features', applicableActions: ['can_view', 'can_create', 'can_edit', 'can_delete'] },

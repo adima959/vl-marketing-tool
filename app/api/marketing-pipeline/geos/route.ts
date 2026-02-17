@@ -4,8 +4,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { addMessageGeo } from '@/lib/marketing-pipeline/db';
-import { recordCreation } from '@/lib/marketing-tracker/historyService';
-import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
+import { executeQuery } from '@/lib/server/db';
+import { createDriveSubfolder } from '@/lib/server/googleDrive';
+import { recordCreation } from '@/lib/marketing-pipeline/historyService';
+import { getChangedBy } from '@/lib/marketing-pipeline/getChangedBy';
 import { withPermission } from '@/lib/rbac';
 import type { Geography } from '@/types';
 import type { AppUser } from '@/types/user';
@@ -32,14 +34,26 @@ export const POST = withPermission('tools.marketing_pipeline', 'can_create', asy
       );
     }
 
+    // Create Drive subfolder for this geo inside the message's Drive folder
+    let driveFolderId: string | undefined;
+    const msgRows = await executeQuery<{ drive_folder_id: string | null }>(
+      'SELECT drive_folder_id FROM app_pipeline_messages WHERE id = $1 AND deleted_at IS NULL',
+      [body.messageId],
+    );
+    if (msgRows[0]?.drive_folder_id) {
+      const folderId = await createDriveSubfolder(msgRows[0].drive_folder_id, body.geo);
+      if (folderId) driveFolderId = folderId;
+    }
+
     const geo = await addMessageGeo({
       messageId: body.messageId,
       geo: body.geo,
       isPrimary: body.isPrimary,
       spendThreshold: body.spendThreshold,
+      driveFolderId,
     });
 
-    recordCreation(
+    await recordCreation(
       'pipeline_message',
       geo.id,
       geo as unknown as Record<string, unknown>,

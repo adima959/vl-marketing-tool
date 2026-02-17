@@ -11,9 +11,10 @@ import type { ClassifiedUrl, IgnoredUrl } from '@/lib/api/urlClassificationsClie
 import { GenericMapPanel } from './GenericMapPanel';
 import styles from './data-maps.module.css';
 
-export function UrlMapPanel(): React.ReactNode {
+export function UrlMapPanel({ onUnclassifiedCountChange }: { onUnclassifiedCountChange?: (count: number) => void }): React.ReactNode {
   return (
     <GenericMapPanel<string, ClassifiedUrl, IgnoredUrl>
+      onUnclassifiedCountChange={onUnclassifiedCountChange}
       api={{
         fetchData: fetchUrlClassifications,
         classify: classifyUrl,

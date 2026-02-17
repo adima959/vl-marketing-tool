@@ -1,16 +1,17 @@
 // Marketing Pipeline — CPA utilities and board helpers
 // Pure functions used by frontend components for CPA color coding and board grouping
 
-import type { Product, Geography, PipelineCard, PipelineStage, PipelineSummary } from '@/types';
+import type { Product, Geography, Channel, CpaTarget, PipelineCard, PipelineStage, PipelineSummary } from '@/types';
 
 // ── CPA Target Lookup ──────────────────────────────────────────────────
 
-export function getCpaTarget(product: Product, geo: Geography): number | undefined {
-  switch (geo) {
-    case 'NO': return product.cpaTargetNo;
-    case 'SE': return product.cpaTargetSe;
-    case 'DK': return product.cpaTargetDk;
-  }
+export function getCpaTarget(
+  cpaTargets: CpaTarget[] | undefined,
+  geo: Geography,
+  channel: Channel,
+): number | undefined {
+  if (!cpaTargets) return undefined;
+  return cpaTargets.find(t => t.geo === geo && t.channel === channel)?.target;
 }
 
 // ── CPA Health Color ───────────────────────────────────────────────────
@@ -19,8 +20,8 @@ export type CpaHealth = 'green' | 'yellow' | 'red' | 'none';
 
 export function getCpaHealth(cpa: number | undefined, target: number | undefined): CpaHealth {
   if (cpa == null || target == null) return 'none';
-  if (cpa <= target) return 'green';
-  if (cpa <= target * 1.2) return 'yellow';
+  if (cpa <= target * 1.05) return 'green';
+  if (cpa <= target * 1.25) return 'yellow';
   return 'red';
 }
 

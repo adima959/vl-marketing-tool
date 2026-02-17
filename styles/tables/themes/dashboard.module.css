@@ -2,14 +2,14 @@
  * Dashboard Table Theme
  *
  * Column groups:
- *   - Order Metrics (columns 2-6): Green tint
+ *   - CRM Metrics (all metric columns): Green tint
  */
 
 /* =============================================================================
    GROUP HEADERS
    ============================================================================= */
 
-/* Order Metrics group - green tint (matches brand primary) */
+/* CRM Metrics group - green tint (matches brand primary) */
 .theme :global(.ant-table-thead > tr:first-child > th:nth-child(2)) {
   background: var(--color-primary-50) !important;
   border-bottom: 2px solid var(--color-primary-100) !important;
@@ -19,12 +19,8 @@
    METRIC HEADERS
    ============================================================================= */
 
-/* Order Metrics columns - subtle green accent */
-.theme :global(.ant-table-thead > tr:last-child > th:nth-child(2)),
-.theme :global(.ant-table-thead > tr:last-child > th:nth-child(3)),
-.theme :global(.ant-table-thead > tr:last-child > th:nth-child(4)),
-.theme :global(.ant-table-thead > tr:last-child > th:nth-child(5)),
-.theme :global(.ant-table-thead > tr:last-child > th:nth-child(6)) {
+/* All metric columns - subtle green accent */
+.theme :global(.ant-table-thead > tr:last-child > th:nth-child(n+2)) {
   background: color-mix(in srgb, var(--color-primary-50) 20%, #ffffff) !important;
 }
 
@@ -32,12 +28,8 @@
    HOVER STATES
    ============================================================================= */
 
-/* Order Metrics cells hover - enhanced green */
-.theme :global(.ant-table-tbody > tr:hover > td:nth-child(2)),
-.theme :global(.ant-table-tbody > tr:hover > td:nth-child(3)),
-.theme :global(.ant-table-tbody > tr:hover > td:nth-child(4)),
-.theme :global(.ant-table-tbody > tr:hover > td:nth-child(5)),
-.theme :global(.ant-table-tbody > tr:hover > td:nth-child(6)) {
+/* All metric cells hover - enhanced green */
+.theme :global(.ant-table-tbody > tr:hover > td:nth-child(n+2)) {
   background: color-mix(in srgb, var(--color-primary-50) 50%, #ffffff) !important;
 }
 

@@ -4,8 +4,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createPipelineCampaign } from '@/lib/marketing-pipeline/db';
-import { recordCreation } from '@/lib/marketing-tracker/historyService';
-import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
+import { recordCreation } from '@/lib/marketing-pipeline/historyService';
+import { getChangedBy } from '@/lib/marketing-pipeline/getChangedBy';
 import { withPermission } from '@/lib/rbac';
 import { createCampaignSchema } from '@/lib/schemas/marketingPipeline';
 import type { AppUser } from '@/types/user';
@@ -22,14 +22,14 @@ export const POST = withPermission('tools.marketing_pipeline', 'can_create', asy
 
     const campaign = await createPipelineCampaign({
       messageId: body.messageId,
+      name: body.name || undefined,
       channel: body.channel,
       geo: body.geo,
       externalId: body.externalId || undefined,
       externalUrl: body.externalUrl || undefined,
     });
 
-    // Record history (non-blocking)
-    recordCreation(
+    await recordCreation(
       'campaign',
       campaign.id,
       campaign as unknown as Record<string, unknown>,

@@ -1,13 +1,14 @@
 .toolbar {
   display: flex;
   align-items: stretch;
-  gap: 12px;
-  padding: 10px 16px;
-  background: #ffffff;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--color-background-primary);
   border: 1px solid var(--color-gray-200);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
   flex-shrink: 0;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 /* Main row: left column + right controls */
@@ -32,7 +33,7 @@
 .leftColumn {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   flex: 1;
   min-width: 0;
 }
@@ -43,13 +44,13 @@
   align-items: flex-start;
   gap: 12px;
   min-width: 0;
-  padding-top: 8px;
+  padding-top: 6px;
   border-top: 1px solid var(--color-gray-150, var(--color-gray-200));
 }
 
-/* Center label text against 32px-tall Ant inputs */
+/* Center label text against 24px-tall Ant small inputs */
 .filtersWrapper .dimensionsLabel {
-  line-height: 32px;
+  line-height: 24px;
 }
 
 .filtersContent {
@@ -101,7 +102,18 @@
 }
 
 .additionalControls {
-  padding-top: 8px;
+  padding-top: 6px;
+}
+
+/* Inline info banner slot (renders below date picker / load button) */
+.infoBannerSlot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Strip standalone margin when banner is inside the toolbar */
+.infoBannerSlot > div {
+  margin-bottom: 0;
 }
 
 /* Load button wrapper with unsaved indicator */

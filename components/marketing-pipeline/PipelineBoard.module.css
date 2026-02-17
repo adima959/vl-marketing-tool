@@ -1,0 +1,274 @@
+/* ── Filters ─────────────────────────────────────────────── */
+
+.filtersWrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--color-gray-50);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.filtersRows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.filtersLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-gray-400);
+  white-space: nowrap;
+  flex-shrink: 0;
+  height: 26px;
+}
+
+.filterBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filterBarSecondary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Filter divider */
+.filterDivider {
+  width: 1px;
+  height: 20px;
+  background: var(--color-gray-200);
+  margin: 0 6px;
+  flex-shrink: 0;
+}
+
+/* Chip group */
+.chipGroup {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.chipGroupLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-gray-400);
+  margin-right: 4px;
+  white-space: nowrap;
+}
+
+.chip {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-gray-600);
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-full);
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.chip:hover {
+  background: var(--color-gray-100);
+  border-color: var(--color-gray-300);
+  color: var(--color-gray-800);
+}
+
+/* Active state — subtle fill + medium border */
+.chipActive {
+  color: var(--color-gray-800);
+  background: var(--color-gray-100);
+  border-color: var(--color-gray-400);
+  font-weight: 600;
+}
+
+.chipActive:hover {
+  background: var(--color-gray-100);
+  border-color: var(--color-gray-500);
+}
+
+/* ── Board ───────────────────────────────────────────────── */
+
+.boardContainer {
+  overflow-x: auto;
+  padding-bottom: var(--spacing-4);
+  flex: 1;
+  min-height: 0;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(290px, 1fr));
+  gap: 20px;
+  height: 100%;
+}
+
+/* ── Column ──────────────────────────────────────────────── */
+
+.column {
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+  background: transparent;
+  border-radius: var(--radius-lg);
+  padding: 0 var(--spacing-1) var(--spacing-2);
+  overflow: hidden;
+}
+
+/* Stage-specific column styles — transparent, cards float on page bg */
+.columnBacklog {}
+.columnProduction {}
+.columnTesting {}
+.columnScaling {}
+
+.columnRetired {}
+
+/* Column header */
+.columnHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: 12px var(--spacing-1) 10px;
+  margin-bottom: 2px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-background-canvas);
+}
+
+.columnHeaderDefault {}
+.columnHeaderScaling {}
+
+.columnHeaderRetired {}
+
+.columnAccent {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.columnName {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-gray-700);
+}
+
+.columnCount {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-gray-500);
+  background: var(--color-gray-100);
+  min-width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  padding: 0 6px;
+}
+
+/* Card list */
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  flex: 1;
+  padding: 2px 4px 2px 4px;
+}
+
+.cardList::-webkit-scrollbar {
+  width: 4px;
+}
+
+.cardList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cardList::-webkit-scrollbar-thumb {
+  background: var(--color-gray-200);
+  border-radius: 2px;
+}
+
+.cardList::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gray-300);
+}
+
+/* ── Skeleton ─────────────────────────────────────────────── */
+
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeletonLine {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--color-gray-100) 25%, var(--color-gray-50) 50%, var(--color-gray-100) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+.skeletonCard {
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-gray-150, var(--color-gray-200));
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skeletonTitle {
+  height: 14px;
+  width: 75%;
+}
+
+.skeletonTags {
+  display: flex;
+  gap: 6px;
+}
+
+.skeletonTag {
+  height: 18px;
+  width: 64px;
+  border-radius: var(--radius-full);
+}
+
+.skeletonMeta {
+  height: 11px;
+  width: 50%;
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-gray-100);
+}
+
+/* Empty column */
+.emptyColumn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-8) var(--spacing-4);
+  color: var(--color-gray-300);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  border: 1px dashed var(--color-gray-200);
+  border-radius: var(--radius-md);
+  letter-spacing: 0.2px;
+}

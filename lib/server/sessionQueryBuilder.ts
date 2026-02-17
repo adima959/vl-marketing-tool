@@ -1,4 +1,5 @@
 import { formatLocalDate } from '@/lib/types/api';
+import { validateSortDirection } from '@/lib/server/types';
 
 /**
  * Dual-mode session query builder.
@@ -99,6 +100,42 @@ const SQL_SORTABLE_METRICS = new Set([
   'formStarters', 'formStartRate',
 ]);
 
+/**
+ * Enriched entry dimensions that have both IDs and names in merged_ads_spending.
+ * Used for:
+ * 1. Name-based table filtering (subquery fallback when filter value is a name)
+ * 2. Name resolution in SELECT (LEFT JOIN to display names instead of raw IDs)
+ */
+const ENRICHED_ENTRY_DIMS: Record<string, {
+  idColumn: string;       // merged_ads_spending ID column
+  nameColumn: string;     // merged_ads_spending name column
+  sessionColumn: string;  // session_entries column (raw ID)
+  joinOn: string;         // JOIN ON clause (unaliased session_entries columns)
+  distinctCols: string;   // DISTINCT columns for subquery
+}> = {
+  entryCampaign: {
+    idColumn: 'campaign_id',
+    nameColumn: 'campaign_name',
+    sessionColumn: 'entry_utm_campaign',
+    joinOn: 'entry_utm_campaign::text = mas.campaign_id::text',
+    distinctCols: 'campaign_id, campaign_name',
+  },
+  entryAdset: {
+    idColumn: 'adset_id',
+    nameColumn: 'adset_name',
+    sessionColumn: 'entry_utm_content',
+    joinOn: 'entry_utm_campaign::text = mas.campaign_id::text AND entry_utm_content::text = mas.adset_id::text',
+    distinctCols: 'campaign_id, adset_id, adset_name',
+  },
+  entryAd: {
+    idColumn: 'ad_id',
+    nameColumn: 'ad_name',
+    sessionColumn: 'entry_utm_medium',
+    joinOn: 'entry_utm_campaign::text = mas.campaign_id::text AND entry_utm_content::text = mas.adset_id::text AND entry_utm_medium::text = mas.ad_id::text',
+    distinctCols: 'campaign_id, adset_id, ad_id, ad_name',
+  },
+};
+
 /** Maps metric IDs to their SQL column alias for ORDER BY */
 const METRIC_SQL_ALIAS: Record<string, string> = {
   pageViews: 'page_views',
@@ -147,6 +184,8 @@ class SessionQueryBuilder {
       throw new Error(`Unknown session dimension: ${currentDimension}`);
     }
 
+    const enriched = ENRICHED_ENTRY_DIMS[currentDimension];
+
     const params: SqlParam[] = [
       formatLocalDate(dateRange.start),
       formatLocalDate(dateRange.end),
@@ -162,14 +201,32 @@ class SessionQueryBuilder {
       whereClause += this.buildTableFilterClause(filters, params, ENTRY_DIMENSION_MAP);
     }
 
+    const safeSortDir = validateSortDirection(sortDirection);
     const sortAlias = METRIC_SQL_ALIAS[sortBy];
     const orderBy = sortAlias && SQL_SORTABLE_METRICS.has(sortBy)
-      ? `ORDER BY ${sortAlias} ${sortDirection} NULLS LAST`
+      ? `ORDER BY ${sortAlias} ${safeSortDir} NULLS LAST`
       : 'ORDER BY page_views DESC';
+
+    // Enriched dimensions: JOIN to merged_ads_spending for name resolution
+    const dimensionSelect = enriched
+      ? `${enriched.sessionColumn}::text AS dimension_id,
+        COALESCE(MAX(mas.${enriched.nameColumn}), ${enriched.sessionColumn}::text, 'Unknown') AS dimension_value`
+      : `${sqlColumn} AS dimension_value`;
+
+    const fromClause = enriched
+      ? `FROM ${SESSION_TABLE}
+      LEFT JOIN (
+        SELECT DISTINCT ${enriched.distinctCols}
+        FROM merged_ads_spending
+        WHERE date::date BETWEEN $1::date AND $2::date
+      ) mas ON ${enriched.joinOn}`
+      : `FROM ${SESSION_TABLE}`;
+
+    const groupByExpr = enriched ? enriched.sessionColumn : 'dimension_value';
 
     const query = `
       SELECT
-        ${sqlColumn} AS dimension_value,
+        ${dimensionSelect},
         COUNT(*) AS page_views,
         COUNT(DISTINCT ff_visitor_id) AS unique_visitors,
         ROUND(
@@ -196,9 +253,9 @@ class SessionQueryBuilder {
           / NULLIF(COUNT(*) FILTER (WHERE entry_form_view = true), 0),
           4
         ) AS form_start_rate
-      FROM ${SESSION_TABLE}
+      ${fromClause}
       ${whereClause}
-      GROUP BY dimension_value
+      GROUP BY ${groupByExpr}
       HAVING COUNT(*) > 1
       ${orderBy}
       LIMIT 1000
@@ -274,9 +331,10 @@ class SessionQueryBuilder {
       mainTableFilters = this.buildTableFilterClause(filters, params, FUNNEL_DIMENSION_MAP);
     }
 
+    const safeSortDir = validateSortDirection(sortDirection);
     const sortAlias = METRIC_SQL_ALIAS[sortBy];
     const orderBy = sortAlias && SQL_SORTABLE_METRICS.has(sortBy)
-      ? `ORDER BY ${sortAlias} ${sortDirection} NULLS LAST`
+      ? `ORDER BY ${sortAlias} ${safeSortDir} NULLS LAST`
       : 'ORDER BY page_views DESC';
 
     const query = `
@@ -350,6 +408,8 @@ class SessionQueryBuilder {
   /**
    * Build table filter clauses for queries.
    * Same field = OR, different fields = AND.
+   * For enriched entry dimensions (campaign/adset/ad), generates OR conditions
+   * to match by both raw ID and name (via merged_ads_spending subquery).
    */
   private buildTableFilterClause(
     filters: Array<{ field: string; operator: string; value: string }>,
@@ -367,22 +427,45 @@ class SessionQueryBuilder {
     let clause = '';
     for (const [field, conditions] of byField) {
       const col = dimensionMap[field]!;
+      const enriched = ENRICHED_ENTRY_DIMS[field];
       const orParts: string[] = [];
       for (const { operator, value } of conditions) {
         params.push(value);
         const paramRef = `$${params.length}`;
+        // Subquery to resolve name → ID for enriched dimensions
+        const nameSubquery = enriched
+          ? `SELECT DISTINCT ${enriched.idColumn}::text FROM merged_ads_spending WHERE date::date BETWEEN $1::date AND $2::date AND LOWER(${enriched.nameColumn}) = LOWER(${paramRef})`
+          : null;
         switch (operator) {
           case 'equals':
-            orParts.push(`LOWER(${col}::text) = LOWER(${paramRef})`);
+            if (nameSubquery) {
+              orParts.push(`(LOWER(${col}::text) = LOWER(${paramRef}) OR ${col}::text IN (${nameSubquery}))`);
+            } else {
+              orParts.push(`LOWER(${col}::text) = LOWER(${paramRef})`);
+            }
             break;
           case 'not_equals':
-            orParts.push(`LOWER(${col}::text) != LOWER(${paramRef})`);
+            if (nameSubquery) {
+              orParts.push(`(LOWER(${col}::text) != LOWER(${paramRef}) AND ${col}::text NOT IN (${nameSubquery}))`);
+            } else {
+              orParts.push(`LOWER(${col}::text) != LOWER(${paramRef})`);
+            }
             break;
           case 'contains':
-            orParts.push(`LOWER(${col}::text) LIKE '%' || LOWER(${paramRef}) || '%'`);
+            if (enriched) {
+              const nameContainsSubquery = `SELECT DISTINCT ${enriched.idColumn}::text FROM merged_ads_spending WHERE date::date BETWEEN $1::date AND $2::date AND LOWER(${enriched.nameColumn}) LIKE '%' || LOWER(${paramRef}) || '%'`;
+              orParts.push(`(LOWER(${col}::text) LIKE '%' || LOWER(${paramRef}) || '%' OR ${col}::text IN (${nameContainsSubquery}))`);
+            } else {
+              orParts.push(`LOWER(${col}::text) LIKE '%' || LOWER(${paramRef}) || '%'`);
+            }
             break;
           case 'not_contains':
-            orParts.push(`LOWER(${col}::text) NOT LIKE '%' || LOWER(${paramRef}) || '%'`);
+            if (enriched) {
+              const nameNotContainsSubquery = `SELECT DISTINCT ${enriched.idColumn}::text FROM merged_ads_spending WHERE date::date BETWEEN $1::date AND $2::date AND LOWER(${enriched.nameColumn}) LIKE '%' || LOWER(${paramRef}) || '%'`;
+              orParts.push(`(LOWER(${col}::text) NOT LIKE '%' || LOWER(${paramRef}) || '%' AND ${col}::text NOT IN (${nameNotContainsSubquery}))`);
+            } else {
+              orParts.push(`LOWER(${col}::text) NOT LIKE '%' || LOWER(${paramRef}) || '%'`);
+            }
             break;
         }
       }

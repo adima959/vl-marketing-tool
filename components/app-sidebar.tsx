@@ -6,9 +6,7 @@ import {
   BarChart3,
   FileSearch,
   BarChart,
-  Target,
   LogOut,
-  ClipboardCheck,
   Settings,
   Kanban,
 } from "lucide-react"
@@ -36,19 +34,9 @@ const ALL_MENU_ITEMS: GatedNavItem[] = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, featureKey: "analytics.dashboard" },
   { title: "Marketing Report", url: "/marketing-report", icon: BarChart3, featureKey: "analytics.marketing_report" },
   { title: "On Page Analysis", url: "/on-page-analysis", icon: FileSearch, featureKey: "analytics.on_page_analysis" },
-  {
-    title: "Validation Reports", url: "/validation-reports", icon: ClipboardCheck,
-    featureKey: "analytics.validation_reports",
-    items: [
-      { title: "Approval Rate", url: "/validation-reports/approval-rate" },
-      { title: "Buy Rate", url: "/validation-reports/buy-rate" },
-      { title: "Pay Rate", url: "/validation-reports/pay-rate" },
-    ],
-  },
 ];
 
 const ALL_TOOL_ITEMS: GatedNavItem[] = [
-  { title: "Marketing Tracker", url: "/marketing-tracker", icon: Target, featureKey: "tools.marketing_tracker" },
   { title: "Pipeline", url: "/marketing-pipeline", icon: Kanban, featureKey: "tools.marketing_pipeline" },
 ];
 
@@ -83,10 +71,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
+            <SidebarMenuButton asChild>
               <a href="/">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-black text-white">
-                  <BarChart className="size-4" />
+                <div className="flex aspect-square size-7 items-center justify-center rounded-lg bg-black text-white">
+                  <BarChart className="size-3.5" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">Vitaliv</span>

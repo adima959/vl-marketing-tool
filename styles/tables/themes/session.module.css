@@ -58,20 +58,6 @@
 }
 
 /* =============================================================================
-   BODY CELLS
-   ============================================================================= */
-
-/* Group separator border - after Session Basics */
-.theme :global(.ant-table-tbody > tr > td:nth-child(6)) {
-  border-right: 1px solid rgba(191, 219, 254, 0.4) !important;
-}
-
-/* Group separator border - after Funnel Progression */
-.theme :global(.ant-table-tbody > tr > td:nth-child(10)) {
-  border-right: 1px solid rgba(167, 243, 208, 0.4) !important;
-}
-
-/* =============================================================================
    HOVER STATES
    ============================================================================= */
 

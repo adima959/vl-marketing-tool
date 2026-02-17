@@ -1,8 +1,23 @@
 import { z } from 'zod';
 
+// Product schemas
+export const createProductSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(255),
+  sku: z.string().max(100).nullish(),
+  description: z.string().nullish(),
+  notes: z.string().nullish(),
+  color: z.string().regex(/^#[0-9A-F]{6}$/i, 'Invalid color format').nullish(),
+  status: z.enum(['active', 'inactive']).optional(),
+  ownerId: z.string().uuid('Invalid owner ID').nullish(),
+  driveFolderId: z.string().max(255).nullish(),
+});
+
+export const updateProductSchema = createProductSchema.partial();
+
 // Campaign schemas
 export const createCampaignSchema = z.object({
   messageId: z.string().uuid('Invalid message ID'),
+  name: z.string().nullish(),
   channel: z.enum(['meta', 'google', 'taboola', 'other']),
   geo: z.enum(['NO', 'SE', 'DK']),
   externalId: z.string().nullish(),

@@ -92,7 +92,7 @@ function SortableFavorite({ view, onNavigate, onEdit }: SortableFavoriteProps) {
         <span
           {...attributes}
           {...listeners}
-          className="absolute left-0.5 top-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing opacity-0 group-hover/fav-item:opacity-100 transition-opacity text-sidebar-foreground/50 hover:text-sidebar-foreground"
+          className="absolute -left-1 top-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing opacity-0 group-hover/fav-item:opacity-100 transition-opacity text-sidebar-foreground/50 hover:text-sidebar-foreground"
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() }}
         >

@@ -6,11 +6,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { unstable_rethrow } from 'next/navigation';
 import {
-updatePipelineCampaign,
+  getPipelineCampaignById,
+  updatePipelineCampaign,
   deletePipelineCampaign,
 } from '@/lib/marketing-pipeline/db';
-import { recordUpdate, recordDeletion } from '@/lib/marketing-tracker/historyService';
-import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
+import { recordUpdate, recordDeletion } from '@/lib/marketing-pipeline/historyService';
+import { getChangedBy } from '@/lib/marketing-pipeline/getChangedBy';
 import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 
@@ -28,6 +29,8 @@ export const PATCH = withPermission('tools.marketing_pipeline', 'can_edit', asyn
     const body = await request.json();
     const changedBy = await getChangedBy(request);
 
+    const existing = await getPipelineCampaignById(campaignId);
+
     const updated = await updatePipelineCampaign(campaignId, {
       channel: body.channel,
       geo: body.geo,
@@ -39,11 +42,10 @@ export const PATCH = withPermission('tools.marketing_pipeline', 'can_edit', asyn
       cpa: body.cpa,
     });
 
-    // Record history (non-blocking)
-    recordUpdate(
+    await recordUpdate(
       'campaign',
       campaignId,
-      {} as Record<string, unknown>,
+      (existing ?? {}) as Record<string, unknown>,
       updated as unknown as Record<string, unknown>,
       changedBy,
     ).catch(err => console.error('Failed to record campaign update:', err));
@@ -68,13 +70,14 @@ export const DELETE = withPermission('tools.marketing_pipeline', 'can_delete', a
     const { campaignId } = await params;
     const changedBy = await getChangedBy(request);
 
+    const existing = await getPipelineCampaignById(campaignId);
+
     await deletePipelineCampaign(campaignId);
 
-    // Record history (non-blocking)
-    recordDeletion(
+    await recordDeletion(
       'campaign',
       campaignId,
-      {} as Record<string, unknown>,
+      (existing ?? { id: campaignId }) as Record<string, unknown>,
       changedBy,
     ).catch(err => console.error('Failed to record campaign deletion:', err));
 

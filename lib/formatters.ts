@@ -22,7 +22,7 @@ export function formatPercentage(value: number): string {
   if (pct > 0 && pct < 5) {
     return `${pct.toFixed(2)}%`;
   }
-  return `${pct.toFixed(0)}%`;
+  return `${pct.toFixed(1)}%`;
 }
 
 export function formatCurrency(value: number): string {

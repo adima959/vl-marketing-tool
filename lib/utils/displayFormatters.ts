@@ -1,5 +1,5 @@
 /**
- * Display formatters shared across marketing tracker components.
+ * Display formatters shared across marketing pipeline components.
  *
  * Extracted from ActivityFeed, ConceptDetailPanel, and OnPageViewsModal
  * to eliminate duplication and provide a single source of truth.
@@ -70,14 +70,171 @@ export function getSummaryText(activity: { changedAt: string }[]): string {
   return `${activity.length} recent updates`;
 }
 
+/** Human-readable field labels for history display */
+const HISTORY_FIELD_LABELS: Record<string, string> = {
+  name: 'Name',
+  angleId: 'Angle',
+  ownerId: 'Owner',
+  pipelineStage: 'Stage',
+  specificPainPoint: 'Pain point',
+  corePromise: 'Core promise',
+  keyIdea: 'Key idea',
+  primaryHookDirection: 'Hook direction',
+  description: 'Description',
+  notes: 'Notes',
+  spendThreshold: 'Spend threshold',
+  status: 'Status',
+  copyVariations: 'Copy variations',
+  channel: 'Channel',
+  geo: 'Geo',
+  stage: 'Stage',
+  cpa: 'CPA',
+  spend: 'Spend',
+  externalId: 'External ID',
+  externalUrl: 'External URL',
+  isPrimary: 'Primary',
+  messageId: 'Message',
+};
+
 /** Format a history entry for display in ConceptDetailPanel */
-export function formatHistoryEntry(entry: { action: string; fieldName: string; oldValue: unknown; newValue: unknown }): string {
-  if (entry.action === 'create') return 'Message created';
-  if (entry.action === 'delete') return 'Message deleted';
-  const field = entry.fieldName.replace(/([A-Z])/g, ' $1').toLowerCase().replace(/^./, s => s.toUpperCase());
+export function formatHistoryEntry(entry: {
+  action: string;
+  entityType?: string;
+  fieldName: string;
+  oldValue: unknown;
+  newValue: unknown;
+  oldValueDisplay?: string | null;
+  newValueDisplay?: string | null;
+}): string {
+  const isCampaign = entry.entityType === 'campaign';
+  const isGeo = entry.entityType === 'pipeline_message' && (entry.fieldName === 'geo' || entry.fieldName === 'stage' || entry.fieldName === 'isPrimary');
+
+  // Created/deleted actions
+  if (entry.action === 'created') {
+    if (isCampaign) {
+      const geo = (entry.fieldName === 'geo' ? entry.newValue : null) as string | null;
+      const channel = (entry.fieldName === 'channel' ? entry.newValue : null) as string | null;
+      if (geo || channel) return `Campaign ${channel ?? ''} ${geo ?? ''} added`.trim();
+      return 'Campaign added';
+    }
+    if (entry.fieldName === 'geo') return `Geo ${entry.newValue} added`;
+    return 'Message created';
+  }
+  if (entry.action === 'deleted') {
+    if (isCampaign) return 'Campaign removed';
+    if (entry.fieldName === '_deleted' && !isCampaign) {
+      const snap = entry.oldValue as Record<string, unknown> | null;
+      if (snap?.geo) return `Geo ${snap.geo} removed`;
+    }
+    return 'Message deleted';
+  }
+
+  if (entry.fieldName === 'copyVariations') return 'Copy variations changed';
+
+  const field = HISTORY_FIELD_LABELS[entry.fieldName]
+    ?? entry.fieldName.replace(/([A-Z])/g, ' $1').toLowerCase().replace(/^./, s => s.toUpperCase());
+
   if (entry.fieldName === 'pipelineStage') return `Stage changed to ${entry.newValue}`;
-  const oldStr = entry.oldValue != null ? String(entry.oldValue) : '—';
-  const newStr = entry.newValue != null ? String(entry.newValue) : '—';
-  if (oldStr === '—') return `${field} set to "${newStr}"`;
-  return `${field} changed`;
+  if (entry.fieldName === 'stage' && isGeo) {
+    return `Geo stage changed to ${entry.newValue}`;
+  }
+
+  // Use display values (resolved names) if available, otherwise raw values
+  const oldStr = entry.oldValueDisplay ?? (typeof entry.oldValue === 'string' ? entry.oldValue : null);
+  const newStr = entry.newValueDisplay ?? (typeof entry.newValue === 'string' ? entry.newValue : null);
+
+  const prefix = isCampaign ? 'Campaign ' : '';
+  if (oldStr && newStr) return `${prefix}${field}: ${oldStr} → ${newStr}`;
+  if (!oldStr && newStr) return `${prefix}${field} set to "${newStr}"`;
+  if (oldStr && !newStr) return `${prefix}${field} "${oldStr}" removed`;
+  return `${prefix}${field} changed`;
+}
+
+// ── Copy Variations diff ──────────────────────────────────
+const SECTION_LABELS: Record<string, string> = { hook: 'Hook', primaryText: 'Primary Text', cta: 'CTA' };
+const LANG_LABELS: Record<string, string> = { en: 'EN', no: 'NO', se: 'SE', dk: 'DK' };
+const SECTIONS = ['hook', 'primaryText', 'cta'] as const;
+const LANGS = ['en', 'no', 'se', 'dk'] as const;
+
+interface CopyVar {
+  id: string;
+  status?: string;
+  hook?: Record<string, string>;
+  primaryText?: Record<string, string>;
+  cta?: Record<string, string>;
+}
+
+export interface CopyVariationChange {
+  type: 'added' | 'deleted' | 'text_changed';
+  /** 1-based variation number (uses position in the new array, or old array for deletes) */
+  variationNum: number;
+  /** e.g. "Hook EN" — only for text_changed */
+  cellLabel?: string;
+  oldText?: string;
+  newText?: string;
+  /** Snapshot of the variation's content (for added/deleted) */
+  snapshot?: Record<string, string>;
+}
+
+/** Extract non-empty text cells from a variation as "Section Lang" → text */
+function buildSnapshot(v: CopyVar): Record<string, string> {
+  const snap: Record<string, string> = {};
+  for (const section of SECTIONS) {
+    for (const lang of LANGS) {
+      const text = v[section]?.[lang]?.trim();
+      if (text) {
+        snap[`${SECTION_LABELS[section]} ${LANG_LABELS[lang]}`] = text;
+      }
+    }
+  }
+  return snap;
+}
+
+/** Diff two copy variation arrays and return granular changes */
+export function diffCopyVariations(oldVal: unknown, newVal: unknown): CopyVariationChange[] {
+  const oldArr = (Array.isArray(oldVal) ? oldVal : []) as CopyVar[];
+  const newArr = (Array.isArray(newVal) ? newVal : []) as CopyVar[];
+
+  const changes: CopyVariationChange[] = [];
+  const oldById = new Map(oldArr.map((v, i) => [v.id, { variation: v, index: i }]));
+  const newById = new Map(newArr.map((v, i) => [v.id, { variation: v, index: i }]));
+
+  // Deleted variations (in old but not in new)
+  for (const [id, { variation, index }] of oldById) {
+    if (!newById.has(id)) {
+      changes.push({ type: 'deleted', variationNum: index + 1, snapshot: buildSnapshot(variation) });
+    }
+  }
+
+  // Added variations (in new but not in old)
+  for (const [id, { variation, index }] of newById) {
+    if (!oldById.has(id)) {
+      changes.push({ type: 'added', variationNum: index + 1, snapshot: buildSnapshot(variation) });
+    }
+  }
+
+  // Text changes for variations present in both
+  for (const [id, { variation: newV, index: newIdx }] of newById) {
+    const oldEntry = oldById.get(id);
+    if (!oldEntry) continue;
+    const oldV = oldEntry.variation;
+
+    for (const section of SECTIONS) {
+      for (const lang of LANGS) {
+        const oldText = (oldV[section]?.[lang] ?? '').trim();
+        const newText = (newV[section]?.[lang] ?? '').trim();
+        if (oldText !== newText) {
+          changes.push({
+            type: 'text_changed',
+            variationNum: newIdx + 1,
+            cellLabel: `${SECTION_LABELS[section]} ${LANG_LABELS[lang]}`,
+            oldText: oldText || undefined,
+            newText: newText || undefined,
+          });
+        }
+      }
+    }
+  }
+
+  return changes;
 }

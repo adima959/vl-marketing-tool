@@ -14,9 +14,10 @@ import type {
 } from '@/lib/api/campaignClassificationsClient';
 import { GenericMapPanel } from './GenericMapPanel';
 
-export function CampaignMapPanel(): React.ReactNode {
+export function CampaignMapPanel({ onUnclassifiedCountChange }: { onUnclassifiedCountChange?: (count: number) => void }): React.ReactNode {
   return (
     <GenericMapPanel<UnclassifiedCampaign, ClassifiedCampaign, IgnoredCampaign>
+      onUnclassifiedCountChange={onUnclassifiedCountChange}
       api={{
         fetchData: fetchCampaignClassifications,
         classify: classifyCampaign,

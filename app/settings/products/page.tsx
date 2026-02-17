@@ -7,21 +7,21 @@ import { ProductsClientTable } from '@/components/settings/ProductsClientTable';
 import { AccessDenied } from '@/components/AccessDenied';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Product } from '@/types';
-import type { TrackerUser } from '@/types/marketing-tracker';
+import type { PipelineUser } from '@/types/marketing-pipeline';
 import styles from '@/styles/components/settings.module.css';
 import { checkAuthError } from '@/lib/api/errorHandler';
 
 export default function ProductsPage() {
   const { hasPermission, isLoading: authLoading } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
-  const [users, setUsers] = useState<TrackerUser[]>([]);
+  const [users, setUsers] = useState<PipelineUser[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     try {
       const [productsRes, usersRes] = await Promise.all([
-        fetch('/api/marketing-tracker/products'),
-        fetch('/api/marketing-tracker/users'),
+        fetch('/api/marketing-pipeline/products'),
+        fetch('/api/marketing-pipeline/users'),
       ]);
 
       checkAuthError(productsRes);
