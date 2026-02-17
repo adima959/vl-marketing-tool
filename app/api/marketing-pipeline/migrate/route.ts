@@ -497,18 +497,18 @@ async function seedData(): Promise<void> {
 
   // ── Seed campaigns (1 per message that has them) ──────────────
   const campaigns: SeedCampaign[] = [
-    { id: C01, messageId: M10, channel: 'meta', geo: 'NO', status: 'active', spend: 340, conversions: 14, cpa: 24, createdAt: '2024-05-01', updatedAt: '2024-06-05' },
-    { id: C02, messageId: M15, channel: 'meta', geo: 'NO', status: 'active', spend: 320, conversions: 8, cpa: 40, createdAt: '2024-04-20', updatedAt: '2024-06-05' },
-    { id: C03, messageId: M17, channel: 'meta', geo: 'NO', status: 'active', spend: 1800, conversions: 95, cpa: 19, createdAt: '2024-03-15', updatedAt: '2024-06-05' },
-    { id: C04, messageId: M19, channel: 'meta', geo: 'NO', status: 'stopped', spend: 380, conversions: 11, cpa: 35, createdAt: '2024-03-01', updatedAt: '2024-05-01' },
+    { id: C01, messageId: M10, channel: 'meta', geo: 'NO', spend: 340, conversions: 14, cpa: 24, createdAt: '2024-05-01', updatedAt: '2024-06-05' },
+    { id: C02, messageId: M15, channel: 'meta', geo: 'NO', spend: 320, conversions: 8, cpa: 40, createdAt: '2024-04-20', updatedAt: '2024-06-05' },
+    { id: C03, messageId: M17, channel: 'meta', geo: 'NO', spend: 1800, conversions: 95, cpa: 19, createdAt: '2024-03-15', updatedAt: '2024-06-05' },
+    { id: C04, messageId: M19, channel: 'meta', geo: 'NO', spend: 380, conversions: 11, cpa: 35, createdAt: '2024-03-01', updatedAt: '2024-05-01' },
   ];
 
   for (const c of campaigns) {
     await executeQuery(`
-      INSERT INTO app_pipeline_campaigns (id, message_id, channel, geo, status, spend, conversions, cpa, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      INSERT INTO app_pipeline_campaigns (id, message_id, channel, geo, spend, conversions, cpa, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       ON CONFLICT (id) DO NOTHING;
-    `, [c.id, c.messageId, c.channel, c.geo, c.status, c.spend, c.conversions, c.cpa, c.createdAt, c.updatedAt]);
+    `, [c.id, c.messageId, c.channel, c.geo, c.spend, c.conversions, c.cpa, c.createdAt, c.updatedAt]);
   }
   seedStep = 'seedAssets';
 
