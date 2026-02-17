@@ -1,0 +1,211 @@
+/* === Angle rows === */
+.angleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+
+.angleRow:hover {
+  background: var(--color-background-secondary);
+}
+
+.angleName {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-gray-800);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.angleMsgCount {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-gray-400);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.angleDeleteBtn {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-md);
+  color: var(--color-gray-300);
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+  opacity: 0;
+}
+
+.angleRow:hover .angleDeleteBtn {
+  opacity: 1;
+}
+
+.angleDeleteBtn:hover {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+.angleDeleteBtn:disabled {
+  opacity: 0;
+  cursor: not-allowed;
+}
+
+.angleRow:hover .angleDeleteBtn:disabled {
+  opacity: 0.35;
+}
+
+.angleDeleteBtn:disabled:hover {
+  color: var(--color-gray-400);
+  background: none;
+}
+
+/* === Delete confirmation row === */
+.angleRowConfirm {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.angleRowConfirm:hover {
+  background: #fef2f2;
+}
+
+.confirmText {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: #991b1b;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.confirmActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.confirmYes {
+  all: unset;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: #dc2626;
+  padding: 3px 10px;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.confirmYes:hover {
+  background: #fee2e2;
+}
+
+.confirmCancel {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--color-gray-500);
+  transition: all var(--transition-fast);
+}
+
+.confirmCancel:hover {
+  color: var(--color-gray-700);
+  background: var(--color-gray-100);
+}
+
+/* === Inline add row === */
+.addRow {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px dashed var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  padding: 2px 2px 2px 12px;
+  transition: border-color var(--transition-fast);
+}
+
+.addRow:focus-within {
+  border-color: var(--color-gray-400);
+  border-style: solid;
+}
+
+.addInput {
+  flex: 1;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 4px 0 !important;
+  font-size: 13px;
+  color: var(--color-gray-700);
+}
+
+.addInput:focus {
+  box-shadow: none !important;
+}
+
+.addInput::placeholder {
+  color: var(--color-gray-400);
+  font-weight: 400;
+}
+
+.addBtn {
+  flex-shrink: 0;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--color-gray-500) !important;
+  background: transparent !important;
+  height: 30px !important;
+  padding: 0 10px !important;
+  border-radius: var(--radius-sm) !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.addBtn:hover:not(:disabled) {
+  color: var(--color-gray-800) !important;
+  background: var(--color-background-tertiary) !important;
+}
+
+.addBtn:disabled {
+  opacity: 0.35 !important;
+}
+
+/* === Empty state === */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  flex: 1;
+}
+
+.emptyTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-gray-500);
+  margin-bottom: 4px;
+}
+
+.emptyHint {
+  font-size: 12px;
+  color: var(--color-gray-400);
+}

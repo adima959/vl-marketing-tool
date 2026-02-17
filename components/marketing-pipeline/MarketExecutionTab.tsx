@@ -9,8 +9,8 @@ interface MarketExecutionTabProps {
   message: MessageDetail;
   performanceData: Record<string, CampaignPerformanceData>;
   performanceLoading: boolean;
-  perfDays: number;
-  onPerfDaysChange: (days: number) => void;
+  dateRange: { start: Date; end: Date };
+  onDateRangeChange: (range: { start: Date; end: Date }) => void;
   onAddGeo: (messageId: string, data: { geo: Geography }) => void;
   onUpdateGeoStage: (geoId: string, data: { stage: GeoStage }) => void;
   onRemoveGeo: (geoId: string) => void;
@@ -23,8 +23,8 @@ export function MarketExecutionTab({
   message,
   performanceData,
   performanceLoading,
-  perfDays,
-  onPerfDaysChange,
+  dateRange,
+  onDateRangeChange,
   onAddGeo,
   onUpdateGeoStage,
   onRemoveGeo,
@@ -74,8 +74,8 @@ export function MarketExecutionTab({
         message={message}
         performanceData={performanceData}
         performanceLoading={performanceLoading}
-        perfDays={perfDays}
-        onPerfDaysChange={onPerfDaysChange}
+        dateRange={dateRange}
+        onDateRangeChange={onDateRangeChange}
         onAddGeo={onAddGeo}
         onUpdateGeoStage={onUpdateGeoStage}
         onRemoveGeo={onRemoveGeo}

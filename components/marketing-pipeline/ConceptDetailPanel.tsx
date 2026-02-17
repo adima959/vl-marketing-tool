@@ -566,12 +566,8 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
                     message={message}
                     performanceData={campaignPerformance}
                     performanceLoading={campaignPerformanceLoading}
-                    perfDays={Math.round((perfDateRange.end.getTime() - perfDateRange.start.getTime()) / 86400000)}
-                    onPerfDaysChange={(days: number) => {
-                      const end = new Date(); end.setHours(0, 0, 0, 0);
-                      const start = new Date(end); start.setDate(start.getDate() - days);
-                      handlePerfDateRangeChange({ start, end });
-                    }}
+                    dateRange={perfDateRange}
+                    onDateRangeChange={handlePerfDateRangeChange}
                     onFieldChange={handleFieldChange}
                     onAddGeo={addGeo}
                     onUpdateGeoStage={updateGeoStage}
