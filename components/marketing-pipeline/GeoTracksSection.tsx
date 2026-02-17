@@ -109,22 +109,7 @@ export function GeoTracksSection({
         </span>
         <span className={styles.strategySectionTitle}>Geo Tracks</span>
         <div className={styles.geoTracksActions}>
-          <Dropdown
-            menu={{
-              items: DATE_RANGE_OPTIONS.map(o => ({
-                key: String(o.days),
-                label: o.label,
-              })),
-              onClick: handleDateRangeChange,
-              selectedKeys: [String(perfDays)],
-            }}
-            trigger={['click']}
-          >
-            <button type="button" className={styles.dateRangeBtn}>
-              {dateRangeLabel}
-              <DownOutlined style={{ fontSize: 9 }} />
-            </button>
-          </Dropdown>
+          <DateRangePicker dateRange={dateRange} setDateRange={onDateRangeChange} />
           <Dropdown
             menu={{
               items: addGeoMenuItems,
