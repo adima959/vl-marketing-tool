@@ -34,8 +34,8 @@ interface GeoTracksSectionProps {
   message: MessageDetail;
   performanceData: Record<string, CampaignPerformanceData>;
   performanceLoading: boolean;
-  perfDays: number;
-  onPerfDaysChange: (days: number) => void;
+  dateRange: { start: Date; end: Date };
+  onDateRangeChange: (range: { start: Date; end: Date }) => void;
   onAddGeo: (messageId: string, data: { geo: Geography }) => void;
   onUpdateGeoStage: (geoId: string, data: { stage: GeoStage }) => void;
   onRemoveGeo: (geoId: string) => void;
@@ -48,8 +48,8 @@ export function GeoTracksSection({
   message,
   performanceData,
   performanceLoading,
-  perfDays,
-  onPerfDaysChange,
+  dateRange,
+  onDateRangeChange,
   onAddGeo,
   onUpdateGeoStage,
   onRemoveGeo,
@@ -59,13 +59,6 @@ export function GeoTracksSection({
 }: GeoTracksSectionProps): React.ReactNode {
   const [collapsedGeos, setCollapsedGeos] = useState<Set<string>>(new Set());
   const [addingForGeo, setAddingForGeo] = useState<Geography | null>(null);
-
-  const handleDateRangeChange = useCallback(({ key }: { key: string }) => {
-    const days = parseInt(key, 10);
-    onPerfDaysChange(days);
-  }, [onPerfDaysChange]);
-
-  const dateRangeLabel = DATE_RANGE_OPTIONS.find(o => o.days === perfDays)?.label ?? `Last ${perfDays} days`;
 
   const toggleGeo = useCallback((geoId: string) => {
     setCollapsedGeos(prev => {
