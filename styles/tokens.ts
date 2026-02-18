@@ -99,6 +99,7 @@ export const colors = {
     hover: '#f0f9ff',
     active: '#e0f2fe',
     expanded: '#e6f7ed',
+    muted: '#edf2f7',
   },
 
   // Legacy color mappings (for backwards compatibility)
@@ -174,6 +175,7 @@ export const shadows = {
   '2xl': '0 25px 50px -12px rgba(0, 0, 0, 0.1)',
   float: '0 8px 16px rgba(0, 0, 0, 0.08)',
   modal: '0 24px 48px rgba(0, 0, 0, 0.12)',
+  panel: '-4px 0 24px rgba(0, 0, 0, 0.12)',
   // Legacy shadows
   button: '0 1px 2px rgba(0, 185, 107, 0.2)',
   buttonHover: '0 2px 4px rgba(0, 185, 107, 0.3)',
