@@ -2,6 +2,20 @@
 Purpose: Validate our queries and dashboards against CRM source data.
 
 
+## Trial counting methodology: Dashboard vs CRM
+
+| Aspect | Dashboard / Marketing Report | CRM External System |
+|--------|------------------------------|---------------------|
+| **Date source** | `subscription.date_create` | `invoice.invoice_date` (type=1) |
+| **Trial unit** | Per subscription (first non-deleted type=1 invoice) | Per invoice (every type=1 invoice) |
+| **Re-trials** | Counted once on the original sub creation date | Counted again on the new invoice date |
+| **Deleted invoices** | Excluded (`deleted=0` filter) | Excluded |
+
+**Consequence**: Subscriptions that get refunded and re-trialed on a different day appear on different dates in each system. A sub created Jan 1 with a new trial invoice on Feb 16 shows as a Jan 1 trial in our dashboard but a Feb 16 trial in the CRM. Subs with multiple trial invoices on the same day appear as multiple rows in the CRM.
+
+**Typical gap**: ~5-10% of daily trials. Not a bug — different counting methodologies.
+
+
 ## How to compare numbers across views
 
 ### CRM Truth "Subscriptions" includes ALL subscription rows

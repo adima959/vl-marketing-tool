@@ -108,6 +108,40 @@ function computeCrmMetrics(rows: SaleRow[]): CrmMetrics {
 /** Empty CRM metrics (used for rows with no CRM match) */
 const EMPTY_CRM: CrmMetrics = { customers: 0, upsellNewCustomers: 0, subscriptions: 0, upsellSubs: 0, upsellSubTrials: 0, trials: 0, trialsApproved: 0, onHold: 0, ots: 0, otsApproved: 0, upsells: 0, upsellsApproved: 0, upsellsDeleted: 0 };
 
+/** Add scaled CRM metrics from source into target accumulator */
+function addScaledCrm(target: CrmMetrics, source: CrmMetrics, proportion: number): void {
+  target.customers += source.customers * proportion;
+  target.upsellNewCustomers += source.upsellNewCustomers * proportion;
+  target.subscriptions += source.subscriptions * proportion;
+  target.upsellSubs += source.upsellSubs * proportion;
+  target.upsellSubTrials += source.upsellSubTrials * proportion;
+  target.trials += source.trials * proportion;
+  target.trialsApproved += source.trialsApproved * proportion;
+  target.onHold += source.onHold * proportion;
+  target.ots += source.ots * proportion;
+  target.otsApproved += source.otsApproved * proportion;
+  target.upsells += source.upsells * proportion;
+  target.upsellsApproved += source.upsellsApproved * proportion;
+  target.upsellsDeleted += source.upsellsDeleted * proportion;
+}
+
+/** Group CRM sales by a key built from the given dimensions */
+function groupCrmSales(sales: SaleRow[], dims: string[]): Map<string, SaleRow[]> {
+  const groups = new Map<string, SaleRow[]>();
+  for (const sale of sales) {
+    const parts: string[] = [];
+    for (const dim of dims) parts.push(CRM_MATCH_FIELDS[dim](sale));
+    const key = parts.join('::');
+    let group = groups.get(key);
+    if (!group) {
+      group = [];
+      groups.set(key, group);
+    }
+    group.push(sale);
+  }
+  return groups;
+}
+
 /**
  * Attach CRM metrics to each marketing flat row by matching on ad tracking dimensions.
  *
@@ -116,6 +150,8 @@ const EMPTY_CRM: CrmMetrics = { customers: 0, upsellNewCustomers: 0, subscriptio
  * 3. For each marketing row, looks up the matching CRM group
  * 4. If classification dims cause multiple rows with the same tracking key,
  *    distributes CRM metrics proportionally by impressions
+ * 5. Unmatched CRM sales fall back to progressively shorter keys (e.g. network::campaign
+ *    then network) and are distributed proportionally by impressions at that level
  */
 export function attachCrmMetrics(
   flatRows: MarketingFlatRow[],
@@ -124,87 +160,104 @@ export function attachCrmMetrics(
 ): MarketingFlatRow[] {
   if (crmSales.length === 0) return flatRows;
 
-  // Determine which dimensions participate in CRM matching
   const matchDims = dimensions.filter(d => CRM_MATCH_FIELDS[d]);
   if (matchDims.length === 0) return flatRows;
 
-  // Group CRM sales by matching key
-  const crmGroups = new Map<string, SaleRow[]>();
-  for (const sale of crmSales) {
-    const keyParts: string[] = [];
-    for (const dim of matchDims) {
-      keyParts.push(CRM_MATCH_FIELDS[dim](sale));
-    }
-    const key = keyParts.join('::');
-    let group = crmGroups.get(key);
-    if (!group) {
-      group = [];
-      crmGroups.set(key, group);
-    }
-    group.push(sale);
-  }
+  // Per-row CRM accumulator
+  const accum: CrmMetrics[] = flatRows.map(() => ({
+    customers: 0, upsellNewCustomers: 0, subscriptions: 0, upsellSubs: 0,
+    upsellSubTrials: 0, trials: 0, trialsApproved: 0, onHold: 0,
+    ots: 0, otsApproved: 0, upsells: 0, upsellsApproved: 0, upsellsDeleted: 0,
+  }));
 
-  // Compute CRM metrics per group
-  const crmMetricsMap = new Map<string, CrmMetrics>();
-  for (const [key, group] of crmGroups) {
-    crmMetricsMap.set(key, computeCrmMetrics(group));
-  }
+  // Precompute each marketing row's full match key
+  const marketingKeys: string[] = flatRows.map(row => buildMarketingMatchKey(row, matchDims));
+  const marketingKeySet = new Set(marketingKeys);
 
-  // Check if classification dimensions might cause duplicate tracking keys
-  const hasClassificationDims = dimensions.some(d => d === 'classifiedProduct' || d === 'classifiedCountry');
+  // Group CRM sales by full match key
+  const crmGroups = groupCrmSales(crmSales, matchDims);
 
-  if (!hasClassificationDims) {
-    // Simple case: 1:1 match between marketing rows and CRM groups
-    return flatRows.map(row => {
-      const keyParts: string[] = [];
-      for (const dim of matchDims) {
-        const field = MARKETING_MATCH_FIELDS[dim];
-        let val = String(row[field] ?? '');
-        if (dim === 'date') val = marketingDateToCrmDate(val);
-        keyParts.push(val);
-      }
-      const key = keyParts.join('::');
-      const crm = crmMetricsMap.get(key) ?? EMPTY_CRM;
-      return { ...row, ...prefixCrm(crm) };
-    });
-  }
+  const hasClassificationDims = dimensions.some(
+    d => d === 'classifiedProduct' || d === 'classifiedCountry',
+  );
 
-  // Classification dimensions present: distribute CRM proportionally by impressions
-  // First compute total impressions per tracking key
+  // ── Phase 1: Exact match ─────────────────────────────────────────────────
+  // Build impressions-by-key for proportional distribution
   const impressionsByKey = new Map<string, number>();
-  for (const row of flatRows) {
-    const key = buildMarketingMatchKey(row, matchDims);
-    impressionsByKey.set(key, (impressionsByKey.get(key) ?? 0) + (Number(row.impressions) || 0));
+  for (let i = 0; i < flatRows.length; i++) {
+    const key = marketingKeys[i];
+    impressionsByKey.set(key, (impressionsByKey.get(key) ?? 0) + (Number(flatRows[i].impressions) || 0));
   }
 
-  return flatRows.map(row => {
-    const key = buildMarketingMatchKey(row, matchDims);
-    const crm = crmMetricsMap.get(key);
-    if (!crm) return { ...row, ...prefixCrm(EMPTY_CRM) };
+  const matchedCrmKeys = new Set<string>();
 
-    const totalImpr = impressionsByKey.get(key) ?? 1;
-    const rowImpr = Number(row.impressions) || 0;
-    const proportion = totalImpr > 0 ? rowImpr / totalImpr : 0;
+  for (let i = 0; i < flatRows.length; i++) {
+    const key = marketingKeys[i];
+    const crmGroup = crmGroups.get(key);
+    if (!crmGroup) continue;
 
-    return {
-      ...row,
-      ...prefixCrm({
-        customers: crm.customers * proportion,
-        upsellNewCustomers: crm.upsellNewCustomers * proportion,
-        subscriptions: crm.subscriptions * proportion,
-        upsellSubs: crm.upsellSubs * proportion,
-        upsellSubTrials: crm.upsellSubTrials * proportion,
-        trials: crm.trials * proportion,
-        trialsApproved: crm.trialsApproved * proportion,
-        onHold: crm.onHold * proportion,
-        ots: crm.ots * proportion,
-        otsApproved: crm.otsApproved * proportion,
-        upsells: crm.upsells * proportion,
-        upsellsApproved: crm.upsellsApproved * proportion,
-        upsellsDeleted: crm.upsellsDeleted * proportion,
-      }),
-    };
-  });
+    matchedCrmKeys.add(key);
+    const crm = computeCrmMetrics(crmGroup);
+
+    if (hasClassificationDims) {
+      const totalImpr = impressionsByKey.get(key) ?? 1;
+      const rowImpr = Number(flatRows[i].impressions) || 0;
+      const proportion = totalImpr > 0 ? rowImpr / totalImpr : 0;
+      addScaledCrm(accum[i], crm, proportion);
+    } else {
+      addScaledCrm(accum[i], crm, 1);
+    }
+  }
+
+  // ── Phase 2: Fallback for unmatched CRM ──────────────────────────────────
+  // Collect CRM sales whose full key didn't match any marketing row
+  let unmatchedSales: SaleRow[] = [];
+  for (const [key, sales] of crmGroups) {
+    if (!matchedCrmKeys.has(key)) unmatchedSales.push(...sales);
+  }
+
+  // Try progressively shorter keys (remove rightmost match dim each round)
+  for (let level = matchDims.length - 1; level >= 1 && unmatchedSales.length > 0; level--) {
+    const fallbackDims = matchDims.slice(0, level);
+
+    // Build marketing impressions by fallback key
+    const fbImprByKey = new Map<string, number>();
+    const fbRowsByKey = new Map<string, number[]>();
+    for (let i = 0; i < flatRows.length; i++) {
+      const fbKey = buildMarketingMatchKey(flatRows[i], fallbackDims);
+      fbImprByKey.set(fbKey, (fbImprByKey.get(fbKey) ?? 0) + (Number(flatRows[i].impressions) || 0));
+      let indices = fbRowsByKey.get(fbKey);
+      if (!indices) {
+        indices = [];
+        fbRowsByKey.set(fbKey, indices);
+      }
+      indices.push(i);
+    }
+
+    // Group unmatched CRM by fallback key
+    const fbCrmGroups = groupCrmSales(unmatchedSales, fallbackDims);
+
+    const stillUnmatched: SaleRow[] = [];
+    for (const [fbKey, sales] of fbCrmGroups) {
+      const rowIndices = fbRowsByKey.get(fbKey);
+      if (!rowIndices) {
+        stillUnmatched.push(...sales);
+        continue;
+      }
+      // Distribute proportionally by impressions
+      const crm = computeCrmMetrics(sales);
+      const totalImpr = fbImprByKey.get(fbKey) ?? 0;
+      for (const idx of rowIndices) {
+        const rowImpr = Number(flatRows[idx].impressions) || 0;
+        const proportion = totalImpr > 0 ? rowImpr / totalImpr : 0;
+        addScaledCrm(accum[idx], crm, proportion);
+      }
+    }
+    unmatchedSales = stillUnmatched;
+  }
+
+  // ── Apply accumulated CRM to flat rows ───────────────────────────────────
+  return flatRows.map((row, i) => ({ ...row, ...prefixCrm(accum[i]) }));
 }
 
 function buildMarketingMatchKey(row: MarketingFlatRow, matchDims: string[]): string {
