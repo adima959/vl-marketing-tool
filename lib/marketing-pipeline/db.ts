@@ -32,6 +32,27 @@ import type {
 // Types
 // ════════════════════════════════════════════════════════════════════
 
+/** Build dynamic SET clauses from a camelCase→snake_case field map. */
+function buildDynamicUpdate(
+  data: Record<string, unknown>,
+  fieldMap: Record<string, string>,
+  opts?: { jsonbFields?: Set<string>; startIndex?: number },
+): { setClauses: string[]; values: unknown[]; nextIndex: number } {
+  const setClauses: string[] = [];
+  const values: unknown[] = [];
+  let idx = opts?.startIndex ?? 1;
+  const jsonb = opts?.jsonbFields;
+
+  for (const [jsKey, dbCol] of Object.entries(fieldMap)) {
+    const val = data[jsKey];
+    if (val !== undefined) {
+      setClauses.push(`${dbCol} = $${idx++}`);
+      values.push(jsonb?.has(jsKey) ? JSON.stringify(val) : val);
+    }
+  }
+  return { setClauses, values, nextIndex: idx };
+}
+
 export interface PipelineBoardFilters {
   ownerId?: string;
   productId?: string;
@@ -310,7 +331,7 @@ export async function getPipelineMessageDetail(id: string): Promise<MessageDetai
   // Fetch campaigns, assets, creatives, geos, cpa targets in parallel
   const [campaignRows, assetRows, creativeRows, geoRows, cpaTargetRows] = await Promise.all([
     executeQuery<Record<string, unknown>>(`
-      SELECT id, message_id, channel, geo, status, spend, conversions, cpa,
+      SELECT id, message_id, channel, geo, spend, conversions, cpa,
              external_id, external_url, last_data_update, created_at, updated_at
       FROM app_pipeline_campaigns
       WHERE message_id = $1 AND deleted_at IS NULL
@@ -359,41 +380,21 @@ export async function getPipelineMessageDetail(id: string): Promise<MessageDetai
 // ════════════════════════════════════════════════════════════════════
 
 export async function updatePipelineMessage(id: string, data: UpdatePipelineMessageData): Promise<MessageDetail | null> {
-  const setClauses: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
+  const { setClauses, values, nextIndex } = buildDynamicUpdate(
+    data as Record<string, unknown>,
+    {
+      name: 'name', description: 'description', angleId: 'angle_id',
+      specificPainPoint: 'specific_pain_point', corePromise: 'core_promise',
+      keyIdea: 'key_idea', primaryHookDirection: 'primary_hook_direction',
+      headlines: 'headlines', copyVariations: 'copy_variations',
+      status: 'status', pipelineStage: 'pipeline_stage',
+      verdictType: 'verdict_type', verdictNotes: 'verdict_notes',
+      spendThreshold: 'spend_threshold', notes: 'notes',
+    },
+    { jsonbFields: new Set(['copyVariations']) },
+  );
 
-  const fieldMap: Record<string, string> = {
-    name: 'name',
-    description: 'description',
-    angleId: 'angle_id',
-    specificPainPoint: 'specific_pain_point',
-    corePromise: 'core_promise',
-    keyIdea: 'key_idea',
-    primaryHookDirection: 'primary_hook_direction',
-    headlines: 'headlines',
-    copyVariations: 'copy_variations',
-    status: 'status',
-    pipelineStage: 'pipeline_stage',
-    verdictType: 'verdict_type',
-    verdictNotes: 'verdict_notes',
-    spendThreshold: 'spend_threshold',
-    notes: 'notes',
-  };
-
-  const jsonbFields = new Set(['copyVariations']);
-
-  for (const [jsKey, dbCol] of Object.entries(fieldMap)) {
-    const val = data[jsKey as keyof UpdatePipelineMessageData];
-    if (val !== undefined) {
-      setClauses.push(`${dbCol} = $${paramIndex++}`);
-      values.push(jsonbFields.has(jsKey) ? JSON.stringify(val) : val);
-    }
-  }
-
-  if (setClauses.length === 0) {
-    return getPipelineMessageDetail(id);
-  }
+  if (setClauses.length === 0) return getPipelineMessageDetail(id);
 
   setClauses.push(`updated_at = NOW()`);
   values.push(id);
@@ -401,7 +402,7 @@ export async function updatePipelineMessage(id: string, data: UpdatePipelineMess
   await executeQuery(`
     UPDATE app_pipeline_messages
     SET ${setClauses.join(', ')}
-    WHERE id = $${paramIndex} AND deleted_at IS NULL
+    WHERE id = $${nextIndex} AND deleted_at IS NULL
   `, values);
 
   return getPipelineMessageDetail(id);
@@ -521,7 +522,7 @@ export async function createPipelineCampaign(data: CreateCampaignRequest): Promi
   const rows = await executeQuery<Record<string, unknown>>(`
     INSERT INTO app_pipeline_campaigns (message_id, name, channel, geo, external_id, external_url)
     VALUES ($1, $2, $3, $4, $5, $6)
-    RETURNING id, message_id, name, channel, geo, status, spend, conversions, cpa,
+    RETURNING id, message_id, name, channel, geo, spend, conversions, cpa,
               external_id, external_url, last_data_update, created_at, updated_at
   `, [data.messageId, data.name || null, data.channel, data.geo, data.externalId || null, data.externalUrl || null]);
 
@@ -530,7 +531,7 @@ export async function createPipelineCampaign(data: CreateCampaignRequest): Promi
 
 export async function getPipelineCampaignById(id: string): Promise<Campaign | null> {
   const rows = await executeQuery<Record<string, unknown>>(`
-    SELECT id, message_id, name, channel, geo, status, spend, conversions, cpa,
+    SELECT id, message_id, name, channel, geo, spend, conversions, cpa,
            external_id, external_url, last_data_update, created_at, updated_at
     FROM app_pipeline_campaigns
     WHERE id = $1 AND deleted_at IS NULL
@@ -539,33 +540,18 @@ export async function getPipelineCampaignById(id: string): Promise<Campaign | nu
 }
 
 export async function updatePipelineCampaign(id: string, data: UpdateCampaignData): Promise<Campaign> {
-  const setClauses: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
-
-  const fieldMap: Record<string, string> = {
-    name: 'name',
-    channel: 'channel',
-    geo: 'geo',
-    externalId: 'external_id',
-    externalUrl: 'external_url',
-    status: 'status',
-    spend: 'spend',
-    conversions: 'conversions',
-    cpa: 'cpa',
-  };
-
-  for (const [jsKey, dbCol] of Object.entries(fieldMap)) {
-    const val = data[jsKey as keyof UpdateCampaignData];
-    if (val !== undefined) {
-      setClauses.push(`${dbCol} = $${paramIndex++}`);
-      values.push(val);
-    }
-  }
+  const { setClauses, values, nextIndex } = buildDynamicUpdate(
+    data as Record<string, unknown>,
+    {
+      name: 'name', channel: 'channel', geo: 'geo',
+      externalId: 'external_id', externalUrl: 'external_url',
+      spend: 'spend', conversions: 'conversions', cpa: 'cpa',
+    },
+  );
 
   if (setClauses.length === 0) {
     const existing = await executeQuery<Record<string, unknown>>(`
-      SELECT id, message_id, channel, geo, status, spend, conversions, cpa,
+      SELECT id, message_id, channel, geo, spend, conversions, cpa,
              external_id, external_url, last_data_update, created_at, updated_at
       FROM app_pipeline_campaigns WHERE id = $1 AND deleted_at IS NULL
     `, [id]);
@@ -579,8 +565,8 @@ export async function updatePipelineCampaign(id: string, data: UpdateCampaignDat
   const rows = await executeQuery<Record<string, unknown>>(`
     UPDATE app_pipeline_campaigns
     SET ${setClauses.join(', ')}
-    WHERE id = $${paramIndex} AND deleted_at IS NULL
-    RETURNING id, message_id, channel, geo, status, spend, conversions, cpa,
+    WHERE id = $${nextIndex} AND deleted_at IS NULL
+    RETURNING id, message_id, channel, geo, spend, conversions, cpa,
               external_id, external_url, last_data_update, created_at, updated_at
   `, values);
 
@@ -669,19 +655,32 @@ export async function deletePipelineCreative(id: string): Promise<void> {
 
 export async function getProductById(id: string): Promise<Product | null> {
   const rows = await executeQuery<Record<string, unknown>>(`
-    SELECT id, name, sku, description, notes, color, status, owner_id,
-           cpa_target_no, cpa_target_se, cpa_target_dk, drive_folder_id, created_at, updated_at
-    FROM app_products
-    WHERE id = $1 AND deleted_at IS NULL
+    SELECT
+      p.id, p.name, p.sku, p.description, p.notes, p.color, p.status,
+      p.owner_id, p.drive_folder_id, p.assets_folder_id, p.created_at, p.updated_at,
+      p.cpa_target_no, p.cpa_target_se, p.cpa_target_dk,
+      u.id AS user_id, u.name AS user_name, u.email AS user_email
+    FROM app_products p
+    LEFT JOIN app_users u ON u.id = p.owner_id
+    WHERE p.id = $1 AND p.deleted_at IS NULL
   `, [id]);
-  return rows.length > 0 ? toCamelCase<Product>(rows[0]) : null;
+  if (rows.length === 0) return null;
+  const row = rows[0];
+  const owner = row.user_id ? {
+    id: row.user_id as string,
+    name: row.user_name as string || '',
+    email: row.user_email as string || '',
+  } : undefined;
+  const { user_id, user_name, user_email, ...productFields } = row;
+  const product = toCamelCase<Product>(productFields);
+  return { ...product, owner } as Product;
 }
 
 export async function getProducts(statusFilter?: ProductStatus | null): Promise<Product[]> {
   const rows = await executeQuery<Record<string, unknown>>(`
     SELECT
       p.id, p.name, p.sku, p.description, p.notes, p.color, p.status,
-      p.owner_id, p.drive_folder_id, p.created_at, p.updated_at,
+      p.owner_id, p.drive_folder_id, p.assets_folder_id, p.created_at, p.updated_at,
       u.id AS user_id, u.name AS user_name, u.email AS user_email
     FROM app_products p
     LEFT JOIN app_users u ON u.id = p.owner_id
@@ -710,7 +709,7 @@ export async function createProduct(data: CreateProductRequest): Promise<Product
   const rows = await executeQuery<Record<string, unknown>>(`
     INSERT INTO app_products (name, sku, description, notes, color, status, owner_id)
     VALUES ($1, $2, $3, $4, $5, $6, $7)
-    RETURNING id, name, sku, description, notes, color, status, owner_id, drive_folder_id, created_at, updated_at
+    RETURNING id, name, sku, description, notes, color, status, owner_id, drive_folder_id, assets_folder_id, created_at, updated_at
   `, [
     data.name,
     data.sku || null,
@@ -725,27 +724,20 @@ export async function createProduct(data: CreateProductRequest): Promise<Product
 
 export async function updateProduct(
   id: string,
-  data: Partial<Pick<Product, 'name' | 'sku' | 'description' | 'notes' | 'color' | 'status' | 'ownerId' | 'driveFolderId'>>,
+  data: Partial<Pick<Product, 'name' | 'sku' | 'description' | 'notes' | 'color' | 'status' | 'ownerId' | 'driveFolderId' | 'assetsFolderId'>>,
 ): Promise<Product> {
-  const fieldMap: Record<string, string> = {
-    name: 'name', sku: 'sku', description: 'description',
-    notes: 'notes', color: 'color', status: 'status', ownerId: 'owner_id',
-    driveFolderId: 'drive_folder_id',
-  };
-  const setClauses: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
-
-  for (const [key, col] of Object.entries(fieldMap)) {
-    if (key in data) {
-      setClauses.push(`${col} = $${paramIndex++}`);
-      values.push((data as Record<string, unknown>)[key] ?? null);
-    }
-  }
+  const { setClauses, values, nextIndex } = buildDynamicUpdate(
+    data as Record<string, unknown>,
+    {
+      name: 'name', sku: 'sku', description: 'description',
+      notes: 'notes', color: 'color', status: 'status', ownerId: 'owner_id',
+      driveFolderId: 'drive_folder_id', assetsFolderId: 'assets_folder_id',
+    },
+  );
 
   if (setClauses.length === 0) {
     const existing = await executeQuery<Record<string, unknown>>(`
-      SELECT id, name, sku, description, notes, color, status, owner_id, drive_folder_id, created_at, updated_at
+      SELECT id, name, sku, description, notes, color, status, owner_id, drive_folder_id, assets_folder_id, created_at, updated_at
       FROM app_products WHERE id = $1 AND deleted_at IS NULL
     `, [id]);
     if (existing.length === 0) throw new Error(`Product not found: ${id}`);
@@ -758,8 +750,8 @@ export async function updateProduct(
   const rows = await executeQuery<Record<string, unknown>>(`
     UPDATE app_products
     SET ${setClauses.join(', ')}
-    WHERE id = $${paramIndex} AND deleted_at IS NULL
-    RETURNING id, name, sku, description, notes, color, status, owner_id, drive_folder_id, created_at, updated_at
+    WHERE id = $${nextIndex} AND deleted_at IS NULL
+    RETURNING id, name, sku, description, notes, color, status, owner_id, drive_folder_id, assets_folder_id, created_at, updated_at
   `, values);
   if (rows.length === 0) throw new Error(`Product not found: ${id}`);
   return toCamelCase<Product>(rows[0]);
@@ -773,22 +765,10 @@ export async function updateProductCpaTargets(
   id: string,
   data: { cpaTargetNo?: number; cpaTargetSe?: number; cpaTargetDk?: number },
 ): Promise<Product> {
-  const setClauses: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
-
-  if (data.cpaTargetNo !== undefined) {
-    setClauses.push(`cpa_target_no = $${paramIndex++}`);
-    values.push(data.cpaTargetNo);
-  }
-  if (data.cpaTargetSe !== undefined) {
-    setClauses.push(`cpa_target_se = $${paramIndex++}`);
-    values.push(data.cpaTargetSe);
-  }
-  if (data.cpaTargetDk !== undefined) {
-    setClauses.push(`cpa_target_dk = $${paramIndex++}`);
-    values.push(data.cpaTargetDk);
-  }
+  const { setClauses, values, nextIndex } = buildDynamicUpdate(
+    data as Record<string, unknown>,
+    { cpaTargetNo: 'cpa_target_no', cpaTargetSe: 'cpa_target_se', cpaTargetDk: 'cpa_target_dk' },
+  );
 
   if (setClauses.length === 0) {
     const existing = await executeQuery<Record<string, unknown>>(`
@@ -806,7 +786,7 @@ export async function updateProductCpaTargets(
   const rows = await executeQuery<Record<string, unknown>>(`
     UPDATE app_products
     SET ${setClauses.join(', ')}
-    WHERE id = $${paramIndex} AND deleted_at IS NULL
+    WHERE id = $${nextIndex} AND deleted_at IS NULL
     RETURNING id, name, description, color, owner_id, cpa_target_no, cpa_target_se, cpa_target_dk,
               drive_folder_id, created_at, updated_at
   `, values);
@@ -970,24 +950,10 @@ export async function updateMessageGeo(
   id: string,
   data: Partial<{ stage: GeoStage; spendThreshold: number; notes: string; launchedAt: string }>,
 ): Promise<MessageGeo> {
-  const setClauses: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
-
-  const fieldMap: Record<string, string> = {
-    stage: 'stage',
-    spendThreshold: 'spend_threshold',
-    notes: 'notes',
-    launchedAt: 'launched_at',
-  };
-
-  for (const [jsKey, dbCol] of Object.entries(fieldMap)) {
-    const val = data[jsKey as keyof typeof data];
-    if (val !== undefined) {
-      setClauses.push(`${dbCol} = $${paramIndex++}`);
-      values.push(val);
-    }
-  }
+  const { setClauses, values, nextIndex } = buildDynamicUpdate(
+    data as Record<string, unknown>,
+    { stage: 'stage', spendThreshold: 'spend_threshold', notes: 'notes', launchedAt: 'launched_at' },
+  );
 
   if (setClauses.length === 0) {
     const existing = await executeQuery<Record<string, unknown>>(`
@@ -1005,7 +971,7 @@ export async function updateMessageGeo(
   const rows = await executeQuery<Record<string, unknown>>(`
     UPDATE app_pipeline_message_geos
     SET ${setClauses.join(', ')}
-    WHERE id = $${paramIndex} AND deleted_at IS NULL
+    WHERE id = $${nextIndex} AND deleted_at IS NULL
     RETURNING id, message_id, geo, stage, is_primary, launched_at,
               spend_threshold, notes, drive_folder_id, created_at, updated_at
   `, values);
@@ -1095,14 +1061,25 @@ async function fetchUsers(): Promise<PipelineUser[]> {
 
 async function fetchProductsWithCpa(productId?: string): Promise<Product[]> {
   const rows = await executeQuery<Record<string, unknown>>(`
-    SELECT id, name, description, color, owner_id, cpa_target_no, cpa_target_se, cpa_target_dk,
-           drive_folder_id, created_at, updated_at
-    FROM app_products
-    WHERE deleted_at IS NULL
-      AND ($1::uuid IS NULL OR id = $1)
-    ORDER BY name
+    SELECT p.id, p.name, p.sku, p.description, p.notes, p.color, p.owner_id,
+           p.cpa_target_no, p.cpa_target_se, p.cpa_target_dk,
+           p.drive_folder_id, p.assets_folder_id, p.created_at, p.updated_at,
+           u.id AS user_id, u.name AS user_name, u.email AS user_email
+    FROM app_products p
+    LEFT JOIN app_users u ON u.id = p.owner_id
+    WHERE p.deleted_at IS NULL
+      AND ($1::uuid IS NULL OR p.id = $1)
+    ORDER BY p.name
   `, [productId || null]);
-  const products = rowsToCamelCase<Product>(rows);
+  const products = rows.map(row => {
+    const owner = row.user_id ? {
+      id: row.user_id as string,
+      name: row.user_name as string || '',
+      email: row.user_email as string || '',
+    } : undefined;
+    const { user_id, user_name, user_email, ...productFields } = row;
+    return { ...toCamelCase<Product>(productFields), owner } as Product;
+  });
 
   // Attach per-geo-channel CPA targets (graceful if table doesn't exist yet)
   if (products.length > 0) {

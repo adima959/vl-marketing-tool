@@ -1,27 +1,19 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { useDebouncedField } from '@/hooks/useDebouncedField';
+import { Tooltip } from 'antd';
 import { BulbOutlined, FileTextOutlined, RightOutlined, DownOutlined } from '@ant-design/icons';
 import { Languages } from 'lucide-react';
-import { RichEditableField } from '@/components/ui/RichEditableField';
-import type { MessageDetail, CopyVariation, Campaign, CampaignPerformanceData, Geography, GeoStage, Channel } from '@/types';
+import { NotionEditor } from '@/components/ui/NotionEditor';
+import { usePipelineStore } from '@/stores/pipelineStore';
+import type { MessageDetail, CopyVariation } from '@/types';
 import { CopyVariationsSection } from './CopyVariationsSection';
-import { GeoTracksSection } from './GeoTracksSection';
 import styles from './ConceptDetailPanel.module.css';
 
 interface StrategyCopyTabProps {
   message: MessageDetail;
-  performanceData: Record<string, CampaignPerformanceData>;
-  performanceLoading: boolean;
-  dateRange: { start: Date; end: Date };
-  onDateRangeChange: (range: { start: Date; end: Date }) => void;
   onFieldChange: (field: string, value: string | string[] | CopyVariation[]) => void;
-  onAddGeo: (messageId: string, data: { geo: Geography }) => void;
-  onUpdateGeoStage: (geoId: string, data: { stage: GeoStage }) => void;
-  onRemoveGeo: (geoId: string) => void;
-  onDeleteCampaign: (id: string) => void;
-  onAddCampaign: (messageId: string, data: { name?: string; channel: Channel; geo: Geography; externalId?: string }) => void;
-  onCampaignClick: (campaign: Campaign) => void;
 }
 
 type TabType = 'hypothesis' | 'copy' | 'notes' | null;
@@ -55,32 +47,44 @@ const HYPOTHESIS_FIELDS = [
 
 export function StrategyCopyTab({
   message,
-  performanceData,
-  performanceLoading,
-  dateRange,
-  onDateRangeChange,
   onFieldChange,
-  onAddGeo,
-  onUpdateGeoStage,
-  onRemoveGeo,
-  onDeleteCampaign,
-  onAddCampaign,
-  onCampaignClick,
 }: StrategyCopyTabProps): React.ReactNode {
   // All tabs closed by default
   const [activeTab, setActiveTab] = useState<TabType>(null);
+  const updateMessageField = usePipelineStore(s => s.updateMessageField);
 
   const handleVariationsChange = useCallback((variations: CopyVariation[]): void => {
     onFieldChange('copyVariations', variations);
   }, [onFieldChange]);
 
-  const handleNotesChange = useCallback((value: string): void => {
-    onFieldChange('notes', value);
-  }, [onFieldChange]);
+  // Notes — saved directly via store (NotionEditor handles debounce + indicator)
+  const handleNotesSave = useCallback(async (value: string): Promise<void> => {
+    await updateMessageField(message.id, 'notes', value);
+  }, [message.id, updateMessageField]);
+
+  // Local state for hypothesis fields — buffers typing, syncs after idle
+  const [localFields, setLocalFields] = useState<Record<string, string>>({});
+
+  // Sync from message → local state when message changes (e.g. on open, after navigation)
+  const prevMessageId = useRef<string | null>(null);
+  useEffect(() => {
+    if (message.id !== prevMessageId.current) {
+      prevMessageId.current = message.id;
+      setLocalFields({});
+    }
+  }, [message.id]);
+
+  const debouncedSync = useDebouncedField(
+    useCallback((key: string, value: string | string[] | unknown[]) => {
+      onFieldChange(key, value as string);
+    }, [onFieldChange]),
+    3000,
+  );
 
   const handleFieldChange = useCallback((key: string, value: string): void => {
-    onFieldChange(key, value);
-  }, [onFieldChange]);
+    setLocalFields(prev => ({ ...prev, [key]: value }));
+    debouncedSync(key, value);
+  }, [debouncedSync]);
 
   const toggleTab = (tab: TabType) => {
     setActiveTab(activeTab === tab ? null : tab);
@@ -134,20 +138,20 @@ export function StrategyCopyTab({
               {activeTab === 'hypothesis' && (
                 <div className={styles.hypothesisWrapper}>
                   <div className={styles.hypothesisCompact}>
-                    {HYPOTHESIS_FIELDS.map((field, index) => (
+                    {HYPOTHESIS_FIELDS.map((field) => (
                       <div key={field.key} className={styles.hypothesisRow}>
                         <div className={styles.hypothesisLabel}>
-                          <span className={styles.hypothesisLabelText}>{field.label}</span>
+                          <Tooltip title={field.placeholder} mouseEnterDelay={0.3} placement="top">
+                            <span className={styles.hypothesisLabelText}>{field.label}</span>
+                          </Tooltip>
                         </div>
                         <div className={styles.hypothesisInput}>
                           <textarea
                             className={styles.hypothesisTextarea}
-                            placeholder={field.placeholder}
-                            value={(message[field.key] as string) || ''}
+                            value={localFields[field.key] ?? ((message[field.key] as string) || '')}
                             onChange={(e) => handleFieldChange(field.key, e.target.value)}
                             rows={2}
                           />
-                          <p className={styles.hypothesisHelper}>{field.helper}</p>
                         </div>
                       </div>
                     ))}
@@ -160,19 +164,16 @@ export function StrategyCopyTab({
                   <CopyVariationsSection
                     variations={message.copyVariations || []}
                     onChange={handleVariationsChange}
-                    open={true}
-                    onToggle={() => {}}
                   />
                 </div>
               )}
 
               {activeTab === 'notes' && (
                 <div className={styles.notesWrapper}>
-                  <RichEditableField
+                  <NotionEditor
                     value={(message.notes as string) || ''}
-                    onChange={handleNotesChange}
+                    onSave={handleNotesSave}
                     placeholder="Add notes about this concept, learnings, hypotheses to test..."
-                    maxCollapsedHeight={0}
                   />
                 </div>
               )}
@@ -180,21 +181,6 @@ export function StrategyCopyTab({
           )}
         </div>
       </div>
-
-      {/* Geo Tracks Section - Separate from strategy tabs */}
-      <GeoTracksSection
-        message={message}
-        performanceData={performanceData}
-        performanceLoading={performanceLoading}
-        dateRange={dateRange}
-        onDateRangeChange={onDateRangeChange}
-        onAddGeo={onAddGeo}
-        onUpdateGeoStage={onUpdateGeoStage}
-        onRemoveGeo={onRemoveGeo}
-        onDeleteCampaign={onDeleteCampaign}
-        onAddCampaign={onAddCampaign}
-        onCampaignClick={onCampaignClick}
-      />
     </>
   );
 }

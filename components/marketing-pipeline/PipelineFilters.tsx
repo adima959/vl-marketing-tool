@@ -42,7 +42,10 @@ export function PipelineFilters() {
         <div className={styles.filterBar}>
           <div className={styles.chipGroup}>
             <span className={styles.chipGroupLabel}>Owner</span>
-            {users.map(u => (
+            {(ownerFilter !== 'all'
+              ? users.filter(u => u.id === ownerFilter)
+              : users
+            ).map(u => (
               <button
                 key={u.id}
                 type="button"
@@ -59,6 +62,7 @@ export function PipelineFilters() {
           <div className={styles.chipGroup}>
             <span className={styles.chipGroupLabel}>Network</span>
             {Object.entries(CHANNEL_CONFIG)
+              .filter(([key]) => channelFilters.length === 0 || channelFilters.includes(key))
               .map(([key, config]) => (
                 <button
                   key={key}
@@ -75,6 +79,7 @@ export function PipelineFilters() {
           <div className={styles.chipGroup}>
             <span className={styles.chipGroupLabel}>Country</span>
             {Object.entries(GEO_CONFIG)
+              .filter(([key]) => geoFilters.length === 0 || geoFilters.includes(key))
               .map(([key, config]) => (
                 <button
                   key={key}
@@ -93,7 +98,10 @@ export function PipelineFilters() {
           <div className={styles.filterBarSecondary}>
             <div className={styles.chipGroup}>
               <span className={styles.chipGroupLabel}>Product</span>
-              {filteredProducts.map(p => (
+              {(productFilter !== 'all'
+                ? filteredProducts.filter(p => p.id === productFilter)
+                : filteredProducts
+              ).map(p => (
                 <button
                   key={p.id}
                   type="button"

@@ -1,0 +1,229 @@
+/* ══════════════════════════════════════════════════════════
+   CopyVariationsSection — spreadsheet-style copy table
+   ══════════════════════════════════════════════════════════ */
+
+/* Scroll wrapper */
+.copyTableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  background: var(--color-background-primary);
+}
+
+.copyTableWrap::-webkit-scrollbar {
+  height: 5px;
+}
+
+.copyTableWrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.copyTableWrap::-webkit-scrollbar-thumb {
+  background: var(--color-gray-200);
+  border-radius: 3px;
+}
+
+/* Inner table — fixed-width cells in flex rows */
+.copyTable {
+  --ct-cell: 260px;
+  --ct-delete: 44px;
+  min-width: max-content;
+}
+
+/* ── Section group header row ── */
+.ctSectionRow {
+  display: flex;
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.ctSectionCell {
+  width: calc(4 * var(--ct-cell));
+  flex-shrink: 0;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-gray-500);
+  background: var(--color-gray-50);
+  border-left: 1px solid var(--color-gray-200);
+}
+
+.ctSectionCell:nth-child(2) {
+  border-left: none;
+}
+
+.ctDeleteCol {
+  width: var(--ct-delete);
+  flex-shrink: 0;
+  border-right: 1px solid var(--color-gray-200);
+}
+
+/* ── Language sub-header row ── */
+.ctLangRow {
+  display: flex;
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.ctLangCell {
+  width: var(--ct-cell);
+  flex-shrink: 0;
+  padding: 4px 12px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-gray-400);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-left: 1px solid var(--color-gray-200);
+}
+
+/* First lang cell under each section gets heavier border (offset by delete col) */
+.ctLangCell:nth-child(4n + 2) {
+  border-left-color: var(--color-gray-300);
+}
+
+.ctLangCell:nth-child(2) {
+  border-left: none;
+}
+
+/* ── Data row (one per variation) ── */
+.ctDataRow {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.ctDataRow:last-child {
+  border-bottom: none;
+}
+
+.ctDataRow:hover {
+  background: var(--color-gray-50);
+}
+
+.ctCell {
+  width: var(--ct-cell);
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-left: 1px solid var(--color-gray-200);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-primary);
+}
+
+/* Reset EditableField wrapper inside copy table cells */
+.ctCell > div {
+  margin-left: 0 !important;
+  width: 100% !important;
+}
+
+/* Reset input styles inside copy table cells */
+.ctCell :global(.ant-input),
+.ctCell :global(.ant-input):focus,
+.ctCell :global(.ant-input):hover,
+.ctCell :global(.ant-input-textarea) textarea,
+.ctCell :global(.ant-input-textarea) textarea:focus,
+.ctCell :global(.ant-input-textarea) textarea:hover,
+.ctCell :global(.ant-input-affix-wrapper),
+.ctCell :global(.ant-input-affix-wrapper):focus,
+.ctCell :global(.ant-input-affix-wrapper-focused) {
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  padding: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+}
+
+/* Section boundary — heavier border (offset by delete col) */
+.ctCell:nth-child(4n + 2) {
+  border-left-color: var(--color-gray-300);
+}
+
+.ctCell:nth-child(2) {
+  border-left: none;
+}
+
+.ctDeleteBtn {
+  width: var(--ct-delete);
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 6px;
+  border-right: 1px solid var(--color-gray-200);
+}
+
+.ctDeleteBtn button {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  color: var(--color-gray-400);
+  transition: all var(--transition-fast);
+  font-size: 13px;
+  opacity: 0;
+}
+
+.ctDataRow:hover .ctDeleteBtn button {
+  opacity: 1;
+}
+
+.ctDeleteBtn button:hover {
+  background: var(--color-gray-100);
+  color: var(--color-status-red);
+}
+
+/* Auto-translate button inside ENG cells */
+.ctTranslateBtn {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-primary-600);
+  transition: all var(--transition-fast);
+}
+
+.ctTranslateBtn:hover {
+  background: var(--color-primary-50);
+  color: var(--color-primary-700);
+}
+
+.ctTranslateBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Loading state for target language cells during translation */
+.ctTranslatingCell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 11px;
+  color: var(--color-gray-400);
+  animation: ctPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes ctPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Empty state */
+.copyVariationsEmpty {
+  padding: 24px 16px;
+  font-size: 12px;
+  color: var(--color-gray-400);
+  text-align: center;
+}

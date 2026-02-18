@@ -1,0 +1,500 @@
+/* ══════════════════════════════════════════════════════════
+   CampaignDetailContent — campaign performance detail view
+   ══════════════════════════════════════════════════════════ */
+
+.campaignDetailContent {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Campaign header ── */
+.cdHeader {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  background: var(--color-background-primary);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.cdHeaderMeta {
+  composes: detailHeaderMeta from './PipelinePanel.module.css';
+  font-size: 12px;
+  color: var(--color-gray-500);
+}
+
+.cdHeaderControls {
+  composes: headerControlsBase from './PipelinePanel.module.css';
+}
+
+.cdHeaderTitle {
+  composes: detailHeaderTitle from './PipelinePanel.module.css';
+  gap: 14px;
+}
+
+.cdCampaignName {
+  composes: pageTitle from './PipelinePanel.module.css';
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+a.cdCampaignName {
+  color: var(--color-gray-900);
+  transition: color var(--transition-fast);
+}
+
+a.cdCampaignName:hover {
+  color: var(--color-status-blue);
+}
+
+.cdNameLinkIcon {
+  font-size: 14px;
+  color: var(--color-gray-400);
+  opacity: 0;
+  transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+a.cdCampaignName:hover .cdNameLinkIcon {
+  opacity: 1;
+  color: var(--color-status-blue);
+}
+
+.cdMetaChannel {
+  font-weight: 500;
+  color: var(--color-gray-600);
+}
+
+.cdMetaSep {
+  color: var(--color-gray-300);
+}
+
+.cdMetaStatus {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  line-height: 16px;
+}
+
+.cdFunnelFluxLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: var(--color-status-funnelflux);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  opacity: 0.85;
+  transition: opacity var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.cdFunnelFluxLink:hover {
+  opacity: 1;
+}
+
+.cdEmpty {
+  padding: 40px 20px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--color-gray-400);
+  line-height: 1.5;
+}
+
+/* ── Metric sections (3 col unified) ── */
+.cdSections {
+  composes: whiteBox from './PipelinePanel.module.css';
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.cdSection {
+  display: flex;
+  flex-direction: column;
+}
+
+.cdSection + .cdSection {
+  border-left: 1px solid var(--color-gray-200);
+}
+
+.cdSectionTitle {
+  composes: listHeader from './PipelinePanel.module.css';
+  composes: sectionLabel from './PipelinePanel.module.css';
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.cdSectionIcon {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+/* Section color variants (ad perf, on-page, crm) */
+.cdSectionBlue .cdSectionIcon { background: var(--color-status-blue-bg); color: var(--color-info); }
+.cdSectionBlue .cdSectionTitle span:last-child { color: var(--color-info); }
+
+.cdSectionAmber .cdSectionIcon { background: var(--color-status-amber-bg); color: var(--color-status-amber); }
+.cdSectionAmber .cdSectionTitle span:last-child { color: var(--color-status-amber); }
+
+.cdSectionGreen .cdSectionIcon { background: var(--color-status-green-bg); color: var(--color-status-green); }
+.cdSectionGreen .cdSectionTitle span:last-child { color: var(--color-status-green); }
+
+.cdMetricRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 4px 18px;
+}
+
+.cdSectionTitle + .cdMetricRow {
+  padding-top: 18px;
+}
+
+.cdSectionLinkWrap + * .cdMetricRow:last-child,
+.cdMetricRow:last-of-type {
+  padding-bottom: 12px;
+}
+
+.cdMetricLabel {
+  font-size: 13px;
+  color: var(--color-gray-500);
+}
+
+.cdMetricValue {
+  composes: tabularNums from './PipelinePanel.module.css';
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-gray-800);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cdMetricPrimary {
+  composes: tabularNums from './PipelinePanel.module.css';
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--color-gray-900);
+}
+
+.cdMetricGood {
+  color: var(--color-status-green);
+}
+
+.cdMetricSub {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--color-gray-400);
+}
+
+.cdHealthDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.cdSectionLinkWrap {
+  margin-top: auto;
+  padding: 0 18px 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.cdSectionLink {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--color-gray-400);
+  transition: color var(--transition-fast);
+  text-decoration: none;
+}
+
+.cdSectionLink:hover {
+  color: var(--color-primary-600);
+}
+
+/* ── Ad Sets Hierarchy — tabular A/B comparison layout ─────── */
+
+.v2Hierarchy {
+  composes: whiteBox from './PipelinePanel.module.css';
+  --v2-grid: 1fr 90px 70px 62px 52px;
+}
+
+/* Column header row */
+.v2ColHeader {
+  composes: listHeader from './PipelinePanel.module.css';
+  display: grid;
+  grid-template-columns: var(--v2-grid);
+  gap: 0 12px;
+}
+
+.v2ColLabel {
+  composes: sectionLabel from './PipelinePanel.module.css';
+  text-align: right;
+}
+
+.v2ColLabel:first-child {
+  text-align: left;
+}
+
+/* Adset row (level 0) */
+.v2AdsetRow {
+  composes: listRow from './PipelinePanel.module.css';
+  display: grid;
+  grid-template-columns: var(--v2-grid);
+  gap: 0 12px;
+  align-items: center;
+}
+
+.v2AdsetRow:last-child {
+  border-bottom: none;
+}
+
+.v2AdsetNameCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.v2Expand {
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: var(--color-gray-400);
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
+}
+
+.v2ExpandOpen {
+  transform: rotate(90deg);
+}
+
+.v2AdsetName {
+  composes: truncate from './PipelinePanel.module.css';
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-gray-800);
+}
+
+.v2MetricCell {
+  composes: tabularNums from './PipelinePanel.module.css';
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-gray-700);
+  text-align: right;
+}
+
+/* Spend share bar — inline indicator */
+.v2SpendCell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.v2SpendBar {
+  width: 100%;
+  height: 3px;
+  background: var(--color-gray-100);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.v2SpendBarFill {
+  height: 100%;
+  background: var(--color-accent-blue);
+  border-radius: 2px;
+  transition: width var(--transition-base);
+}
+
+/* Ad row (level 1) */
+.v2AdsContainer {
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+.v2AdRow {
+  display: grid;
+  grid-template-columns: var(--v2-grid);
+  gap: 0 12px;
+  align-items: center;
+  padding: 10px 18px 10px 42px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  border-top: 1px solid var(--color-gray-100);
+  background: var(--color-gray-50);
+}
+
+.v2AdRow:first-child {
+  border-top: none;
+}
+
+.v2AdRow:hover {
+  background: var(--color-background-hover);
+}
+
+.v2AdNameCell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.v2AdName {
+  composes: truncate from './PipelinePanel.module.css';
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-gray-600);
+}
+
+.v2AdMetric {
+  composes: tabularNums from './PipelinePanel.module.css';
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-gray-500);
+  text-align: right;
+}
+
+/* Landing page table (level 2) */
+.v2LpContainer {
+  background: var(--color-background-muted);
+  border-top: 1px solid var(--color-gray-200);
+  padding: 0 18px 0 54px;
+}
+
+.v2LpHeader {
+  display: grid;
+  grid-template-columns: 1fr 56px 56px 56px 56px 56px 48px;
+  gap: 0 10px;
+  padding: 8px 0 6px;
+  border-bottom: 1px solid var(--color-gray-300);
+}
+
+.v2LpColLabel {
+  composes: sectionLabel from './PipelinePanel.module.css';
+  text-align: right;
+}
+
+.v2LpColLabel:first-child {
+  text-align: left;
+}
+
+/* Entry page group */
+.v2LpGroup {
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.v2LpGroup:last-child {
+  border-bottom: none;
+}
+
+.v2LpRow {
+  display: grid;
+  grid-template-columns: 1fr 56px 56px 56px 56px 56px 48px;
+  gap: 0 10px;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.v2LpUrl {
+  composes: truncate from './PipelinePanel.module.css';
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-gray-700);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.v2LpUrl:hover {
+  color: var(--color-primary-600);
+}
+
+.v2LpLinkIcon {
+  font-size: 10px;
+  opacity: 0;
+  flex-shrink: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.v2LpUrl:hover .v2LpLinkIcon,
+.v2LpChildUrl:hover .v2LpLinkIcon {
+  opacity: 1;
+}
+
+/* Thank-you / child page — indented, lighter */
+.v2LpChildRow {
+  composes: v2LpRow;
+  padding-left: 18px;
+}
+
+.v2LpChildUrl {
+  composes: truncate from './PipelinePanel.module.css';
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-gray-500);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.v2LpChildUrl:hover {
+  color: var(--color-primary-600);
+}
+
+.v2LpChildArrow {
+  color: var(--color-gray-300);
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.v2LpMetricCell {
+  composes: tabularNums from './PipelinePanel.module.css';
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-gray-500);
+  text-align: right;
+}
+
+/* Highlight values that stand out */
+.v2LpHighlight {
+  composes: v2LpMetricCell;
+  color: var(--color-primary-700);
+  font-weight: 700;
+}
+
+.v2LpWarn {
+  composes: v2LpMetricCell;
+  color: var(--color-warning);
+  font-weight: 700;
+}
+
+/* Empty / loading states */
+.v2Empty {
+  padding: 20px 16px;
+  font-size: 13px;
+  color: var(--color-gray-400);
+  text-align: center;
+}

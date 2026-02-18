@@ -147,6 +147,7 @@ export interface Product extends BaseEntity {
   cpaTargetDk?: number;
   cpaTargets?: CpaTarget[];
   driveFolderId?: string | null;
+  assetsFolderId?: string | null;
 }
 
 // Angle (simplified from MainAngle - acts as a problem area folder)
@@ -312,7 +313,6 @@ export interface Campaign {
   geo: Geography;
   externalId?: string;
   externalUrl?: string;
-  status?: CampaignStatus; // DEPRECATED: Status is now derived from performance data (lastActivityDate)
   spend: number;
   conversions: number;
   cpa?: number;

@@ -15,14 +15,13 @@ import type {
   MessageDetail,
 } from '@/types';
 import type { MessageGeo } from '@/types/marketing-pipeline';
-import { message } from 'antd';
 import { groupByStage } from '@/lib/marketing-pipeline/cpaUtils';
 import { checkAuthError, fetchApi, handleStoreError } from '@/lib/api/errorHandler';
 
-/** Lightweight error handler for in-panel mutations — shows a toast instead of replacing the page. */
+/** Lightweight error handler for in-panel mutations — logs instead of replacing the page. */
 function handleMutationError(label: string, error: unknown): void {
   const msg = error instanceof Error ? error.message : 'Something went wrong';
-  message.error(msg);
+  console.error(`[pipeline] ${label}: ${msg}`);
 }
 
 export interface HistoryEntry {
@@ -65,6 +64,10 @@ interface PipelineState {
   detailTab: 'strategy' | 'activity';
   setDetailTab: (tab: 'strategy' | 'activity') => void;
 
+  // Product detail panel
+  isProductPanelOpen: boolean;
+  selectedProductId: string | null;
+
   // Campaign performance (auto-fetched from ads + CRM + on-page)
   campaignPerformance: Record<string, CampaignPerformanceData>;
   campaignPerformanceLoading: boolean;
@@ -76,7 +79,7 @@ interface PipelineState {
   // Actions
   loadPipeline: () => void;
   moveMessage: (messageId: string, targetStage: PipelineStage, verdictType?: VerdictType, verdictNotes?: string) => void;
-  prefetchMessage: (messageId: string) => void;
+
   selectMessage: (messageId: string) => void;
   refreshDetail: (messageId: string) => void;
   closePanel: () => void;
@@ -98,6 +101,8 @@ interface PipelineState {
   toggleGeoFilter: (value: string) => void;
   updateProductField: (productId: string, field: string, value: string | number) => void;
   fetchCampaignPerformance: (messageId: string, dateRange?: { start: string; end: string }) => void;
+  openProductPanel: (productId: string) => void;
+  closeProductPanel: () => void;
 }
 
 const emptyStages: Record<PipelineStage, PipelineCard[]> = {
@@ -142,10 +147,9 @@ function optimisticPatch(
 }
 
 /** Module-level prefetch cache — stores in-flight or resolved fetch promises */
-interface PrefetchResult { detail: MessageDetail; history: HistoryEntry[] }
-const prefetchCache = new Map<string, Promise<PrefetchResult>>();
+interface FetchResult { detail: MessageDetail; history: HistoryEntry[] }
 
-function fetchMessageData(messageId: string): Promise<PrefetchResult> {
+function fetchMessageData(messageId: string): Promise<FetchResult> {
   return Promise.all([
     fetch(`/api/marketing-pipeline/messages/${messageId}`).then(r => r.json()),
     fetchHistory(messageId),
@@ -183,6 +187,9 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   messageHistory: [],
   isPanelOpen: false,
   detailTab: 'strategy',
+
+  isProductPanelOpen: false,
+  selectedProductId: null,
 
   campaignPerformance: {},
   campaignPerformanceLoading: false,
@@ -257,32 +264,21 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     }
   },
 
-  prefetchMessage: (messageId) => {
-    if (prefetchCache.has(messageId)) return;
-    const promise = fetchMessageData(messageId).catch(() => {
-      prefetchCache.delete(messageId);
-      return Promise.reject(new Error('prefetch failed'));
-    });
-    prefetchCache.set(messageId, promise);
-  },
 
   selectMessage: async (messageId) => {
     const isSameMessage = get().selectedMessageId === messageId;
     // When switching messages, show skeleton + reset tab. When refreshing same message, keep current state.
+    // Mutual exclusion: close product panel when opening message panel
     set({
       selectedMessageId: messageId,
       ...(isSameMessage ? {} : { selectedMessage: null, messageHistory: [], detailTab: 'strategy' }),
       isPanelOpen: true,
+      isProductPanelOpen: false,
+      selectedProductId: null,
     });
 
-    // Use prefetch cache if available (hover-triggered), otherwise fetch fresh
-    const cached = prefetchCache.get(messageId);
-    prefetchCache.delete(messageId);
-
     try {
-      const result = cached
-        ? await cached
-        : await fetchMessageData(messageId);
+      const result = await fetchMessageData(messageId);
 
       set({
         selectedMessage: result.detail,
@@ -406,7 +402,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     const tempCampaign: Campaign = {
       id: `temp-${Date.now()}`, messageId, name: data.name, channel: data.channel, geo: data.geo,
       externalId: data.externalId ?? '', externalUrl: data.externalUrl ?? '',
-      status: 'active', cpa: 0, spend: 0, conversions: 0,
+      cpa: 0, spend: 0, conversions: 0,
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     };
     const prev = optimisticPatch(get, set, msg => ({
@@ -514,7 +510,16 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     }
   },
 
-  setOwnerFilter: (value) => { set({ ownerFilter: value, productFilter: 'all', angleFilter: 'all' }); get().loadPipeline(); },
+  setOwnerFilter: (value) => {
+    const { productFilter, products } = get();
+    // Keep product selected if it belongs to the new owner (or no owner filter)
+    const keepProduct = value === 'all' || (productFilter !== 'all' && products.find(p => p.id === productFilter)?.ownerId === value);
+    set({
+      ownerFilter: value,
+      ...(!keepProduct && { productFilter: 'all', angleFilter: 'all' }),
+    });
+    get().loadPipeline();
+  },
   setProductFilter: (value) => { set({ productFilter: value, angleFilter: 'all' }); get().loadPipeline(); },
   setAngleFilter: (value) => { set({ angleFilter: value }); get().loadPipeline(); },
   toggleChannelFilter: (value) => {
@@ -550,10 +555,19 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     }
   },
 
+  openProductPanel: (productId) => {
+    // Mutual exclusion: close message panel when opening product panel
+    set({ isProductPanelOpen: true, selectedProductId: productId, isPanelOpen: false, selectedMessageId: null, selectedMessage: null, messageHistory: [] });
+  },
+
+  closeProductPanel: () => {
+    set({ isProductPanelOpen: false, selectedProductId: null });
+  },
+
   updateProductField: async (productId, field, value) => {
     try {
       await fetchApi(`/api/marketing-pipeline/products/${productId}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: value }),
       });

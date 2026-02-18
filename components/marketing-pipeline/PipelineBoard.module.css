@@ -100,6 +100,7 @@
   border-color: var(--color-gray-500);
 }
 
+
 /* ── Board ───────────────────────────────────────────────── */
 
 .boardContainer {
@@ -227,7 +228,7 @@
 
 .skeletonCard {
   background: var(--color-background-primary);
-  border: 1px solid var(--color-gray-150, var(--color-gray-200));
+  border: 1px solid var(--color-gray-200);
   border-radius: var(--radius-lg);
   padding: 14px 16px;
   display: flex;

@@ -1,25 +1,20 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { Select, Button, Popconfirm, Dropdown, Spin, Tooltip } from 'antd';
+import { useState, useCallback } from 'react';
+import { useToggleSet } from '@/hooks/useToggleSet';
+import { Button, Popconfirm, Dropdown, Tooltip } from 'antd';
 import type { MenuProps } from 'antd';
 import { PlusOutlined, DeleteOutlined, DownOutlined, RightOutlined, GlobalOutlined, ExportOutlined, FolderOpenOutlined } from '@ant-design/icons';
 import { DateRangePicker } from '@/components/filters/DateRangePicker';
 import type { MessageDetail, Campaign, CampaignPerformanceData, Geography, Product, GeoStage, Channel } from '@/types';
 import { GEO_CONFIG, CHANNEL_CONFIG, CAMPAIGN_STATUS_CONFIG } from '@/types';
-import { getCpaTarget, getCpaHealth } from '@/lib/marketing-pipeline/cpaUtils';
-import type { CpaHealth } from '@/lib/marketing-pipeline/cpaUtils';
+import { getCpaTarget, getCpaHealth, CPA_HEALTH_CONFIG, getExternalCampaignUrl, formatNok } from '@/lib/marketing-pipeline/cpaUtils';
 import { GeoStageBadge } from './GeoStageBadge';
-import styles from './ConceptDetailPanel.module.css';
-
-
-interface AdCampaignOption {
-  campaignId: string;
-  campaignName: string;
-  network: string;
-  totalSpend: number;
-  totalClicks: number;
-}
+import { CpaHealthTooltip } from './CpaHealthTooltip';
+import { InlineCampaignSelect } from './InlineCampaignSelect';
+import type { AdCampaignOption } from './InlineCampaignSelect';
+import baseStyles from './PipelinePanel.module.css';
+import styles from './GeoTracksSection.module.css';
 
 /** Map ad network name to pipeline Channel type */
 function networkToChannel(network: string): Channel {
@@ -57,17 +52,8 @@ export function GeoTracksSection({
   onAddCampaign,
   onCampaignClick,
 }: GeoTracksSectionProps): React.ReactNode {
-  const [collapsedGeos, setCollapsedGeos] = useState<Set<string>>(new Set());
+  const [collapsedGeos, toggleGeo] = useToggleSet();
   const [addingForGeo, setAddingForGeo] = useState<Geography | null>(null);
-
-  const toggleGeo = useCallback((geoId: string) => {
-    setCollapsedGeos(prev => {
-      const next = new Set(prev);
-      if (next.has(geoId)) next.delete(geoId);
-      else next.add(geoId);
-      return next;
-    });
-  }, []);
 
   const product = message.product;
   const geos = message.geos || [];
@@ -104,12 +90,10 @@ export function GeoTracksSection({
   return (
     <div className={styles.geoTracksSection}>
       <div className={styles.geoTracksHeader}>
-        <span className={styles.strategySectionIcon} style={{ background: '#f0fdf4' }}>
-          <GlobalOutlined style={{ color: '#16a34a' }} />
-        </span>
-        <span className={styles.strategySectionTitle}>Geo Tracks</span>
+        <GlobalOutlined className={styles.geoTracksSectionIcon} />
+        <span className={styles.geoTracksSectionTitle}>Geo Tracks</span>
         <div className={styles.geoTracksActions}>
-          <DateRangePicker dateRange={dateRange} setDateRange={onDateRangeChange} />
+          <DateRangePicker dateRange={dateRange} setDateRange={onDateRangeChange} size="small" />
           <Dropdown
             menu={{
               items: addGeoMenuItems,
@@ -158,6 +142,7 @@ export function GeoTracksSection({
                       onClick={e => e.stopPropagation()}
                     >
                       <FolderOpenOutlined />
+                      Drive
                     </a>
                   </Tooltip>
                 )}
@@ -174,7 +159,7 @@ export function GeoTracksSection({
                     </span>
                   </Tooltip>
                   {performanceLoading ? (
-                    <span className={styles.skeletonBar} style={{ width: 64, height: 14 }} />
+                    <span className={baseStyles.skeletonBar} style={{ width: 64, height: 14 }} />
                   ) : (
                     <Tooltip title="Total spend across all campaigns in this geo" mouseEnterDelay={0.15}>
                       <span className={styles.geoTrackMeta}>
@@ -188,7 +173,7 @@ export function GeoTracksSection({
                         size="small"
                         type="link"
                         icon={<PlusOutlined />}
-                        style={{ color: '#16a34a' }}
+                        style={{ color: 'var(--color-status-green-dark)' }}
                         onClick={() => setAddingForGeo(geo.geo)}
                       />
                     </span>
@@ -240,88 +225,6 @@ export function GeoTracksSection({
   );
 }
 
-// ── Inline Campaign Select ───────────────────────────────────────────
-
-interface InlineCampaignSelectProps {
-  productId?: string;
-  geo: Geography;
-  excludeExternalIds?: Set<string>;
-  onSelect: (option: AdCampaignOption) => void;
-  onCancel: () => void;
-}
-
-function InlineCampaignSelect({ productId, geo, excludeExternalIds, onSelect, onCancel }: InlineCampaignSelectProps): React.ReactNode {
-  const [options, setOptions] = useState<AdCampaignOption[]>([]);
-  const [loading, setLoading] = useState(false);
-  const didFetch = useRef(false);
-
-  useEffect(() => {
-    if (!productId || didFetch.current) return;
-    didFetch.current = true;
-    setLoading(true);
-    const params = new URLSearchParams({ productId, geo });
-    fetch('/api/marketing-pipeline/campaigns/search?' + params.toString())
-      .then(r => r.json())
-      .then(json => {
-        if (json.success) setOptions(json.data);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [productId, geo]);
-
-  const filteredOptions = excludeExternalIds?.size
-    ? options.filter(o => !excludeExternalIds.has(o.campaignId))
-    : options;
-
-  return (
-    <div className={styles.inlineCampaignSelect}>
-      <Select
-        showSearch
-        autoFocus
-        open
-        placeholder={loading ? 'Loading campaigns...' : 'Search campaigns...'}
-        loading={loading}
-        disabled={loading}
-        style={{ width: '100%' }}
-        notFoundContent={loading ? <Spin size="small" /> : 'No campaigns found for this product + geo'}
-        filterOption={(input, option) => {
-          if (!option) return false;
-          const search = (option as { searchText?: string }).searchText ?? '';
-          return search.toLowerCase().includes(input.toLowerCase());
-        }}
-        onSelect={(value: string) => {
-          const match = filteredOptions.find(o => o.campaignId === value);
-          if (match) onSelect(match);
-        }}
-        onBlur={onCancel}
-        optionLabelProp="label"
-        options={filteredOptions.map(c => ({
-          value: c.campaignId,
-          label: c.campaignName,
-          searchText: c.campaignName + ' ' + c.campaignId,
-          title: c.campaignId,
-        }))}
-        optionRender={(option) => {
-          const match = filteredOptions.find(o => o.campaignId === option.value);
-          return (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {match?.campaignName ?? option.value}
-              </span>
-              {match && match.totalSpend > 0 && (
-                <span style={{ flexShrink: 0, fontSize: 12, color: 'var(--color-gray-500)' }}>
-                  {formatNok(match.totalSpend)}
-                </span>
-              )}
-            </div>
-          );
-        }}
-        virtual={false}
-      />
-    </div>
-  );
-}
-
 // ── Campaign Rows ────────────────────────────────────────────────────
 
 interface CampaignRowsProps {
@@ -333,12 +236,6 @@ interface CampaignRowsProps {
   onDeleteCampaign: (id: string) => void;
 }
 
-const HEALTH_CONFIG: Record<CpaHealth, { color: string; label: string; className: string }> = {
-  green: { color: '#16a34a', label: 'Good', className: 'healthGreen' },
-  yellow: { color: '#d97706', label: 'Warning', className: 'healthYellow' },
-  red: { color: '#dc2626', label: 'Over target', className: 'healthRed' },
-  none: { color: '#d1d5db', label: 'No data', className: 'healthNone' },
-};
 
 function CampaignRows({
   campaigns,
@@ -356,7 +253,7 @@ function CampaignRows({
         const cpa = perf ? perf.trueCpa : c.cpa;
         const target = product ? getCpaTarget(product.cpaTargets, c.geo, c.channel) : undefined;
         const health = getCpaHealth(cpa ?? undefined, target);
-        const healthCfg = HEALTH_CONFIG[health];
+        const healthCfg = CPA_HEALTH_CONFIG[health];
         const channelCfg = CHANNEL_CONFIG[c.channel];
         const displayName = c.name || perf?.campaignName || c.externalId || channelCfg.label;
         const derivedStatus = perf?.campaignStatus || 'stopped';
@@ -408,7 +305,7 @@ function CampaignRows({
                 </span>
               </Tooltip>
               {loading ? (
-                <span className={styles.skeletonBar} style={{ width: 72, height: 16 }} />
+                <span className={baseStyles.skeletonBar} style={{ width: 72, height: 16 }} />
               ) : (
                 <Tooltip title="Total ad spend" mouseEnterDelay={0.15}>
                   <span className={styles.campaignSpend}>
@@ -438,11 +335,11 @@ function CampaignRows({
               {loading ? (
                 <>
                   <span className={styles.campaignChipSep}>&middot;</span>
-                  <span className={styles.skeletonBar} style={{ width: 56, height: 13 }} />
+                  <span className={baseStyles.skeletonBar} style={{ width: 56, height: 13 }} />
                   <span className={styles.campaignChipSep}>&middot;</span>
-                  <span className={styles.skeletonBar} style={{ width: 48, height: 13 }} />
+                  <span className={baseStyles.skeletonBar} style={{ width: 48, height: 13 }} />
                   <span className={styles.campaignChipSep}>&middot;</span>
-                  <span className={styles.skeletonBar} style={{ width: 40, height: 13 }} />
+                  <span className={baseStyles.skeletonBar} style={{ width: 40, height: 13 }} />
                 </>
               ) : (
                 <>
@@ -478,23 +375,12 @@ function CampaignRows({
                       </Tooltip>
                     </>
                   )}
-                  <Tooltip
-                    title={
-                      <div style={{ fontSize: 12, lineHeight: 1.6 }}>
-                        {target != null && <div style={{ marginBottom: 4 }}>Target: {formatNok(target)}</div>}
-                        <div><span style={{ color: '#4ade80' }}>●</span> Good — within 5% of target</div>
-                        <div><span style={{ color: '#fbbf24' }}>●</span> Warning — 5–25% over target</div>
-                        <div><span style={{ color: '#f87171' }}>●</span> Over target — more than 25% over</div>
-                        {lastActivity && <div style={{ marginTop: 4, color: '#9ca3af' }}>Last activity: {lastActivity}</div>}
-                      </div>
-                    }
-                    mouseEnterDelay={0.15}
-                  >
+                  <CpaHealthTooltip target={target} lastActivity={lastActivity} formatTarget={formatNok}>
                     <span className={styles.healthTag + ' ' + styles[healthCfg.className]}>
                       <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: healthCfg.color }} />
                       {healthCfg.label}
                     </span>
-                  </Tooltip>
+                  </CpaHealthTooltip>
                   {isNoData && lastActivity && (
                     <span className={styles.campaignChip} style={{ fontSize: '11px', color: 'var(--color-gray-400)' }}>
                       Last activity {lastActivity}
@@ -512,27 +398,6 @@ function CampaignRows({
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-/** Build a direct link to the campaign on the ad platform */
-const META_ACT = '952160084840450';
-const META_BIZ = '947628245293634';
-
-function getExternalCampaignUrl(campaign: Campaign): string | undefined {
-  if (campaign.externalUrl) return campaign.externalUrl;
-  if (!campaign.externalId) return undefined;
-  switch (campaign.channel) {
-    case 'google':
-      return `https://ads.google.com/aw/campaigns?campaignId=${campaign.externalId}`;
-    case 'meta':
-      return `https://adsmanager.facebook.com/adsmanager/manage/adsets?act=${META_ACT}&business_id=${META_BIZ}&selected_campaign_ids=${campaign.externalId}`;
-    default:
-      return undefined;
-  }
-}
-
-function formatNok(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k NOK`;
-  return `${Math.round(n)} NOK`;
-}
 
 /** Format date as relative time (e.g. "2 days ago") or absolute date if old */
 function formatLastActivity(dateStr: string | undefined): string | null {

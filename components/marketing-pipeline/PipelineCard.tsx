@@ -31,10 +31,7 @@ const STAGE_CLASS_MAP: Record<PipelineStage, string> = {
 export const PipelineCard = memo(function PipelineCard({ card }: PipelineCardProps) {
   const selectMessage = usePipelineStore(s => s.selectMessage);
   const moveMessage = usePipelineStore(s => s.moveMessage);
-  const prefetchMessage = usePipelineStore(s => s.prefetchMessage);
-
   const handleCardClick = (): void => selectMessage(card.id);
-  const handleMouseEnter = (): void => prefetchMessage(card.id);
   const stageClass = STAGE_CLASS_MAP[card.pipelineStage] || '';
 
   const stageIdx = PIPELINE_STAGES_ORDER.indexOf(card.pipelineStage);
@@ -47,7 +44,7 @@ export const PipelineCard = memo(function PipelineCard({ card }: PipelineCardPro
   };
 
   return (
-    <div className={`${styles.card} ${stageClass}`} onClick={handleCardClick} onMouseEnter={handleMouseEnter}>
+    <div className={`${styles.card} ${stageClass}`} onClick={handleCardClick}>
       <div className={styles.conceptName}>{card.name}</div>
 
       <div className={styles.tags}>

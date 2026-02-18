@@ -94,7 +94,7 @@ export function DeleteConfirmModal({
     <Modal
       title={
         <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
+          <ExclamationCircleOutlined style={{ color: 'var(--color-error)' }} />
           Delete {entityName}?
         </span>
       }

@@ -1,7 +1,7 @@
 import type { HistoryEntry } from '@/stores/pipelineStore';
 import { formatTimeAgo, formatHistoryEntry, diffCopyVariations } from '@/lib/utils/displayFormatters';
 import type { CopyVariationChange } from '@/lib/utils/displayFormatters';
-import styles from './ConceptDetailPanel.module.css';
+import styles from './ActivityLogSection.module.css';
 
 interface ActivityLogSectionProps {
   messageHistory: HistoryEntry[];

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useDebouncedField } from '@/hooks/useDebouncedField';
 import { createPortal } from 'react-dom';
 import { useQueryState, parseAsString } from 'nuqs';
 import { App, Button, Input, Dropdown, Tooltip } from 'antd';
@@ -18,6 +19,8 @@ import { CpaTargetsModal } from './CpaTargetsModal';
 import { StrategyCopyTab } from './StrategyCopyTab';
 import { ActivityLogSection } from './ActivityLogSection';
 import { CampaignDetailContent } from './CampaignDetailContent';
+import { ConceptPanelSkeleton } from './ConceptPanelSkeleton';
+import { GeoTracksSection } from './GeoTracksSection';
 import styles from './ConceptDetailPanel.module.css';
 
 const { TextArea } = Input;
@@ -50,7 +53,6 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
     const start = new Date(end); start.setDate(start.getDate() - 7);
     return { start, end };
   });
-  const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
   const bodyRef = useRef<HTMLDivElement>(null);
 
   // URL state for campaign view
@@ -158,13 +160,17 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
     }
   }, [open, message?.id, message?.campaigns, urlCampaignId, message]);
 
+  const debouncedFieldUpdate = useDebouncedField(
+    useCallback((field: string, value: string | string[] | unknown[]) => {
+      if (message) updateMessageField(message.id, field, value);
+    }, [message, updateMessageField]),
+    600,
+  );
+
   const handleFieldChange = useCallback((field: string, value: string | string[] | unknown[]) => {
     if (!message) return;
-    if (debounceTimers.current[field]) clearTimeout(debounceTimers.current[field]);
-    debounceTimers.current[field] = setTimeout(() => {
-      updateMessageField(message.id, field, value);
-    }, 600);
-  }, [message, updateMessageField]);
+    debouncedFieldUpdate(field, value);
+  }, [message, debouncedFieldUpdate]);
 
   const handleStageChange = useCallback((newStage: PipelineStage) => {
     if (!message) return;
@@ -232,89 +238,9 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
 
   if (!open) return null;
 
-  // Loading state — skeleton mimicking the panel layout
-  if (!message) {
-    return createPortal(
-      <div className={styles.overlay}>
-        <div className={styles.backdrop} onClick={handleDismiss} />
-        <div className={styles.panel}>
-          <div className={styles.header}>
-            <div className={styles.headerInner}>
-              {/* Skeleton Row 1: Meta + Controls */}
-              <div className={styles.headerMeta}>
-                <div className={styles.skeletonBar} style={{ width: 80, height: 20, borderRadius: 4 }} />
-                <div className={styles.skeletonBar} style={{ width: 60, height: 14 }} />
-                <div className={styles.skeletonBar} style={{ width: 1, height: 14 }} />
-                <div className={styles.skeletonBar} style={{ width: 22, height: 22, borderRadius: '50%' }} />
-                <div className={styles.skeletonBar} style={{ width: 90, height: 14 }} />
-                <div className={styles.skeletonBar} style={{ width: 1, height: 14 }} />
-                <div className={styles.skeletonBar} style={{ width: 70, height: 14 }} />
-                <div className={styles.headerControls}>
-                  <div className={styles.skeletonBar} style={{ width: 32, height: 32, borderRadius: 6 }} />
-                  <div className={styles.skeletonBar} style={{ width: 32, height: 32, borderRadius: 6 }} />
-                  <div className={styles.skeletonBar} style={{ width: 32, height: 32, borderRadius: 6 }} />
-                </div>
-              </div>
-              {/* Skeleton Row 2: Stage + Title */}
-              <div className={styles.headerTitle}>
-                <div className={styles.skeletonBar} style={{ width: 80, height: 24, borderRadius: 12 }} />
-                <div className={styles.skeletonBar} style={{ width: '45%', height: 28 }} />
-              </div>
-            </div>
-          </div>
-          <div className={styles.body}>
-            <div className={styles.bodyContent}>
-              <div className={styles.hypothesisGrid}>
-                {[0, 1, 2, 3].map(i => (
-                  <div key={i} className={styles.hypothesisCard}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                      <div className={styles.skeletonBar} style={{ width: 22, height: 22, borderRadius: '50%' }} />
-                      <div className={styles.skeletonBar} style={{ width: '50%', height: 11 }} />
-                    </div>
-                    <div className={styles.skeletonBar} style={{ width: '90%', height: 14, marginBottom: 6 }} />
-                    <div className={styles.skeletonBar} style={{ width: '65%', height: 14 }} />
-                  </div>
-                ))}
-              </div>
-              <div className={styles.copyVariationsSection}>
-                <div className={styles.copyVariationsHeader}>
-                  <div className={styles.skeletonBar} style={{ width: 120, height: 16 }} />
-                  <div className={styles.skeletonBar} style={{ width: 55, height: 18, borderRadius: 10 }} />
-                </div>
-                <div className={styles.copyTableWrap}>
-                  <div style={{ display: 'flex', padding: '6px 10px', gap: 0, background: 'var(--color-gray-50)', borderBottom: '1px solid var(--color-gray-200)' }}>
-                    <div style={{ width: 32 }} />
-                    {[0, 1, 2].map(i => (
-                      <div key={i} style={{ width: 560, padding: '0 10px' }}>
-                        <div className={styles.skeletonBar} style={{ width: 80, height: 12 }} />
-                      </div>
-                    ))}
-                  </div>
-                  {[0, 1].map(i => (
-                    <div key={i} style={{ display: 'flex', padding: '8px 0', borderBottom: '1px solid var(--color-gray-100)' }}>
-                      <div style={{ width: 32, display: 'flex', justifyContent: 'center' }}>
-                        <div className={styles.skeletonBar} style={{ width: 12, height: 12 }} />
-                      </div>
-                      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(j => (
-                        <div key={j} style={{ width: 140, padding: '0 8px' }}>
-                          <div className={styles.skeletonBar} style={{ width: '80%', height: 14 }} />
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>,
-      document.body,
-    );
-  }
-
-  const product = message.product;
-  const isRetired = message.pipelineStage === 'retired';
-  const currentStageIdx = PIPELINE_STAGES_ORDER.indexOf(message.pipelineStage || 'backlog');
+  const product = message?.product ?? null;
+  const isRetired = message?.pipelineStage === 'retired';
+  const currentStageIdx = PIPELINE_STAGES_ORDER.indexOf(message?.pipelineStage || 'backlog');
   const prevStage = currentStageIdx > 0 ? PIPELINE_STAGES_ORDER[currentStageIdx - 1] : null;
   const nextStage = currentStageIdx < PIPELINE_STAGES_ORDER.length - 1 ? PIPELINE_STAGES_ORDER[currentStageIdx + 1] : null;
 
@@ -322,312 +248,320 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
     <div className={styles.overlay}>
       <div className={styles.backdrop} onClick={handleDismiss} />
       <div className={styles.panel}>
-        {/* ── Header ── */}
-        <div className={campaignView ? styles.headerCampaignView : styles.header}>
-          <div className={styles.headerInner}>
-            {campaignView ? (
-              <button type="button" className={styles.campaignBackBanner} onClick={() => setCampaignView(null)}>
-                <ArrowLeftOutlined />
-                <span>Back to {message.name}</span>
-              </button>
-            ) : versionStack.length > 0 ? (
-              <button type="button" className={styles.versionBackBanner} onClick={handleVersionBack}>
-                <ArrowLeftOutlined />
-                <span>Back to {versionStack[versionStack.length - 1].name}</span>
-              </button>
-            ) : null}
+        {!message ? (
+          <ConceptPanelSkeleton />
+        ) : (
+          <>
+            {/* ── Header ── */}
+            <div className={campaignView ? styles.headerCampaignView : styles.header}>
+              <div className={styles.headerInner}>
+                {campaignView ? (
+                  <button type="button" className={styles.campaignBackBanner} onClick={() => setCampaignView(null)}>
+                    <ArrowLeftOutlined />
+                    <span>Back to {message.name}</span>
+                  </button>
+                ) : versionStack.length > 0 ? (
+                  <button type="button" className={styles.versionBackBanner} onClick={handleVersionBack}>
+                    <ArrowLeftOutlined />
+                    <span>Back to {versionStack[versionStack.length - 1].name}</span>
+                  </button>
+                ) : null}
 
-            {!campaignView && (
-              <>
-                {/* Row 1 — Meta + Controls */}
-                <div className={styles.headerMeta}>
-                  {product && (
-                    <Tooltip title="Product" mouseEnterDelay={0.15}>
-                      <span
-                        className={styles.metaTagProduct}
-                        style={product.color ? {
-                          color: product.color,
-                          background: `color-mix(in srgb, ${product.color} 12%, transparent)`,
-                        } : undefined}
-                      >
-                        {product.name}
-                      </span>
-                    </Tooltip>
-                  )}
-                  {product && (
-                    <>
-                      <span className={styles.breadcrumbSep}>/</span>
-                      <Tooltip title="Angle" mouseEnterDelay={0.15}>
-                        <span>
-                          <EditableSelect
-                            value={message.angleId}
-                            options={angles.filter(a => a.productId === product.id).map(a => ({ value: a.id, label: a.name }))}
-                            onChange={(value) => updateMessageField(message.id, 'angleId', value)}
-                            displayLabel={message.angle?.name || 'Select angle'}
-                            className={styles.angleSelect}
-                          />
-                        </span>
-                      </Tooltip>
-                    </>
-                  )}
-                  {message.owner && (
-                    <>
-                      <span className={styles.metaDivider} />
-                      <Tooltip title="Owner" mouseEnterDelay={0.15}>
-                        <span className={styles.ownerMeta}>
-                          <span className={styles.ownerAvatar}>
-                            {message.owner.name.charAt(0).toUpperCase()}
+                {!campaignView && (
+                  <>
+                    {/* Row 1 — Meta + Controls */}
+                    <div className={styles.headerMeta}>
+                      {message.owner && (
+                        <Tooltip title="Owner" mouseEnterDelay={0.15}>
+                          <span className={styles.ownerMeta}>
+                            <span className={styles.ownerAvatar}>
+                              {message.owner.name.charAt(0).toUpperCase()}
+                            </span>
+                            {message.owner.name}
                           </span>
-                          {message.owner.name}
-                        </span>
-                      </Tooltip>
-                    </>
-                  )}
-                  {message.createdAt && (
-                    <>
-                      <span className={styles.metaDivider} />
-                      <Tooltip title="Created date" mouseEnterDelay={0.15}>
-                        <span className={styles.dateMeta}>
-                          <CalendarOutlined />
-                          {message.createdAt.slice(0, 10)}
-                        </span>
-                      </Tooltip>
-                    </>
-                  )}
-                  {message.driveFolderId && (
-                    <>
-                      <span className={styles.metaDivider} />
-                      <Tooltip title="Google Drive folder" mouseEnterDelay={0.15}>
-                        <a
-                          href={`https://drive.google.com/drive/folders/${message.driveFolderId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={styles.driveHeaderLink}
-                        >
-                          <FolderOpen size={13} />
-                          Drive
-                        </a>
-                      </Tooltip>
-                    </>
-                  )}
-                  <div className={styles.headerControls}>
-                    <button type="button" className={styles.controlBtn} onClick={handleDismiss} title="Close">
-                      <CloseOutlined />
-                    </button>
-                  </div>
-                </div>
+                        </Tooltip>
+                      )}
+                      {message.createdAt && (
+                        <>
+                          <span className={styles.metaDivider} />
+                          <Tooltip title="Created date" mouseEnterDelay={0.15}>
+                            <span className={styles.dateMeta}>
+                              <CalendarOutlined />
+                              {message.createdAt.slice(0, 10)}
+                            </span>
+                          </Tooltip>
+                        </>
+                      )}
+                      {message.driveFolderId && (
+                        <>
+                          <span className={styles.metaDivider} />
+                          <Tooltip title="Google Drive folder" mouseEnterDelay={0.15}>
+                            <a
+                              href={`https://drive.google.com/drive/folders/${message.driveFolderId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={styles.driveHeaderLink}
+                            >
+                              <FolderOpen size={13} />
+                              Drive
+                            </a>
+                          </Tooltip>
+                        </>
+                      )}
+                      <div className={styles.headerControls}>
+                        <button type="button" className={styles.controlBtn} onClick={handleDismiss} title="Close">
+                          <CloseOutlined />
+                        </button>
+                      </div>
+                    </div>
 
-                {/* Row 2 — Stage + Title */}
-                <div className={styles.headerTitle}>
-                  <div className={styles.stageGroup}>
-                    <Tooltip title="Pipeline stage" mouseEnterDelay={0.15}>
-                      <span>
-                        <PipelineStageBadge
-                          stage={message.pipelineStage || 'backlog'}
-                          editable
-                          onChange={handleStageChange}
-                          variant="dot"
+                    {/* Row 2 — Breadcrumb + Title + Stage + Actions */}
+                    <div className={styles.headerTitle}>
+                      {product && (
+                        <Tooltip title="Product" mouseEnterDelay={0.15}>
+                          <span
+                            className={styles.metaTagProduct}
+                            style={product.color ? {
+                              color: product.color,
+                              background: `color-mix(in srgb, ${product.color} 12%, transparent)`,
+                            } : undefined}
+                          >
+                            {product.name}
+                          </span>
+                        </Tooltip>
+                      )}
+                      {product && (
+                        <>
+                          <span className={styles.breadcrumbSep}>/</span>
+                          <Tooltip title="Angle" mouseEnterDelay={0.15}>
+                            <span>
+                              <EditableSelect
+                                value={message.angleId}
+                                options={angles.filter(a => a.productId === product.id).map(a => ({ value: a.id, label: a.name }))}
+                                onChange={(value) => updateMessageField(message.id, 'angleId', value)}
+                                displayLabel={message.angle?.name || 'Select angle'}
+                                className={styles.angleSelect}
+                              />
+                            </span>
+                          </Tooltip>
+                        </>
+                      )}
+                      <div className={styles.titleText} title="Message name">
+                        <EditableField
+                          value={message.name}
+                          onChange={(val) => handleFieldChange('name', val)}
+                          placeholder="Message name..."
                         />
-                      </span>
-                    </Tooltip>
-                    {(prevStage || nextStage) && (
-                      <>
-                        <span className={styles.stageGroupDivider} />
-                        {prevStage ? (
-                          <Tooltip title={`Move to ${PIPELINE_STAGE_CONFIG[prevStage].label}`} mouseEnterDelay={0.15}>
-                            <button
-                              type="button"
-                              className={styles.stageArrow}
-                              onClick={() => handleStageChange(prevStage)}
-                            >
-                              <LeftOutlined />
-                            </button>
+                      </div>
+                      {message.version && message.version > 1 && (
+                        <span className={styles.versionBadge} title="Version">v{message.version}</span>
+                      )}
+                      {message.parentMessageId && (
+                        <button
+                          type="button"
+                          className={styles.versionOriginLink}
+                          onClick={() => handleVersionClick(message.parentMessageId!)}
+                        >
+                          from v{(message.version || 1) - 1}
+                        </button>
+                      )}
+                      <div className={styles.titleActions}>
+                        <div className={styles.stageGroup}>
+                          <Tooltip title="Pipeline stage" mouseEnterDelay={0.15}>
+                            <span>
+                              <PipelineStageBadge
+                                stage={message.pipelineStage || 'backlog'}
+                                editable
+                                onChange={handleStageChange}
+                                variant="dot"
+                              />
+                            </span>
                           </Tooltip>
-                        ) : (
-                          <span className={styles.stageArrowPlaceholder} />
-                        )}
-                        {nextStage ? (
-                          <Tooltip title={`Move to ${PIPELINE_STAGE_CONFIG[nextStage].label}`} mouseEnterDelay={0.15}>
-                            <button
-                              type="button"
-                              className={styles.stageArrow}
-                              onClick={() => handleStageChange(nextStage)}
-                            >
-                              <RightOutlined />
-                            </button>
-                          </Tooltip>
-                        ) : (
-                          <span className={styles.stageArrowPlaceholder} />
-                        )}
-                      </>
-                    )}
-                  </div>
-                  <div className={styles.titleText} title="Message name">
-                    <EditableField
-                      value={message.name}
-                      onChange={(val) => handleFieldChange('name', val)}
-                      placeholder="Message name..."
-                    />
-                  </div>
-                  {message.version && message.version > 1 && (
-                    <span className={styles.versionBadge} title="Version">v{message.version}</span>
-                  )}
-                  {message.parentMessageId && (
-                    <button
-                      type="button"
-                      className={styles.versionOriginLink}
-                      onClick={() => handleVersionClick(message.parentMessageId!)}
-                    >
-                      from v{(message.version || 1) - 1}
-                    </button>
-                  )}
-                  <div className={styles.titleActions}>
-                    <Tooltip title="CPA Targets" mouseEnterDelay={0.15}>
-                      <button
-                        type="button"
-                        className={styles.controlBtn}
-                        onClick={() => setShowCpaTargets(true)}
-                      >
-                        <AimOutlined />
-                      </button>
-                    </Tooltip>
-                    <button
-                      type="button"
-                      className={`${styles.controlBtn} ${activeTab === 'activity' ? styles.controlBtnActive : ''}`}
-                      onClick={() => setActiveTab(activeTab === 'activity' ? 'strategy' : 'activity')}
-                      title="Activity log"
-                    >
-                      <HistoryOutlined />
-                    </button>
-                    <Dropdown
-                      menu={{
-                        items: [
-                          ...(!isRetired ? [
-                            {
-                              key: 'iterate',
-                              label: 'Iterate Angle',
-                              icon: <SwapOutlined />,
-                              onClick: () => setShowIterateForm(true),
-                            },
-                            {
-                              key: 'kill',
-                              label: 'Kill Message',
-                              icon: <StopOutlined />,
-                              danger: true,
-                              onClick: () => {
-                                modal.confirm({
-                                  title: 'Kill this message?',
-                                  content: 'Retires the message and stops all campaigns.',
-                                  okText: 'Kill',
-                                  okButtonProps: { danger: true },
-                                  onOk: handleKill,
-                                });
+                          {(prevStage || nextStage) && (
+                            <>
+                              <span className={styles.stageGroupDivider} />
+                              {prevStage ? (
+                                <Tooltip title={`Move to ${PIPELINE_STAGE_CONFIG[prevStage].label}`} mouseEnterDelay={0.15}>
+                                  <button
+                                    type="button"
+                                    className={styles.stageArrow}
+                                    onClick={() => handleStageChange(prevStage)}
+                                  >
+                                    <LeftOutlined />
+                                  </button>
+                                </Tooltip>
+                              ) : (
+                                <span className={styles.stageArrowPlaceholder} />
+                              )}
+                              {nextStage ? (
+                                <Tooltip title={`Move to ${PIPELINE_STAGE_CONFIG[nextStage].label}`} mouseEnterDelay={0.15}>
+                                  <button
+                                    type="button"
+                                    className={styles.stageArrow}
+                                    onClick={() => handleStageChange(nextStage)}
+                                  >
+                                    <RightOutlined />
+                                  </button>
+                                </Tooltip>
+                              ) : (
+                                <span className={styles.stageArrowPlaceholder} />
+                              )}
+                            </>
+                          )}
+                        </div>
+                        <Tooltip title="CPA Targets" mouseEnterDelay={0.15}>
+                          <button
+                            type="button"
+                            className={styles.controlBtn}
+                            onClick={() => setShowCpaTargets(true)}
+                          >
+                            <AimOutlined />
+                          </button>
+                        </Tooltip>
+                        <button
+                          type="button"
+                          className={`${styles.controlBtn} ${activeTab === 'activity' ? styles.controlBtnActive : ''}`}
+                          onClick={() => setActiveTab(activeTab === 'activity' ? 'strategy' : 'activity')}
+                          title="Activity log"
+                        >
+                          <HistoryOutlined />
+                        </button>
+                        <Dropdown
+                          menu={{
+                            items: [
+                              ...(!isRetired ? [
+                                {
+                                  key: 'iterate',
+                                  label: 'Iterate Angle',
+                                  icon: <SwapOutlined />,
+                                  onClick: () => setShowIterateForm(true),
+                                },
+                                {
+                                  key: 'kill',
+                                  label: 'Kill Message',
+                                  icon: <StopOutlined />,
+                                  danger: true,
+                                  onClick: () => {
+                                    modal.confirm({
+                                      title: 'Kill this message?',
+                                      content: 'Retires the message and stops all campaigns.',
+                                      okText: 'Kill',
+                                      okButtonProps: { danger: true },
+                                      onOk: handleKill,
+                                    });
+                                  },
+                                },
+                                { type: 'divider' as const, key: 'div' },
+                              ] : []),
+                              {
+                                key: 'delete',
+                                label: 'Delete Message',
+                                icon: <DeleteOutlined />,
+                                danger: true,
+                                onClick: () => {
+                                  modal.confirm({
+                                    title: 'Delete this message?',
+                                    content: 'This action cannot be undone.',
+                                    okText: 'Delete',
+                                    okButtonProps: { danger: true },
+                                    onOk: () => deleteMessage(message.id),
+                                  });
+                                },
                               },
-                            },
-                            { type: 'divider' as const, key: 'div' },
-                          ] : []),
-                          {
-                            key: 'delete',
-                            label: 'Delete Message',
-                            icon: <DeleteOutlined />,
-                            danger: true,
-                            onClick: () => {
-                              modal.confirm({
-                                title: 'Delete this message?',
-                                content: 'This action cannot be undone.',
-                                okText: 'Delete',
-                                okButtonProps: { danger: true },
-                                onOk: () => deleteMessage(message.id),
-                              });
-                            },
-                          },
-                        ] as MenuProps['items'],
-                      }}
-                      trigger={['click']}
-                      placement="bottomRight"
-                    >
-                      <button type="button" className={styles.controlBtn} title="Actions">
-                        <MoreOutlined />
-                      </button>
-                    </Dropdown>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* ── Body ── */}
-        <div ref={bodyRef} className={styles.body}>
-          <div className={styles.bodyContent}>
-            {showIterateForm && (
-              <div className={styles.iterateForm}>
-                <div className={styles.iterateLabel}>Why are you iterating? (required)</div>
-                <TextArea
-                  value={iterateReason}
-                  onChange={(e) => setIterateReason(e.target.value)}
-                  placeholder="CPA too high on Meta NO ($38 vs $28 target). Pivot hook to morning routine angle instead."
-                  rows={3}
-                />
-                <div className={styles.iterateActions}>
-                  <Button size="small" onClick={() => { setShowIterateForm(false); setIterateReason(''); }}>
-                    Cancel
-                  </Button>
-                  <Button
-                    size="small"
-                    type="primary"
-                    disabled={!iterateReason.trim()}
-                    onClick={handleIterate}
-                  >
-                    Create v{(message.version || 1) + 1}
-                  </Button>
-                </div>
+                            ] as MenuProps['items'],
+                          }}
+                          trigger={['click']}
+                          placement="bottomRight"
+                        >
+                          <button type="button" className={styles.controlBtn} title="Actions">
+                            <MoreOutlined />
+                          </button>
+                        </Dropdown>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
-            )}
+            </div>
 
-            {campaignView ? (
-              <CampaignDetailContent
-                campaign={campaignView}
-                performance={campaignPerformance[campaignView.id] ?? null}
-                performanceLoading={campaignPerformanceLoading}
-                product={message.product}
-                dateRange={perfDateRange}
-                onDateRangeChange={handlePerfDateRangeChange}
-              />
-            ) : (
-              <>
-                {activeTab === 'strategy' && (
-                  <StrategyCopyTab
-                    message={message}
-                    performanceData={campaignPerformance}
+            {/* ── Body ── */}
+            <div ref={bodyRef} className={styles.body}>
+              <div className={styles.bodyContent}>
+                {showIterateForm && (
+                  <div className={styles.iterateForm}>
+                    <div className={styles.iterateLabel}>Why are you iterating? (required)</div>
+                    <TextArea
+                      value={iterateReason}
+                      onChange={(e) => setIterateReason(e.target.value)}
+                      placeholder="CPA too high on Meta NO ($38 vs $28 target). Pivot hook to morning routine angle instead."
+                      rows={3}
+                    />
+                    <div className={styles.iterateActions}>
+                      <Button size="small" onClick={() => { setShowIterateForm(false); setIterateReason(''); }}>
+                        Cancel
+                      </Button>
+                      <Button
+                        size="small"
+                        type="primary"
+                        disabled={!iterateReason.trim()}
+                        onClick={handleIterate}
+                      >
+                        Create v{(message.version || 1) + 1}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {campaignView ? (
+                  <CampaignDetailContent
+                    campaign={campaignView}
+                    performance={campaignPerformance[campaignView.id] ?? null}
                     performanceLoading={campaignPerformanceLoading}
+                    product={message.product}
                     dateRange={perfDateRange}
                     onDateRangeChange={handlePerfDateRangeChange}
-                    onFieldChange={handleFieldChange}
-                    onAddGeo={addGeo}
-                    onUpdateGeoStage={updateGeoStage}
-                    onRemoveGeo={removeGeo}
-                    onDeleteCampaign={deleteCampaign}
-                    onAddCampaign={addCampaign}
-                    onCampaignClick={handleCampaignClick}
                   />
-                )}
+                ) : (
+                  <>
+                    {activeTab === 'strategy' && (
+                      <>
+                        <StrategyCopyTab
+                          message={message}
+                          onFieldChange={handleFieldChange}
+                        />
+                        <GeoTracksSection
+                          message={message}
+                          performanceData={campaignPerformance}
+                          performanceLoading={campaignPerformanceLoading}
+                          dateRange={perfDateRange}
+                          onDateRangeChange={handlePerfDateRangeChange}
+                          onAddGeo={addGeo}
+                          onUpdateGeoStage={updateGeoStage}
+                          onRemoveGeo={removeGeo}
+                          onDeleteCampaign={deleteCampaign}
+                          onAddCampaign={addCampaign}
+                          onCampaignClick={handleCampaignClick}
+                        />
+                      </>
+                    )}
 
-                {activeTab === 'activity' && (
-                  <ActivityLogSection messageHistory={messageHistory} />
+                    {activeTab === 'activity' && (
+                      <ActivityLogSection messageHistory={messageHistory} />
+                    )}
+                  </>
                 )}
-              </>
+              </div>
+            </div>
+
+            {message.product && (
+              <CpaTargetsModal
+                open={showCpaTargets}
+                product={message.product}
+                onClose={() => setShowCpaTargets(false)}
+                onSave={loadPipeline}
+              />
             )}
-          </div>
-        </div>
-
-        {message.product && (
-          <CpaTargetsModal
-            open={showCpaTargets}
-            product={message.product}
-            onClose={() => setShowCpaTargets(false)}
-            onSave={loadPipeline}
-          />
+          </>
         )}
       </div>
     </div>,
