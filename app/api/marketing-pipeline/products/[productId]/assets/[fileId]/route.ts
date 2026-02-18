@@ -1,0 +1,47 @@
+/**
+ * DELETE /api/marketing-pipeline/products/[productId]/assets/[fileId] — Delete file from Drive
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { getProductById } from '@/lib/marketing-pipeline/db';
+import { deleteDriveFile } from '@/lib/server/googleDrive';
+import { withPermission } from '@/lib/rbac';
+import type { AppUser } from '@/types/user';
+import { unstable_rethrow } from 'next/navigation';
+
+interface RouteParams {
+  params: Promise<{ productId: string; fileId: string }>;
+}
+
+export const DELETE = withPermission('tools.marketing_pipeline', 'can_edit', async (
+  _request: NextRequest,
+  _user: AppUser,
+  { params }: RouteParams,
+): Promise<NextResponse> => {
+  try {
+    const { productId, fileId } = await params;
+    const product = await getProductById(productId);
+    if (!product) {
+      return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
+    }
+    if (!product.assetsFolderId) {
+      return NextResponse.json({ success: false, error: 'No assets folder' }, { status: 400 });
+    }
+
+    const deleted = await deleteDriveFile(fileId);
+    if (!deleted) {
+      return NextResponse.json(
+        { success: false, error: 'Failed to delete file from Drive' },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    unstable_rethrow(error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to delete asset' },
+      { status: 500 },
+    );
+  }
+});
