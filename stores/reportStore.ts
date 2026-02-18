@@ -9,7 +9,7 @@ import { fetchMarketingDataFlat } from '@/lib/api/marketingClient';
 import { fetchCRMSales } from '@/lib/api/crmClient';
 import { buildMarketingTree, attachCrmMetrics, type MarketingFlatRow } from '@/lib/utils/marketingTree';
 
-const DEFAULT_DIMENSIONS = ['network', 'campaign', 'adset'];
+const DEFAULT_DIMENSIONS = ['classifiedProductOwner', 'network', 'classifiedProduct', 'classifiedCountry', 'campaign', 'adset'];
 const DEFAULT_SORT_COLUMN = 'clicks';
 const DEFAULT_SORT_DIR: 'ascend' | 'descend' = 'descend';
 

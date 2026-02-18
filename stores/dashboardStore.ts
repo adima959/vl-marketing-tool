@@ -24,7 +24,7 @@ function getTimeseriesRange(): DateRange {
   return { start, end };
 }
 
-const DEFAULT_DIMENSIONS: string[] = ['country', 'productGroup', 'product', 'source'];
+const DEFAULT_DIMENSIONS: string[] = ['source', 'productGroup', 'country', 'product'];
 
 export interface DashboardState {
   // Raw flat data
@@ -179,7 +179,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         hasLoadedOnce: true,
         loadedDimensions: state.dimensions,
         loadedDateRange: state.dateRange,
-        expandedRowKeys: [],
+        expandedRowKeys: reportData.filter(r => r.hasChildren).map(r => r.key),
       });
     } catch (error: unknown) {
       handleStoreError('load dashboard data', error);

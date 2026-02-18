@@ -39,6 +39,11 @@ const classificationDimMap: Record<string, { selectExpr: string; groupByExpr: st
     groupByExpr: 'cc.country_code',
     filterExpr: 'cc.country_code',
   },
+  classifiedProductOwner: {
+    selectExpr: "COALESCE(au.name, 'Unassigned')",
+    groupByExpr: 'au.name',
+    filterExpr: 'au.name',
+  },
 };
 
 function isClassificationDim(dim: string): boolean {
@@ -97,7 +102,7 @@ export async function getMarketingDataFlat(
   }
 
   const joinClause = needsJoins
-    ? 'LEFT JOIN app_campaign_classifications cc ON m.campaign_id = cc.campaign_id AND cc.is_ignored = false LEFT JOIN app_products ap ON cc.product_id = ap.id'
+    ? 'LEFT JOIN app_campaign_classifications cc ON m.campaign_id = cc.campaign_id AND cc.is_ignored = false LEFT JOIN app_products ap ON cc.product_id = ap.id LEFT JOIN app_users au ON ap.owner_id = au.id'
     : '';
 
   const query = [
