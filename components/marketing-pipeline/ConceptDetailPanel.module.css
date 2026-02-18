@@ -367,7 +367,7 @@
   transition: color var(--transition-fast);
   line-height: 1;
   border-bottom: 4px solid transparent;
-  margin-bottom: -1px;
+  margin-bottom: -7px;
 }
 
 .strategyTab:hover {
