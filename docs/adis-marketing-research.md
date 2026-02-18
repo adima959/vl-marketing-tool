@@ -101,3 +101,9 @@ This is your baseline. Before you create anything new, you need to know what's a
 
 
 *EXAMPLE* 1) UGC testimonial — woman, 55, knee pain, video format. CPA: 520 NOK. 2) Static image — "Still taking glucosamine?" comparison angle. CPA: 580 NOK. 3) Before/after daily routine — man, 60, morning stiffness story. CPA: 610 NOK.
+
+
+# Patterns observed
+This is your meta-intelligence. Individual ad performance is noisy — but patterns across ads reveal structural truths about your audience. "Pain-focused hooks beat prevention-focused" is a strategic insight that should inform every angle you write going forward.
+
+*EXAMPLE*: UGC outperforms polished. Story-based outperforms educational. Women 50+ respond best. Pain-focused hooks beat prevention-focused. Norwegian language outperforms English 3:1.

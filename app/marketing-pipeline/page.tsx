@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
-import { Target, SlidersHorizontal, Paperclip } from 'lucide-react';
+import { Target, SlidersHorizontal } from 'lucide-react';
 import { Alert, Button } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -43,7 +43,7 @@ function decodePipelineFilters(filters?: { field: string; operator: string; valu
 }
 
 export default function PipelinePage() {
-  const { isPanelOpen, closePanel, selectedMessage, isProductPanelOpen, closeProductPanel, selectedProductId, productFilter, openProductPanel, products } = usePipelineStore();
+  const { isPanelOpen, closePanel, selectedMessage, isProductPanelOpen, closeProductPanel, selectedProductId, productFilter, products } = usePipelineStore();
   const [newConceptOpen, setNewConceptOpen] = useState(false);
 
   usePipelineUrlSync();
@@ -130,16 +130,6 @@ export default function PipelinePage() {
         onClose={closeProductPanel}
       />
       <NewMessageModal open={newConceptOpen} onClose={() => setNewConceptOpen(false)} />
-      {productFilter !== 'all' && !isProductPanelOpen && (
-        <button
-          type="button"
-          className={styles.productAssetsBtn}
-          onClick={() => openProductPanel(productFilter)}
-        >
-          <Paperclip size={16} />
-          Product Assets
-        </button>
-      )}
     </div>
   );
 }

@@ -8,14 +8,14 @@ import { detectDatePreset, DATE_PRESET_LABELS } from '@/lib/savedViews';
 import { formatLocalDate } from '@/lib/types/api';
 import { ALL_MARKETING_DIMENSIONS } from '@/config/marketingDimensions';
 import { ALL_DASHBOARD_DIMENSIONS } from '@/config/dashboardDimensions';
-import { ALL_ON_PAGE_DIMENSIONS } from '@/config/onPageDimensions';
+import { ALL_SESSION_DIMENSIONS } from '@/config/sessionDimensions';
 import type { DatePreset, DateMode } from '@/types/savedViews';
 import modalStyles from '@/styles/components/modal.module.css';
 
 const ALL_KNOWN_DIMENSIONS = [
   ...ALL_MARKETING_DIMENSIONS,
   ...ALL_DASHBOARD_DIMENSIONS,
-  ...ALL_ON_PAGE_DIMENSIONS,
+  ...ALL_SESSION_DIMENSIONS,
 ];
 
 function getDimensionLabel(id: string): string {

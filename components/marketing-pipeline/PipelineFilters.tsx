@@ -1,6 +1,6 @@
 'use client';
 
-import { Search } from 'lucide-react';
+import { Search, Paperclip } from 'lucide-react';
 import { CHANNEL_CONFIG, GEO_CONFIG } from '@/types';
 import { usePipelineStore } from '@/stores/pipelineStore';
 import styles from './PipelineBoard.module.css';
@@ -10,6 +10,7 @@ export function PipelineFilters() {
     users, products, angles,
     ownerFilter, productFilter, angleFilter, channelFilters, geoFilters,
     setOwnerFilter, setProductFilter, setAngleFilter, toggleChannelFilter, toggleGeoFilter,
+    openProductPanel,
   } = usePipelineStore();
 
   const handleOwnerToggle = (userId: string) => {
@@ -111,6 +112,16 @@ export function PipelineFilters() {
                   {p.name}
                 </button>
               ))}
+              {productFilter !== 'all' && (
+                <button
+                  type="button"
+                  className={styles.productDetailsLink}
+                  onClick={() => openProductPanel(productFilter)}
+                >
+                  <Paperclip size={12} />
+                  Product Details
+                </button>
+              )}
             </div>
 
             {/* Angle chips (conditional on product) */}
