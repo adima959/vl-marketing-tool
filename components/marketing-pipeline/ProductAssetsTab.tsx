@@ -14,7 +14,7 @@ import {
   AlertCircle,
   Layers,
 } from 'lucide-react';
-import { Tooltip } from 'antd';
+import { Popconfirm, Tooltip } from 'antd';
 import { fetchApi } from '@/lib/api/errorHandler';
 import type { DriveFile } from '@/lib/server/googleDrive';
 import styles from './ProductAssetsTab.module.css';
@@ -306,15 +306,10 @@ export function ProductAssetsTab({
   }, [addFilesToQueue]);
 
   const handleDelete = useCallback(async (fileId: string) => {
-    if (!confirm('Delete this file? This cannot be undone.')) return;
-    try {
-      await fetchApi(`/api/marketing-pipeline/products/${productId}/assets/${fileId}`, {
-        method: 'DELETE',
-      });
-      setFiles(prev => prev.filter(f => f.id !== fileId));
-    } catch {
-      // Error handled by fetchApi's global handler
-    }
+    await fetchApi(`/api/marketing-pipeline/products/${productId}/assets/${fileId}`, {
+      method: 'DELETE',
+    });
+    setFiles(prev => prev.filter(f => f.id !== fileId));
   }, [productId]);
 
   // Derived state
@@ -388,14 +383,21 @@ export function ProductAssetsTab({
           >
             <ExternalLink size={13} />
           </a>
-          <button
-            type="button"
-            className={`${styles.fileActionBtn} ${styles.fileActionBtnDanger}`}
-            onClick={() => handleDelete(file.id)}
-            title="Delete"
+          <Popconfirm
+            title="Delete this file?"
+            description="This cannot be undone. Are you sure?"
+            onConfirm={() => handleDelete(file.id)}
+            okText="Delete"
+            okButtonProps={{ danger: true }}
           >
-            <Trash2 size={13} />
-          </button>
+            <button
+              type="button"
+              className={`${styles.fileActionBtn} ${styles.fileActionBtnDanger}`}
+              title="Delete"
+            >
+              <Trash2 size={13} />
+            </button>
+          </Popconfirm>
         </div>
       </div>
     );

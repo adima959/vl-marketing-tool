@@ -499,21 +499,23 @@
   align-items: center;
   gap: var(--spacing-2);
   font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-gray-400);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-gray-500);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: var(--spacing-2) var(--spacing-3);
+  padding: 6px var(--spacing-3);
   margin-top: var(--spacing-4);
+  background: var(--color-gray-50);
+  border-radius: var(--radius-md);
 }
 
 .groupHeader:first-child {
-  margin-top: 0;
+  margin-top: var(--spacing-2);
 }
 
 .groupCount {
   font-size: 10px;
-  color: var(--color-gray-300);
+  color: var(--color-gray-400);
   font-weight: var(--font-weight-normal);
 }
 
