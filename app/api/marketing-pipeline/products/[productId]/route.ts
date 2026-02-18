@@ -9,6 +9,7 @@ import { recordUpdate } from '@/lib/marketing-pipeline/historyService';
 import { getChangedBy } from '@/lib/marketing-pipeline/getChangedBy';
 import { renameDriveFolder } from '@/lib/server/googleDrive';
 import { withPermission } from '@/lib/rbac';
+import { isValidUUID } from '@/lib/utils/validation';
 import type { AppUser } from '@/types/user';
 import { updateProductSchema } from '@/lib/schemas/marketingPipeline';
 import { z } from 'zod';
@@ -25,6 +26,9 @@ export const PATCH = withPermission('tools.marketing_pipeline', 'can_edit', asyn
 ): Promise<NextResponse> => {
   try {
     const { productId } = await params;
+    if (!isValidUUID(productId)) {
+      return NextResponse.json({ success: false, error: 'Invalid product ID' }, { status: 400 });
+    }
     const body = await request.json();
     const changedBy = await getChangedBy(request);
 
@@ -61,6 +65,9 @@ export const PUT = withPermission('admin.product_settings', 'can_edit', async (
 ): Promise<NextResponse> => {
   try {
     const { productId } = await params;
+    if (!isValidUUID(productId)) {
+      return NextResponse.json({ success: false, error: 'Invalid product ID' }, { status: 400 });
+    }
     const rawBody = await request.json();
     const changedBy = await getChangedBy(request);
     const body = updateProductSchema.parse(rawBody);

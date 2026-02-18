@@ -4,10 +4,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { deletePipelineAngle, getAngleMessageCount, updatePipelineAngle } from '@/lib/marketing-pipeline/db';
 import { executeQuery } from '@/lib/server/db';
 import { renameDriveFolder } from '@/lib/server/googleDrive';
+import { updatePipelineAngleSchema } from '@/lib/schemas/marketingPipeline';
 import { withPermission } from '@/lib/rbac';
+import { isValidUUID } from '@/lib/utils/validation';
 import type { AppUser } from '@/types/user';
 import { unstable_rethrow } from 'next/navigation';
 
@@ -18,23 +21,29 @@ export const PATCH = withPermission('admin.data_maps', 'can_edit', async (
 ): Promise<NextResponse> => {
   try {
     const { angleId } = await params;
-    const body = await request.json();
-    const name = body.name?.trim();
+    if (!isValidUUID(angleId)) {
+      return NextResponse.json({ success: false, error: 'Invalid angle ID' }, { status: 400 });
+    }
+    const rawBody = await request.json();
+    const body = updatePipelineAngleSchema.parse(rawBody);
 
-    if (!name) {
+    if (!body.name) {
       return NextResponse.json({ success: false, error: 'name is required' }, { status: 400 });
     }
 
-    const angle = await updatePipelineAngle(angleId, { name });
+    const angle = await updatePipelineAngle(angleId, { name: body.name });
 
     // Rename Drive folder in background (non-blocking)
     if (angle.driveFolderId) {
-      renameDriveFolder(angle.driveFolderId, name).catch(() => {});
+      renameDriveFolder(angle.driveFolderId, body.name).catch(() => {});
     }
 
     return NextResponse.json({ success: true, data: angle });
   } catch (error) {
     unstable_rethrow(error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ success: false, error: 'Invalid request data' }, { status: 400 });
+    }
     return NextResponse.json({ success: false, error: 'Failed to update angle' }, { status: 500 });
   }
 });
@@ -46,12 +55,8 @@ export const DELETE = withPermission('tools.marketing_pipeline', 'can_delete', a
 ): Promise<NextResponse> => {
   try {
     const { angleId } = await params;
-
-    if (!angleId) {
-      return NextResponse.json(
-        { success: false, error: 'angleId is required' },
-        { status: 400 },
-      );
+    if (!isValidUUID(angleId)) {
+      return NextResponse.json({ success: false, error: 'Invalid angle ID' }, { status: 400 });
     }
 
     // Check if angle has messages — prevent deletion if so

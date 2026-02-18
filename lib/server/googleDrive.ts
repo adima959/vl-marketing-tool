@@ -152,7 +152,7 @@ export async function renameDriveFolder(
   if (!token) return false;
 
   try {
-    const res = await fetch(`${DRIVE_API}/${folderId}?supportsAllDrives=true`, {
+    const res = await fetch(`${DRIVE_API}/${encodeURIComponent(folderId)}?supportsAllDrives=true`, {
       method: 'PATCH',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -192,7 +192,7 @@ export async function moveDriveFolder(
       removeParents: oldParentId,
       supportsAllDrives: 'true',
     });
-    const res = await fetch(`${DRIVE_API}/${folderId}?${params}`, {
+    const res = await fetch(`${DRIVE_API}/${encodeURIComponent(folderId)}?${params}`, {
       method: 'PATCH',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -320,7 +320,7 @@ export async function deleteDriveFile(fileId: string): Promise<boolean> {
   if (!token) return false;
 
   try {
-    const res = await fetch(`${DRIVE_API}/${fileId}?supportsAllDrives=true`, {
+    const res = await fetch(`${DRIVE_API}/${encodeURIComponent(fileId)}?supportsAllDrives=true`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -341,5 +341,5 @@ export async function deleteDriveFile(fileId: string): Promise<boolean> {
  * Build a direct link to a Google Drive folder.
  */
 export function getDriveFolderUrl(folderId: string): string {
-  return `https://drive.google.com/drive/folders/${folderId}`;
+  return `https://drive.google.com/drive/folders/${encodeURIComponent(folderId)}`;
 }

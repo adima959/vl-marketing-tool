@@ -6,16 +6,19 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { unstable_rethrow } from 'next/navigation';
+import { z } from 'zod';
 import {
-getPipelineMessageDetail,
+  getPipelineMessageDetail,
   updatePipelineMessage,
   deletePipelineMessage,
 } from '@/lib/marketing-pipeline/db';
+import { updatePipelineMessageSchema } from '@/lib/schemas/marketingPipeline';
 import { recordUpdate, recordDeletion } from '@/lib/marketing-pipeline/historyService';
 import { getChangedBy } from '@/lib/marketing-pipeline/getChangedBy';
 import { renameDriveFolder, moveDriveFolder } from '@/lib/server/googleDrive';
 import { executeQuery } from '@/lib/server/db';
 import { withPermission } from '@/lib/rbac';
+import { isValidUUID } from '@/lib/utils/validation';
 import type { AppUser } from '@/types/user';
 
 interface RouteParams {
@@ -29,6 +32,9 @@ export const GET = withPermission('tools.marketing_pipeline', 'can_view', async 
 ): Promise<NextResponse> => {
   try {
     const { messageId } = await params;
+    if (!isValidUUID(messageId)) {
+      return NextResponse.json({ success: false, error: 'Invalid message ID' }, { status: 400 });
+    }
     const detail = await getPipelineMessageDetail(messageId);
 
     if (!detail) {
@@ -56,7 +62,11 @@ export const PATCH = withPermission('tools.marketing_pipeline', 'can_edit', asyn
 ): Promise<NextResponse> => {
   try {
     const { messageId } = await params;
-    const body = await request.json();
+    if (!isValidUUID(messageId)) {
+      return NextResponse.json({ success: false, error: 'Invalid message ID' }, { status: 400 });
+    }
+    const rawBody = await request.json();
+    const body = updatePipelineMessageSchema.parse(rawBody);
     const changedBy = await getChangedBy(request);
 
     // Get old state for history diff
@@ -70,16 +80,16 @@ export const PATCH = withPermission('tools.marketing_pipeline', 'can_edit', asyn
 
     const updated = await updatePipelineMessage(messageId, {
       name: body.name,
-      description: body.description,
+      description: body.description ?? undefined,
       angleId: body.angleId,
-      specificPainPoint: body.specificPainPoint,
-      corePromise: body.corePromise,
-      keyIdea: body.keyIdea,
-      primaryHookDirection: body.primaryHookDirection,
+      specificPainPoint: body.specificPainPoint ?? undefined,
+      corePromise: body.corePromise ?? undefined,
+      keyIdea: body.keyIdea ?? undefined,
+      primaryHookDirection: body.primaryHookDirection ?? undefined,
       headlines: body.headlines,
       copyVariations: body.copyVariations,
-      spendThreshold: body.spendThreshold,
-      notes: body.notes,
+      spendThreshold: body.spendThreshold ?? undefined,
+      notes: body.notes ?? undefined,
     });
 
     // Move Drive folder if angle changed (non-blocking)
@@ -111,6 +121,9 @@ export const PATCH = withPermission('tools.marketing_pipeline', 'can_edit', asyn
     return NextResponse.json({ success: true, data: updated });
   } catch (error) {
     unstable_rethrow(error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ success: false, error: 'Invalid request data' }, { status: 400 });
+    }
     console.error('Error updating pipeline message:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update message' },
@@ -126,6 +139,9 @@ export const DELETE = withPermission('tools.marketing_pipeline', 'can_delete', a
 ): Promise<NextResponse> => {
   try {
     const { messageId } = await params;
+    if (!isValidUUID(messageId)) {
+      return NextResponse.json({ success: false, error: 'Invalid message ID' }, { status: 400 });
+    }
     const changedBy = await getChangedBy(request);
 
     const existing = await getPipelineMessageDetail(messageId);

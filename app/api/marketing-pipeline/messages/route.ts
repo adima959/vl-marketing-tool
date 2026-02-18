@@ -3,9 +3,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { createPipelineMessage } from '@/lib/marketing-pipeline/db';
 import { executeQuery } from '@/lib/server/db';
 import { createDriveSubfolder } from '@/lib/server/googleDrive';
+import { createPipelineMessageSchema } from '@/lib/schemas/marketingPipeline';
 import { recordCreation } from '@/lib/marketing-pipeline/historyService';
 import { getChangedBy } from '@/lib/marketing-pipeline/getChangedBy';
 import { withPermission } from '@/lib/rbac';
@@ -14,15 +16,9 @@ import { unstable_rethrow } from 'next/navigation';
 
 export const POST = withPermission('tools.marketing_pipeline', 'can_create', async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {
-    const body = await request.json();
+    const rawBody = await request.json();
+    const body = createPipelineMessageSchema.parse(rawBody);
     const changedBy = await getChangedBy(request);
-
-    if (!body.angleId || !body.name?.trim()) {
-      return NextResponse.json(
-        { success: false, error: 'angleId and name are required' },
-        { status: 400 },
-      );
-    }
 
     // Auto-create Drive subfolder if angle has a linked Drive folder
     let driveFolderId: string | undefined;
@@ -31,14 +27,14 @@ export const POST = withPermission('tools.marketing_pipeline', 'can_create', asy
       [body.angleId],
     );
     if (angleRows.length > 0 && angleRows[0].drive_folder_id) {
-      const folderId = await createDriveSubfolder(angleRows[0].drive_folder_id, body.name.trim());
+      const folderId = await createDriveSubfolder(angleRows[0].drive_folder_id, body.name);
       if (folderId) driveFolderId = folderId;
     }
 
     const message = await createPipelineMessage({
       angleId: body.angleId,
-      name: body.name.trim(),
-      description: body.description,
+      name: body.name,
+      description: body.description ?? undefined,
       pipelineStage: body.pipelineStage,
       driveFolderId,
     });
@@ -55,6 +51,9 @@ export const POST = withPermission('tools.marketing_pipeline', 'can_create', asy
     return NextResponse.json({ success: true, data: message });
   } catch (error) {
     unstable_rethrow(error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ success: false, error: 'Invalid request data' }, { status: 400 });
+    }
     console.error('Error creating pipeline message:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to create message' },

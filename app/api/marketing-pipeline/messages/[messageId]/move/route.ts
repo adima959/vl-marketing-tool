@@ -8,6 +8,7 @@ import { movePipelineMessage } from '@/lib/marketing-pipeline/db';
 import { recordUpdate } from '@/lib/marketing-pipeline/historyService';
 import { getChangedBy } from '@/lib/marketing-pipeline/getChangedBy';
 import { withPermission } from '@/lib/rbac';
+import { isValidUUID } from '@/lib/utils/validation';
 import type { PipelineStage, VerdictType } from '@/types';
 import type { AppUser } from '@/types/user';
 import { unstable_rethrow } from 'next/navigation';
@@ -27,6 +28,9 @@ export const PATCH = withPermission('tools.marketing_pipeline', 'can_edit', asyn
 ): Promise<NextResponse> => {
   try {
     const { messageId } = await params;
+    if (!isValidUUID(messageId)) {
+      return NextResponse.json({ success: false, error: 'Invalid message ID' }, { status: 400 });
+    }
     const body = await request.json();
     const changedBy = await getChangedBy(request);
 

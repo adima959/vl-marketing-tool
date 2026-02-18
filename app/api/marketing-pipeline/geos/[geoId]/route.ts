@@ -9,6 +9,7 @@ import { renameDriveFolder } from '@/lib/server/googleDrive';
 import { recordUpdate, recordDeletion } from '@/lib/marketing-pipeline/historyService';
 import { getChangedBy } from '@/lib/marketing-pipeline/getChangedBy';
 import { withPermission } from '@/lib/rbac';
+import { isValidUUID } from '@/lib/utils/validation';
 import type { GeoStage } from '@/types';
 import type { AppUser } from '@/types/user';
 import { unstable_rethrow } from 'next/navigation';
@@ -26,6 +27,9 @@ export const PATCH = withPermission('tools.marketing_pipeline', 'can_edit', asyn
 ): Promise<NextResponse> => {
   try {
     const { geoId } = await params;
+    if (!isValidUUID(geoId)) {
+      return NextResponse.json({ success: false, error: 'Invalid geo ID' }, { status: 400 });
+    }
     const body = await request.json();
     const changedBy = await getChangedBy(request);
 
@@ -71,6 +75,9 @@ export const DELETE = withPermission('tools.marketing_pipeline', 'can_delete', a
 ): Promise<NextResponse> => {
   try {
     const { geoId } = await params;
+    if (!isValidUUID(geoId)) {
+      return NextResponse.json({ success: false, error: 'Invalid geo ID' }, { status: 400 });
+    }
     const changedBy = await getChangedBy(request);
 
     const existing = await getMessageGeoById(geoId);

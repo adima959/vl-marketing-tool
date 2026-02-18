@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getProductById } from '@/lib/marketing-pipeline/db';
 import { createDriveSubfolder, uploadFileToDrive, listDriveFiles } from '@/lib/server/googleDrive';
 import { withPermission } from '@/lib/rbac';
+import { isValidUUID } from '@/lib/utils/validation';
 import { executeQuery } from '@/lib/server/db';
 import type { AppUser } from '@/types/user';
 import { unstable_rethrow } from 'next/navigation';
@@ -24,6 +25,9 @@ export const GET = withPermission('tools.marketing_pipeline', 'can_view', async 
 ): Promise<NextResponse> => {
   try {
     const { productId } = await params;
+    if (!isValidUUID(productId)) {
+      return NextResponse.json({ success: false, error: 'Invalid product ID' }, { status: 400 });
+    }
     const product = await getProductById(productId);
     if (!product) {
       return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
@@ -51,6 +55,9 @@ export const POST = withPermission('tools.marketing_pipeline', 'can_edit', async
 ): Promise<NextResponse> => {
   try {
     const { productId } = await params;
+    if (!isValidUUID(productId)) {
+      return NextResponse.json({ success: false, error: 'Invalid product ID' }, { status: 400 });
+    }
     const product = await getProductById(productId);
     if (!product) {
       return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });

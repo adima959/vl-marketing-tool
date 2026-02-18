@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getProductById } from '@/lib/marketing-pipeline/db';
 import { deleteDriveFile } from '@/lib/server/googleDrive';
 import { withPermission } from '@/lib/rbac';
+import { isValidUUID, isValidDriveId } from '@/lib/utils/validation';
 import type { AppUser } from '@/types/user';
 import { unstable_rethrow } from 'next/navigation';
 
@@ -20,6 +21,9 @@ export const DELETE = withPermission('tools.marketing_pipeline', 'can_edit', asy
 ): Promise<NextResponse> => {
   try {
     const { productId, fileId } = await params;
+    if (!isValidUUID(productId) || !isValidDriveId(fileId)) {
+      return NextResponse.json({ success: false, error: 'Invalid parameters' }, { status: 400 });
+    }
     const product = await getProductById(productId);
     if (!product) {
       return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
