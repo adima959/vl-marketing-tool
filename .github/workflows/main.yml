@@ -55,10 +55,18 @@ jobs:
       - name: Notify build failure via n8n
         if: failure()
         run: |
-          ERROR_LOG=$(tail -30 /tmp/build.log | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
-          curl -sS -X POST "${{ secrets.PORTAINER_MARKETING_WEBHOOK_URL }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"type\":\"build_failed\",\"repo\":\"${{ github.repository }}\",\"commit\":\"${GITHUB_SHA::8}\",\"branch\":\"${{ github.ref_name }}\",\"error\":\"${ERROR_LOG}\"}"
+          # Strip ANSI codes and build safe JSON with jq
+          ERROR_LOG=$(tail -30 /tmp/build.log | sed 's/\x1b\[[0-9;]*m//g')
+          jq -n \
+            --arg type "build_failed" \
+            --arg repo "${{ github.repository }}" \
+            --arg commit "${GITHUB_SHA::8}" \
+            --arg branch "${{ github.ref_name }}" \
+            --arg error "$ERROR_LOG" \
+            '{type: $type, repo: $repo, commit: $commit, branch: $branch, error: $error}' \
+          | curl -sS -X POST "${{ secrets.PORTAINER_MARKETING_WEBHOOK_URL }}" \
+              -H "Content-Type: application/json" \
+              -d @-
 
   deploy:
     name: Deploy to Production
