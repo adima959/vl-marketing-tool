@@ -113,6 +113,7 @@ Know these upfront to avoid wasted round-trips:
 | `.claude/docs/git-workflow.md` | Build decisions, pre-commit verification, committing, branching, PRs |
 | `.claude/docs/mariadb.md` | CRM database schema, UTM mapping, business logic |
 | `.claude/docs/postgres.md` | PostgreSQL patterns, app schema |
+| `.claude/docs/codebase-index.md` | Full codebase index — routes, APIs, components, stores, hooks, lib, types |
 
 ## Slash Commands
 
