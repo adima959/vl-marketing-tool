@@ -33,8 +33,8 @@ services:
       - NEXT_PUBLIC_CRM_LOGOUT_URL=${NEXT_PUBLIC_CRM_LOGOUT_URL}
       - APP_CALLBACK_URL=${APP_CALLBACK_URL}
 
-    ports:
-      - "3991:3991"
+    #ports:
+    #  - "3991:3991"
 
     restart: unless-stopped
 
