@@ -7,7 +7,7 @@ import type { Product, Geography, Channel, CpaTarget } from '@/types';
 import modalStyles from '@/styles/components/modal.module.css';
 import styles from './CpaTargetsModal.module.css';
 
-const GEOS: Geography[] = ['NO', 'SE', 'DK'];
+const GEOS: Geography[] = ['NO', 'SE', 'DK', 'FI'];
 const CHANNELS: Channel[] = ['meta', 'google', 'taboola'];
 
 interface CpaTargetsModalProps {

@@ -6,10 +6,14 @@ import type {
   Product,
   Angle,
   PipelineUser,
+  Asset,
+  Creative,
   Campaign,
   CampaignPerformanceData,
   Channel,
   Geography,
+  AssetType,
+  CreativeFormat,
   GeoStage,
   VerdictType,
   MessageDetail,
@@ -94,6 +98,8 @@ interface PipelineState {
   addGeo: (messageId: string, data: { geo: Geography; isPrimary?: boolean; spendThreshold?: number }) => void;
   updateGeoStage: (geoId: string, data: { stage?: GeoStage; spendThreshold?: number; notes?: string }) => void;
   removeGeo: (geoId: string) => void;
+  addAsset: (messageId: string, data: { geo: Geography; type: AssetType; name: string; url?: string; content?: string; notes?: string }) => Promise<void>;
+  addCreative: (messageId: string, data: { geo: Geography; name: string; format: CreativeFormat; cta?: string; url?: string; notes?: string }) => Promise<void>;
   setOwnerFilter: (value: string) => void;
   setProductFilter: (value: string) => void;
   setAngleFilter: (value: string) => void;
@@ -507,6 +513,52 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     } catch (error) {
       if (prev) set({ selectedMessage: prev });
       handleMutationError('remove geo', error);
+    }
+  },
+
+  addAsset: async (messageId, data) => {
+    mutationGen++;
+    const tempAsset: Asset = {
+      id: `temp-${Date.now()}`, messageId, geo: data.geo, type: data.type, name: data.name,
+      url: data.url, content: data.content, notes: data.notes,
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    };
+    const prev = optimisticPatch(get, set, msg => ({
+      ...msg, assets: [...(msg.assets ?? []), tempAsset],
+    }));
+    try {
+      await fetchApi('/api/marketing-pipeline/assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId, ...data }),
+      });
+      refreshAfterMutation(get, messageId);
+    } catch (error) {
+      if (prev) set({ selectedMessage: prev });
+      handleMutationError('add asset', error);
+    }
+  },
+
+  addCreative: async (messageId, data) => {
+    mutationGen++;
+    const tempCreative: Creative = {
+      id: `temp-${Date.now()}`, messageId, geo: data.geo, name: data.name, format: data.format,
+      cta: data.cta, url: data.url, notes: data.notes,
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    };
+    const prev = optimisticPatch(get, set, msg => ({
+      ...msg, creatives: [...(msg.creatives ?? []), tempCreative],
+    }));
+    try {
+      await fetchApi('/api/marketing-pipeline/creatives', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId, ...data }),
+      });
+      refreshAfterMutation(get, messageId);
+    } catch (error) {
+      if (prev) set({ selectedMessage: prev });
+      handleMutationError('add creative', error);
     }
   },
 

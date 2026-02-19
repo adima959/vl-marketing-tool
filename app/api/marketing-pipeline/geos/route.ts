@@ -13,7 +13,7 @@ import type { Geography } from '@/types';
 import type { AppUser } from '@/types/user';
 import { unstable_rethrow } from 'next/navigation';
 
-const VALID_GEOS: Geography[] = ['NO', 'SE', 'DK'];
+const VALID_GEOS: Geography[] = ['NO', 'SE', 'DK', 'FI'];
 
 export const POST = withPermission('tools.marketing_pipeline', 'can_create', async (request: NextRequest, user: AppUser): Promise<NextResponse> => {
   try {

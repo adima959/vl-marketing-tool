@@ -3,7 +3,7 @@
 // Enums
 export type AngleStatus = 'idea' | 'in_production' | 'live' | 'paused' | 'retired';
 export type ProductStatus = 'active' | 'inactive';
-export type Geography = 'NO' | 'SE' | 'DK';
+export type Geography = 'NO' | 'SE' | 'DK' | 'FI';
 export type AssetType = 'landing_page' | 'text_ad' | 'brief' | 'research';
 export type CreativeFormat = 'ugc_video' | 'static_image' | 'video';
 
@@ -32,6 +32,7 @@ export const GEO_CONFIG: Record<Geography, { label: string; flag: string }> = {
   NO: { label: 'Norway', flag: '🇳🇴' },
   SE: { label: 'Sweden', flag: '🇸🇪' },
   DK: { label: 'Denmark', flag: '🇩🇰' },
+  FI: { label: 'Finland', flag: '🇫🇮' },
 };
 
 // Copy Variations — structured ad copy per language
