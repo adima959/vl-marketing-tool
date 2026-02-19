@@ -1,6 +1,5 @@
 'use client';
 
-import { Space } from 'antd';
 import { CloseOutlined, HolderOutlined } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
 import {
@@ -122,17 +121,15 @@ export function DimensionPills({
       onDragEnd={handleDragEnd}
     >
       <SortableContext items={dimensions} strategy={horizontalListSortingStrategy}>
-        <Space size={6} wrap>
-          {dimensions.map((dimId) => (
-            <SortableTag
-              key={dimId}
-              dimId={dimId}
-              label={getLabel(dimId)}
-              onRemove={() => removeDimension?.(dimId)}
-              canRemove={canRemove && dimensions.length > 1}
-            />
-          ))}
-        </Space>
+        {dimensions.map((dimId) => (
+          <SortableTag
+            key={dimId}
+            dimId={dimId}
+            label={getLabel(dimId)}
+            onRemove={() => removeDimension?.(dimId)}
+            canRemove={canRemove && dimensions.length > 1}
+          />
+        ))}
       </SortableContext>
     </DndContext>
   );

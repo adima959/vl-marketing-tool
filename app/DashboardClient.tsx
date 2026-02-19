@@ -48,8 +48,9 @@ function DashboardContent() {
         }
       />
       <div className={pageStyles.content}>
-        <DashboardFilterToolbar />
-        {includesToday && <TableInfoBanner messages={["Today's data may be incomplete"]} />}
+        <DashboardFilterToolbar
+          infoBanner={includesToday ? <TableInfoBanner messages={["Today's data may be incomplete"]} /> : undefined}
+        />
         <DashboardTimeSeriesChart data={timeSeriesData} isLoading={isLoading} />
         <DashboardDataTable />
       </div>

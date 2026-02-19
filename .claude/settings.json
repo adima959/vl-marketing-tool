@@ -12,6 +12,7 @@
       "Grep",
       "Find",
       "WebFetch",
+      "WebSearch",
       "Skill(code-review)",
       "Skill(code-review:*)",
       "Skill(plan)",

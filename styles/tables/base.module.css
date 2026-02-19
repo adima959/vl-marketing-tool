@@ -396,6 +396,15 @@
   flex-shrink: 0;
 }
 
+.attributeTextWrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .attributeText {
   color: var(--color-navy-primary);
   font-size: var(--font-size-sm);
@@ -404,7 +413,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 1;
   min-width: 0;
 }
 
@@ -436,6 +444,19 @@
 .attributeAction:hover {
   color: var(--color-primary-700);
   background: var(--color-primary-50);
+}
+
+.attributeWarning {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-error);
+  font-size: 13px;
+  flex-shrink: 0;
+  transition: color var(--transition-fast);
+}
+
+.attributeWarning:hover {
+  color: var(--color-error-dark, #b91c1c);
 }
 
 

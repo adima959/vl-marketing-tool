@@ -55,7 +55,7 @@ function MarketingReportContent() {
           Reset
         </Button>
       )}
-      <Link href="/settings/data-maps?tab=campaign">
+      <Link href="/settings/data-maps?tab=campaign" target="_blank">
         <Button
           type="text"
           size="small"

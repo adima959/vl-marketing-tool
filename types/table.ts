@@ -106,4 +106,8 @@ export interface GenericDataTableConfig<TRow extends BaseTableRow> {
    *  Return null to hide the button for that row. */
   getAttributeActionUrl?: (record: TRow) => string | null;
 
+  /** Optional function returning a warning badge for an attribute cell.
+   *  Return null to hide the badge for that row. */
+  getAttributeWarning?: (record: TRow) => { tooltip: string; href: string } | null;
+
 }

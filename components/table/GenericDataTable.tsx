@@ -1,5 +1,5 @@
 import { Table, Tooltip } from 'antd';
-import { BarChartOutlined } from '@ant-design/icons';
+import { BarChartOutlined, WarningFilled } from '@ant-design/icons';
 import type { ColumnsType, TableProps } from 'antd/es/table';
 import { useMemo } from 'react';
 import { MetricCell } from './MetricCell';
@@ -31,6 +31,7 @@ function buildAttributeColumn<TRow extends BaseTableRow>(
   loadChildData: (key: string, value: string, depth: number) => Promise<void>,
   onError: (msg: string) => void,
   getAttributeActionUrl?: (record: TRow) => string | null,
+  getAttributeWarning?: (record: TRow) => { tooltip: string; href: string } | null,
 ): ColumnsType<TRow>[0] {
   return {
     title: 'Attributes',
@@ -53,6 +54,7 @@ function buildAttributeColumn<TRow extends BaseTableRow>(
       }
 
       const actionUrl = getAttributeActionUrl?.(record);
+      const warning = getAttributeWarning?.(record);
 
       return (
         <div className={styles.attributeCell} style={{ paddingLeft: `${indent}px` }}>
@@ -83,15 +85,30 @@ function buildAttributeColumn<TRow extends BaseTableRow>(
           ) : (
             <span className={styles.expandSpacer} />
           )}
-          <Tooltip title={formatAttributeValue(value)} placement="topLeft" mouseEnterDelay={0.5}>
-            <span
-              className={`${styles.attributeText} ${
-                record.depth === 0 ? styles.attributeTextBold : ''
-              }`}
-            >
-              {formatAttributeValue(value)}
-            </span>
-          </Tooltip>
+          <div className={styles.attributeTextWrapper}>
+            <Tooltip title={formatAttributeValue(value)} placement="topLeft" mouseEnterDelay={0.5}>
+              <span
+                className={`${styles.attributeText} ${
+                  record.depth === 0 ? styles.attributeTextBold : ''
+                }`}
+              >
+                {formatAttributeValue(value)}
+              </span>
+            </Tooltip>
+            {warning && (
+              <Tooltip title={warning.tooltip} placement="top" mouseEnterDelay={0.2}>
+                <a
+                  href={warning.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.attributeWarning}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <WarningFilled />
+                </a>
+              </Tooltip>
+            )}
+          </div>
           {actionUrl && (
             <Tooltip title="View on-page analytics" placement="top" mouseEnterDelay={0.3}>
               <a
@@ -124,6 +141,7 @@ export function GenericDataTable<TRow extends BaseTableRow>({
   clickableMetrics = [],
   hideZeroValues = false,
   getAttributeActionUrl,
+  getAttributeWarning,
 }: GenericDataTableConfig<TRow>) {
   const {
     reportData,
@@ -160,7 +178,7 @@ export function GenericDataTable<TRow extends BaseTableRow>({
 
   // Build columns from config
   const columns: ColumnsType<TRow> = useMemo(() => {
-    const attributeColumn = buildAttributeColumn<TRow>(expandedRowKeys, setExpandedRowKeys, loadChildData, toast.error, getAttributeActionUrl);
+    const attributeColumn = buildAttributeColumn<TRow>(expandedRowKeys, setExpandedRowKeys, loadChildData, toast.error, getAttributeActionUrl, getAttributeWarning);
 
     // Get visible metric columns
     const visibleMetrics = metricColumns.filter((col) => visibleColumns.includes(col.id));

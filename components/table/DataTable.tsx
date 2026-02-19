@@ -61,6 +61,21 @@ export function DataTable() {
     [loadedDateRange, loadedDimensions]
   );
 
+  const classificationDims = new Set(['classifiedProductOwner', 'classifiedProduct', 'classifiedCountry']);
+
+  const getAttributeWarning = useCallback(
+    (record: ReportRow): { tooltip: string; href: string } | null => {
+      if (record.attribute !== 'Unassigned') return null;
+      const dimId = loadedDimensions[record.depth];
+      if (!dimId || !classificationDims.has(dimId)) return null;
+      return {
+        tooltip: 'Unclassified campaigns — click to open Campaign Map',
+        href: '/settings/data-maps?tab=campaign',
+      };
+    },
+    [loadedDimensions]
+  );
+
   return (
     <>
       <GenericDataTable<ReportRow>
@@ -72,6 +87,7 @@ export function DataTable() {
         showColumnTooltips={false}
         hideZeroValues={true}
         getAttributeActionUrl={getAttributeActionUrl}
+        getAttributeWarning={getAttributeWarning}
         onMetricClick={handleMetricClick}
         clickableMetrics={CLICKABLE_METRIC_IDS}
       />
