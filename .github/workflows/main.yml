@@ -43,7 +43,7 @@ jobs:
         run: |
           echo "## :x: Build Failed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** \`${GITHUB_SHA::8}\` — ${GITHUB_EVENT_HEAD_COMMIT_MESSAGE:-$(git log -1 --pretty=%s)}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${GITHUB_SHA::8}\` — $(git log -1 --pretty=%s)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Deploy was NOT triggered.** The old container is still running." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -52,6 +52,14 @@ jobs:
           tail -40 /tmp/build.log >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
+      - name: Notify build failure via n8n
+        if: failure()
+        run: |
+          ERROR_LOG=$(tail -30 /tmp/build.log | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+          curl -sS -X POST "${{ secrets.PORTAINER_MARKETING_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"type\":\"build_failed\",\"repo\":\"${{ github.repository }}\",\"commit\":\"${GITHUB_SHA::8}\",\"branch\":\"${{ github.ref_name }}\",\"error\":\"${ERROR_LOG}\"}"
+
   deploy:
     name: Deploy to Production
     needs: build
@@ -59,10 +67,11 @@ jobs:
     steps:
       - name: Trigger Portainer stack redeploy
         run: |
-          curl -sS -X POST "${{ secrets.PORTAINER_MARKETING_WEBHOOK_URL }}"
+          curl -sS -X POST "${{ secrets.PORTAINER_MARKETING_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{"type":"deploy"}'
 
       - name: Wait for deployment and health check
-        id: healthcheck
         run: |
           echo "Waiting 90s for container to rebuild..."
           sleep 90
