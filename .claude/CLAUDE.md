@@ -93,11 +93,7 @@ Know these upfront to avoid wasted round-trips:
 
 | Hook | Trigger | Blocks |
 |------|---------|--------|
-| `check-imports.js` | Edit/Write .ts/.tsx | Relative parent imports (`../`) |
-| `check-sql-injection.js` | Edit/Write .ts/.tsx | Template literals `${}` in query/execute calls |
-| `check-secrets.js` | Edit/Write .ts/.tsx/.js | Hardcoded API keys, passwords, tokens |
-| console.log (inline) | Edit .ts/.tsx | Any console.log in edited file |
-| TypeScript (inline) | Edit .ts/.tsx | Type errors in edited file |
+| `post-edit-checks.js` | Edit/Write .ts/.tsx/.js | Relative parent imports (`../`), SQL injection (`${}` in queries), hardcoded secrets |
 
 ---
 

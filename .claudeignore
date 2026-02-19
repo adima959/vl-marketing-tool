@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Build output
+.next/
+out/
+build/
+
+# Debug scripts (one-off investigations)
+scripts/debug-*
+
+# Docs not relevant to coding
+docs/
+
+# Environment
+.env*
+.vercel/
+
+# OS
+.DS_Store
