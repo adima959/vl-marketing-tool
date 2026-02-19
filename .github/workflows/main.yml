@@ -1,14 +1,60 @@
-name: Deploy via Portainer Webhook
+name: Build & Deploy via Portainer
 
 on:
   push:
     branches:
       - "main"
-    #tags:
-    #  - "v*"
 
 jobs:
+  build:
+    name: Build & Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
+
+      - name: Build Next.js
+        id: build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+          NODE_OPTIONS: "--max-old-space-size=4096"
+          # Dummy env vars for build-time validation (Next.js 16 Turbopack)
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+          MARIADB_HOST: "localhost"
+          MARIADB_USER: "dummy"
+          MARIADB_PASSWORD: "dummy"
+          MARIADB_DATABASE: "dummy"
+          MARIADB_PORT: "3306"
+        run: |
+          npm run build 2>&1 | tee /tmp/build.log
+          exit ${PIPESTATUS[0]}
+
+      - name: Report build failure
+        if: failure()
+        run: |
+          echo "## :x: Build Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${GITHUB_SHA::8}\` — ${GITHUB_EVENT_HEAD_COMMIT_MESSAGE:-$(git log -1 --pretty=%s)}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Deploy was NOT triggered.** The old container is still running." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Error output (last 40 lines)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -40 /tmp/build.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
   deploy:
+    name: Deploy to Production
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Portainer stack redeploy
@@ -16,18 +62,25 @@ jobs:
           curl -sS -X POST "${{ secrets.PORTAINER_MARKETING_WEBHOOK_URL }}"
 
       - name: Wait for deployment and health check
+        id: healthcheck
         run: |
-          echo "Waiting 60s for container to rebuild..."
-          sleep 60
-          for i in 1 2 3 4 5; do
+          echo "Waiting 90s for container to rebuild..."
+          sleep 90
+          for i in 1 2 3 4 5 6 7 8; do
             status=$(curl -s -o /dev/null -w "%{http_code}" https://marketing.vitaliv.no/api/health)
             echo "Attempt $i: HTTP $status"
             if [ "$status" = "200" ]; then
-              echo "Health check passed!"
+              echo "## :white_check_mark: Deploy Successful" >> $GITHUB_STEP_SUMMARY
+              echo "Health check passed on attempt $i." >> $GITHUB_STEP_SUMMARY
               exit 0
             fi
-            echo "Retrying in 15s..."
-            sleep 15
+            echo "Retrying in 20s..."
+            sleep 20
           done
-          echo "Health check failed after 5 attempts"
+          echo "## :x: Deploy Failed — Health Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Build passed but the container did not become healthy after deploy." >> $GITHUB_STEP_SUMMARY
+          echo "The Portainer webhook was triggered but the health check at \`https://marketing.vitaliv.no/api/health\` returned HTTP $status after 8 attempts." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Check the container logs:** \`docker logs vitaliv-marketing-tool\`" >> $GITHUB_STEP_SUMMARY
           exit 1
