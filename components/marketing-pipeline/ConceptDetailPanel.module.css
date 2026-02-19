@@ -1,61 +1,28 @@
-/* ── Overlay container ──────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   ConceptDetailPanel — concept detail view styles
+   Base layout classes are delegated to PipelinePanel via composes.
+   Component-specific styles (geo tracks, campaign detail, activity log,
+   copy variations) live in their own CSS modules.
+   ══════════════════════════════════════════════════════════ */
 
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  justify-content: flex-end;
-}
+/* ── Base class aliases (from PipelinePanel.module.css) ── */
 
-.backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.25);
-  animation: backdropFadeIn 0.2s ease-out;
-}
-
-@keyframes backdropFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-/* ── Panel (right-side slide-in) ───────────────────────── */
-
-.panel {
-  position: relative;
-  width: calc(100vw - 80px);
-  height: 100%;
-  background: var(--color-background-canvas);
-  display: flex;
-  flex-direction: column;
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
-  animation: panelSlideIn 0.2s ease-out;
-}
-
-@keyframes panelSlideIn {
-  from { transform: translateX(40px); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}
-
-/* ── Skeleton loading ──────────────────────────────────── */
-
-.skeletonBar {
-  background: linear-gradient(
-    90deg,
-    var(--color-gray-200) 0%,
-    var(--color-gray-100) 50%,
-    var(--color-gray-200) 100%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
-  border-radius: var(--radius-sm);
-}
-
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
+.overlay { composes: overlay from './PipelinePanel.module.css'; }
+.backdrop { composes: backdrop from './PipelinePanel.module.css'; }
+.panel { composes: panel from './PipelinePanel.module.css'; }
+.panelNarrow { composes: panelNarrow from './PipelinePanel.module.css'; }
+.skeletonBar { composes: skeletonBar from './PipelinePanel.module.css'; }
+.listHeader { composes: listHeader from './PipelinePanel.module.css'; }
+.listRow { composes: listRow from './PipelinePanel.module.css'; }
+.whiteBox { composes: whiteBox from './PipelinePanel.module.css'; }
+.pageTitle { composes: pageTitle from './PipelinePanel.module.css'; }
+.detailHeaderMeta { composes: detailHeaderMeta from './PipelinePanel.module.css'; }
+.detailHeaderTitle { composes: detailHeaderTitle from './PipelinePanel.module.css'; }
+.sectionLabel { composes: sectionLabel from './PipelinePanel.module.css'; }
+.headerControlsBase { composes: headerControlsBase from './PipelinePanel.module.css'; }
+.truncate { composes: truncate from './PipelinePanel.module.css'; }
+.tabularNums { composes: tabularNums from './PipelinePanel.module.css'; }
+.body { composes: body from './PipelinePanel.module.css'; }
 
 /* ── Header ────────────────────────────────────────────── */
 
@@ -69,49 +36,161 @@
   padding: 0;
 }
 
-/* ── Row 1: Meta ──────────────────────────────────────── */
+/* Header when in campaign detail view — just the back banner, no chrome */
+.headerCampaignView {
+  flex-shrink: 0;
+}
+
+.campaignBackBanner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 24px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-primary-600);
+  background: var(--color-primary-50);
+  border: none;
+  border-bottom: 1px solid var(--color-primary-100);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.campaignBackBanner:hover {
+  background: var(--color-primary-100);
+}
+
+/* ── Row 1: Meta + Controls ───────────────────────────── */
 
 .headerMeta {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 14px 28px 0;
+  padding: 16px 24px 0;
 }
 
-/* ── Row 2: Title ─────────────────────────────────────── */
+.headerControls {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.controlBtn {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-gray-200);
+  color: var(--color-gray-600);
+  font-size: 15px;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.controlBtn:hover {
+  background: var(--color-gray-100);
+  border-color: var(--color-gray-300);
+  color: var(--color-gray-900);
+}
+
+.controlBtnActive {
+  color: var(--color-primary-600);
+  background: var(--color-primary-50);
+  border-color: var(--color-primary-200);
+}
+
+.controlBtnActive:hover {
+  background: var(--color-primary-100);
+  border-color: var(--color-primary-300);
+  color: var(--color-primary-700);
+}
+
+/* ── Row 2: Breadcrumb + Title + Stage + Actions ─────── */
 
 .headerTitle {
-  padding: 8px 28px 0;
-  font-size: 24px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 24px 18px;
+}
+
+.titleActions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.titleText {
+  font-size: 22px;
   font-weight: 700;
   color: var(--color-gray-900);
   line-height: 1.3;
   letter-spacing: -0.01em;
+  min-width: 0;
+  width: fit-content;
 }
 
-/* ── Row 3: Status + Actions ──────────────────────────── */
-
-.headerStatusRow {
+.stageGroup {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 28px 0;
+  gap: 2px;
+  padding: 3px 6px;
+  background: var(--color-gray-50);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  flex-shrink: 0;
 }
 
-.headerActions {
-  margin-left: auto;
+.stageGroupDivider {
+  width: 1px;
+  height: 18px;
+  background: var(--color-gray-200);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.stageArrow {
+  all: unset;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--color-gray-400);
+  font-size: 11px;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.stageArrow:hover {
+  background: var(--color-gray-200);
+  color: var(--color-gray-700);
+}
+
+.stageArrowPlaceholder {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
 }
 
 .versionBadge {
   font-size: 10px;
   font-weight: 700;
-  color: #4338ca;
-  background: #eef2ff;
+  color: var(--color-status-indigo);
+  background: var(--color-status-indigo-bg);
   padding: 2px 8px;
-  border-radius: 10px;
+  border-radius: var(--radius-full);
   line-height: 16px;
   flex-shrink: 0;
   letter-spacing: 0.02em;
@@ -134,87 +213,14 @@
   color: var(--color-primary-600);
 }
 
-.moreBtn {
-  all: unset;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius-md);
-  color: var(--color-gray-400);
-  transition: all var(--transition-fast);
-  font-size: 16px;
-  flex-shrink: 0;
-}
-
-.moreBtn:hover {
-  background: var(--color-gray-100);
-  color: var(--color-gray-700);
-}
-
-.closeBtn {
-  all: unset;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius-md);
-  color: var(--color-gray-400);
-  transition: all var(--transition-fast);
-  flex-shrink: 0;
-  margin-left: auto;
-}
-
-.closeBtn:hover {
-  background: var(--color-gray-100);
-  color: var(--color-gray-700);
-}
-
-/* ── Tab bar ──────────────────────────────────────────── */
-
-.tabBar {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  padding: 0 28px;
-  margin-top: 14px;
-  border-bottom: none;
-}
-
-.tab {
-  all: unset;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-gray-400);
-  padding: 8px 16px;
-  border-bottom: 2px solid transparent;
-  transition: all var(--transition-fast);
-  margin-bottom: -1px;
-}
-
-.tab:hover {
-  color: var(--color-gray-600);
-}
-
-.tabActive {
-  color: var(--color-gray-900);
-  font-weight: 600;
-  border-bottom-color: var(--color-gray-900);
-}
-
 .metaTagProduct {
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 2px 8px;
-  border-radius: 3px;
-  line-height: 18px;
+  letter-spacing: 0.03em;
+  padding: 2px 10px;
+  border-radius: var(--radius-md);
+  line-height: 22px;
   color: var(--color-primary-800);
   background: var(--color-primary-100);
   flex-shrink: 0;
@@ -276,30 +282,31 @@
 .driveHeaderLink {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   font-size: 11px;
   font-weight: 500;
-  color: var(--color-gray-400);
+  color: var(--color-status-green-dark);
+  background: var(--color-status-green-leaf-bg);
   text-decoration: none;
-  padding: 1px 6px;
+  padding: 2px 8px;
   border-radius: var(--radius-sm);
+  border: 1px solid var(--color-status-green-leaf-border);
   transition: all var(--transition-fast);
   flex-shrink: 0;
 }
 
-.driveHeaderLink:hover {
-  color: var(--color-primary-700);
-  background: var(--color-primary-50);
+.driveHeaderLink::after {
+  content: '\2197';
+  font-size: 10px;
 }
 
+.driveHeaderLink:hover {
+  color: var(--color-status-green-leaf);
+  background: var(--color-status-green-leaf-border);
+  border-color: var(--color-status-green-leaf-border);
+}
 
 /* ── Body ──────────────────────────────────────────────── */
-
-.body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px 32px;
-}
 
 .versionBackBanner {
   display: flex;
@@ -311,65 +318,207 @@
   font-size: 12px;
   font-weight: 500;
   color: var(--color-primary-600);
-  background: var(--color-primary-50, #eff6ff);
-  border: 1px solid var(--color-primary-100, #dbeafe);
-  border-radius: 6px;
+  background: var(--color-primary-50);
+  border: 1px solid var(--color-primary-100);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--transition-fast);
 }
 
 .versionBackBanner:hover {
-  background: var(--color-primary-100, #dbeafe);
+  background: var(--color-primary-100);
 }
 
 .bodyContent {}
 
-/* ── Hypothesis Section ────────────────────────────────── */
+/* ── Strategy & Copy Tabs (same structure as Geo Tracks) ── */
 
-.strategySectionToggle {
+/* Section container */
+.strategySection {
+  margin-bottom: 32px;
+}
+
+/* White container with border (like geoTracksBody) */
+.strategyContainer {
+  composes: whiteBox from './PipelinePanel.module.css';
+  overflow: visible;
+}
+
+/* Tab bar — matches geoTrackHeader pattern */
+.strategyTabBar {
+  composes: listHeader from './PipelinePanel.module.css';
+  display: flex;
+  align-items: center;
+  gap: 0;
+  cursor: default;
+}
+
+/* Individual tab button — matches geoTrackName styling */
+.strategyTab {
   all: unset;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
-  padding: 8px 0;
-  margin-bottom: 4px;
-  transition: opacity var(--transition-fast);
+  padding: 10px 14px 11px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-gray-800);
+  transition: color var(--transition-fast);
+  line-height: 1;
+  border-bottom: 4px solid transparent;
+  margin-bottom: -7px;
 }
 
-.strategySectionToggle:hover {
-  opacity: 0.7;
+.strategyTab:hover {
+  color: var(--color-gray-600);
 }
 
-.strategySectionChevron {
+.strategyTabActive {
+  color: var(--color-primary-600);
+  border-bottom-color: white;
+}
+
+.strategyTabChevron {
   font-size: 10px;
-  color: var(--color-gray-400);
-  width: 14px;
+  color: var(--color-gray-500);
+  width: 12px;
   text-align: center;
   flex-shrink: 0;
-  transition: transform 0.15s ease;
 }
 
-.strategySectionTitle {
-  font-size: 14px;
+.strategyTabIcon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* Content area (inside white container, below tabs) */
+.strategyTabContent {
+  padding: 16px;
+}
+
+/* Hypothesis Content — 2x2 compact card grid */
+.hypothesisWrapper {
+  /* Wrapper — styling handled by parent .strategyTabContent */
+}
+
+.hypothesisCompact {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--color-gray-200);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.hypothesisRow {
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px;
+  background: var(--color-background-primary);
+  transition: background var(--transition-fast);
+}
+
+.hypothesisRow:hover {
+  background: var(--color-gray-50);
+}
+
+.hypothesisLabel {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.hypothesisLabelText {
+  font-size: 11px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-gray-500);
+  line-height: 1;
+}
+
+.hypothesisInput {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.hypothesisTextarea {
+  width: 100%;
+  padding: 0;
+  font-size: 13px;
+  font-family: var(--font-family-base);
+  line-height: 1.55;
+  color: var(--color-gray-800);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  resize: none;
+  min-height: 40px;
+  transition: color var(--transition-fast);
+}
+
+.hypothesisTextarea:focus {
+  outline: none;
   color: var(--color-gray-900);
 }
+
+.hypothesisTextarea::placeholder {
+  color: var(--color-gray-400);
+}
+
+/* hypothesisHelper — removed; helper text now shown as tooltip on label */
+
+/* Copy & Notes */
+.copyVariationsWrapper {
+  /* Wrapper for copy variations section */
+}
+
+.notesWrapper {
+  /* Wrapper for notes editor */
+}
+
+.notesWrapperConstrained {
+  composes: notesWrapper;
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+}
+
+/* Save indicator (inline in tab button) */
+.saveIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: var(--font-weight-normal);
+  color: var(--color-gray-400);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.saveSpinner {
+  animation: spin 0.8s linear infinite;
+}
+
+/* ── Hypothesis Section ────────────────────────────────── */
 
 .hypothesisGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
-  margin-bottom: 24px;
 }
 
 .hypothesisCard {
   background: var(--color-background-primary);
   border: 1px solid var(--color-gray-200);
+  border-left: 3px solid var(--color-gray-300);
   border-radius: var(--radius-lg);
   padding: 12px 14px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .hypothesisCardHeader {
@@ -392,11 +541,14 @@
 }
 
 .hypothesisCardLabel {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  composes: sectionLabel from './PipelinePanel.module.css';
   color: var(--color-gray-500);
+}
+
+/* ── Notes Section ─────────────────────────────────────── */
+
+.notesSection {
+  padding: 0;
 }
 
 /* ── Stats Grid ────────────────────────────────────────── */
@@ -409,11 +561,8 @@
 }
 
 .statCard {
-  background: var(--color-background-primary);
-  border: 1px solid var(--color-gray-200);
-  border-radius: var(--radius-lg);
+  composes: whiteBox from './PipelinePanel.module.css';
   padding: 16px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .statValue {
@@ -432,25 +581,8 @@
 
 /* ── Sections — white cards ────────────────────────────── */
 
-.section {
-  background: var(--color-background-primary);
-  border: 1px solid var(--color-gray-200);
-  border-radius: var(--radius-lg);
-  padding: 14px 16px;
-  margin-bottom: 12px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-}
-
-.sectionTitle {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-gray-500);
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--color-gray-100);
-}
+.section { composes: sectionCard from './PipelinePanel.module.css'; }
+.sectionTitle { composes: sectionCardTitle from './PipelinePanel.module.css'; }
 
 .sectionHeader {
   display: flex;
@@ -467,244 +599,12 @@
   border-bottom: none;
 }
 
-/* ── Copy Variations (spreadsheet table) ─────────────── */
-
-.copyVariationsSection {
-  margin-bottom: 12px;
-}
-
-.copyVariationsHeader {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.copyVariationsTitle {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-gray-900);
-}
-
-.copyVariationsCount {
-  font-size: 10px;
-  font-weight: 600;
-  color: #059669;
-  background: #ecfdf5;
-  padding: 1px 8px;
-  border-radius: 10px;
-  line-height: 18px;
-}
-
-.copyVariationsActions {
-  margin-left: auto;
-}
-
-/* Scroll wrapper */
+/* Copy table skeleton wrapper (loading state in ConceptDetailPanel) */
 .copyTableWrap {
   overflow-x: auto;
   border: 1px solid var(--color-gray-200);
-  border-radius: var(--radius-lg);
-  background: var(--color-background-primary);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-}
-
-.copyTableWrap::-webkit-scrollbar {
-  height: 5px;
-}
-
-.copyTableWrap::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.copyTableWrap::-webkit-scrollbar-thumb {
-  background: var(--color-gray-200);
-  border-radius: 3px;
-}
-
-/* Inner table — fixed-width cells in flex rows */
-.copyTable {
-  --ct-cell: 260px;
-  --ct-row-num: 32px;
-  --ct-delete: 44px;
-  min-width: max-content;
-}
-
-/* ── Section group header row ── */
-.ctSectionRow {
-  display: flex;
-  border-bottom: 1px solid var(--color-gray-200);
-}
-
-.ctCorner {
-  width: var(--ct-row-num);
-  flex-shrink: 0;
-  background: #eff6ff;
-  border-right: 1px solid #dbeafe;
-}
-
-.ctSectionCell {
-  width: calc(4 * var(--ct-cell));
-  flex-shrink: 0;
-  padding: 6px 10px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  border-left: 1px solid var(--color-gray-200);
-}
-
-.ctDeleteCol {
-  width: var(--ct-delete);
-  flex-shrink: 0;
-  background: #fef2f2;
-  border-left: 1px solid #fecaca;
-}
-
-/* ── Language sub-header row ── */
-.ctLangRow {
-  display: flex;
-  border-bottom: 1px solid var(--color-gray-200);
-}
-
-.ctLangCell {
-  width: var(--ct-cell);
-  flex-shrink: 0;
-  padding: 4px 10px;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--color-gray-400);
-  letter-spacing: 0.04em;
-  border-left: 1px solid var(--color-gray-100);
-}
-
-/* First lang cell under each section gets heavier border */
-.ctLangCell:nth-child(4n + 2) {
-  border-left-color: var(--color-gray-200);
-}
-
-/* ── Data row (one per variation) ── */
-.ctDataRow {
-  display: flex;
-  align-items: stretch;
-  border-bottom: 1px solid var(--color-gray-100);
-}
-
-.ctDataRow:last-child {
-  border-bottom: none;
-}
-
-.ctDataRow:hover {
-  background: var(--color-gray-50);
-}
-
-.ctRowNum {
-  width: var(--ct-row-num);
-  flex-shrink: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 8px;
-  font-size: 11px;
-  font-weight: 700;
-  color: #3b82f6;
-  background: #eff6ff;
-  border-right: 1px solid #dbeafe;
-}
-
-.ctCell {
-  width: var(--ct-cell);
-  flex-shrink: 0;
-  padding: 5px 8px;
-  border-left: 1px solid var(--color-gray-100);
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--color-gray-800);
-}
-
-/* Section boundary — heavier border */
-.ctCell:nth-child(4n + 2) {
-  border-left-color: var(--color-gray-200);
-}
-
-.ctDeleteBtn {
-  width: var(--ct-delete);
-  flex-shrink: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 6px;
-  background: #fef2f2;
-  border-left: 1px solid #fecaca;
-}
-
-.ctDeleteBtn button {
-  all: unset;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
   border-radius: var(--radius-md);
-  color: #ef4444;
-  transition: all var(--transition-fast);
-  font-size: 13px;
-}
-
-.ctDeleteBtn button:hover {
-  background: #fee2e2;
-  color: #dc2626;
-}
-
-/* Auto-translate button inside ENG cells */
-.ctTranslateBtn {
-  all: unset;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 4px;
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--color-primary-600);
-  transition: all var(--transition-fast);
-}
-
-.ctTranslateBtn:hover {
-  background: var(--color-primary-50, #eff6ff);
-  color: var(--color-primary-700);
-}
-
-.ctTranslateBtn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* Loading state for target language cells during translation */
-.ctTranslatingCell {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 0;
-  font-size: 11px;
-  color: var(--color-gray-400);
-  animation: ctPulse 1.5s ease-in-out infinite;
-}
-
-@keyframes ctPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-/* Empty state */
-.copyVariationsEmpty {
-  padding: 24px 16px;
-  font-size: 12px;
-  color: var(--color-gray-400);
-  text-align: center;
+  background: var(--color-background-primary);
 }
 
 /* ── Hypothesis fields ─────────────────────────────────── */
@@ -729,8 +629,8 @@
 /* ── Iterate form ──────────────────────────────────────── */
 
 .iterateForm {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background: var(--color-status-blue-bg);
+  border: 1px solid var(--color-status-blue-border);
   border-radius: var(--radius-lg);
   padding: 14px 16px;
   margin-bottom: 20px;
@@ -749,147 +649,6 @@
   gap: var(--spacing-2);
   margin-top: var(--spacing-2);
 }
-
-/* ── Geo Tracks ────────────────────────────────────────── */
-
-.geoTrack {
-  border: 1px solid var(--color-gray-200);
-  border-radius: var(--radius-md);
-  margin-bottom: 8px;
-  overflow: hidden;
-}
-
-.geoTrackHeader {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--color-gray-50);
-  cursor: pointer;
-  user-select: none;
-  transition: background var(--transition-fast);
-}
-
-.geoTrackHeader:hover {
-  background: var(--color-gray-100);
-}
-
-.geoExpandIcon {
-  font-size: 11px;
-  color: var(--color-gray-400);
-  width: 14px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.geoTrackFlag {
-  font-size: 16px;
-  flex-shrink: 0;
-}
-
-.geoTrackName {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-gray-800);
-}
-
-.geoTrackMeta {
-  font-size: 11px;
-  color: var(--color-gray-400);
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
-.geoTrackDelete {
-  font-size: 11px;
-  color: var(--color-gray-300);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: color var(--transition-fast);
-}
-
-.geoTrackDelete:hover {
-  color: #dc2626;
-}
-
-.primaryBadge {
-  font-size: 11px;
-  font-weight: 600;
-  color: #059669;
-  background: #ecfdf5;
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
-  line-height: 18px;
-  flex-shrink: 0;
-}
-
-.geoTrackContent {
-  padding: 10px 12px;
-  border-top: 1px solid var(--color-gray-100);
-}
-
-.geoSubSection {
-  margin-top: 8px;
-}
-
-.geoSubLabel {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--color-gray-400);
-  margin-bottom: 6px;
-}
-
-.geoEmpty {
-  font-size: 12px;
-  color: var(--color-gray-400);
-  padding: 16px 0;
-  text-align: center;
-}
-
-.geoAddButtons {
-  display: flex;
-  gap: 6px;
-  margin-top: 10px;
-}
-
-/* ── Campaigns table ───────────────────────────────────── */
-
-.campaignsTable {
-  margin-bottom: 8px;
-}
-
-.campaignsTable :global(.ant-table-thead > tr > th) {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  padding: 6px 8px !important;
-}
-
-.campaignsTable :global(.ant-table-tbody > tr > td) {
-  padding: 6px 8px !important;
-  font-size: var(--font-size-xs);
-}
-
-.cpaBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.cpaDot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
-.cpaDot.green { background: #059669; }
-.cpaDot.yellow { background: #d97706; }
-.cpaDot.red { background: #dc2626; }
-
-.cpaGreen { color: #047857; font-weight: 600; }
-.cpaYellow { color: #b45309; font-weight: 600; }
-.cpaRed { color: #b91c1c; font-weight: 600; }
 
 /* ── Assets and creatives list ─────────────────────────── */
 
@@ -924,7 +683,7 @@
 }
 
 .assetDelete:hover {
-  color: #dc2626;
+  color: var(--color-status-red);
 }
 
 /* ── Version history ───────────────────────────────────── */
@@ -941,239 +700,10 @@
   color: var(--color-primary-700);
 }
 
-/* ── Activity entries ──────────────────────────────────── */
-
-.activityList {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.activityItem {
-  font-size: 12px;
-  color: var(--color-gray-600);
-  padding: 8px 10px;
-  border-radius: 6px;
-  border: 1px solid transparent;
-}
-
-.activityItem:hover {
-  background: var(--color-gray-50);
-  border-color: var(--color-gray-100);
-}
-
-.actHeader {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 2px;
-}
-
-.actTime {
-  font-size: 11px;
-  color: var(--color-gray-400);
-}
-
-.actUser {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-gray-500);
-}
-
-/* Copy variation changes */
-.actCopyChanges {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  margin-top: 2px;
-}
-
-.actCopyChange {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.actCopyChangeHeader {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.actBadge {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  padding: 1px 5px;
-  border-radius: 3px;
-  flex-shrink: 0;
-}
-
-.actBadgeAdded {
-  color: #059669;
-  background: #ecfdf5;
-}
-
-.actBadgeDeleted {
-  color: #dc2626;
-  background: #fef2f2;
-}
-
-.actBadgeUpdated {
-  color: #2563eb;
-  background: #eff6ff;
-}
-
-.actTextChange {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px;
-}
-
-.actCellLabel {
-  font-weight: 600;
-  color: var(--color-gray-600);
-}
-
-.actOldText {
-  color: #dc2626;
-  text-decoration: line-through;
-  opacity: 0.7;
-}
-
-.actNewText {
-  color: #059669;
-}
-
-.actArrow {
-  color: var(--color-gray-400);
-  font-size: 11px;
-}
-
-.actRemoved {
-  font-style: italic;
-  color: var(--color-gray-400);
-  font-size: 11px;
-}
-
-/* Snapshot expand for added/deleted variations */
-.actSnapDetails {
-  margin-left: 2px;
-}
-
-.actSnapSummary {
-  font-size: 11px;
-  color: var(--color-gray-400);
-  cursor: pointer;
-  user-select: none;
-}
-
-.actSnapSummary:hover {
-  color: var(--color-gray-600);
-}
-
-.actSnapContent {
-  margin-top: 4px;
-  padding: 6px 8px;
-  background: var(--color-gray-50);
-  border-radius: 4px;
-  border: 1px solid var(--color-gray-100);
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.actSnapRow {
-  display: flex;
-  gap: 8px;
-  font-size: 11px;
-  line-height: 1.4;
-}
-
-.actSnapLabel {
-  font-weight: 600;
-  color: var(--color-gray-500);
-  white-space: nowrap;
-  min-width: 80px;
-}
-
-.actSnapText {
-  color: var(--color-gray-700);
-  word-break: break-word;
-}
-
-.actSnapEmpty {
-  font-size: 11px;
-  font-style: italic;
-  color: var(--color-gray-400);
-}
-
 /* ── Add buttons ───────────────────────────────────────── */
 
 .addRow {
   display: flex;
   gap: var(--spacing-2);
   margin-top: var(--spacing-2);
-}
-
-/* ── Responsive ────────────────────────────────────────── */
-
-@media (max-width: 1200px) {
-  .hypothesisGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 900px) {
-  .panel {
-    width: 100vw;
-    max-width: none;
-  }
-
-  .headerMeta {
-    padding: 10px 16px 0;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .headerTitle {
-    padding: 6px 16px 0;
-    font-size: 20px;
-  }
-
-  .headerStatusRow {
-    padding: 8px 16px 0;
-  }
-
-  .tabBar {
-    padding: 0 16px;
-  }
-
-  .body {
-    padding: 16px;
-  }
-
-  .hypothesisGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .statsGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/* ── Reduced motion ────────────────────────────────────── */
-
-@media (prefers-reduced-motion: reduce) {
-  .panel {
-    animation: none;
-  }
-
-  .backdrop {
-    animation: none;
-  }
 }

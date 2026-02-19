@@ -3,7 +3,7 @@
 import { useState, lazy, Suspense } from 'react';
 import { App, Table, Button, Tag } from 'antd';
 import { EditOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
-import type { Product, TrackerUser } from '@/types/marketing-tracker';
+import type { Product, PipelineUser } from '@/types/marketing-pipeline';
 import type { ColumnsType } from 'antd/es/table';
 import styles from '@/styles/components/settings.module.css';
 import stickyStyles from '@/styles/tables/sticky.module.css';
@@ -14,7 +14,7 @@ const ProductDialog = lazy(() =>
 
 interface ProductsClientTableProps {
   products: Product[];
-  users: TrackerUser[];
+  users: PipelineUser[];
   onRefresh: () => Promise<void>;
 }
 

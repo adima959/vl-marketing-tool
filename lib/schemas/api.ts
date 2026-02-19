@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { DASHBOARD_DETAIL_METRIC_IDS, MARKETING_DETAIL_METRIC_IDS } from '@/lib/server/crmMetrics';
 
 /**
  * Zod schemas for API request validation
@@ -39,8 +38,8 @@ export const tableFilterSchema = z.object({
 });
 
 /**
- * Common query request schema
- * Used by dashboard, marketing, and on-page analysis APIs
+ * Hierarchical query request schema (with depth/parentFilters).
+ * Used by on-page analysis and session analysis APIs.
  */
 export const queryRequestSchema = z.object({
   dateRange: dateRangeSchema,
@@ -53,82 +52,23 @@ export const queryRequestSchema = z.object({
 });
 
 /**
- * Marketing query request schema (extends base with productFilter)
+ * Marketing query request schema — flat query, no depth/parentFilters.
+ * The API returns flat rows; tree is built client-side.
  */
-export const marketingQueryRequestSchema = queryRequestSchema.extend({
-  productFilter: z.string().nullish(),
+export const marketingQueryRequestSchema = z.object({
+  dateRange: dateRangeSchema,
+  dimensions: z.array(z.string()).min(1),
+  filters: z.array(tableFilterSchema).optional(),
 });
 
 /**
- * Time period schema for approval rate report
+ * CRM sales query request schema.
+ * Only needs a date range; aggregation happens client-side.
+ * Optional includeCancelInfo adds status + cancel_reason fields (4 extra JOINs).
  */
-const timePeriodSchema = z.enum(['weekly', 'biweekly', 'monthly']);
-
-/**
- * Approval rate query request schema (extends base with timePeriod)
- */
-export const approvalRateQueryRequestSchema = queryRequestSchema.extend({
-  timePeriod: timePeriodSchema.default('biweekly'),
-});
-
-/**
- * Validation rate type schema
- */
-const validationRateTypeSchema = z.enum(['approval', 'pay', 'buy']);
-
-/**
- * Validation rate query request schema (extends base with timePeriod + rateType)
- * Used by all validation rate pages (approval, pay, buy)
- */
-export const validationRateQueryRequestSchema = queryRequestSchema.extend({
-  timePeriod: timePeriodSchema.default('biweekly'),
-  rateType: validationRateTypeSchema,
-});
-
-/**
- * Shared pagination schema — reused by all detail request schemas
- */
-const paginationSchema = z.object({
-  page: z.number().int().min(1, 'page must be at least 1').default(1),
-  pageSize: z.number().int().min(1).max(5000, 'pageSize must be between 1 and 5000').default(50),
-}).optional();
-
-/**
- * Dashboard details request schema
- * For fetching individual detail records from dashboard drilldown
- */
-export const dashboardDetailsRequestSchema = z.object({
-  metricId: z.enum([...DASHBOARD_DETAIL_METRIC_IDS]),
-  filters: z.object({
-    dateRange: dateRangeSchema,
-    country: z.string().nullish(),
-    product: z.string().nullish(),
-    productName: z.string().nullish(),
-    source: z.string().nullish(),
-    excludeDeleted: z.boolean().optional(),
-    excludeUpsellTags: z.boolean().optional(),
-    rateType: validationRateTypeSchema.optional(),
-  }),
-  pagination: paginationSchema,
-});
-
-/**
- * Marketing details request schema
- * For fetching individual detail records from marketing report drilldown
- */
-export const marketingDetailsRequestSchema = z.object({
-  metricId: z.enum([...MARKETING_DETAIL_METRIC_IDS]),
-  filters: z.object({
-    dateRange: dateRangeSchema,
-    network: z.string().nullish(),
-    campaign: z.string().nullish(),
-    adset: z.string().nullish(),
-    ad: z.string().nullish(),
-    date: z.string().date().optional(),
-    classifiedProduct: z.string().nullish(),
-    classifiedCountry: z.string().nullish(),
-  }),
-  pagination: paginationSchema,
+export const salesQueryRequestSchema = z.object({
+  dateRange: dateRangeSchema,
+  includeCancelInfo: z.boolean().optional(),
 });
 
 /**
@@ -182,10 +122,7 @@ export const savedViewReorderSchema = z.object({
  */
 export type QueryRequest = z.infer<typeof queryRequestSchema>;
 export type MarketingQueryRequest = z.infer<typeof marketingQueryRequestSchema>;
-export type ApprovalRateQueryRequest = z.infer<typeof approvalRateQueryRequestSchema>;
-export type ValidationRateQueryRequest = z.infer<typeof validationRateQueryRequestSchema>;
-export type DashboardDetailsRequest = z.infer<typeof dashboardDetailsRequestSchema>;
-export type MarketingDetailsRequest = z.infer<typeof marketingDetailsRequestSchema>;
+export type SalesQueryRequest = z.infer<typeof salesQueryRequestSchema>;
 export type SavedViewCreateRequest = z.infer<typeof savedViewCreateSchema>;
 export type SavedViewRenameRequest = z.infer<typeof savedViewRenameSchema>;
 export type SavedViewToggleFavoriteRequest = z.infer<typeof savedViewToggleFavoriteSchema>;

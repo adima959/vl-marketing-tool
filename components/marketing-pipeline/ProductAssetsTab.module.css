@@ -1,0 +1,536 @@
+/* ── Drop zone ───────────────────────────────────────── */
+
+.dropZone {
+  border: 2px dashed var(--color-gray-300);
+  border-radius: var(--radius-lg);
+  padding: 28px var(--spacing-4);
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  background: var(--color-gray-50);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.dropZone:hover {
+  border-color: var(--color-primary-400);
+  background: var(--color-primary-alpha-3);
+}
+
+.dropZoneDragOver {
+  border-color: var(--color-primary-500);
+  background: var(--color-primary-alpha-6);
+  border-style: solid;
+}
+
+.dropIcon {
+  color: var(--color-gray-400);
+  margin-bottom: var(--spacing-2);
+}
+
+.dropText {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.dropTextAccent {
+  color: var(--color-primary-600);
+  font-weight: var(--font-weight-medium);
+}
+
+.dropHint {
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-400);
+  margin-top: var(--spacing-1);
+}
+
+.hiddenInput {
+  display: none;
+}
+
+/* ── Compact "add more" trigger ──────────────────────── */
+
+.compactDropZone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  padding: 48px var(--spacing-4);
+  border: 2px dashed var(--color-primary-300);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+  background: transparent;
+}
+
+.compactDropZone:hover {
+  border-color: var(--color-primary-400);
+  color: var(--color-primary-600);
+  background: var(--color-primary-alpha-3);
+}
+
+.compactDropZoneDragOver {
+  border-color: var(--color-primary-500);
+  border-style: solid;
+  background: var(--color-primary-alpha-6);
+  color: var(--color-primary-600);
+}
+
+.dropHintInline {
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-400);
+  margin-left: auto;
+}
+
+/* ── Upload queue ────────────────────────────────────── */
+
+.uploadList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-6);
+}
+
+.uploadRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-3);
+  background: var(--color-gray-50);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+}
+
+.uploadFileName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-primary);
+}
+
+.uploadProgress {
+  width: 80px;
+  height: 4px;
+  background: var(--color-gray-200);
+  border-radius: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.uploadProgressBar {
+  height: 100%;
+  background: var(--color-primary-500);
+  border-radius: 2px;
+  transition: width var(--transition-base);
+}
+
+.uploadStatus {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+}
+
+.uploadStatusUploading {
+  color: var(--color-primary-600);
+}
+
+.uploadStatusDone {
+  color: var(--color-success-600);
+}
+
+.uploadStatusError {
+  color: var(--color-error-600);
+}
+
+.uploadSpinner {
+  animation: spin 1s linear infinite;
+}
+
+.uploadDismiss {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-error-600);
+  cursor: pointer;
+  padding: 0;
+  margin-left: 2px;
+  transition: background var(--transition-fast);
+}
+
+.uploadDismiss:hover {
+  background: var(--color-error-50);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ── File list skeleton ──────────────────────────────── */
+
+.fileSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: var(--spacing-6);
+}
+
+.skeletonRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: 8px var(--spacing-3);
+  height: 36px;
+}
+
+.skeletonIcon {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.skeletonName {
+  height: 12px;
+  border-radius: var(--radius-sm);
+  flex: 1;
+  max-width: 200px;
+}
+
+.skeletonBadge {
+  width: 36px;
+  height: 16px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.skeletonMeta {
+  width: 48px;
+  height: 10px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.skeletonIcon,
+.skeletonName,
+.skeletonBadge,
+.skeletonMeta {
+  background: linear-gradient(
+    90deg,
+    var(--color-gray-200) 0%,
+    var(--color-gray-100) 50%,
+    var(--color-gray-200) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Toolbar: filter chips + group toggle ────────────── */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-10);
+  padding-bottom: var(--spacing-3);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.filterChips {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.filterChip:hover {
+  border-color: var(--color-gray-300);
+  background: var(--color-gray-50);
+}
+
+.filterChipActive {
+  border-color: var(--color-primary-200);
+  background: var(--color-primary-50);
+  color: var(--color-primary-700);
+}
+
+.filterChipActive:hover {
+  border-color: var(--color-primary-300);
+  background: var(--color-primary-50);
+}
+
+.filterChipCount {
+  font-size: 10px;
+  color: var(--color-gray-400);
+  font-weight: var(--font-weight-medium);
+}
+
+.filterChipActive .filterChipCount {
+  color: var(--color-primary-500);
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex-shrink: 0;
+}
+
+.fileCount {
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-400);
+  white-space: nowrap;
+}
+
+.groupToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-gray-400);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.groupToggle:hover {
+  border-color: var(--color-gray-300);
+  color: var(--color-text-secondary);
+  background: var(--color-gray-50);
+}
+
+.groupToggleActive {
+  border-color: var(--color-primary-200);
+  background: var(--color-primary-50);
+  color: var(--color-primary-600);
+}
+
+.groupToggleActive:hover {
+  border-color: var(--color-primary-300);
+  background: var(--color-primary-50);
+}
+
+/* ── Unified file list ───────────────────────────────── */
+
+.fileList {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: var(--spacing-2);
+}
+
+.fileRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: 6px var(--spacing-3);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+  height: 36px;
+}
+
+.fileRow:hover {
+  background: var(--color-gray-50);
+}
+
+.fileIcon {
+  flex-shrink: 0;
+  color: var(--color-gray-400);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thumbWrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.miniThumb {
+  width: 24px;
+  height: 24px;
+  object-fit: cover;
+  border-radius: 4px;
+  display: block;
+}
+
+.thumbPreview {
+  display: none;
+  position: absolute;
+  top: -4px;
+  left: 32px;
+  max-width: 300px;
+  max-height: 300px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-gray-200);
+  background: var(--color-background-primary);
+  box-shadow: var(--shadow-lg);
+  z-index: 50;
+  pointer-events: none;
+}
+
+.thumbWrap:hover .thumbPreview {
+  display: block;
+}
+
+.fileName {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.typeBadge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-gray-400);
+  background: var(--color-gray-100);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.03em;
+}
+
+.fileMeta {
+  flex-shrink: 0;
+  width: 56px;
+  text-align: right;
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-400);
+}
+
+.fileDate {
+  flex-shrink: 0;
+  width: 68px;
+  text-align: right;
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-400);
+}
+
+.fileActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.fileRow:hover .fileActions {
+  opacity: 1;
+}
+
+.fileActionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-gray-500);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.fileActionBtn:hover {
+  background: var(--color-gray-100);
+  color: var(--color-text-primary);
+}
+
+.fileActionBtnDanger:hover {
+  background: var(--color-error-50);
+  color: var(--color-error-600);
+}
+
+/* ── Group headers ───────────────────────────────────── */
+
+.groupHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 6px var(--spacing-3);
+  margin-top: var(--spacing-4);
+  background: var(--color-gray-50);
+  border-radius: var(--radius-md);
+}
+
+.groupHeader:first-child {
+  margin-top: var(--spacing-2);
+}
+
+.groupCount {
+  font-size: 10px;
+  color: var(--color-gray-400);
+  font-weight: var(--font-weight-normal);
+}
+
+/* ── Empty state ─────────────────────────────────────── */
+
+.emptyState {
+  text-align: center;
+  padding: var(--spacing-4) 0;
+  color: var(--color-gray-400);
+  font-size: var(--font-size-sm);
+}
+
+.emptyHint {
+  text-align: center;
+  padding: var(--spacing-3) 0;
+  color: var(--color-gray-400);
+  font-size: var(--font-size-xs);
+}

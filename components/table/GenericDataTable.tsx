@@ -1,17 +1,15 @@
 import { Table, Tooltip } from 'antd';
+import { BarChartOutlined } from '@ant-design/icons';
 import type { ColumnsType, TableProps } from 'antd/es/table';
 import { useMemo } from 'react';
 import { MetricCell } from './MetricCell';
-import { ClickableMetricCell } from '@/components/dashboard/ClickableMetricCell';
-import { MarketingClickableMetricCell } from './MarketingClickableMetricCell';
-import { DASHBOARD_DETAIL_METRIC_IDS, type DashboardDetailMetricId, type MarketingDetailMetricId } from '@/lib/server/crmMetrics';
-import { OnPageClickableMetricCell } from '@/components/on-page-analysis/OnPageClickableMetricCell';
+import { formatNumber, formatPercentage } from '@/lib/formatters';
 import { useToast } from '@/hooks/useToast';
 import { useDragScroll } from '@/hooks/useDragScroll';
 import { EmptyState } from '@/components/EmptyState';
 import { TableSkeleton } from '@/components/loading/TableSkeleton';
 import type { BaseTableRow, GenericDataTableConfig } from '@/types/table';
-import { calculateTableWidth, injectSkeletonRows, isSkeletonRow } from '@/lib/utils/tableUtils';
+import { injectSkeletonRows, isSkeletonRow } from '@/lib/utils/tableUtils';
 import styles from '@/styles/tables/base.module.css';
 
 /** Format ISO date string to dd/MM/yyyy, pass through non-dates unchanged */
@@ -32,13 +30,14 @@ function buildAttributeColumn<TRow extends BaseTableRow>(
   setExpandedRowKeys: (keys: string[]) => void,
   loadChildData: (key: string, value: string, depth: number) => Promise<void>,
   onError: (msg: string) => void,
+  getAttributeActionUrl?: (record: TRow) => string | null,
 ): ColumnsType<TRow>[0] {
   return {
     title: 'Attributes',
     dataIndex: 'attribute',
     key: 'attribute',
     fixed: 'left',
-    width: 350,
+    width: 300,
     onHeaderCell: () => ({ rowSpan: 2 }),
     render: (value: string, record: TRow) => {
       const indent = record.depth * 20;
@@ -52,6 +51,8 @@ function buildAttributeColumn<TRow extends BaseTableRow>(
           </div>
         );
       }
+
+      const actionUrl = getAttributeActionUrl?.(record);
 
       return (
         <div className={styles.attributeCell} style={{ paddingLeft: `${indent}px` }}>
@@ -91,6 +92,19 @@ function buildAttributeColumn<TRow extends BaseTableRow>(
               {formatAttributeValue(value)}
             </span>
           </Tooltip>
+          {actionUrl && (
+            <Tooltip title="View on-page analytics" placement="top" mouseEnterDelay={0.3}>
+              <a
+                href={actionUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.attributeAction}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <BarChartOutlined />
+              </a>
+            </Tooltip>
+          )}
         </div>
       );
     },
@@ -104,12 +118,12 @@ export function GenericDataTable<TRow extends BaseTableRow>({
   columnGroups,
   colorClassName,
   showColumnTooltips = false,
-  onMetricClick,
-  onMarketingMetricClick,
-  clickableMarketingMetrics = [],
   onOnPageMetricClick,
   clickableOnPageMetrics = [],
+  onMetricClick,
+  clickableMetrics = [],
   hideZeroValues = false,
+  getAttributeActionUrl,
 }: GenericDataTableConfig<TRow>) {
   const {
     reportData,
@@ -131,7 +145,7 @@ export function GenericDataTable<TRow extends BaseTableRow>({
 
   // Calculate total table width for scroll.x (sum of all column widths)
   const tableWidth = useMemo(() => {
-    const attributeWidth = 350;
+    const attributeWidth = 300;
     const visibleMetricsWidth = metricColumns
       .filter((col) => visibleColumns.includes(col.id))
       .reduce((sum, col) => sum + col.width, 0);
@@ -146,7 +160,7 @@ export function GenericDataTable<TRow extends BaseTableRow>({
 
   // Build columns from config
   const columns: ColumnsType<TRow> = useMemo(() => {
-    const attributeColumn = buildAttributeColumn<TRow>(expandedRowKeys, setExpandedRowKeys, loadChildData, toast.error);
+    const attributeColumn = buildAttributeColumn<TRow>(expandedRowKeys, setExpandedRowKeys, loadChildData, toast.error, getAttributeActionUrl);
 
     // Get visible metric columns
     const visibleMetrics = metricColumns.filter((col) => visibleColumns.includes(col.id));
@@ -167,6 +181,7 @@ export function GenericDataTable<TRow extends BaseTableRow>({
           key: col.id,
           width: col.width,
           align: 'center' as const,
+          className: group.cellClassName,
           sorter: true,
           sortOrder: sortColumn === col.id ? sortDirection : null,
           showSorterTooltip: false,
@@ -174,26 +189,76 @@ export function GenericDataTable<TRow extends BaseTableRow>({
             if (isSkeletonRow(record)) return <div className={styles.skeletonMetric} />;
             if (value === null || value === undefined) return <span style={{ color: 'var(--color-gray-300)' }}>–</span>;
 
-            const sharedProps = { value: value ?? 0, format: col.format, metricLabel: col.label, rowKey: record.key, depth: record.depth, dimensions: loadedDimensions, dateRange: loadedDateRange! };
+            const cell = <MetricCell value={value ?? 0} format={col.format} hideZero={hideZeroValues} />;
 
-            if (onMarketingMetricClick && loadedDateRange && clickableMarketingMetrics.includes(col.id)) {
-              return <MarketingClickableMetricCell {...sharedProps} metricId={col.id as MarketingDetailMetricId} onClick={onMarketingMetricClick} hideZero={hideZeroValues} />;
-            }
-            if (onOnPageMetricClick && loadedDateRange && clickableOnPageMetrics.includes(col.id)) {
-              return <OnPageClickableMetricCell {...sharedProps} metricId={col.id} onClick={onOnPageMetricClick} />;
-            }
-            if (onMetricClick && loadedDateRange && (DASHBOARD_DETAIL_METRIC_IDS as readonly string[]).includes(col.id)) {
-              const cell = <ClickableMetricCell {...sharedProps} metricId={col.id as DashboardDetailMetricId} onClick={onMetricClick} hideZero={hideZeroValues} />;
-              if (col.id === 'upsells' && (value ?? 0) > 0 && record.metrics.upsellSub != null) {
-                return (
-                  <Tooltip title={`Subscription: ${record.metrics.upsellSub} · OTS: ${record.metrics.upsellOts ?? 0}`}>
-                    <span>{cell}</span>
-                  </Tooltip>
+            // Compute tooltip content (if any)
+            let tooltipTitle: React.ReactNode = null;
+            if (col.tooltipFormula && value) {
+              const numerator = Number(record.metrics[col.tooltipFormula.numerator] ?? 0);
+              const denominator = Number(record.metrics[col.tooltipFormula.denominator] ?? 0);
+              tooltipTitle = `${formatNumber(numerator)} / ${formatNumber(denominator)} = ${formatPercentage(value)}`;
+            } else if (col.tooltipFn && value) {
+              const lines = col.tooltipFn(record.metrics);
+              if (lines?.length) {
+                tooltipTitle = (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {lines.map((line, i) => <div key={i}>{line}</div>)}
+                  </div>
                 );
               }
-              return cell;
             }
-            return <MetricCell value={value ?? 0} format={col.format} hideZero={hideZeroValues} />;
+
+            // Build click handler for clickable metrics
+            let handleClick: ((e: React.MouseEvent) => void) | undefined;
+            if (onOnPageMetricClick && loadedDateRange && clickableOnPageMetrics.includes(col.id)) {
+              handleClick = (e: React.MouseEvent) => {
+                e.stopPropagation();
+                const parts = record.key.split('::');
+                const dimensionFilters: Record<string, string> = {};
+                parts.forEach((part, index) => {
+                  const dimId = loadedDimensions[index];
+                  if (dimId && part) dimensionFilters[dimId] = part;
+                });
+                onOnPageMetricClick({
+                  metricId: col.id,
+                  metricLabel: col.label,
+                  value: value ?? 0,
+                  filters: { dateRange: loadedDateRange, dimensionFilters },
+                });
+              };
+            } else if (onMetricClick && loadedDateRange && clickableMetrics.includes(col.id)) {
+              handleClick = (e: React.MouseEvent) => {
+                e.stopPropagation();
+                const parts = record.key.split('::');
+                const dimensionFilters: Record<string, string> = {};
+                parts.forEach((part, index) => {
+                  const dimId = loadedDimensions[index];
+                  if (dimId && part) dimensionFilters[dimId] = part;
+                });
+                onMetricClick({
+                  metricId: col.id,
+                  metricLabel: col.label,
+                  value: value ?? 0,
+                  filters: { dateRange: loadedDateRange, dimensionFilters },
+                });
+              };
+            }
+
+            // Assemble: clickable wrapper (optional) + tooltip (optional)
+            if (handleClick && tooltipTitle) {
+              return (
+                <Tooltip title={tooltipTitle} placement="top" mouseEnterDelay={0.3}>
+                  <div className={styles.clickableMetric} onClick={handleClick}>{cell}</div>
+                </Tooltip>
+              );
+            }
+            if (handleClick) {
+              return <div className={styles.clickableMetric} onClick={handleClick}>{cell}</div>;
+            }
+            if (tooltipTitle) {
+              return <Tooltip title={tooltipTitle} placement="top" mouseEnterDelay={0.3}><span>{cell}</span></Tooltip>;
+            }
+            return cell;
           },
         }));
 
@@ -215,16 +280,15 @@ export function GenericDataTable<TRow extends BaseTableRow>({
     loadChildData,
     metricColumns,
     columnGroups,
-    showColumnTooltips,
-    onMetricClick,
-    onMarketingMetricClick,
-    clickableMarketingMetrics,
     onOnPageMetricClick,
     clickableOnPageMetrics,
+    onMetricClick,
+    clickableMetrics,
     loadedDimensions,
     loadedDateRange,
     toast,
     hideZeroValues,
+    getAttributeActionUrl,
   ]);
 
   // Handle sort change

@@ -52,6 +52,9 @@ interface GenericFilterToolbarProps {
   /** Additional controls to show in right section (e.g., TimePeriodToggle) */
   additionalControls?: ReactNode;
 
+  /** Inline info banner rendered below controls in right section (e.g., "Today's data may be incomplete") */
+  infoBanner?: ReactNode;
+
   /** Custom CSS module for styling (optional) */
   styleModule?: {
     filterBar?: string;
@@ -108,6 +111,7 @@ export function GenericFilterToolbar({
   filterPanel,
   customDatePicker,
   additionalControls,
+  infoBanner,
   styleModule,
   showUnsavedDot = false,
 }: GenericFilterToolbarProps) {
@@ -188,6 +192,12 @@ export function GenericFilterToolbar({
           {additionalControls && (
             <div className={styles.additionalControls}>
               {additionalControls}
+            </div>
+          )}
+
+          {infoBanner && (
+            <div className={styles.infoBannerSlot}>
+              {infoBanner}
             </div>
           )}
         </div>

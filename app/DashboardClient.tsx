@@ -1,54 +1,44 @@
 'use client';
 
-import { Suspense, lazy, useEffect, useCallback } from 'react';
-import { Spin } from 'antd';
+import { Suspense } from 'react';
+import { Button } from 'antd';
+import { LayoutDashboard } from 'lucide-react';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { DashboardFilterToolbar } from '@/components/dashboard/DashboardFilterToolbar';
+import { DashboardDataTable } from '@/components/dashboard/DashboardDataTable';
+import { DashboardTimeSeriesChart } from '@/components/dashboard/DashboardTimeSeriesChart';
+import { SavedViewsDropdown } from '@/components/saved-views/SavedViewsDropdown';
 import { useDashboardUrlSync } from '@/hooks/useDashboardUrlSync';
 import { useApplyViewFromUrl } from '@/hooks/useApplyViewFromUrl';
-import { DashboardFilterToolbar } from '@/components/dashboard/DashboardFilterToolbar';
-import { DashboardTimeSeriesChart } from '@/components/dashboard/DashboardTimeSeriesChart';
-import { PageHeader } from '@/components/layout/PageHeader';
-import { SavedViewsDropdown } from '@/components/saved-views/SavedViewsDropdown';
+import { useReportPageSetup } from '@/hooks/useReportPageSetup';
 import { useDashboardStore } from '@/stores/dashboardStore';
-import { LayoutDashboard } from 'lucide-react';
-import styles from '@/components/dashboard/dashboard.module.css';
-import type { ResolvedViewParams } from '@/types/savedViews';
-
-const DashboardDataTable = lazy(() =>
-  import('@/components/dashboard/DashboardDataTable').then((mod) => ({ default: mod.DashboardDataTable }))
-);
+import { TableInfoBanner } from '@/components/ui/TableInfoBanner';
+import pageStyles from '@/components/dashboard/dashboard.module.css';
 
 function DashboardContent() {
+  const { hasUnsavedChanges, resetFilters, dateRange, timeSeriesData, isLoading } = useDashboardStore();
+
+  const { includesToday, handleApplyView, getCurrentState } = useReportPageSetup({
+    dateRange,
+    getStoreState: useDashboardStore.getState,
+    setStoreState: useDashboardStore.setState,
+  });
+
   useDashboardUrlSync();
-
-  useEffect(() => {
-    document.title = 'Dashboard | Vitaliv Analytics';
-  }, []);
-
-  const handleApplyView = useCallback((params: ResolvedViewParams) => {
-    const store = useDashboardStore.getState();
-    useDashboardStore.setState({
-      dateRange: { start: params.start, end: params.end },
-      hasUnsavedChanges: false,
-    });
-    if (params.sortBy) {
-      store.setSort(params.sortBy, params.sortDir ?? 'descend');
-    } else {
-      store.loadData();
-    }
-  }, []);
-
   useApplyViewFromUrl(handleApplyView);
 
-  const getCurrentState = useCallback(() => {
-    const { dateRange, sortColumn, sortDirection } = useDashboardStore.getState();
-    return { dateRange, dimensions: ['country', 'product', 'source'], sortBy: sortColumn, sortDir: sortDirection };
-  }, []);
+  const headerActions = hasUnsavedChanges ? (
+    <Button type="text" onClick={resetFilters} size="small">
+      Reset
+    </Button>
+  ) : null;
 
   return (
-    <div className={styles.page}>
+    <div className={pageStyles.page}>
       <PageHeader
         title="Dashboard"
         icon={<LayoutDashboard className="h-5 w-5" />}
+        actions={headerActions}
         titleExtra={
           <SavedViewsDropdown
             pagePath="/"
@@ -57,12 +47,11 @@ function DashboardContent() {
           />
         }
       />
-      <div className={styles.content}>
+      <div className={pageStyles.content}>
         <DashboardFilterToolbar />
-        <DashboardTimeSeriesChart />
-        <Suspense fallback={<div className="flex items-center justify-center p-8"><Spin size="large" /></div>}>
-          <DashboardDataTable />
-        </Suspense>
+        {includesToday && <TableInfoBanner messages={["Today's data may be incomplete"]} />}
+        <DashboardTimeSeriesChart data={timeSeriesData} isLoading={isLoading} />
+        <DashboardDataTable />
       </div>
     </div>
   );

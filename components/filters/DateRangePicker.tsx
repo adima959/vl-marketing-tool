@@ -18,9 +18,10 @@ const { RangePicker } = DatePicker;
 export interface DateRangePickerProps {
   dateRange: { start: Date; end: Date };
   setDateRange: (range: { start: Date; end: Date }) => void;
+  size?: 'small' | 'middle' | 'large';
 }
 
-export function DateRangePicker({ dateRange, setDateRange }: DateRangePickerProps) {
+export function DateRangePicker({ dateRange, setDateRange, size = 'middle' }: DateRangePickerProps) {
   const handleChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
     if (dates && dates[0] && dates[1]) {
       // Extract date components from local dayjs object
@@ -61,7 +62,7 @@ export function DateRangePicker({ dateRange, setDateRange }: DateRangePickerProp
       <RangePicker
         className={styles.rangePicker}
         classNames={{ popup: { root: styles.datePickerPopup } }}
-        size="middle"
+        size={size}
         format="DD/MM/YYYY"
         value={[dayjs(dateRange.start), dayjs(dateRange.end)]}
         onChange={handleChange}

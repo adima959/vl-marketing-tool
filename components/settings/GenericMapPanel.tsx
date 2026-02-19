@@ -82,6 +82,8 @@ export interface GenericMapPanelProps<TUnclassified, TClassified, TIgnored> {
   };
   labels: { singular: string; plural: string };
   itemNameClass?: string;
+  /** Called whenever the unclassified count changes (after classify, ignore, auto-match, etc.) */
+  onUnclassifiedCountChange?: (count: number) => void;
 }
 
 export function GenericMapPanel<TUnclassified, TClassified, TIgnored>({
@@ -89,6 +91,7 @@ export function GenericMapPanel<TUnclassified, TClassified, TIgnored>({
   accessors,
   labels,
   itemNameClass = styles.itemName,
+  onUnclassifiedCountChange,
 }: GenericMapPanelProps<TUnclassified, TClassified, TIgnored>): React.ReactNode {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -122,6 +125,14 @@ export function GenericMapPanel<TUnclassified, TClassified, TIgnored>({
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Notify parent + sibling components when unclassified count changes
+  useEffect(() => {
+    if (!loading) {
+      onUnclassifiedCountChange?.(unclassified.length);
+      window.dispatchEvent(new Event('data-maps-count-change'));
+    }
+  }, [unclassified.length, loading, onUnclassifiedCountChange]);
 
   const productGroups = useMemo(() => {
     const groups = new Map<string, { product: ProductOption; items: TClassified[] }>();

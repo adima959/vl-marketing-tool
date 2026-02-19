@@ -60,20 +60,6 @@
 }
 
 /* =============================================================================
-   BODY CELLS
-   ============================================================================= */
-
-/* Group separator border - after Engagement */
-.theme :global(.ant-table-tbody > tr > td:nth-child(5)) {
-  border-right: 1px solid rgba(191, 219, 254, 0.4) !important;
-}
-
-/* Group separator border - after Interactions */
-.theme :global(.ant-table-tbody > tr > td:nth-child(11)) {
-  border-right: 1px solid rgba(254, 215, 170, 0.4) !important;
-}
-
-/* =============================================================================
    HOVER STATES
    ============================================================================= */
 

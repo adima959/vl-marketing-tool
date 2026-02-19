@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { Select, Input } from 'antd';
+import { Select, Input, ConfigProvider } from 'antd';
 import { CloseOutlined, PlusOutlined } from '@ant-design/icons';
 import type { TableFilter, FilterOperator } from '@/types/filters';
 import type { DimensionGroupConfig } from '@/types/dimensions';
@@ -68,19 +68,25 @@ export function FilterPanel({ filters, onFiltersChange, dimensionGroups, embedde
     onFiltersChange([]);
   }, [onFiltersChange]);
 
+  const actionButtons = (
+    <div className={styles.actions}>
+      <button className={styles.addButton} onClick={addFilter} type="button">
+        <PlusOutlined style={{ fontSize: 12 }} />
+        Add filter
+      </button>
+      {filters.length > 0 && (
+        <button className={styles.clearButton} onClick={clearAll} type="button">
+          Clear all
+        </button>
+      )}
+    </div>
+  );
+
   return (
+    <ConfigProvider theme={{ token: { colorBorder: '#e0e2e6', borderRadius: 6 } }}>
     <div className={embedded ? styles.panelEmbedded : styles.panel} data-filter-panel>
       {filters.map((filter, index) => (
         <div key={filter.id} className={styles.filterRow}>
-          <button
-            className={styles.removeButton}
-            onClick={() => removeFilter(filter.id)}
-            title="Remove filter"
-            type="button"
-          >
-            <CloseOutlined style={{ fontSize: 12 }} />
-          </button>
-
           <span className={styles.logicLabel}>
             {index === 0 ? 'where' : 'and'}
           </span>
@@ -93,6 +99,7 @@ export function FilterPanel({ filters, onFiltersChange, dimensionGroups, embedde
             onChange={(val) => updateFilter(filter.id, { field: val })}
             showSearch
             optionFilterProp="label"
+            size="small"
           />
 
           <Select
@@ -100,6 +107,7 @@ export function FilterPanel({ filters, onFiltersChange, dimensionGroups, embedde
             value={filter.operator}
             options={OPERATOR_OPTIONS}
             onChange={(val) => updateFilter(filter.id, { operator: val })}
+            size="small"
           />
 
           <Input
@@ -107,21 +115,24 @@ export function FilterPanel({ filters, onFiltersChange, dimensionGroups, embedde
             placeholder="Value"
             value={filter.value}
             onChange={(e) => updateFilter(filter.id, { value: e.target.value })}
+            size="small"
           />
+
+          <button
+            className={styles.removeButton}
+            onClick={() => removeFilter(filter.id)}
+            title="Remove filter"
+            type="button"
+          >
+            <CloseOutlined style={{ fontSize: 10 }} />
+          </button>
+
+          {index === filters.length - 1 && actionButtons}
         </div>
       ))}
 
-      <div className={styles.actions}>
-        <button className={styles.addButton} onClick={addFilter} type="button">
-          <PlusOutlined style={{ fontSize: 12 }} />
-          Add filter
-        </button>
-        {filters.length > 0 && (
-          <button className={styles.clearButton} onClick={clearAll} type="button">
-            Clear all
-          </button>
-        )}
-      </div>
+      {filters.length === 0 && actionButtons}
     </div>
+    </ConfigProvider>
   );
 }

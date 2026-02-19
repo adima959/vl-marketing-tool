@@ -30,15 +30,52 @@ interface UnclassifiedRow {
   url_path: string;
 }
 
+/** Shared unclassified URL query */
+const UNCLASSIFIED_URL_QUERY = `
+  SELECT DISTINCT pv.url_path
+  FROM remote_session_tracker.event_page_view_enriched_v2 pv
+  WHERE pv.url_path IS NOT NULL
+    AND pv.url_path != ''
+    AND NOT EXISTS (
+      SELECT 1 FROM app_url_classifications uc
+      WHERE uc.url_path = pv.url_path
+    )
+  ORDER BY pv.url_path
+  LIMIT 500`;
+
+/** Lightweight count-only version */
+const UNCLASSIFIED_URL_COUNT_QUERY = `
+  SELECT COUNT(*) as count FROM (
+    SELECT DISTINCT pv.url_path
+    FROM remote_session_tracker.event_page_view_enriched_v2 pv
+    WHERE pv.url_path IS NOT NULL
+      AND pv.url_path != ''
+      AND NOT EXISTS (
+        SELECT 1 FROM app_url_classifications uc
+        WHERE uc.url_path = pv.url_path
+      )
+    LIMIT 500
+  ) t`;
+
 /**
  * GET /api/on-page-analysis/url-classifications
- * Returns unclassified URL paths, classified entries, ignored entries, and product list
+ * ?count=true → returns only unclassified count (lightweight)
+ * Otherwise → returns full data: unclassified, classified, ignored, products
  */
 async function handleGet(
-  _request: NextRequest,
+  request: NextRequest,
   _user: AppUser
 ): Promise<NextResponse> {
   try {
+    // Lightweight count-only mode for badge display
+    if (request.nextUrl.searchParams.get('count') === 'true') {
+      const rows = await executeQuery<{ count: string }>(UNCLASSIFIED_URL_COUNT_QUERY);
+      return NextResponse.json({
+        success: true,
+        data: { unclassifiedCount: Number(rows[0].count) },
+      });
+    }
+
     const [products, classified, ignored, unclassified] = await Promise.all([
       // Active products for the dropdown
       executeQuery<ProductRow>(
@@ -67,15 +104,7 @@ async function handleGet(
       ),
 
       // Unclassified: distinct url_paths not in the mapping table
-      executeQuery<UnclassifiedRow>(
-        `SELECT DISTINCT url_path
-         FROM remote_session_tracker.event_page_view_enriched_v2
-         WHERE url_path IS NOT NULL
-           AND url_path != ''
-           AND url_path NOT IN (SELECT url_path FROM app_url_classifications)
-         ORDER BY url_path
-         LIMIT 500`
-      ),
+      executeQuery<UnclassifiedRow>(UNCLASSIFIED_URL_QUERY),
     ]);
 
     return NextResponse.json({
@@ -139,15 +168,7 @@ async function handlePut(
   try {
     // Fetch unclassified URLs and all active products
     const [unclassified, products] = await Promise.all([
-      executeQuery<UnclassifiedRow>(
-        `SELECT DISTINCT url_path
-         FROM remote_session_tracker.event_page_view_enriched_v2
-         WHERE url_path IS NOT NULL
-           AND url_path != ''
-           AND url_path NOT IN (SELECT url_path FROM app_url_classifications)
-         ORDER BY url_path
-         LIMIT 500`
-      ),
+      executeQuery<UnclassifiedRow>(UNCLASSIFIED_URL_QUERY),
       executeQuery<ProductRow>(
         `SELECT id, name, COALESCE(color, '#6b7280') as color
          FROM app_products
@@ -229,13 +250,16 @@ async function handlePost(
       );
     }
 
+    // Strip query params and fragments to prevent duplicates
+    const normalizedPath = urlPath.split('?')[0].split('#')[0];
+
     // Ignore action: insert with is_ignored=true, no product/country needed
     if (action === 'ignore') {
       const rows = await executeQuery<{ id: string; url_path: string }>(
         `INSERT INTO app_url_classifications (url_path, is_ignored, classified_by)
          VALUES ($1, true, $2)
          RETURNING id, url_path`,
-        [urlPath, user.id]
+        [normalizedPath, user.id]
       );
       return NextResponse.json({
         success: true,
@@ -262,7 +286,7 @@ async function handlePost(
       `INSERT INTO app_url_classifications (url_path, product_id, country_code, classified_by)
        VALUES ($1, $2, $3, $4)
        RETURNING id, url_path, product_id, country_code`,
-      [urlPath, productId, countryCode, user.id]
+      [normalizedPath, productId, countryCode, user.id]
     );
 
     // Fetch product info for the response

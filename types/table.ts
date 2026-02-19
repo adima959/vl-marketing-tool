@@ -1,9 +1,21 @@
 import type { ColumnsType } from 'antd/es/table';
 import type { ReactNode } from 'react';
 import type { MetricColumn } from './metrics';
-import type { MetricClickContext } from './dashboardDetails';
-import type { MarketingMetricClickContext } from './marketingDetails';
 import type { OnPageViewClickContext } from './onPageDetails';
+
+/**
+ * Generic metric click context — used by dashboard detail modal.
+ * Dimension filters are extracted from the row key at click time.
+ */
+export interface MetricClickContext {
+  metricId: string;
+  metricLabel: string;
+  value: number;
+  filters: {
+    dateRange: { start: Date; end: Date };
+    dimensionFilters: Record<string, string>;
+  };
+}
 
 /**
  * Base row interface that all table data must extend
@@ -14,7 +26,7 @@ export interface BaseTableRow {
   depth: number;
   hasChildren?: boolean;
   children?: BaseTableRow[];
-  metrics: Record<string, number | null>;
+  metrics: Record<string, number | string | null>;
 }
 
 /**
@@ -23,6 +35,8 @@ export interface BaseTableRow {
 export interface ColumnGroup {
   title: string;
   metricIds: string[];
+  /** CSS class applied to each metric cell (th + td) in this group */
+  cellClassName?: string;
 }
 
 /**
@@ -52,11 +66,6 @@ export interface ColumnStore {
 }
 
 /**
- * Generic metric click context for use across different table types
- */
-export type GenericMetricClickContext = MetricClickContext | MarketingMetricClickContext;
-
-/**
  * Configuration for GenericDataTable
  */
 export interface GenericDataTableConfig<TRow extends BaseTableRow> {
@@ -78,21 +87,23 @@ export interface GenericDataTableConfig<TRow extends BaseTableRow> {
   /** Whether to show tooltips on column headers */
   showColumnTooltips?: boolean;
 
-  /** Optional callback when a metric cell is clicked (for detail modals) - Dashboard context */
-  onMetricClick?: (context: MetricClickContext) => void;
-
-  /** Optional callback when a marketing metric cell is clicked (for detail modals) - Marketing context */
-  onMarketingMetricClick?: (context: MarketingMetricClickContext) => void;
-
-  /** IDs of metrics that should be clickable for marketing details (e.g., ['subscriptions', 'trialsApproved']) */
-  clickableMarketingMetrics?: string[];
-
   /** Optional callback when a metric cell is clicked in On-Page Analysis */
   onOnPageMetricClick?: (context: OnPageViewClickContext) => void;
 
   /** IDs of metrics that should be clickable for on-page details (e.g., ['pageViews']) */
   clickableOnPageMetrics?: string[];
 
+  /** Generic metric click handler (used by dashboard) */
+  onMetricClick?: (context: MetricClickContext) => void;
+
+  /** IDs of metrics that should be clickable (used by dashboard) */
+  clickableMetrics?: string[];
+
   /** Whether to hide cells with zero values */
   hideZeroValues?: boolean;
+
+  /** Optional function returning a URL for the attribute action button (shows on hover).
+   *  Return null to hide the button for that row. */
+  getAttributeActionUrl?: (record: TRow) => string | null;
+
 }

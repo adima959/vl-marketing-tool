@@ -1,4 +1,10 @@
 import type { MetricColumn } from '@/types';
+import { formatNumber } from '@/lib/formatters';
+
+/** Helper: safe number extraction from metrics record */
+function num(metrics: Record<string, number | string | null>, key: string): number {
+  return Number(metrics[key] ?? 0);
+}
 
 export const METRIC_COLUMNS: MetricColumn[] = [
   // Basic Metrics
@@ -77,121 +83,187 @@ export const METRIC_COLUMNS: MetricColumn[] = [
     align: 'right',
   },
 
-  // CRM Metrics (order matches dashboard: Cust, Subs, Trials, Trial Appv, Trial Appr.%, OTS, OTS Appr.%, Upsells, Ups. Appv %, Real CPA)
+  // CRM Metrics
   {
     id: 'customers',
-    label: 'Customers',
+    label: 'New Customers',
     shortLabel: 'Cust',
-    description: 'Registration date = subscription date. Date range on subscription creation. Excludes parent-sub-id tagged.',
+    description: 'Unique new customers (deduplicated by customer ID)',
     format: 'number',
-    category: 'conversions',
-    defaultVisible: true,
-    width: 90,
+    category: 'crm',
+    defaultVisible: false,
+    width: 80,
     align: 'right',
+    tooltipFn: (m) => {
+      const customers = num(m, 'customers');
+      const upsellNew = num(m, 'upsellNewCustomers');
+      if (!customers) return null;
+      const lines = [`${formatNumber(customers)} new customers`];
+      if (upsellNew > 0) lines.push(`+ ${formatNumber(upsellNew)} cross-sell only`);
+      if (upsellNew > 0) lines.push(`= ${formatNumber(customers + upsellNew)} CRM total`);
+      return lines;
+    },
   },
   {
     id: 'subscriptions',
     label: 'Subscriptions',
     shortLabel: 'Subs',
-    description: 'Unique subscription count. Date range on subscription creation. Excludes parent-sub-id tagged.',
+    description: 'New subscriptions by creation date. CRM total also includes cross-sell subs (shown separately).',
     format: 'number',
-    category: 'conversions',
+    category: 'crm',
     defaultVisible: true,
-    width: 90,
+    width: 80,
     align: 'right',
+    tooltipFn: (m) => {
+      const subs = num(m, 'subscriptions');
+      const upsellSubs = num(m, 'upsellSubs');
+      if (!subs) return null;
+      const lines = [`${formatNumber(subs)} subs`];
+      if (upsellSubs > 0) lines.push(`+ ${formatNumber(upsellSubs)} cross-sell subs`);
+      if (upsellSubs > 0) lines.push(`= ${formatNumber(subs + upsellSubs)} CRM total`);
+      return lines;
+    },
   },
   {
-    id: 'trialsApproved',
+    id: 'trials',
     label: 'Trials',
     shortLabel: 'Trials',
-    description: 'Invoice type 1, not deleted, marked as approved. Date range on invoice order date. Upsells counted separately.',
+    description: 'Subscriptions with a trial invoice, counted by subscription creation date. CRM counts by invoice date — re-trials on existing subs may appear on a different date.',
     format: 'number',
-    category: 'conversions',
+    category: 'crm',
     defaultVisible: true,
-    width: 90,
+    width: 80,
     align: 'right',
-  },
-  {
-    id: 'approvalRate',
-    label: 'Trial Appr. %',
-    shortLabel: 'Trial Appr. %',
-    description: 'Approved trials / subscriptions.',
-    format: 'percentage',
-    category: 'conversions',
-    defaultVisible: true,
-    width: 100,
-    align: 'right',
+    tooltipFn: (m) => {
+      const trials = num(m, 'trials');
+      const upsellTrials = num(m, 'upsellSubTrials');
+      if (!trials) return null;
+      const lines = [`${formatNumber(trials)} trials`];
+      if (upsellTrials > 0) lines.push(`+ ${formatNumber(upsellTrials)} cross-sell trials`);
+      if (upsellTrials > 0) lines.push(`= ${formatNumber(trials + upsellTrials)} CRM total`);
+      return lines;
+    },
   },
   {
     id: 'onHold',
     label: 'On Hold',
     shortLabel: 'On Hold',
-    description: 'Invoice type 1, not deleted, on-hold date set. Date range on invoice order date.',
+    description: 'Subscriptions currently paused or on hold',
     format: 'number',
-    category: 'conversions',
-    defaultVisible: true,
-    width: 90,
+    category: 'crm',
+    defaultVisible: false,
+    width: 80,
     align: 'right',
   },
   {
-    id: 'ots',
-    label: 'OTS',
-    shortLabel: 'OTS',
-    description: 'Invoice type 3, not deleted. Date range on invoice order date.',
+    id: 'trialsApproved',
+    label: 'Approved Trials',
+    shortLabel: 'Appr. Trials',
+    description: 'Trials that converted to paying subscriptions after the trial period',
     format: 'number',
-    category: 'conversions',
-    defaultVisible: true,
-    width: 90,
+    category: 'crm',
+    defaultVisible: false,
+    width: 100,
     align: 'right',
+    tooltipFn: (m) => {
+      const t = num(m, 'trials');
+      const approved = num(m, 'trialsApproved');
+      if (!t) return null;
+      return [`${formatNumber(approved)} of ${formatNumber(t)} trials approved`];
+    },
   },
   {
-    id: 'otsApprovalRate',
-    label: 'OTS Appr. %',
-    shortLabel: 'OTS Appr. %',
-    description: 'Approved OTS / total OTS.',
+    id: 'approvalRate',
+    label: 'Trial Approval Rate (Approved / Subscriptions)',
+    shortLabel: 'Trial Appr. %',
     format: 'percentage',
-    category: 'conversions',
-    defaultVisible: true,
-    width: 120,
-    align: 'right',
-  },
-  {
-    id: 'upsells',
-    label: 'Upsells',
-    shortLabel: 'Upsells',
-    description: 'Invoices matched via parent-sub-id tag. Includes trial and OTS types. Date range on parent subscription creation.',
-    format: 'number',
-    category: 'conversions',
-    defaultVisible: true,
-    width: 90,
-    align: 'right',
-  },
-  {
-    id: 'upsellApprovalRate',
-    label: 'Upsell Appv %',
-    shortLabel: 'Ups. Appv %',
-    description: 'Approved upsells / total upsells.',
-    format: 'percentage',
-    category: 'conversions',
-    defaultVisible: true,
-    width: 120,
-    align: 'right',
-  },
-  {
-    id: 'realCpa',
-    label: 'Real CPA',
-    shortLabel: 'Real CPA',
-    description: 'Ad spend / approved trials.',
-    format: 'currency',
-    category: 'conversions',
+    category: 'crm',
     defaultVisible: true,
     width: 110,
     align: 'right',
+    tooltipFormula: { numerator: 'trialsApproved', denominator: 'subscriptions' },
+  },
+  {
+    id: 'ots',
+    label: 'One-Time Sales',
+    shortLabel: 'OTS',
+    description: 'One-time product purchases (not recurring subscriptions)',
+    format: 'number',
+    category: 'crm',
+    defaultVisible: false,
+    width: 80,
+    align: 'right',
+    tooltipFn: (m) => {
+      const o = num(m, 'ots');
+      const approved = num(m, 'otsApproved');
+      if (!o) return null;
+      return [`${formatNumber(o)} OTS · ${formatNumber(approved)} approved`];
+    },
+  },
+  {
+    id: 'otsApprovalRate',
+    label: 'OTS Approval Rate (OTS Approved / OTS)',
+    shortLabel: 'OTS Appr. %',
+    format: 'percentage',
+    category: 'crm',
+    defaultVisible: false,
+    width: 110,
+    align: 'right',
+    tooltipFormula: { numerator: 'otsApproved', denominator: 'ots' },
+  },
+  {
+    id: 'upsellsApproved',
+    label: 'Upsells (Approved)',
+    shortLabel: 'Upsells',
+    format: 'number',
+    category: 'crm',
+    defaultVisible: true,
+    width: 80,
+    align: 'right',
+    tooltipFn: (m) => {
+      const total = num(m, 'upsells');
+      const approved = num(m, 'upsellsApproved');
+      const deleted = num(m, 'upsellsDeleted');
+      if (!total) return null;
+      const lines = [`${formatNumber(total)} total upsells`];
+      if (deleted > 0) lines.push(`${formatNumber(deleted)} deleted`);
+      lines.push(`${formatNumber(approved)} approved`);
+      return lines;
+    },
+  },
+  {
+    id: 'upsellApprovalRate',
+    label: 'Upsell Approval Rate (Upsells Approved / Upsells)',
+    shortLabel: 'Ups. Appv %',
+    format: 'percentage',
+    category: 'crm',
+    defaultVisible: false,
+    width: 110,
+    align: 'right',
+    tooltipFormula: { numerator: 'upsellsApproved', denominator: 'upsells' },
+  },
+  {
+    id: 'realCpa',
+    label: 'Real CPA (Cost / Trials)',
+    shortLabel: 'Real CPA',
+    format: 'number',
+    category: 'crm',
+    defaultVisible: true,
+    width: 100,
+    align: 'right',
+    tooltipFormula: { numerator: 'cost', denominator: 'trials' },
   },
 ];
 
 export const MARKETING_METRIC_IDS = ['impressions', 'clicks', 'ctr', 'cost', 'cpc', 'cpm', 'conversions'] as const;
-export const CRM_METRIC_IDS = ['customers', 'subscriptions', 'trialsApproved', 'approvalRate', 'onHold', 'ots', 'otsApprovalRate', 'upsells', 'upsellApprovalRate'] as const;
+
+export const CRM_METRIC_IDS = [
+  'customers', 'subscriptions', 'trials', 'onHold',
+  'trialsApproved', 'approvalRate',
+  'ots', 'otsApprovalRate',
+  'upsellsApproved', 'upsellApprovalRate',
+  'realCpa',
+] as const;
 
 export const DEFAULT_VISIBLE_COLUMNS = METRIC_COLUMNS
   .filter((col) => col.defaultVisible)

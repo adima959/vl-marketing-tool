@@ -1,5 +1,6 @@
 'use client';
 
+import { ReactNode } from 'react';
 import { GenericFilterToolbar } from '@/components/filters/GenericFilterToolbar';
 import { SessionDimensionPicker } from './SessionDimensionPicker';
 import { useSessionStore } from '@/stores/sessionStore';
@@ -9,13 +10,14 @@ import type { TableFilter } from '@/types/filters';
 interface SessionFilterToolbarProps {
   filters: TableFilter[];
   onFiltersChange: (filters: TableFilter[]) => void;
+  infoBanner?: ReactNode;
 }
 
 /**
  * Session analytics filter toolbar
  * Thin wrapper around GenericFilterToolbar with session-specific dimensions
  */
-export function SessionFilterToolbar({ filters, onFiltersChange }: SessionFilterToolbarProps) {
+export function SessionFilterToolbar({ filters, onFiltersChange, infoBanner }: SessionFilterToolbarProps) {
   return (
     <GenericFilterToolbar
       useStore={useSessionStore}
@@ -26,6 +28,7 @@ export function SessionFilterToolbar({ filters, onFiltersChange }: SessionFilter
         onFiltersChange,
         dimensionGroups: SESSION_DIMENSION_GROUPS,
       }}
+      infoBanner={infoBanner}
       showUnsavedDot
     />
   );

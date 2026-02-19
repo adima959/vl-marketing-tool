@@ -23,6 +23,7 @@ export const MARKETING_DIMENSION_GROUPS: DimensionGroupConfig[] = [
     dimensions: [
       { id: 'classifiedProduct', label: 'Product', group: 'classification' },
       { id: 'classifiedCountry', label: 'Country', group: 'classification' },
+      { id: 'classifiedProductOwner', label: 'Product Owner', group: 'classification' },
     ],
   },
 ];
@@ -33,8 +34,3 @@ export const getMarketingDimensionLabel = (id: string): string => {
   const dim = ALL_MARKETING_DIMENSIONS.find((d) => d.id === id);
   return dim?.label ?? id;
 };
-
-// Backward compatibility exports (deprecated - use MARKETING_* exports)
-export const DIMENSION_GROUPS = MARKETING_DIMENSION_GROUPS;
-export const ALL_DIMENSIONS = ALL_MARKETING_DIMENSIONS;
-export const getDimensionLabel = getMarketingDimensionLabel;

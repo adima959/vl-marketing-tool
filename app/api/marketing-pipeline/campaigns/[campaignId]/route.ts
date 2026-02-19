@@ -5,13 +5,17 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { unstable_rethrow } from 'next/navigation';
+import { z } from 'zod';
 import {
-updatePipelineCampaign,
+  getPipelineCampaignById,
+  updatePipelineCampaign,
   deletePipelineCampaign,
 } from '@/lib/marketing-pipeline/db';
-import { recordUpdate, recordDeletion } from '@/lib/marketing-tracker/historyService';
-import { getChangedBy } from '@/lib/marketing-tracker/getChangedBy';
+import { updateCampaignSchema } from '@/lib/schemas/marketingPipeline';
+import { recordUpdate, recordDeletion } from '@/lib/marketing-pipeline/historyService';
+import { getChangedBy } from '@/lib/marketing-pipeline/getChangedBy';
 import { withPermission } from '@/lib/rbac';
+import { isValidUUID } from '@/lib/utils/validation';
 import type { AppUser } from '@/types/user';
 
 interface RouteParams {
@@ -25,25 +29,29 @@ export const PATCH = withPermission('tools.marketing_pipeline', 'can_edit', asyn
 ): Promise<NextResponse> => {
   try {
     const { campaignId } = await params;
-    const body = await request.json();
+    if (!isValidUUID(campaignId)) {
+      return NextResponse.json({ success: false, error: 'Invalid campaign ID' }, { status: 400 });
+    }
+    const rawBody = await request.json();
+    const body = updateCampaignSchema.parse(rawBody);
     const changedBy = await getChangedBy(request);
+
+    const existing = await getPipelineCampaignById(campaignId);
 
     const updated = await updatePipelineCampaign(campaignId, {
       channel: body.channel,
       geo: body.geo,
-      externalId: body.externalId,
-      externalUrl: body.externalUrl,
-      status: body.status,
-      spend: body.spend,
-      conversions: body.conversions,
-      cpa: body.cpa,
+      externalId: body.externalId ?? undefined,
+      externalUrl: body.externalUrl ?? undefined,
+      spend: body.spend ?? undefined,
+      conversions: body.conversions ?? undefined,
+      cpa: body.cpa ?? undefined,
     });
 
-    // Record history (non-blocking)
-    recordUpdate(
+    await recordUpdate(
       'campaign',
       campaignId,
-      {} as Record<string, unknown>,
+      (existing ?? {}) as Record<string, unknown>,
       updated as unknown as Record<string, unknown>,
       changedBy,
     ).catch(err => console.error('Failed to record campaign update:', err));
@@ -51,6 +59,9 @@ export const PATCH = withPermission('tools.marketing_pipeline', 'can_edit', asyn
     return NextResponse.json({ success: true, data: updated });
   } catch (error) {
     unstable_rethrow(error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ success: false, error: 'Invalid request data' }, { status: 400 });
+    }
     console.error('Error updating campaign:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update campaign' },
@@ -66,15 +77,19 @@ export const DELETE = withPermission('tools.marketing_pipeline', 'can_delete', a
 ): Promise<NextResponse> => {
   try {
     const { campaignId } = await params;
+    if (!isValidUUID(campaignId)) {
+      return NextResponse.json({ success: false, error: 'Invalid campaign ID' }, { status: 400 });
+    }
     const changedBy = await getChangedBy(request);
+
+    const existing = await getPipelineCampaignById(campaignId);
 
     await deletePipelineCampaign(campaignId);
 
-    // Record history (non-blocking)
-    recordDeletion(
+    await recordDeletion(
       'campaign',
       campaignId,
-      {} as Record<string, unknown>,
+      (existing ?? { id: campaignId }) as Record<string, unknown>,
       changedBy,
     ).catch(err => console.error('Failed to record campaign deletion:', err));
 

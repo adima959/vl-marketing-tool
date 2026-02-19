@@ -43,7 +43,7 @@ export interface HistoryRecord {
 // Fields to skip when generating diff (system-managed + derived/computed fields)
 const SKIP_FIELDS = new Set([
   // System-managed fields
-  'id', 'createdAt', 'updatedAt', 'deletedAt',
+  'id', 'createdAt', 'updatedAt', 'deletedAt', 'driveFolderId',
   // Derived from JOINs (would duplicate the FK field change)
   'owner', 'userId', 'userName', 'userEmail',
   // Computed counts from subqueries
@@ -52,7 +52,7 @@ const SKIP_FIELDS = new Set([
   'assetCount', 'creativeCount',
   'assetsByGeo', 'creativesByGeo',
   // Pipeline message nested objects (derived from JOINs/subqueries)
-  'angle', 'product', 'campaigns', 'assets', 'creatives', 'versions',
+  'angle', 'product', 'campaigns', 'geos', 'assets', 'creatives', 'versions',
 ]);
 
 // Derived field names to filter out of history queries (cleans up old data)
@@ -62,7 +62,7 @@ const DERIVED_FIELD_NAMES = [
   'messageCount',
   'assetCount', 'creativeCount',
   'assetsByGeo', 'creativesByGeo',
-  'angle', 'product', 'campaigns', 'assets', 'creatives', 'versions',
+  'angle', 'product', 'campaigns', 'geos', 'assets', 'creatives', 'versions',
 ];
 
 /**

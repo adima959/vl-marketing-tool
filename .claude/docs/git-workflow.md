@@ -2,6 +2,95 @@
 
 > See CLAUDE.md "Critical Warnings" for the git push rule. This file covers operational details.
 
+## Build Decision
+
+Only run `npm run build` after CODE changes, not DOCUMENTATION changes.
+
+| Changed | Build? |
+|---------|--------|
+| `.ts`, `.tsx`, `.js`, `.jsx` files | YES |
+| `.css`, `.module.css` files | YES |
+| `package.json`, `tsconfig.json`, `.env` | YES |
+| `.md` files, comments only | NO |
+| Images, fonts, static assets | NO |
+
+**When uncertain**: Run the build (safer to over-build than under-build).
+
+**Clarifications**: CSS value changes = build, comments only = skip. Any dependency change = build.
+
+**Common Build Errors**:
+- **Module not found**: Check import paths use `@/` prefix. Verify file extensions match.
+- **Type error**: Read error message. Fix type annotations. Update interfaces.
+- **Env var undefined**: Add to `.env`. Restart dev server. Run build again.
+
+## Pre-Commit Verification
+
+> Run before commits and PRs. Follow all phases in order — stop and fix on failure.
+
+### 1. Build
+
+```bash
+npm run build    # Full build + type check
+```
+
+If fails → fix errors → re-run. Do not proceed.
+
+### 2. Lint
+
+```bash
+npm run lint
+```
+
+Fix lint errors. Warnings: fix if trivial, note if not.
+
+### 3. Security Scan
+
+```bash
+# Hardcoded secrets
+grep -rn "sk-\|api_key\|password.*=.*['\"]" --include="*.ts" --include="*.tsx" app/ lib/ 2>/dev/null | head -10
+
+# console.log (should not be committed)
+grep -rn "console.log" --include="*.ts" --include="*.tsx" app/ components/ lib/ 2>/dev/null | head -10
+```
+
+### 4. Diff Review
+
+```bash
+git diff --stat
+git diff --name-only
+```
+
+Review each changed file for:
+- Unintended changes
+- Missing error handling
+- Correct DB placeholder syntax (`$1` vs `?`)
+- `@/` import paths (not relative)
+
+### Verification Report Format
+
+```
+VERIFICATION REPORT
+===================
+
+Build:     [PASS/FAIL]
+Lint:      [PASS/FAIL] (X warnings)
+Security:  [PASS/FAIL] (X issues)
+Diff:      [X files changed]
+
+Overall:   [READY/NOT READY]
+
+Issues to fix:
+1. ...
+```
+
+| Trigger | Run? |
+|---------|------|
+| Before commit (code changes) | YES |
+| Before creating PR | YES |
+| After major refactor | YES |
+| Documentation-only changes | NO |
+| Mid-implementation checkpoint | Optional (build only) |
+
 ## When to Commit
 
 **Automatic when 2+ criteria met**:
@@ -13,18 +102,6 @@
 
 **DO commit**: Feature complete, bug fixed, before switching tasks, natural breakpoints
 **DON'T commit**: Single typos, mid-implementation, quick experiments (batch these)
-
-## When to Push
-
-- NEVER auto-push, NEVER push without asking — even after multiple commits
-- ALWAYS ask before EVERY push. Each session = new permission needed
-- "Commit" = local only, NEVER includes push
-
-**Ask Pattern**:
-```
-"I've committed [description]. There are [N] unpushed commits.
-Would you like me to push them to remote now?"
-```
 
 ## Commit Messages
 
@@ -45,6 +122,18 @@ feat: Add GenericDataTable
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
 EOF
 )"
+```
+
+## When to Push
+
+- NEVER auto-push, NEVER push without asking — even after multiple commits
+- ALWAYS ask before EVERY push. Each session = new permission needed
+- "Commit" = local only, NEVER includes push
+
+**Ask Pattern**:
+```
+"I've committed [description]. There are [N] unpushed commits.
+Would you like me to push them to remote now?"
 ```
 
 ## Pull Requests
@@ -72,18 +161,6 @@ gh pr create --title "..." --body "..."
 
 **Staging**: Prefer specific files over `git add .` to avoid accidentally staging secrets
 
-## Common Commands
-
-```bash
-git status              # Check status (NEVER -uall)
-git diff                # Unstaged changes
-git diff --cached       # Staged changes
-git log --oneline -10   # Recent commits
-git stash / git stash pop
-git reset --soft HEAD~1 # Undo commit, keep staged
-git checkout -b feature # New branch
-```
-
 ## Hook Failures
 
 If pre-commit hook fails:
@@ -96,6 +173,18 @@ If pre-commit hook fails:
 npm run lint:fix
 git add .
 git commit -m "fix: Address lint errors"  # NEW commit
+```
+
+## Common Commands
+
+```bash
+git status              # Check status (NEVER -uall)
+git diff                # Unstaged changes
+git diff --cached       # Staged changes
+git log --oneline -10   # Recent commits
+git stash / git stash pop
+git reset --soft HEAD~1 # Undo commit, keep staged
+git checkout -b feature # New branch
 ```
 
 ## View PR Comments

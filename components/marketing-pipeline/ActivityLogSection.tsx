@@ -1,32 +1,48 @@
 import type { HistoryEntry } from '@/stores/pipelineStore';
 import { formatTimeAgo, formatHistoryEntry, diffCopyVariations } from '@/lib/utils/displayFormatters';
 import type { CopyVariationChange } from '@/lib/utils/displayFormatters';
-import styles from './ConceptDetailPanel.module.css';
+import styles from './ActivityLogSection.module.css';
 
 interface ActivityLogSectionProps {
   messageHistory: HistoryEntry[];
 }
 
-/** Consecutive copyVariations entries by same user within 2s → group into one */
+/** Group consecutive entries that belong to the same logical action:
+ *  - copyVariations edits within 2s by same user → merge
+ *  - Multiple 'created' fields for same entity → collapse to single "X added" */
 function groupEntries(entries: HistoryEntry[]): HistoryEntry[] {
   const result: HistoryEntry[] = [];
+  const seenCreated = new Set<string>();
+
   for (const entry of entries) {
-    if (entry.fieldName !== 'copyVariations') {
-      result.push(entry);
+    // Collapse multi-field 'created' entries into a single summary per entity
+    if (entry.action === 'created') {
+      const key = `${entry.entityType}:${entry.entityId}`;
+      if (seenCreated.has(key)) continue;
+      seenCreated.add(key);
+      // Use the most descriptive field: 'geo' for geos, 'channel' for campaigns
+      const best = entries.find(e =>
+        e.action === 'created' && e.entityType === entry.entityType && e.entityId === entry.entityId &&
+        (e.fieldName === 'geo' || e.fieldName === 'channel' || e.fieldName === 'name'),
+      );
+      result.push(best ?? entry);
       continue;
     }
-    const prev = result[result.length - 1];
-    if (
-      prev?.fieldName === 'copyVariations' &&
-      prev.changedBy === entry.changedBy &&
-      Math.abs(new Date(prev.changedAt).getTime() - new Date(entry.changedAt).getTime()) < 2000
-    ) {
-      // Merge: keep earlier entry's oldValue + later entry's newValue
-      // Since entries are newest-first, prev is newer, entry is older
-      result[result.length - 1] = { ...prev, oldValue: entry.oldValue };
-    } else {
-      result.push(entry);
+
+    // Group consecutive copyVariations by same user within 2s
+    if (entry.fieldName === 'copyVariations') {
+      const prev = result[result.length - 1];
+      if (
+        prev?.fieldName === 'copyVariations' &&
+        prev.changedBy === entry.changedBy &&
+        Math.abs(new Date(prev.changedAt).getTime() - new Date(entry.changedAt).getTime()) < 2000
+      ) {
+        result[result.length - 1] = { ...prev, oldValue: entry.oldValue };
+        continue;
+      }
     }
+
+    result.push(entry);
   }
   return result;
 }

@@ -1,5 +1,51 @@
 # Design Patterns Reference
 
+## Design Direction
+
+**Data-Forward Professional Tool** — Clarity over decoration. Inspired by Linear, Stripe, Vercel.
+
+- Information density: 4px base spacing
+- Subtle depth: Borders and soft shadows
+- Monochrome + #00B96B accent
+- Hierarchical tables: 20px indent/level
+
+**Tokens**: `styles/tokens.ts` + `styles/tokens.css`
+
+```css
+--color-bg-primary: #ffffff;    --spacing-xs: 4px;
+--color-border: #e8eaed;        --spacing-sm: 8px;
+--color-accent: #00B96B;        --spacing-md: 12px;
+--radius-sm: 4px;               --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+```
+
+---
+
+## Component Library Split
+
+| Use Case | Library | Examples |
+|----------|---------|----------|
+| Data-heavy | Ant Design | Table, Form, DatePicker, Modal |
+| Layout | shadcn/ui | Sidebar, Card, Dialog, Tabs |
+| Custom | CSS Module + Tailwind | Unique UI |
+
+---
+
+## Generic Components (Review BEFORE Building)
+
+**GenericDataTable**: Hierarchical data + expand/collapse + multiple metrics → USE GenericDataTable
+- Source: `components/table/GenericDataTable.tsx`
+- Examples: `components/table/DataTable.tsx`, `components/on-page-analysis/OnPageDataTable.tsx`
+
+**useGenericUrlSync**: Shareable dashboard state (date range, dimensions, sort) → USE useGenericUrlSync
+- Source: `hooks/useGenericUrlSync.ts`
+- URL Format: `?start=DATE&end=DATE&dimensions=a,b&sortBy=col&expanded=keys`
+
+**Store Pattern**: New dashboard/report → USE `createTableStore` factory (20 lines of config)
+- Source: `stores/createTableStore.ts`
+- Examples: `stores/reportStore.ts`, `stores/onPageStore.ts`, `stores/dashboardStore.ts`
+
+---
+
 ## GenericDataTable
 
 **File**: `components/table/GenericDataTable.tsx` (read source directly for props API and type definitions)
@@ -48,14 +94,8 @@ This is an Ant Design bug with grouped columns — always calculate exact width.
 
 - **CRITICAL**: Only this button triggers data fetch (not dimension/date changes)
 - Enabled only when `hasUnsavedChanges === true`
-- Syncs active → loaded filters (see `docs/state.md` > Dual-State Pattern)
+- Syncs active → loaded filters
 - Updates URL, collapses expanded rows
-
----
-
-## Component Library Split
-
-**Quick rule**: Ant Design for data components (tables, forms, pickers), shadcn/ui for layout (sidebar, card, dialog), custom CSS Modules for unique UI. Full table in `docs/project-overview.md`.
 
 ---
 

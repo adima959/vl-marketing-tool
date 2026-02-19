@@ -1,5 +1,6 @@
 'use client';
 
+import { ReactNode } from 'react';
 import { GenericFilterToolbar } from './GenericFilterToolbar';
 import { DimensionPicker } from './DimensionPicker';
 import { useReportStore } from '@/stores/reportStore';
@@ -11,13 +12,14 @@ interface FilterToolbarProps {
   filters?: TableFilter[];
   onFiltersChange?: (filters: TableFilter[]) => void;
   dimensionGroups?: DimensionGroupConfig[];
+  infoBanner?: ReactNode;
 }
 
 /**
  * Marketing Report filter toolbar
  * Thin wrapper around GenericFilterToolbar with optional FilterPanel support
  */
-export function FilterToolbar({ filters, onFiltersChange, dimensionGroups }: FilterToolbarProps) {
+export function FilterToolbar({ filters, onFiltersChange, dimensionGroups, infoBanner }: FilterToolbarProps) {
   const hasEmbeddedFilters = filters !== undefined && onFiltersChange !== undefined && dimensionGroups !== undefined;
 
   return (
@@ -30,6 +32,7 @@ export function FilterToolbar({ filters, onFiltersChange, dimensionGroups }: Fil
           ? { filters: filters!, onFiltersChange: onFiltersChange!, dimensionGroups: dimensionGroups! }
           : undefined
       }
+      infoBanner={infoBanner}
       showUnsavedDot
     />
   );

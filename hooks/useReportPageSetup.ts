@@ -6,7 +6,7 @@ import type { ResolvedViewParams } from '@/types/savedViews';
 interface StoreState {
   dateRange: DateRange;
   dimensions: string[];
-  filters: TableFilter[];
+  filters?: TableFilter[];
   sortColumn: string | null;
   sortDirection: 'ascend' | 'descend' | null;
   setSort: (column: string, direction: 'ascend' | 'descend') => void;
@@ -78,14 +78,13 @@ export function useReportPageSetup(config: ReportPageSetupConfig): ReportPageSet
     onApplyView?.(params);
     if (params.sortBy) {
       store.setSort(params.sortBy, params.sortDir ?? 'descend');
-    } else {
-      store.loadData();
     }
+    store.loadData();
   }, [getStoreState, setStoreState, onApplyView]);
 
   const getCurrentState = useCallback((): SavedViewState => {
     const { dateRange: dr, dimensions, filters: storeFilters, sortColumn, sortDirection } = getStoreState();
-    const activeFilters = storeFilters
+    const activeFilters = (storeFilters ?? [])
       .filter((f) => f.field && f.value)
       .map(({ field, operator, value }) => ({ field, operator, value }));
     return {

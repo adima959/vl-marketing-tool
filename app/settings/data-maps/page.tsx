@@ -14,10 +14,10 @@
  */
 'use client';
 
-import { useState, lazy, Suspense, useEffect } from 'react';
+import { useState, lazy, Suspense, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Spin } from 'antd';
-import { Megaphone, Globe, Link2 } from 'lucide-react';
+import { Megaphone, Globe, Link2, Triangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AccessDenied } from '@/components/AccessDenied';
 import { fetchUnclassifiedCount as fetchCampaignCount } from '@/lib/api/campaignClassificationsClient';
@@ -38,7 +38,11 @@ const AffiliateMapPanel = lazy(() =>
   import('@/components/settings/AffiliateMapPanel').then((mod) => ({ default: mod.AffiliateMapPanel }))
 );
 
-type TabKey = 'campaign' | 'url' | 'affiliate';
+const AngleMapPanel = lazy(() =>
+  import('@/components/settings/AngleMapPanel').then((mod) => ({ default: mod.AngleMapPanel }))
+);
+
+type TabKey = 'campaign' | 'url' | 'affiliate' | 'angles';
 
 interface Tab {
   key: TabKey;
@@ -50,6 +54,7 @@ const TABS: Tab[] = [
   { key: 'campaign', label: 'Campaign Map', icon: Megaphone },
   { key: 'url', label: 'URL Map', icon: Globe },
   { key: 'affiliate', label: 'Affiliate Map', icon: Link2 },
+  { key: 'angles', label: 'Angles', icon: Triangle },
 ];
 
 export default function DataMapsPage(): React.ReactNode {
@@ -61,12 +66,13 @@ export default function DataMapsPage(): React.ReactNode {
     campaign: null,
     url: null,
     affiliate: null,
+    angles: null,
   });
 
   // Set initial tab from URL parameter
   useEffect(() => {
     const tabParam = searchParams.get('tab') as TabKey | null;
-    if (tabParam && ['campaign', 'url', 'affiliate'].includes(tabParam)) {
+    if (tabParam && ['campaign', 'url', 'affiliate', 'angles'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
@@ -75,6 +81,15 @@ export default function DataMapsPage(): React.ReactNode {
   useEffect(() => {
     fetchCampaignCount().then((n) => setCounts((prev) => ({ ...prev, campaign: n }))).catch(() => {});
     fetchUrlCount().then((n) => setCounts((prev) => ({ ...prev, url: n }))).catch(() => {});
+  }, []);
+
+  // Update badge counts when panels report changes
+  const handleCampaignCountChange = useCallback((count: number) => {
+    setCounts((prev) => ({ ...prev, campaign: count }));
+  }, []);
+
+  const handleUrlCountChange = useCallback((count: number) => {
+    setCounts((prev) => ({ ...prev, url: count }));
   }, []);
 
   // Update URL when tab changes
@@ -130,9 +145,10 @@ export default function DataMapsPage(): React.ReactNode {
 
       {/* Panel content */}
       <Suspense fallback={<div className={settingsStyles.centeredState}><Spin size="small" /></div>}>
-        {activeTab === 'campaign' && <CampaignMapPanel />}
-        {activeTab === 'url' && <UrlMapPanel />}
+        {activeTab === 'campaign' && <CampaignMapPanel onUnclassifiedCountChange={handleCampaignCountChange} />}
+        {activeTab === 'url' && <UrlMapPanel onUnclassifiedCountChange={handleUrlCountChange} />}
         {activeTab === 'affiliate' && <AffiliateMapPanel />}
+        {activeTab === 'angles' && <AngleMapPanel />}
       </Suspense>
     </div>
   );

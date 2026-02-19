@@ -100,6 +100,28 @@
   border-color: var(--color-gray-500);
 }
 
+/* Product Details inline link */
+.productDetailsLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px 4px;
+  margin-left: 4px;
+  white-space: nowrap;
+  transition: opacity var(--transition-fast);
+}
+
+.productDetailsLink:hover {
+  opacity: 0.75;
+}
+
+
 /* ── Board ───────────────────────────────────────────────── */
 
 .boardContainer {
@@ -188,6 +210,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  overflow-x: hidden;
   overflow-y: auto;
   flex: 1;
   padding: 2px 4px 2px 4px;
@@ -226,7 +249,7 @@
 
 .skeletonCard {
   background: var(--color-background-primary);
-  border: 1px solid var(--color-gray-150, var(--color-gray-200));
+  border: 1px solid var(--color-gray-200);
   border-radius: var(--radius-lg);
   padding: 14px 16px;
   display: flex;

@@ -18,20 +18,13 @@ import { TableInfoBanner } from '@/components/ui/TableInfoBanner';
 import { fetchUnclassifiedCount } from '@/lib/api/campaignClassificationsClient';
 import badgeStyles from '@/styles/components/badge.module.css';
 import pageStyles from '@/components/dashboard/dashboard.module.css';
-import type { MarketingMetricClickContext } from '@/types/marketingDetails';
 
 const ColumnSettingsModal = lazy(() =>
   import('@/components/modals/ColumnSettingsModal').then((mod) => ({ default: mod.ColumnSettingsModal }))
 );
 
-const CrmDetailModal = lazy(() =>
-  import('@/components/modals/CrmDetailModal').then((mod) => ({ default: mod.CrmDetailModal }))
-);
-
 function MarketingReportContent() {
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
-  const [detailModalOpen, setDetailModalOpen] = useState(false);
-  const [detailModalContext, setDetailModalContext] = useState<MarketingMetricClickContext | null>(null);
   const [unclassifiedCount, setUnclassifiedCount] = useState<number | null>(null);
   const { hasUnsavedChanges, resetFilters, dateRange, filters, setFilters } = useReportStore();
 
@@ -39,19 +32,6 @@ function MarketingReportContent() {
   useEffect(() => {
     fetchUnclassifiedCount().then(setUnclassifiedCount).catch(() => {});
   }, []);
-
-  // Handle CRM metric click to show detail modal
-  const handleMarketingMetricClick = (context: MarketingMetricClickContext) => {
-    setDetailModalContext(context);
-    setDetailModalOpen(true);
-  };
-
-  // Handle modal close
-  const handleDetailModalClose = () => {
-    setDetailModalOpen(false);
-    // Keep context briefly for close animation
-    setTimeout(() => setDetailModalContext(null), 300);
-  };
 
   const { includesToday, handleApplyView, getCurrentState } = useReportPageSetup({
     dateRange,
@@ -119,11 +99,9 @@ function MarketingReportContent() {
             filters={filters}
             onFiltersChange={setFilters}
             dimensionGroups={MARKETING_DIMENSION_GROUPS}
+            infoBanner={includesToday ? <TableInfoBanner messages={["Today's data may be incomplete"]} /> : undefined}
           />
-          {includesToday && (
-            <TableInfoBanner messages={["Today's data may be incomplete"]} />
-          )}
-          <DataTable onMarketingMetricClick={handleMarketingMetricClick} />
+          <DataTable />
         </div>
       </div>
       {columnSettingsOpen && (
@@ -131,16 +109,6 @@ function MarketingReportContent() {
           <ColumnSettingsModal
             open={columnSettingsOpen}
             onClose={() => setColumnSettingsOpen(false)}
-          />
-        </Suspense>
-      )}
-      {detailModalOpen && (
-        <Suspense fallback={null}>
-          <CrmDetailModal
-            open={detailModalOpen}
-            onClose={handleDetailModalClose}
-            variant="marketing"
-            context={detailModalContext}
           />
         </Suspense>
       )}

@@ -6,13 +6,14 @@
 
 /* ── Trigger Button ── */
 .triggerBtn {
-  width: 30px !important;
-  height: 30px !important;
+  width: 24px !important;
+  height: 24px !important;
   padding: 0 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  min-width: 30px !important;
+  min-width: 24px !important;
+  font-size: 11px !important;
   border-radius: var(--radius-md) !important;
   border: 1px dashed var(--color-gray-300) !important;
   color: var(--color-gray-400) !important;
@@ -38,6 +39,28 @@
 .triggerBtn:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+/* ── Dropdown Variant Button ── */
+.dimensionPicker {
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 11px !important;
+  border-style: dashed !important;
+  border-color: var(--color-gray-300) !important;
+  color: var(--color-gray-400) !important;
+}
+
+.dimensionPicker:hover {
+  border-color: var(--color-gray-400) !important;
+  border-style: solid !important;
+  color: var(--color-gray-600) !important;
+  background: var(--color-gray-50) !important;
 }
 
 /* ── Popover Overrides ── */

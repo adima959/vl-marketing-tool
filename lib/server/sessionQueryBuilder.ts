@@ -1,26 +1,24 @@
 import { formatLocalDate } from '@/lib/types/api';
 
 /**
- * Dual-mode session query builder.
+ * Flat session query builder.
  *
- * Entry-level mode: queries session_entries (one row per session).
- * Funnel-level mode: queries event_page_view_enriched_v2 joined with
- *   matching sessions from session_entries via CTE.
+ * Returns all data grouped by ALL selected dimensions in a single query.
+ * Each row contains dimension values + base metric counts.
+ * The client builds the hierarchical tree and computes derived metrics.
  *
- * Mode detection:
- *   isFunnelMode = currentDimension === 'funnelStep' || 'funnelStep' in parentFilters
+ * Dual-mode:
+ *   Entry mode (default): queries session_entries (one row per session).
+ *   Funnel mode: CTE selects matching sessions, then queries page views.
+ *   Mode detection: isFunnelMode = 'funnelStep' in dimensions
  */
 
 type SqlParam = string | number;
 
-interface QueryOptions {
+export interface FlatQueryOptions {
   dateRange: { start: Date; end: Date };
   dimensions: string[];
-  depth: number;
-  parentFilters?: Record<string, string>;
   filters?: Array<{ field: string; operator: 'equals' | 'not_equals' | 'contains' | 'not_contains'; value: string }>;
-  sortBy?: string;
-  sortDirection?: 'ASC' | 'DESC';
 }
 
 const SESSION_TABLE = 'remote_session_tracker.session_entries';
@@ -45,6 +43,40 @@ const ENTRY_DIMENSION_MAP: Record<string, string> = {
   entryBrowserName: 'entry_browser_name',
   visitNumber: 'visit_number',
   date: 'session_start::date',
+};
+
+/**
+ * Enriched entry dimensions that have both IDs and names in merged_ads_spending.
+ * Each gets two columns in the flat result: _id (raw tracking ID) + display name.
+ */
+const ENRICHED_ENTRY_DIMS: Record<string, {
+  idColumn: string;
+  nameColumn: string;
+  sessionColumn: string;
+  joinOn: string;
+  distinctCols: string;
+}> = {
+  entryCampaign: {
+    idColumn: 'campaign_id',
+    nameColumn: 'campaign_name',
+    sessionColumn: 'entry_utm_campaign',
+    joinOn: 'se.entry_utm_campaign::text = mas.campaign_id::text',
+    distinctCols: 'campaign_id, campaign_name',
+  },
+  entryAdset: {
+    idColumn: 'adset_id',
+    nameColumn: 'adset_name',
+    sessionColumn: 'entry_utm_content',
+    joinOn: 'se.entry_utm_campaign::text = mas.campaign_id::text AND se.entry_utm_content::text = mas.adset_id::text',
+    distinctCols: 'campaign_id, adset_id, adset_name',
+  },
+  entryAd: {
+    idColumn: 'ad_id',
+    nameColumn: 'ad_name',
+    sessionColumn: 'entry_utm_medium',
+    joinOn: 'se.entry_utm_campaign::text = mas.campaign_id::text AND se.entry_utm_content::text = mas.adset_id::text AND se.entry_utm_medium::text = mas.ad_id::text',
+    distinctCols: 'campaign_id, adset_id, ad_id, ad_name',
+  },
 };
 
 /**
@@ -92,141 +124,103 @@ const CTE_COLUMN_MAP: Record<string, string> = {
   visitNumber: 'visit_number',
 };
 
-/** Metric IDs that can be sorted in SQL */
-const SQL_SORTABLE_METRICS = new Set([
-  'pageViews', 'uniqueVisitors', 'bounceRate', 'avgActiveTime',
-  'scrollPastHero', 'scrollRate', 'formViews', 'formViewRate',
-  'formStarters', 'formStartRate',
-]);
-
-/** Maps metric IDs to their SQL column alias for ORDER BY */
-const METRIC_SQL_ALIAS: Record<string, string> = {
-  pageViews: 'page_views',
-  uniqueVisitors: 'unique_visitors',
-  bounceRate: 'bounce_rate',
-  avgActiveTime: 'avg_active_time',
-  scrollPastHero: 'scroll_past_hero',
-  scrollRate: 'scroll_rate',
-  formViews: 'form_views',
-  formViewRate: 'form_view_rate',
-  formStarters: 'form_starters',
-  formStartRate: 'form_start_rate',
-};
-
 class SessionQueryBuilder {
-  buildQuery(options: QueryOptions): { query: string; params: SqlParam[] } {
-    const { dimensions, depth, parentFilters } = options;
-
-    const currentDimension = dimensions[depth];
-    const isFunnelMode = currentDimension === 'funnelStep' ||
-      (parentFilters != null && 'funnelStep' in parentFilters);
+  /**
+   * Build a flat query that groups by ALL selected dimensions simultaneously.
+   * Returns raw metric counts (not pre-computed ratios) for correct client-side aggregation.
+   */
+  buildFlatQuery(options: FlatQueryOptions): { query: string; params: SqlParam[] } {
+    const { dimensions } = options;
+    const isFunnelMode = dimensions.includes('funnelStep');
 
     if (isFunnelMode) {
-      return this.buildFunnelQuery(options);
+      return this.buildFlatFunnelQuery(options);
     }
-    return this.buildEntryQuery(options);
+    return this.buildFlatEntryQuery(options);
   }
 
   /**
-   * Entry-level query: aggregate session_entries with entry-page engagement metrics.
+   * Entry-level flat query: GROUP BY all selected dimensions on session_entries.
    */
-  private buildEntryQuery(options: QueryOptions): { query: string; params: SqlParam[] } {
-    const {
-      dateRange,
-      dimensions,
-      depth,
-      parentFilters,
-      filters,
-      sortBy = 'pageViews',
-      sortDirection = 'DESC',
-    } = options;
-
-    const currentDimension = dimensions[depth];
-    const sqlColumn = ENTRY_DIMENSION_MAP[currentDimension];
-    if (!sqlColumn) {
-      throw new Error(`Unknown session dimension: ${currentDimension}`);
-    }
+  private buildFlatEntryQuery(options: FlatQueryOptions): { query: string; params: SqlParam[] } {
+    const { dateRange, dimensions, filters } = options;
 
     const params: SqlParam[] = [
       formatLocalDate(dateRange.start),
       formatLocalDate(dateRange.end),
     ];
 
-    let whereClause = `WHERE session_start >= $1::date AND session_start < ($2::date + interval '1 day')`;
+    // Determine which enriched dims are needed (for JOIN)
+    const enrichedDims = dimensions.filter(d => d in ENRICHED_ENTRY_DIMS);
+    const needsJoin = enrichedDims.length > 0;
 
-    if (parentFilters) {
-      whereClause += this.buildEntryParentFilters(parentFilters, params);
+    // Build SELECT and GROUP BY for every dimension
+    const selectParts: string[] = [];
+    const groupByParts: string[] = [];
+
+    for (const dim of dimensions) {
+      const enriched = ENRICHED_ENTRY_DIMS[dim];
+      if (enriched) {
+        // Enriched: two columns — raw ID for key + display name
+        selectParts.push(`se.${enriched.sessionColumn}::text AS "_${dim}_id"`);
+        selectParts.push(
+          `COALESCE(MAX(mas.${enriched.nameColumn}), se.${enriched.sessionColumn}::text, 'Unknown') AS "${dim}"`
+        );
+        groupByParts.push(`se.${enriched.sessionColumn}`);
+      } else {
+        const col = ENTRY_DIMENSION_MAP[dim];
+        if (!col) throw new Error(`Unknown session dimension: ${dim}`);
+        selectParts.push(`${col} AS "${dim}"`);
+        groupByParts.push(col === 'session_start::date' ? col : `"${dim}"`);
+      }
     }
+
+    // WHERE clause
+    let whereClause = `WHERE se.session_start >= $1::date AND se.session_start < ($2::date + interval '1 day')`;
 
     if (filters && filters.length > 0) {
-      whereClause += this.buildTableFilterClause(filters, params, ENTRY_DIMENSION_MAP);
+      whereClause += this.buildTableFilterClause(filters, params, ENTRY_DIMENSION_MAP, 'se');
     }
 
-    const sortAlias = METRIC_SQL_ALIAS[sortBy];
-    const orderBy = sortAlias && SQL_SORTABLE_METRICS.has(sortBy)
-      ? `ORDER BY ${sortAlias} ${sortDirection} NULLS LAST`
-      : 'ORDER BY page_views DESC';
+    // FROM clause with optional JOIN
+    let fromClause = `FROM ${SESSION_TABLE} se`;
+    if (needsJoin) {
+      // Find the most specific enriched dim to determine JOIN conditions
+      const joinConfig = this.buildEnrichedJoin(enrichedDims);
+      fromClause += `
+      LEFT JOIN (
+        SELECT DISTINCT ${joinConfig.distinctCols}
+        FROM merged_ads_spending
+        WHERE date::date BETWEEN $1::date AND $2::date
+      ) mas ON ${joinConfig.joinOn}`;
+    }
 
     const query = `
       SELECT
-        ${sqlColumn} AS dimension_value,
+        ${selectParts.join(',\n        ')},
         COUNT(*) AS page_views,
-        COUNT(DISTINCT ff_visitor_id) AS unique_visitors,
-        ROUND(
-          COUNT(*) FILTER (WHERE entry_active_time_s IS NOT NULL AND entry_active_time_s < 5)::numeric
-          / NULLIF(COUNT(*) FILTER (WHERE entry_active_time_s IS NOT NULL), 0),
-          4
-        ) AS bounce_rate,
-        ROUND(AVG(entry_active_time_s)::numeric, 2) AS avg_active_time,
-        COUNT(*) FILTER (WHERE entry_hero_scroll_passed = true) AS scroll_past_hero,
-        ROUND(
-          COUNT(*) FILTER (WHERE entry_hero_scroll_passed = true)::numeric
-          / NULLIF(COUNT(*), 0),
-          4
-        ) AS scroll_rate,
-        COUNT(*) FILTER (WHERE entry_form_view = true) AS form_views,
-        ROUND(
-          COUNT(*) FILTER (WHERE entry_form_view = true)::numeric
-          / NULLIF(COUNT(*), 0),
-          4
-        ) AS form_view_rate,
-        COUNT(*) FILTER (WHERE entry_form_started = true) AS form_starters,
-        ROUND(
-          COUNT(*) FILTER (WHERE entry_form_started = true)::numeric
-          / NULLIF(COUNT(*) FILTER (WHERE entry_form_view = true), 0),
-          4
-        ) AS form_start_rate
-      FROM ${SESSION_TABLE}
+        COUNT(DISTINCT se.ff_visitor_id) AS unique_visitors,
+        COUNT(*) FILTER (WHERE se.entry_active_time_s IS NOT NULL AND se.entry_active_time_s < 5) AS bounced_count,
+        COUNT(*) FILTER (WHERE se.entry_active_time_s IS NOT NULL) AS active_time_count,
+        COALESCE(SUM(se.entry_active_time_s), 0) AS total_active_time,
+        COUNT(*) FILTER (WHERE se.entry_hero_scroll_passed = true) AS scroll_past_hero,
+        COUNT(*) FILTER (WHERE se.entry_form_view = true) AS form_views,
+        COUNT(*) FILTER (WHERE se.entry_form_started = true) AS form_starters
+      ${fromClause}
       ${whereClause}
-      GROUP BY dimension_value
+      GROUP BY ${groupByParts.join(', ')}
       HAVING COUNT(*) > 1
-      ${orderBy}
-      LIMIT 1000
     `;
 
     return { query, params };
   }
 
   /**
-   * Funnel-level query: CTE selects matching sessions from session_entries,
-   * then aggregates page views from event_page_view_enriched_v2.
+   * Funnel-level flat query: CTE selects matching sessions from session_entries,
+   * then aggregates page views grouped by ALL dimensions simultaneously.
    */
-  private buildFunnelQuery(options: QueryOptions): { query: string; params: SqlParam[] } {
-    const {
-      dateRange,
-      dimensions,
-      depth,
-      parentFilters,
-      filters,
-      sortBy = 'pageViews',
-      sortDirection = 'DESC',
-    } = options;
-
-    const currentDimension = dimensions[depth];
-    const funnelDimCol = FUNNEL_DIMENSION_MAP[currentDimension];
-    if (!funnelDimCol) {
-      throw new Error(`Unknown funnel dimension: ${currentDimension}`);
-    }
+  private buildFlatFunnelQuery(options: FlatQueryOptions): { query: string; params: SqlParam[] } {
+    const { dateRange, dimensions, filters } = options;
 
     const params: SqlParam[] = [
       formatLocalDate(dateRange.start),
@@ -235,49 +229,52 @@ class SessionQueryBuilder {
 
     // Determine which entry-level columns the CTE needs to SELECT
     const cteColumns = new Set<string>(['session_id']);
-    const cteEntryFilters: string[] = [];
-    let funnelStepFilter = '';
+    for (const dim of dimensions) {
+      if (dim === 'funnelStep' || dim === 'date') continue;
+      const cteCol = CTE_COLUMN_MAP[dim];
+      if (cteCol) cteColumns.add(cteCol);
+    }
 
-    // Collect entry-level parent filters for CTE WHERE,
-    // and funnelStep parent filter for main WHERE
-    if (parentFilters) {
-      for (const [dimId, value] of Object.entries(parentFilters)) {
-        if (dimId === 'funnelStep') {
-          params.push(value);
-          funnelStepFilter = `AND REGEXP_REPLACE(pv.url_path, '^https?://', '') = $${params.length}`;
-          continue;
-        }
-        const col = ENTRY_DIMENSION_MAP[dimId];
-        if (!col) continue;
-        if (value === 'Unknown' || value === '') {
-          cteEntryFilters.push(`(${col} IS NULL OR ${col} = '')`);
-        } else {
-          params.push(value);
-          cteEntryFilters.push(`${col} = $${params.length}`);
-        }
+    // Build SELECT and GROUP BY for every dimension
+    const selectParts: string[] = [];
+    const groupByParts: string[] = [];
+
+    for (const dim of dimensions) {
+      const funnelCol = FUNNEL_DIMENSION_MAP[dim];
+      if (!funnelCol) throw new Error(`Unknown funnel dimension: ${dim}`);
+
+      selectParts.push(`${funnelCol} AS "${dim}"`);
+
+      // GROUP BY expression: for computed expressions use the alias
+      if (dim === 'funnelStep') {
+        groupByParts.push(funnelCol);
+      } else if (dim === 'date') {
+        groupByParts.push(funnelCol);
+      } else {
+        groupByParts.push(`"${dim}"`);
       }
     }
 
-    // If grouping by an entry-level dim (after funnelStep), pull it into CTE
-    if (currentDimension !== 'funnelStep' && currentDimension !== 'date') {
-      const cteCol = CTE_COLUMN_MAP[currentDimension];
-      if (cteCol) {
-        cteColumns.add(cteCol);
-      }
-    }
-
-    const cteWhere = `WHERE se.session_start >= $1::date AND se.session_start < ($2::date + interval '1 day')` +
-      (cteEntryFilters.length > 0 ? ' AND ' + cteEntryFilters.join(' AND ') : '');
-
-    let mainTableFilters = '';
+    // CTE WHERE for entry-level filters
+    let cteFilterClause = '';
     if (filters && filters.length > 0) {
-      mainTableFilters = this.buildTableFilterClause(filters, params, FUNNEL_DIMENSION_MAP);
+      // Separate entry-level filters (for CTE) from funnel-level filters
+      const entryFilters = filters.filter(f => f.field !== 'funnelStep');
+      if (entryFilters.length > 0) {
+        cteFilterClause = this.buildTableFilterClause(entryFilters, params, ENTRY_DIMENSION_MAP, 'se');
+      }
     }
 
-    const sortAlias = METRIC_SQL_ALIAS[sortBy];
-    const orderBy = sortAlias && SQL_SORTABLE_METRICS.has(sortBy)
-      ? `ORDER BY ${sortAlias} ${sortDirection} NULLS LAST`
-      : 'ORDER BY page_views DESC';
+    // Main WHERE for funnelStep filter + page view filters
+    let mainFilterClause = '';
+    if (filters && filters.length > 0) {
+      const funnelFilters = filters.filter(f => f.field === 'funnelStep');
+      if (funnelFilters.length > 0) {
+        mainFilterClause = this.buildTableFilterClause(funnelFilters, params, FUNNEL_DIMENSION_MAP, '');
+      }
+    }
+
+    const cteWhere = `WHERE se.session_start >= $1::date AND se.session_start < ($2::date + interval '1 day')${cteFilterClause}`;
 
     const query = `
       WITH matching_sessions AS (
@@ -286,75 +283,66 @@ class SessionQueryBuilder {
         ${cteWhere}
       )
       SELECT
-        ${funnelDimCol} AS dimension_value,
+        ${selectParts.join(',\n        ')},
         COUNT(*) AS page_views,
         COUNT(DISTINCT pv.ff_visitor_id) AS unique_visitors,
-        ROUND(
-          COUNT(*) FILTER (WHERE pv.active_time_s IS NOT NULL AND pv.active_time_s < 5)::numeric
-          / NULLIF(COUNT(*) FILTER (WHERE pv.active_time_s IS NOT NULL), 0),
-          4
-        ) AS bounce_rate,
-        ROUND(AVG(pv.active_time_s)::numeric, 2) AS avg_active_time,
+        COUNT(*) FILTER (WHERE pv.active_time_s IS NOT NULL AND pv.active_time_s < 5) AS bounced_count,
+        COUNT(*) FILTER (WHERE pv.active_time_s IS NOT NULL) AS active_time_count,
+        COALESCE(SUM(pv.active_time_s), 0) AS total_active_time,
         COUNT(*) FILTER (WHERE pv.hero_scroll_passed = true) AS scroll_past_hero,
-        ROUND(
-          COUNT(*) FILTER (WHERE pv.hero_scroll_passed = true)::numeric
-          / NULLIF(COUNT(*), 0),
-          4
-        ) AS scroll_rate,
         COUNT(*) FILTER (WHERE pv.form_view = true) AS form_views,
-        ROUND(
-          COUNT(*) FILTER (WHERE pv.form_view = true)::numeric
-          / NULLIF(COUNT(*), 0),
-          4
-        ) AS form_view_rate,
-        COUNT(*) FILTER (WHERE pv.form_started = true) AS form_starters,
-        ROUND(
-          COUNT(*) FILTER (WHERE pv.form_started = true)::numeric
-          / NULLIF(COUNT(*) FILTER (WHERE pv.form_view = true), 0),
-          4
-        ) AS form_start_rate
+        COUNT(*) FILTER (WHERE pv.form_started = true) AS form_starters
       FROM ${PAGE_VIEW_TABLE} pv
       JOIN matching_sessions ms ON pv.session_id = ms.session_id
       WHERE pv.created_at >= $1::date AND pv.created_at < ($2::date + interval '1 day')
-        ${funnelStepFilter}
-        ${mainTableFilters}
-      GROUP BY dimension_value
-      ${orderBy}
-      LIMIT 1000
+        ${mainFilterClause}
+      GROUP BY ${groupByParts.join(', ')}
     `;
 
     return { query, params };
   }
 
   /**
-   * Build parent filter clauses for entry-level queries (session_entries).
+   * Build the enriched JOIN needed for the selected dimensions.
+   * Collects ALL columns needed by ALL enriched dims, using the most specific JOIN ON.
+   * e.g. campaign+adset needs: campaign_id, campaign_name, adset_id, adset_name
    */
-  private buildEntryParentFilters(
-    parentFilters: Record<string, string>,
-    params: SqlParam[]
-  ): string {
-    let clause = '';
-    for (const [dimId, value] of Object.entries(parentFilters)) {
-      const col = ENTRY_DIMENSION_MAP[dimId];
-      if (!col) continue;
-      if (value === 'Unknown' || value === '') {
-        clause += ` AND (${col} IS NULL OR ${col} = '')`;
-      } else {
-        params.push(value);
-        clause += ` AND ${col} = $${params.length}`;
+  private buildEnrichedJoin(enrichedDims: string[]): { distinctCols: string; joinOn: string } {
+    // Collect all needed columns from all enriched dims
+    const colSet = new Set<string>();
+    for (const dim of enrichedDims) {
+      const config = ENRICHED_ENTRY_DIMS[dim];
+      for (const col of config.distinctCols.split(', ')) {
+        colSet.add(col.trim());
       }
+      // Also add the name column for dims that reference it via MAX()
+      colSet.add(config.nameColumn);
     }
-    return clause;
+
+    // Use the most specific JOIN ON (ad > adset > campaign)
+    let joinOn: string;
+    if (enrichedDims.includes('entryAd')) {
+      joinOn = ENRICHED_ENTRY_DIMS.entryAd.joinOn;
+    } else if (enrichedDims.includes('entryAdset')) {
+      joinOn = ENRICHED_ENTRY_DIMS.entryAdset.joinOn;
+    } else {
+      joinOn = ENRICHED_ENTRY_DIMS.entryCampaign.joinOn;
+    }
+
+    return { distinctCols: Array.from(colSet).join(', '), joinOn };
   }
 
   /**
-   * Build table filter clauses for queries.
+   * Build table filter clauses.
    * Same field = OR, different fields = AND.
+   * For enriched entry dimensions (campaign/adset/ad), generates OR conditions
+   * to match by both raw ID and name (via merged_ads_spending subquery).
    */
   private buildTableFilterClause(
     filters: Array<{ field: string; operator: string; value: string }>,
     params: SqlParam[],
-    dimensionMap: Record<string, string>
+    dimensionMap: Record<string, string>,
+    tableAlias: string
   ): string {
     const byField = new Map<string, Array<{ operator: string; value: string }>>();
     for (const f of filters) {
@@ -366,23 +354,49 @@ class SessionQueryBuilder {
 
     let clause = '';
     for (const [field, conditions] of byField) {
-      const col = dimensionMap[field]!;
+      let col = dimensionMap[field]!;
+      // Add table alias prefix if not already prefixed
+      if (tableAlias && !col.includes('.') && !col.includes('(')) {
+        col = `${tableAlias}.${col}`;
+      }
+      const enriched = ENRICHED_ENTRY_DIMS[field];
       const orParts: string[] = [];
       for (const { operator, value } of conditions) {
         params.push(value);
         const paramRef = `$${params.length}`;
+        const nameSubquery = enriched
+          ? `SELECT DISTINCT ${enriched.idColumn}::text FROM merged_ads_spending WHERE date::date BETWEEN $1::date AND $2::date AND LOWER(${enriched.nameColumn}) = LOWER(${paramRef})`
+          : null;
         switch (operator) {
           case 'equals':
-            orParts.push(`LOWER(${col}::text) = LOWER(${paramRef})`);
+            if (nameSubquery) {
+              orParts.push(`(LOWER(${col}::text) = LOWER(${paramRef}) OR ${col}::text IN (${nameSubquery}))`);
+            } else {
+              orParts.push(`LOWER(${col}::text) = LOWER(${paramRef})`);
+            }
             break;
           case 'not_equals':
-            orParts.push(`LOWER(${col}::text) != LOWER(${paramRef})`);
+            if (nameSubquery) {
+              orParts.push(`(LOWER(${col}::text) != LOWER(${paramRef}) AND ${col}::text NOT IN (${nameSubquery}))`);
+            } else {
+              orParts.push(`LOWER(${col}::text) != LOWER(${paramRef})`);
+            }
             break;
           case 'contains':
-            orParts.push(`LOWER(${col}::text) LIKE '%' || LOWER(${paramRef}) || '%'`);
+            if (enriched) {
+              const nameContainsSubquery = `SELECT DISTINCT ${enriched.idColumn}::text FROM merged_ads_spending WHERE date::date BETWEEN $1::date AND $2::date AND LOWER(${enriched.nameColumn}) LIKE '%' || LOWER(${paramRef}) || '%'`;
+              orParts.push(`(LOWER(${col}::text) LIKE '%' || LOWER(${paramRef}) || '%' OR ${col}::text IN (${nameContainsSubquery}))`);
+            } else {
+              orParts.push(`LOWER(${col}::text) LIKE '%' || LOWER(${paramRef}) || '%'`);
+            }
             break;
           case 'not_contains':
-            orParts.push(`LOWER(${col}::text) NOT LIKE '%' || LOWER(${paramRef}) || '%'`);
+            if (enriched) {
+              const nameNotContainsSubquery = `SELECT DISTINCT ${enriched.idColumn}::text FROM merged_ads_spending WHERE date::date BETWEEN $1::date AND $2::date AND LOWER(${enriched.nameColumn}) LIKE '%' || LOWER(${paramRef}) || '%'`;
+              orParts.push(`(LOWER(${col}::text) NOT LIKE '%' || LOWER(${paramRef}) || '%' AND ${col}::text NOT IN (${nameNotContainsSubquery}))`);
+            } else {
+              orParts.push(`LOWER(${col}::text) NOT LIKE '%' || LOWER(${paramRef}) || '%'`);
+            }
             break;
         }
       }

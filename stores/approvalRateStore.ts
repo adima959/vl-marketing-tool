@@ -1,3 +1,0 @@
-import { createValidationRateStore } from './validationRateStoreFactory';
-
-export const useApprovalRateStore = createValidationRateStore('approval');

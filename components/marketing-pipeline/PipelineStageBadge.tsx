@@ -8,6 +8,7 @@ interface PipelineStageBadgeProps {
   onChange?: (newStage: PipelineStage) => void;
   editable?: boolean;
   size?: 'small' | 'default';
+  variant?: 'tag' | 'dot';
 }
 
 export function PipelineStageBadge({
@@ -15,6 +16,7 @@ export function PipelineStageBadge({
   onChange,
   editable,
   size,
+  variant = 'tag',
 }: PipelineStageBadgeProps) {
   return (
     <GenericStatusBadge
@@ -23,6 +25,7 @@ export function PipelineStageBadge({
       onChange={onChange}
       editable={editable}
       size={size}
+      variant={variant}
       fontWeight={600}
     />
   );

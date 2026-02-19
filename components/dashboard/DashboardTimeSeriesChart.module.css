@@ -1,122 +1,163 @@
+/* === Dashboard Time Series Chart === */
+
 .container {
-  background: var(--color-background-primary, #ffffff);
-  border: 1px solid var(--color-border, #e8eaed);
-  border-radius: var(--radius-md, 8px);
-  padding: var(--spacing-md, 12px) var(--spacing-lg, 16px);
-  margin-bottom: var(--spacing-lg, 16px);
-  width: 100%;
-  box-sizing: border-box;
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-5) var(--spacing-4) var(--spacing-4);
+  margin-bottom: var(--spacing-2);
 }
+
+/* --- Header --- */
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--spacing-md, 12px);
-  flex-wrap: wrap;
-  gap: var(--spacing-sm, 8px);
+  margin-bottom: var(--spacing-4);
 }
 
 .title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text-primary, #1a1a1a);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-gray-600);
 }
+
+/* --- Legend (pill toggles) --- */
 
 .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--spacing-xs, 4px);
+  gap: 6px;
+  align-items: center;
 }
 
 .legendItem {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-text-secondary, #6b7280);
-  background: var(--color-background-secondary, #fafbfc);
-  border: 1px solid var(--color-border, #e8eaed);
-  border-radius: var(--radius-full, 9999px);
+  gap: 5px;
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-500);
   cursor: pointer;
-  transition: all 0.15s ease;
+  user-select: none;
+  border: 1.5px solid var(--color-gray-200);
+  border-radius: var(--radius-full);
+  padding: var(--spacing-1) 10px;
+  background: transparent;
+  transition: border-color var(--transition-fast), opacity var(--transition-fast);
+  font-family: inherit;
+  line-height: 1;
 }
 
 .legendItem:hover {
-  background: var(--color-background-tertiary, #f5f6f7);
+  opacity: 0.8;
 }
 
 .legendItemActive {
-  color: var(--color-text-primary, #1a1a1a);
-  background: var(--color-background-primary, #ffffff);
-  border-color: var(--metric-color, #00B96B);
+  border-width: 1.5px;
 }
 
 .legendDot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--metric-color, #00B96B);
-  opacity: 0.4;
-  transition: opacity 0.15s ease;
+  flex-shrink: 0;
 }
 
-.legendItemActive .legendDot {
-  opacity: 1;
-}
-
-/* Area indicator for percentage/background metrics */
 .legendDotArea {
-  background: linear-gradient(
-    to bottom,
-    var(--metric-color, #10b981) 0%,
-    transparent 100%
-  );
-  opacity: 0.3;
+  width: 10px;
+  height: 10px;
   border-radius: 2px;
-  width: 12px;
-  height: 8px;
+  flex-shrink: 0;
+  border: 1px solid;
 }
 
-.legendItemActive .legendDotArea {
-  opacity: 0.5;
+/* --- Tooltip --- */
+
+.tooltip {
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  padding: 10px var(--spacing-3);
+  box-shadow: var(--shadow-lg);
+  min-width: 180px;
 }
 
-/* Area metric styling in legend */
-.legendItemArea {
-  /* Keep consistent styling with other legend items */
+.tooltipDate {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-gray-700);
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--color-gray-100);
 }
 
-.chartWrapper {
-  width: 100%;
-  min-width: 0;
-  position: relative;
+.tooltipMetrics {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-/* Skeleton loading styles */
+.tooltipRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-600);
+  padding: 2px 0;
+}
+
+.tooltipLabel {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tooltipDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tooltipValue {
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Empty state --- */
+
+.emptyChart {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--color-gray-400);
+  font-size: var(--font-size-sm);
+}
+
+/* --- Skeleton loader --- */
+
 .skeleton {
   display: flex;
-  width: 100%;
-  height: 100%;
-  padding: 16px 16px 0 0;
+  gap: var(--spacing-2);
+  height: 300px;
 }
 
 .skeletonYAxis {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  width: 40px;
-  padding-right: 8px;
+  width: 30px;
+  padding: var(--spacing-1) 0;
 }
 
-.skeletonYTick {
+.skeletonTick {
   width: 24px;
-  height: 12px;
-  background: var(--color-background-tertiary, #f5f6f7);
-  border-radius: 2px;
-  animation: pulse 1.5s ease-in-out infinite;
+  height: 8px;
+  background: var(--color-gray-100);
+  border-radius: var(--radius-sm);
 }
 
 .skeletonContent {
@@ -125,117 +166,47 @@
   overflow: hidden;
 }
 
-.skeletonGrid {
+.skeletonGridLine {
   position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 6px 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--color-gray-100);
 }
 
-.skeletonGridLine {
-  height: 1px;
-  background: var(--color-border, #e8eaed);
-}
+.skeletonGridLine:nth-child(1) { top: 0%; }
+.skeletonGridLine:nth-child(2) { top: 25%; }
+.skeletonGridLine:nth-child(3) { top: 50%; }
+.skeletonGridLine:nth-child(4) { top: 75%; }
 
 .skeletonLine {
   position: absolute;
-  top: 40%;
   left: 0;
   right: 0;
-  height: 3px;
+  top: 30%;
+  height: 2px;
   background: linear-gradient(
     90deg,
-    var(--color-background-tertiary, #f5f6f7) 0%,
-    var(--color-border, #e8eaed) 50%,
-    var(--color-background-tertiary, #f5f6f7) 100%
+    var(--color-gray-200) 0%,
+    var(--color-gray-100) 50%,
+    var(--color-gray-200) 100%
   );
   background-size: 200% 100%;
-  border-radius: 2px;
   animation: shimmer 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 0.3;
-  }
+  border-radius: 1px;
 }
 
 @keyframes shimmer {
-  0% {
-    background-position: 200% 0;
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* --- Responsive --- */
+
+@media (max-width: 640px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-2);
   }
-  100% {
-    background-position: -200% 0;
-  }
 }
-
-/* Tooltip styles */
-.tooltip {
-  background: var(--color-background-primary, #ffffff);
-  border: 1px solid var(--color-border, #e8eaed);
-  border-radius: var(--radius-md, 8px);
-  box-shadow: var(--shadow-lg, 0 4px 12px rgba(0, 0, 0, 0.1));
-  padding: var(--spacing-sm, 8px) var(--spacing-md, 12px);
-  min-width: 140px;
-}
-
-.tooltipDate {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--color-text-secondary, #6b7280);
-  margin-bottom: var(--spacing-xs, 4px);
-  padding-bottom: var(--spacing-xs, 4px);
-  border-bottom: 1px solid var(--color-border, #e8eaed);
-}
-
-.tooltipMetrics {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.tooltipRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-}
-
-.tooltipDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.tooltipLabel {
-  color: var(--color-text-secondary, #6b7280);
-  flex: 1;
-}
-
-.tooltipValue {
-  font-weight: 600;
-  color: var(--color-text-primary, #1a1a1a);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Empty and error states */
-.empty,
-.error {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  font-size: 13px;
-  color: var(--color-text-secondary, #6b7280);
-}
-
-.error {
-  color: var(--color-error, #ef4444);
-}
-

@@ -1,64 +1,49 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { GenericDataTable } from '@/components/table/GenericDataTable';
-import { CrmDetailModal } from '@/components/modals/CrmDetailModal';
 import { useDashboardStore } from '@/stores/dashboardStore';
-import { useColumnStore } from '@/stores/columnStore';
-import { METRIC_COLUMNS, CRM_METRIC_IDS } from '@/config/columns';
-import type { DashboardRow } from '@/types/dashboard';
-import type { MetricClickContext } from '@/types/dashboardDetails';
-import type { ColumnGroup } from '@/types/table';
+import { DASHBOARD_METRIC_COLUMNS, DASHBOARD_COLUMN_GROUPS } from '@/config/dashboardColumns';
+import { CLICKABLE_METRIC_IDS } from '@/lib/utils/saleRowFilters';
+import { SaleDetailModal } from '@/components/dashboard/SaleDetailModal';
+import type { DashboardRow } from '@/types/sales';
+import type { MetricClickContext } from '@/types/table';
 import styles from './dashboard.module.css';
 
-// Extract CRM columns from unified columns config
-const DASHBOARD_METRIC_COLUMNS = METRIC_COLUMNS.filter(col =>
-  CRM_METRIC_IDS.includes(col.id as any)
-);
-
-const COLUMN_GROUPS: ColumnGroup[] = [
-  {
-    title: 'CRM Metrics',
-    metricIds: Array.from(CRM_METRIC_IDS),
-  },
-];
+/** All dashboard columns are always visible — no column settings UI */
+const ALL_COLUMN_IDS = DASHBOARD_METRIC_COLUMNS.map((col) => col.id);
+const useAllColumns = () => ({ visibleColumns: ALL_COLUMN_IDS });
 
 export function DashboardDataTable() {
-  const [modalContext, setModalContext] = useState<MetricClickContext | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalContext, setModalContext] = useState<MetricClickContext | null>(null);
 
-  const handleMetricClick = (context: MetricClickContext) => {
-    // Subscription aggregate always excludes upsell subs (CRM_DETAIL_CONTRACTS.subscription.alwaysWhere).
-    // Trial/OTS queries ignore this flag — their contracts have no upsell exclusion.
-    context.filters.excludeUpsellTags = true;
+  const handleMetricClick = useCallback((context: MetricClickContext) => {
     setModalContext(context);
     setModalOpen(true);
-  };
+  }, []);
 
-  const handleModalClose = () => {
+  const handleModalClose = useCallback(() => {
     setModalOpen(false);
-    setTimeout(() => setModalContext(null), 300);
-  };
+  }, []);
 
   return (
-    <div className={styles.tableSection}>
+    <>
       <GenericDataTable<DashboardRow>
         useStore={useDashboardStore}
-        useColumnStore={useColumnStore}
+        useColumnStore={useAllColumns}
         metricColumns={DASHBOARD_METRIC_COLUMNS}
-        columnGroups={COLUMN_GROUPS}
+        columnGroups={DASHBOARD_COLUMN_GROUPS}
         colorClassName={styles.tableTheme}
-        showColumnTooltips={true}
+        hideZeroValues
         onMetricClick={handleMetricClick}
-        hideZeroValues={true}
+        clickableMetrics={CLICKABLE_METRIC_IDS}
       />
-
-      <CrmDetailModal
+      <SaleDetailModal
         open={modalOpen}
         onClose={handleModalClose}
-        variant="dashboard"
         context={modalContext}
       />
-    </div>
+    </>
   );
 }

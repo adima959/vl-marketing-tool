@@ -1,116 +1,93 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/server/db';
 import { sessionQueryBuilder } from '@/lib/server/sessionQueryBuilder';
-import { parseQueryRequest } from '@/lib/types/api';
-import type { QueryRequest } from '@/lib/types/api';
 import { createValidationError, maskErrorForClient } from '@/lib/types/errors';
-import { toTitleCase } from '@/lib/formatters';
 import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { unstable_rethrow } from 'next/navigation';
 
-interface SessionAggregatedRow {
-  dimension_value: string | Date;
-  page_views: number;
-  unique_visitors: number;
-  bounce_rate: number;
-  avg_active_time: number;
-  scroll_past_hero: number;
-  scroll_rate: number;
-  form_views: number;
-  form_view_rate: number;
-  form_starters: number;
-  form_start_rate: number;
-}
-
-/** Validate required fields; returns error response or null if valid */
-function validateSessionBody(body: QueryRequest): NextResponse | null {
-  if (!body.dateRange?.start || !body.dateRange?.end) {
-    const error = createValidationError('dateRange is required');
-    return NextResponse.json({ success: false, error: error.message }, { status: error.statusCode });
-  }
-  if (!Array.isArray(body.dimensions) || body.dimensions.length === 0) {
-    const error = createValidationError('dimensions array is required');
-    return NextResponse.json({ success: false, error: error.message }, { status: error.statusCode });
-  }
-  if (typeof body.depth !== 'number' || body.depth < 0) {
-    const error = createValidationError('depth must be a non-negative number');
-    return NextResponse.json({ success: false, error: error.message }, { status: error.statusCode });
-  }
-  return null;
+interface FlatQueryRequest {
+  dateRange: {
+    start: string;
+    end: string;
+  };
+  dimensions: string[];
+  filters?: Array<{ field: string; operator: 'equals' | 'not_equals' | 'contains' | 'not_contains'; value: string }>;
 }
 
 /**
  * POST /api/on-page-analysis/sessions/query
- * Session-based on-page analytics query endpoint.
- * Dual-mode: entry-level (session_entries) or funnel-level (page views joined with sessions).
+ *
+ * Returns flat rows grouped by ALL requested dimensions in a single query.
+ * Each row contains dimension values + base metric counts.
+ * The client builds the hierarchical tree and computes derived metrics.
  */
 async function handleSessionQuery(
   request: NextRequest,
   _user: AppUser
 ): Promise<NextResponse> {
   try {
-    const body: QueryRequest = await request.json();
+    const body: FlatQueryRequest = await request.json();
 
-    const validationError = validateSessionBody(body);
-    if (validationError) return validationError;
+    if (!body.dateRange?.start || !body.dateRange?.end) {
+      const error = createValidationError('dateRange is required');
+      return NextResponse.json({ success: false, error: error.message }, { status: error.statusCode });
+    }
+    if (!Array.isArray(body.dimensions) || body.dimensions.length === 0) {
+      const error = createValidationError('dimensions array is required');
+      return NextResponse.json({ success: false, error: error.message }, { status: error.statusCode });
+    }
 
-    const queryParams = parseQueryRequest(body);
-    const { query, params } = sessionQueryBuilder.buildQuery(queryParams);
-
-    const rows = await executeQuery<SessionAggregatedRow>(query, params);
-
-    const currentDimension = body.dimensions[body.depth];
-    const hasMoreDimensions = body.depth < body.dimensions.length - 1;
-
-    // Build key prefix from parent filters (maintains dimension order)
-    const parentKeyParts = body.parentFilters
-      ? body.dimensions
-          .map((dim) => body.parentFilters?.[dim])
-          .filter((val): val is string => val !== undefined)
-          .join('::')
-      : '';
-    const keyPrefix = parentKeyParts ? `${parentKeyParts}::` : '';
-
-    const data = rows.map((row) => {
-      // For date dimension, PG returns a Date object — format as YYYY-MM-DD
-      const dimValue = currentDimension === 'date' && row.dimension_value instanceof Date
-        ? `${row.dimension_value.getUTCFullYear()}-${String(row.dimension_value.getUTCMonth() + 1).padStart(2, '0')}-${String(row.dimension_value.getUTCDate()).padStart(2, '0')}`
-        : row.dimension_value;
-
-      const keyValue = dimValue != null ? String(dimValue) : 'Unknown';
-      const displayValue = dimValue != null
-        ? toTitleCase(String(dimValue))
-        : 'Unknown';
-
-      return {
-        key: `${keyPrefix}${keyValue}`,
-        attribute: displayValue,
-        depth: body.depth,
-        hasChildren: hasMoreDimensions,
-        metrics: {
-          pageViews: Number(row.page_views) || 0,
-          uniqueVisitors: Number(row.unique_visitors) || 0,
-          bounceRate: Number(row.bounce_rate) || 0,
-          avgActiveTime: Number(row.avg_active_time) || 0,
-          scrollPastHero: Number(row.scroll_past_hero) || 0,
-          scrollRate: Number(row.scroll_rate) || 0,
-          formViews: Number(row.form_views) || 0,
-          formViewRate: Number(row.form_view_rate) || 0,
-          formStarters: Number(row.form_starters) || 0,
-          formStartRate: Number(row.form_start_rate) || 0,
-        },
-      };
+    const { query, params } = sessionQueryBuilder.buildFlatQuery({
+      dateRange: {
+        start: new Date(body.dateRange.start),
+        end: new Date(body.dateRange.end),
+      },
+      dimensions: body.dimensions,
+      filters: body.filters,
     });
 
-    return NextResponse.json({
-      success: true,
-      data,
+    const rows = await executeQuery<Record<string, unknown>>(query, params);
+
+    // Normalize rows: Date → YYYY-MM-DD, null → 'Unknown', numbers coerced
+    const data = rows.map(row => {
+      const result: Record<string, string | number> = {};
+
+      for (const dim of body.dimensions) {
+        const raw = row[dim];
+        if (raw instanceof Date) {
+          const y = String(raw.getUTCFullYear());
+          const m = String(raw.getUTCMonth() + 1).padStart(2, '0');
+          const d = String(raw.getUTCDate()).padStart(2, '0');
+          result[dim] = `${y}-${m}-${d}`;
+        } else {
+          result[dim] = raw != null ? String(raw) : 'Unknown';
+        }
+
+        // Include companion ID for enriched dimensions
+        const idKey = `_${dim}_id`;
+        if (row[idKey] != null) {
+          result[idKey] = String(row[idKey]);
+        }
+      }
+
+      // Base metric counts (raw, not pre-computed ratios)
+      result.page_views = Number(row.page_views) || 0;
+      result.unique_visitors = Number(row.unique_visitors) || 0;
+      result.bounced_count = Number(row.bounced_count) || 0;
+      result.active_time_count = Number(row.active_time_count) || 0;
+      result.total_active_time = Number(row.total_active_time) || 0;
+      result.scroll_past_hero = Number(row.scroll_past_hero) || 0;
+      result.form_views = Number(row.form_views) || 0;
+      result.form_starters = Number(row.form_starters) || 0;
+
+      return result;
     });
+
+    return NextResponse.json({ success: true, data });
   } catch (error: unknown) {
     unstable_rethrow(error);
     const { message, statusCode } = maskErrorForClient(error, 'Session Analytics API');
-
     return NextResponse.json(
       { success: false, error: message },
       { status: statusCode }

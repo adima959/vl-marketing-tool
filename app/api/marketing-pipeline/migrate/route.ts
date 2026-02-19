@@ -48,7 +48,7 @@ const G06 = 'f0000000-0000-4000-a000-000000000006';
 
 async function createEnums(): Promise<void> {
   const enumStatements = [
-    // Reuse existing enums (created by marketing-tracker, idempotent)
+    // Reuse existing enums (idempotent)
     `DO $$ BEGIN CREATE TYPE app_angle_status AS ENUM ('idea', 'in_production', 'live', 'paused', 'retired'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;`,
     `DO $$ BEGIN CREATE TYPE app_geography AS ENUM ('NO', 'SE', 'DK'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;`,
     `DO $$ BEGIN CREATE TYPE app_asset_type AS ENUM ('landing_page', 'text_ad', 'brief', 'research'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;`,
@@ -84,7 +84,8 @@ async function alterProducts(): Promise<void> {
   await executeQuery(`ALTER TABLE app_products ADD COLUMN IF NOT EXISTS cpa_target_se NUMERIC;`);
   await executeQuery(`ALTER TABLE app_products ADD COLUMN IF NOT EXISTS cpa_target_dk NUMERIC;`);
   await executeQuery(`ALTER TABLE app_products ADD COLUMN IF NOT EXISTS color VARCHAR(7);`);
-  // CPA target + color columns added
+  await executeQuery(`ALTER TABLE app_products ADD COLUMN IF NOT EXISTS assets_folder_id VARCHAR(255);`);
+  // CPA target + color + assets_folder columns added
 }
 
 
@@ -115,6 +116,7 @@ async function createTables(): Promise<void> {
       key_idea TEXT,
       primary_hook_direction TEXT,
       headlines TEXT[],
+      copy_variations JSONB DEFAULT '[]'::jsonb,
       status app_angle_status NOT NULL DEFAULT 'idea',
       pipeline_stage app_pipeline_stage NOT NULL DEFAULT 'backlog',
       verdict_type VARCHAR(20),
@@ -130,6 +132,9 @@ async function createTables(): Promise<void> {
     );
   `);
 
+  // Add copy_variations column for existing installs
+  await executeQuery(`ALTER TABLE app_pipeline_messages ADD COLUMN IF NOT EXISTS copy_variations JSONB DEFAULT '[]'::jsonb;`);
+
   await executeQuery(`
     CREATE TABLE IF NOT EXISTS app_pipeline_campaigns (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -138,7 +143,6 @@ async function createTables(): Promise<void> {
       geo app_geography NOT NULL,
       external_id VARCHAR(255),
       external_url TEXT,
-      status app_campaign_status NOT NULL DEFAULT 'active',
       spend NUMERIC NOT NULL DEFAULT 0,
       conversions INTEGER NOT NULL DEFAULT 0,
       cpa NUMERIC,
@@ -148,6 +152,8 @@ async function createTables(): Promise<void> {
       deleted_at TIMESTAMPTZ
     );
   `);
+
+  await executeQuery(`ALTER TABLE app_pipeline_campaigns ADD COLUMN IF NOT EXISTS name TEXT;`);
 
   await executeQuery(`
     CREATE TABLE IF NOT EXISTS app_pipeline_assets (
@@ -202,6 +208,53 @@ async function createTables(): Promise<void> {
 }
 
 
+// ── DDL: CPA Targets Table ─────────────────────────────────────────
+
+async function createCpaTargetsTable(): Promise<void> {
+  await executeQuery(`
+    CREATE TABLE IF NOT EXISTS app_product_cpa_targets (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      product_id UUID NOT NULL REFERENCES app_products(id) ON DELETE CASCADE,
+      geo app_geography NOT NULL,
+      channel app_channel NOT NULL,
+      target NUMERIC NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(product_id, geo, channel)
+    );
+  `);
+  await executeQuery(`
+    CREATE INDEX IF NOT EXISTS idx_product_cpa_targets_product
+      ON app_product_cpa_targets(product_id);
+  `);
+  // CPA targets table created
+}
+
+async function migrateLegacyCpaTargets(): Promise<void> {
+  // Migrate old flat cpa_target_no/se/dk columns into the new table.
+  // For each product with a value, insert rows for all 3 channels (meta, google, taboola).
+  const channels = ['meta', 'google', 'taboola'];
+  const geoColumns: { geo: string; col: string }[] = [
+    { geo: 'NO', col: 'cpa_target_no' },
+    { geo: 'SE', col: 'cpa_target_se' },
+    { geo: 'DK', col: 'cpa_target_dk' },
+  ];
+
+  for (const { geo, col } of geoColumns) {
+    for (const channel of channels) {
+      await executeQuery(`
+        INSERT INTO app_product_cpa_targets (product_id, geo, channel, target)
+        SELECT id, $1::app_geography, $2::app_channel, ${col}
+        FROM app_products
+        WHERE ${col} IS NOT NULL AND deleted_at IS NULL
+        ON CONFLICT (product_id, geo, channel) DO NOTHING;
+      `, [geo, channel]);
+    }
+  }
+  // Legacy CPA targets migrated
+}
+
+
 // ── DDL: Indexes ────────────────────────────────────────────────────
 
 async function createIndexes(): Promise<void> {
@@ -211,7 +264,6 @@ async function createIndexes(): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_pl_messages_stage ON app_pipeline_messages(pipeline_stage) WHERE deleted_at IS NULL;`,
     `CREATE INDEX IF NOT EXISTS idx_pl_messages_parent ON app_pipeline_messages(parent_message_id) WHERE deleted_at IS NULL AND parent_message_id IS NOT NULL;`,
     `CREATE INDEX IF NOT EXISTS idx_pl_campaigns_message ON app_pipeline_campaigns(message_id) WHERE deleted_at IS NULL;`,
-    `CREATE INDEX IF NOT EXISTS idx_pl_campaigns_status ON app_pipeline_campaigns(status) WHERE deleted_at IS NULL;`,
     `CREATE INDEX IF NOT EXISTS idx_pl_assets_message ON app_pipeline_assets(message_id) WHERE deleted_at IS NULL;`,
     `CREATE INDEX IF NOT EXISTS idx_pl_creatives_message ON app_pipeline_creatives(message_id) WHERE deleted_at IS NULL;`,
     `CREATE INDEX IF NOT EXISTS idx_pl_msg_geos_message ON app_pipeline_message_geos(message_id) WHERE deleted_at IS NULL;`,
@@ -252,7 +304,6 @@ interface SeedCampaign {
   messageId: string;
   channel: string;
   geo: string;
-  status: string;
   spend: number;
   conversions: number;
   cpa: number;
@@ -308,7 +359,7 @@ async function seedData(): Promise<void> {
     SELECT id FROM app_users WHERE deleted_at IS NULL ORDER BY created_at LIMIT 3;
   `);
   if (existingUsers.length === 0) {
-    throw new Error('No users found in app_users. Run marketing-tracker migration first.');
+    throw new Error('No users found in app_users. Seed users first.');
   }
   const u1 = existingUsers[0].id;
   const u2 = existingUsers[Math.min(1, existingUsers.length - 1)].id;
@@ -447,18 +498,18 @@ async function seedData(): Promise<void> {
 
   // ── Seed campaigns (1 per message that has them) ──────────────
   const campaigns: SeedCampaign[] = [
-    { id: C01, messageId: M10, channel: 'meta', geo: 'NO', status: 'active', spend: 340, conversions: 14, cpa: 24, createdAt: '2024-05-01', updatedAt: '2024-06-05' },
-    { id: C02, messageId: M15, channel: 'meta', geo: 'NO', status: 'active', spend: 320, conversions: 8, cpa: 40, createdAt: '2024-04-20', updatedAt: '2024-06-05' },
-    { id: C03, messageId: M17, channel: 'meta', geo: 'NO', status: 'active', spend: 1800, conversions: 95, cpa: 19, createdAt: '2024-03-15', updatedAt: '2024-06-05' },
-    { id: C04, messageId: M19, channel: 'meta', geo: 'NO', status: 'stopped', spend: 380, conversions: 11, cpa: 35, createdAt: '2024-03-01', updatedAt: '2024-05-01' },
+    { id: C01, messageId: M10, channel: 'meta', geo: 'NO', spend: 340, conversions: 14, cpa: 24, createdAt: '2024-05-01', updatedAt: '2024-06-05' },
+    { id: C02, messageId: M15, channel: 'meta', geo: 'NO', spend: 320, conversions: 8, cpa: 40, createdAt: '2024-04-20', updatedAt: '2024-06-05' },
+    { id: C03, messageId: M17, channel: 'meta', geo: 'NO', spend: 1800, conversions: 95, cpa: 19, createdAt: '2024-03-15', updatedAt: '2024-06-05' },
+    { id: C04, messageId: M19, channel: 'meta', geo: 'NO', spend: 380, conversions: 11, cpa: 35, createdAt: '2024-03-01', updatedAt: '2024-05-01' },
   ];
 
   for (const c of campaigns) {
     await executeQuery(`
-      INSERT INTO app_pipeline_campaigns (id, message_id, channel, geo, status, spend, conversions, cpa, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      INSERT INTO app_pipeline_campaigns (id, message_id, channel, geo, spend, conversions, cpa, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       ON CONFLICT (id) DO NOTHING;
-    `, [c.id, c.messageId, c.channel, c.geo, c.status, c.spend, c.conversions, c.cpa, c.createdAt, c.updatedAt]);
+    `, [c.id, c.messageId, c.channel, c.geo, c.spend, c.conversions, c.cpa, c.createdAt, c.updatedAt]);
   }
   seedStep = 'seedAssets';
 
@@ -533,7 +584,9 @@ export const POST = withAdmin(async (request: NextRequest, user: AppUser): Promi
     await createEnums();
     await alterProducts();
     await createTables();
+    await createCpaTargetsTable();
     await createIndexes();
+    await migrateLegacyCpaTargets();
 
     if (reset) {
       // Clear pipeline data in FK-safe order, then re-seed
@@ -549,7 +602,7 @@ export const POST = withAdmin(async (request: NextRequest, user: AppUser): Promi
       // Remove extra seed products (keep only Flex Repair) — ignore if referenced elsewhere
       try {
         await executeQuery(`DELETE FROM app_products WHERE name IN ('Joint Plus', 'Sleep Well');`);
-      } catch { /* products may be referenced by marketing-tracker tables */ }
+      } catch { /* products may be referenced by other tables */ }
     } else {
       // Migrate existing data: old stages → new stages
       await executeQuery(`UPDATE app_pipeline_messages SET pipeline_stage = 'backlog' WHERE pipeline_stage = 'briefed';`);

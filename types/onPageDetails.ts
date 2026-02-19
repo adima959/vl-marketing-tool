@@ -1,4 +1,4 @@
-import type { DateRange } from '@/types';
+import type { DateRange } from '@/lib/types/api';
 
 /**
  * Context passed when a metric cell is clicked in On-Page Analysis

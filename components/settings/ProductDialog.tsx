@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { App, Modal, Form, Input, Select } from 'antd';
-import type { Product, TrackerUser } from '@/types/marketing-tracker';
+import { App, Modal, Form, Input, Select, Button } from 'antd';
+import { AimOutlined } from '@ant-design/icons';
+import type { Product, PipelineUser } from '@/types/marketing-pipeline';
 import { FormRichEditor } from '@/components/ui/FormRichEditor';
+import { CpaTargetsModal } from '@/components/marketing-pipeline/CpaTargetsModal';
 import modalStyles from '@/styles/components/modal.module.css';
 
 /** 24 subtle product colors inspired by VitaLiv product packaging */
@@ -21,7 +23,7 @@ const PRODUCT_COLORS = [
 
 interface ProductDialogProps {
   product: Product | null;
-  users: TrackerUser[];
+  users: PipelineUser[];
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
@@ -39,6 +41,7 @@ export function ProductDialog({ product, users, open, onClose, onSuccess }: Prod
   const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [showCpaTargets, setShowCpaTargets] = useState(false);
 
   const isEdit = !!product;
 
@@ -47,8 +50,8 @@ export function ProductDialog({ product, users, open, onClose, onSuccess }: Prod
 
     try {
       const url = isEdit
-        ? `/api/marketing-tracker/products/${product.id}`
-        : '/api/marketing-tracker/products';
+        ? `/api/marketing-pipeline/products/${product.id}`
+        : '/api/marketing-pipeline/products';
 
       const response = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',
@@ -177,7 +180,29 @@ export function ProductDialog({ product, users, open, onClose, onSuccess }: Prod
             <FormRichEditor placeholder="Brief product description..." />
           </Form.Item>
         </div>
+
+        {isEdit && product && (
+          <div style={{ padding: '0 0 4px', marginTop: 8 }}>
+            <Button
+              type="link"
+              icon={<AimOutlined />}
+              onClick={() => setShowCpaTargets(true)}
+              style={{ padding: 0, fontSize: 13 }}
+            >
+              Edit CPA Targets
+            </Button>
+          </div>
+        )}
       </Form>
+
+      {isEdit && product && (
+        <CpaTargetsModal
+          open={showCpaTargets}
+          product={product}
+          onClose={() => setShowCpaTargets(false)}
+          onSave={onSuccess}
+        />
+      )}
     </Modal>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { Search } from 'lucide-react';
+import { Search, Paperclip } from 'lucide-react';
 import { CHANNEL_CONFIG, GEO_CONFIG } from '@/types';
 import { usePipelineStore } from '@/stores/pipelineStore';
 import styles from './PipelineBoard.module.css';
@@ -10,6 +10,7 @@ export function PipelineFilters() {
     users, products, angles,
     ownerFilter, productFilter, angleFilter, channelFilters, geoFilters,
     setOwnerFilter, setProductFilter, setAngleFilter, toggleChannelFilter, toggleGeoFilter,
+    openProductPanel,
   } = usePipelineStore();
 
   const handleOwnerToggle = (userId: string) => {
@@ -42,7 +43,10 @@ export function PipelineFilters() {
         <div className={styles.filterBar}>
           <div className={styles.chipGroup}>
             <span className={styles.chipGroupLabel}>Owner</span>
-            {users.map(u => (
+            {(ownerFilter !== 'all'
+              ? users.filter(u => u.id === ownerFilter)
+              : users
+            ).map(u => (
               <button
                 key={u.id}
                 type="button"
@@ -59,6 +63,7 @@ export function PipelineFilters() {
           <div className={styles.chipGroup}>
             <span className={styles.chipGroupLabel}>Network</span>
             {Object.entries(CHANNEL_CONFIG)
+              .filter(([key]) => channelFilters.length === 0 || channelFilters.includes(key))
               .map(([key, config]) => (
                 <button
                   key={key}
@@ -75,6 +80,7 @@ export function PipelineFilters() {
           <div className={styles.chipGroup}>
             <span className={styles.chipGroupLabel}>Country</span>
             {Object.entries(GEO_CONFIG)
+              .filter(([key]) => geoFilters.length === 0 || geoFilters.includes(key))
               .map(([key, config]) => (
                 <button
                   key={key}
@@ -93,7 +99,10 @@ export function PipelineFilters() {
           <div className={styles.filterBarSecondary}>
             <div className={styles.chipGroup}>
               <span className={styles.chipGroupLabel}>Product</span>
-              {filteredProducts.map(p => (
+              {(productFilter !== 'all'
+                ? filteredProducts.filter(p => p.id === productFilter)
+                : filteredProducts
+              ).map(p => (
                 <button
                   key={p.id}
                   type="button"
@@ -103,6 +112,16 @@ export function PipelineFilters() {
                   {p.name}
                 </button>
               ))}
+              {productFilter !== 'all' && (
+                <button
+                  type="button"
+                  className={styles.productDetailsLink}
+                  onClick={() => openProductPanel(productFilter)}
+                >
+                  <Paperclip size={12} />
+                  Product Details
+                </button>
+              )}
             </div>
 
             {/* Angle chips (conditional on product) */}

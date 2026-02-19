@@ -1,6 +1,8 @@
 'use client';
 
 import { memo } from 'react';
+import { Tooltip } from 'antd';
+import { FolderOpenOutlined } from '@ant-design/icons';
 import type { PipelineCard as PipelineCardType, PipelineStage } from '@/types';
 import { GEO_CONFIG, GEO_STAGE_CONFIG, PIPELINE_STAGES_ORDER, PIPELINE_STAGE_CONFIG } from '@/types';
 import { usePipelineStore } from '@/stores/pipelineStore';
@@ -29,10 +31,7 @@ const STAGE_CLASS_MAP: Record<PipelineStage, string> = {
 export const PipelineCard = memo(function PipelineCard({ card }: PipelineCardProps) {
   const selectMessage = usePipelineStore(s => s.selectMessage);
   const moveMessage = usePipelineStore(s => s.moveMessage);
-  const prefetchMessage = usePipelineStore(s => s.prefetchMessage);
-
   const handleCardClick = (): void => selectMessage(card.id);
-  const handleMouseEnter = (): void => prefetchMessage(card.id);
   const stageClass = STAGE_CLASS_MAP[card.pipelineStage] || '';
 
   const stageIdx = PIPELINE_STAGES_ORDER.indexOf(card.pipelineStage);
@@ -45,7 +44,7 @@ export const PipelineCard = memo(function PipelineCard({ card }: PipelineCardPro
   };
 
   return (
-    <div className={`${styles.card} ${stageClass}`} onClick={handleCardClick} onMouseEnter={handleMouseEnter}>
+    <div className={`${styles.card} ${stageClass}`} onClick={handleCardClick}>
       <div className={styles.conceptName}>{card.name}</div>
 
       <div className={styles.tags}>
@@ -93,6 +92,19 @@ export const PipelineCard = memo(function PipelineCard({ card }: PipelineCardPro
               : null,
           ].filter(Boolean).join(' · ')}
         </span>
+        {card.driveFolderId && (
+          <Tooltip title="Open Drive folder" mouseEnterDelay={0.15}>
+            <a
+              href={`https://drive.google.com/drive/folders/${card.driveFolderId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.driveLink}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <FolderOpenOutlined />
+            </a>
+          </Tooltip>
+        )}
         {card.version > 1 && (
           <span className={styles.versionBadge}>v{card.version}</span>
         )}

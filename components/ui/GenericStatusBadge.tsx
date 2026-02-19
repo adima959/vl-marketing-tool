@@ -2,7 +2,7 @@
 
 import { Tag, Dropdown, type MenuProps } from 'antd';
 import { useState } from 'react';
-import styles from '@/components/marketing-tracker/StatusBadge.module.css';
+import styles from '@/components/marketing-pipeline/StatusBadge.module.css';
 import dropdownStyles from '@/styles/components/dropdown.module.css';
 
 export interface StatusConfig {

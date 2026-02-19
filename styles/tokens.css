@@ -48,10 +48,35 @@
   --color-accent-cyan: #06b6d4;
   --color-accent-emerald: #10b981;
 
+  /* Status Colors (health / badges / CRM) */
+  --color-status-green: #059669;
+  --color-status-green-bg: #ecfdf5;
+  --color-status-green-dark: #16a34a;
+  --color-status-green-leaf: #15803d;
+  --color-status-green-leaf-bg: #f0fdf4;
+  --color-status-green-leaf-border: #dcfce7;
+  --color-status-yellow: #b45309;
+  --color-status-yellow-bg: #fffbeb;
+  --color-status-amber-bg: #fef3c7;
+  --color-status-amber: #d97706;
+  --color-status-red: #dc2626;
+  --color-status-red-bg: #fef2f2;
+  --color-status-red-dark: #b91c1c;
+  --color-status-blue: #2563eb;
+  --color-status-blue-bg: #eff6ff;
+  --color-status-blue-border: #bfdbfe;
+  --color-status-indigo: #4338ca;
+  --color-status-indigo-bg: #eef2ff;
+  --color-status-funnelflux: #da365b;
+
   /* Navy Colors (for tables) */
   --color-navy-primary: #1E3A5F;
   --color-navy-border: #C5D3E0;
   --color-navy-accent: #2C4A6E;
+
+  /* Primary Alpha (for drag/drop hover backgrounds) */
+  --color-primary-alpha-3: rgba(0, 185, 107, 0.03);
+  --color-primary-alpha-6: rgba(0, 185, 107, 0.06);
 
   /* Background Colors */
   --color-background-primary: #ffffff;
@@ -61,6 +86,7 @@
   --color-background-hover: #f0f9ff;
   --color-background-active: #e0f2fe;
   --color-background-expanded: #e6f7ed;
+  --color-background-muted: #edf2f7;
 
   /* Legacy Color Aliases */
   --color-primary: #00B96B;
@@ -122,6 +148,7 @@
   --shadow-modal: 0 24px 48px rgba(0, 0, 0, 0.12);
   --shadow-button: 0 1px 2px rgba(0, 185, 107, 0.2);
   --shadow-button-hover: 0 2px 4px rgba(0, 185, 107, 0.3);
+  --shadow-panel: -4px 0 24px rgba(0, 0, 0, 0.12);
   --shadow-fixed: inset 10px 0 8px -8px rgba(0, 0, 0, 0.15);
 
   /* Transitions */

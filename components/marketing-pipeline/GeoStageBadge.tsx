@@ -16,7 +16,7 @@ export function GeoStageBadge({
   onChange,
   editable = false,
   size = 'default',
-}: GeoStageBadgeProps) {
+}: GeoStageBadgeProps): React.ReactNode {
   return (
     <GenericStatusBadge
       status={stage}

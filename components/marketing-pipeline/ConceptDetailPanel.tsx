@@ -1,24 +1,31 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useDebouncedField } from '@/hooks/useDebouncedField';
 import { createPortal } from 'react-dom';
-import { Button, Input, Popconfirm } from 'antd';
-import { CloseOutlined, DeleteOutlined } from '@ant-design/icons';
-import type { MessageDetail, Campaign, Geography, PipelineStage } from '@/types';
+import { useQueryState, parseAsString } from 'nuqs';
+import { App, Button, Input, Dropdown, Tooltip } from 'antd';
+import type { MenuProps } from 'antd';
+import { CloseOutlined, DeleteOutlined, CalendarOutlined, SwapOutlined, MoreOutlined, StopOutlined, ArrowLeftOutlined, LeftOutlined, RightOutlined, HistoryOutlined, AimOutlined } from '@ant-design/icons';
+import { FolderOpen } from 'lucide-react';
+import { PIPELINE_STAGES_ORDER, PIPELINE_STAGE_CONFIG } from '@/types';
+import { formatLocalDate } from '@/lib/types/api';
+import type { MessageDetail, Campaign, PipelineStage } from '@/types';
 import { usePipelineStore } from '@/stores/pipelineStore';
 import { EditableField } from '@/components/ui/EditableField';
 import { EditableSelect } from '@/components/ui/EditableSelect';
 import { PipelineStageBadge } from './PipelineStageBadge';
-import { CampaignModal } from './CampaignModal';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import { CpaTargetsModal } from './CpaTargetsModal';
 import { StrategyCopyTab } from './StrategyCopyTab';
-import { MarketExecutionTab } from './MarketExecutionTab';
 import { ActivityLogSection } from './ActivityLogSection';
+import { CampaignDetailContent } from './CampaignDetailContent';
+import { ConceptPanelSkeleton } from './ConceptPanelSkeleton';
+import { GeoTracksSection } from './GeoTracksSection';
 import styles from './ConceptDetailPanel.module.css';
 
 const { TextArea } = Input;
 
-type DetailTab = 'strategy' | 'execution' | 'activity';
+type DetailTab = 'strategy' | 'activity';
 
 interface ConceptDetailPanelProps {
   open: boolean;
@@ -27,19 +34,32 @@ interface ConceptDetailPanelProps {
 }
 
 export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPanelProps) {
+  const { modal } = App.useApp();
   const {
     moveMessage, updateMessageField, selectMessage, deleteMessage,
-    deleteCampaign,
+    addCampaign, deleteCampaign,
     addGeo, updateGeoStage, removeGeo,
     messageHistory, angles,
     detailTab: activeTab, setDetailTab: setActiveTab,
+    campaignPerformance, campaignPerformanceLoading, fetchCampaignPerformance,
+    loadPipeline,
   } = usePipelineStore();
   const [iterateReason, setIterateReason] = useState('');
   const [showIterateForm, setShowIterateForm] = useState(false);
-  const [campaignModalOpen, setCampaignModalOpen] = useState(false);
-  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
-  const [modalGeo, setModalGeo] = useState<Geography | undefined>(undefined);
-  const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const [campaignView, setCampaignView] = useState<Campaign | null>(null);
+  const [showCpaTargets, setShowCpaTargets] = useState(false);
+  const [perfDateRange, setPerfDateRange] = useState<{ start: Date; end: Date }>(() => {
+    const end = new Date(); end.setHours(0, 0, 0, 0);
+    const start = new Date(end); start.setDate(start.getDate() - 7);
+    return { start, end };
+  });
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  // URL state for campaign view
+  const [urlCampaignId, setUrlCampaignId] = useQueryState('campaignId', parseAsString.withOptions({
+    history: 'replace',
+    shallow: true,
+  }));
 
   // Version navigation stack — stores {id, name} of messages we navigated away from
   // IMPORTANT: Only update versionStackRef inside handlers — never overwrite it during render,
@@ -48,8 +68,13 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
   const versionStackRef = useRef<{ id: string; name: string }[]>([]);
   const isVersionNav = useRef(false);
 
-  // Dismiss = go back one version level, or close panel if at root
+  // Dismiss = campaign view → version stack → close panel
   const handleDismiss = useCallback(() => {
+    if (campaignView) {
+      setCampaignView(null);
+      requestAnimationFrame(() => bodyRef.current?.scrollTo(0, 0));
+      return;
+    }
     const stack = versionStackRef.current;
     if (stack.length > 0) {
       const prev = stack[stack.length - 1];
@@ -61,7 +86,7 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
     } else {
       onClose();
     }
-  }, [onClose, selectMessage]);
+  }, [campaignView, onClose, selectMessage]);
 
   // Close on Escape key
   useEffect(() => {
@@ -73,8 +98,29 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
     return () => window.removeEventListener('keydown', handleEsc);
   }, [open, handleDismiss]);
 
+  // Update page title based on current view
+  useEffect(() => {
+    if (!open || !message) return;
+    const base = 'Marketing Pipeline';
+    const prev = document.title;
+    if (campaignView) {
+      const campName = campaignPerformance[campaignView.id]?.campaignName || campaignView.name || campaignView.externalId || 'Campaign';
+      document.title = `${campName} — ${message.name} | ${base}`;
+    } else {
+      document.title = `${message.name} | ${base}`;
+    }
+    return () => { document.title = prev; };
+  }, [open, message?.name, message?.id, campaignView, campaignPerformance]);
+
+  // Sync campaignView to URL
+  useEffect(() => {
+    setUrlCampaignId(campaignView?.id ?? null);
+  }, [campaignView, setUrlCampaignId]);
+
   // Reset tab when opening a fresh message (not via version navigation)
   const prevMessageId = useRef<string | null>(null);
+  const prevCampaignId = useRef<string | null>(null);
+
   useEffect(() => {
     if (open && message?.id !== prevMessageId.current) {
       if (!isVersionNav.current) {
@@ -90,16 +136,41 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
       setShowIterateForm(false);
       setIterateReason('');
       prevMessageId.current = message?.id ?? null;
+
+      // Set campaign view from URL or clear
+      if (urlCampaignId && message?.campaigns) {
+        const campaign = message.campaigns.find(c => c.id === urlCampaignId);
+        setCampaignView(campaign ?? null);
+        prevCampaignId.current = urlCampaignId;
+      } else {
+        setCampaignView(null);
+        prevCampaignId.current = null;
+      }
     }
-  }, [open, message?.id]);
+    // Also handle case where URL campaignId changes without message changing
+    else if (open && message && urlCampaignId !== prevCampaignId.current) {
+      if (urlCampaignId && message.campaigns) {
+        const campaign = message.campaigns.find(c => c.id === urlCampaignId);
+        setCampaignView(campaign ?? null);
+        prevCampaignId.current = urlCampaignId;
+      } else if (!urlCampaignId) {
+        setCampaignView(null);
+        prevCampaignId.current = null;
+      }
+    }
+  }, [open, message?.id, message?.campaigns, urlCampaignId, message]);
+
+  const debouncedFieldUpdate = useDebouncedField(
+    useCallback((field: string, value: string | string[] | unknown[]) => {
+      if (message) updateMessageField(message.id, field, value);
+    }, [message, updateMessageField]),
+    600,
+  );
 
   const handleFieldChange = useCallback((field: string, value: string | string[] | unknown[]) => {
     if (!message) return;
-    if (debounceTimers.current[field]) clearTimeout(debounceTimers.current[field]);
-    debounceTimers.current[field] = setTimeout(() => {
-      updateMessageField(message.id, field, value);
-    }, 600);
-  }, [message, updateMessageField]);
+    debouncedFieldUpdate(field, value);
+  }, [message, debouncedFieldUpdate]);
 
   const handleStageChange = useCallback((newStage: PipelineStage) => {
     if (!message) return;
@@ -138,292 +209,360 @@ export function ConceptDetailPanel({ open, message, onClose }: ConceptDetailPane
     selectMessage(prev.id);
   }, [selectMessage]);
 
-  const handleOpenCampaignModal = useCallback((geo: Geography | undefined, campaign: Campaign | null) => {
-    setModalGeo(geo);
-    setEditingCampaign(campaign);
-    setCampaignModalOpen(true);
+  const handleCampaignClick = useCallback((campaign: Campaign) => {
+    setCampaignView(campaign);
+    requestAnimationFrame(() => bodyRef.current?.scrollTo(0, 0));
   }, []);
+
+  const handlePerfDateRangeChange = useCallback((range: { start: Date; end: Date }) => {
+    setPerfDateRange(range);
+    if (message) {
+      fetchCampaignPerformance(message.id, {
+        start: formatLocalDate(range.start),
+        end: formatLocalDate(range.end),
+      });
+    }
+  }, [message, fetchCampaignPerformance]);
+
+  // Fetch campaign performance when message loads/changes
+  useEffect(() => {
+    if (message?.id && message.campaigns.length > 0) {
+      fetchCampaignPerformance(message.id, {
+        start: formatLocalDate(perfDateRange.start),
+        end: formatLocalDate(perfDateRange.end),
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [message?.id, message?.campaigns.length, fetchCampaignPerformance]);
 
 
   if (!open) return null;
 
-  // Loading state — skeleton mimicking the panel layout
-  if (!message) {
-    return createPortal(
-      <div className={styles.overlay}>
-        <div className={styles.backdrop} onClick={handleDismiss} />
-        <div className={styles.panel}>
-          <div className={styles.header}>
-            <div className={styles.headerInner}>
-              <div className={styles.headerTop}>
-                <div className={styles.skeletonBar} style={{ width: '35%', height: 24 }} />
-                <div className={styles.skeletonBar} style={{ width: 32, height: 32, borderRadius: 6, marginLeft: 'auto' }} />
-              </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14 }}>
-                <div className={styles.skeletonBar} style={{ width: 80, height: 24, borderRadius: 12 }} />
-                <div className={styles.skeletonBar} style={{ width: 1, height: 14 }} />
-                <div className={styles.skeletonBar} style={{ width: 70, height: 22 }} />
-                <div className={styles.skeletonBar} style={{ width: 100, height: 22 }} />
-                <div className={styles.skeletonBar} style={{ width: 1, height: 14 }} />
-                <div className={styles.skeletonBar} style={{ width: 90, height: 22 }} />
-                <div className={styles.skeletonBar} style={{ width: 70, height: 26, borderRadius: 6, marginLeft: 'auto' }} />
-                <div className={styles.skeletonBar} style={{ width: 50, height: 26, borderRadius: 6 }} />
-              </div>
-              <div className={styles.tabBar}>
-                <span style={{ padding: '10px 16px' }}><span className={styles.skeletonBar} style={{ display: 'block', width: 110, height: 14 }} /></span>
-                <span style={{ padding: '10px 16px' }}><span className={styles.skeletonBar} style={{ display: 'block', width: 120, height: 14 }} /></span>
-              </div>
-            </div>
-          </div>
-          <div className={styles.body}>
-            <div className={styles.bodyContent}>
-              <div className={styles.hypothesisGrid}>
-                {[0, 1, 2, 3].map(i => (
-                  <div key={i} className={styles.hypothesisCard}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                      <div className={styles.skeletonBar} style={{ width: 22, height: 22, borderRadius: '50%' }} />
-                      <div className={styles.skeletonBar} style={{ width: '50%', height: 11 }} />
-                    </div>
-                    <div className={styles.skeletonBar} style={{ width: '90%', height: 14, marginBottom: 6 }} />
-                    <div className={styles.skeletonBar} style={{ width: '65%', height: 14 }} />
-                  </div>
-                ))}
-              </div>
-              <div className={styles.copyVariationsSection}>
-                <div className={styles.copyVariationsHeader}>
-                  <div className={styles.skeletonBar} style={{ width: 120, height: 16 }} />
-                  <div className={styles.skeletonBar} style={{ width: 55, height: 18, borderRadius: 10 }} />
-                </div>
-                <div className={styles.copyTableWrap}>
-                  <div style={{ display: 'flex', padding: '6px 10px', gap: 0, background: 'var(--color-gray-50)', borderBottom: '1px solid var(--color-gray-200)' }}>
-                    <div style={{ width: 32 }} />
-                    {[0, 1, 2].map(i => (
-                      <div key={i} style={{ width: 560, padding: '0 10px' }}>
-                        <div className={styles.skeletonBar} style={{ width: 80, height: 12 }} />
-                      </div>
-                    ))}
-                  </div>
-                  {[0, 1].map(i => (
-                    <div key={i} style={{ display: 'flex', padding: '8px 0', borderBottom: '1px solid var(--color-gray-100)' }}>
-                      <div style={{ width: 32, display: 'flex', justifyContent: 'center' }}>
-                        <div className={styles.skeletonBar} style={{ width: 12, height: 12 }} />
-                      </div>
-                      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(j => (
-                        <div key={j} style={{ width: 140, padding: '0 8px' }}>
-                          <div className={styles.skeletonBar} style={{ width: '80%', height: 14 }} />
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>,
-      document.body,
-    );
-  }
-
-  const product = message.product;
-  const isRetired = message.pipelineStage === 'retired';
+  const product = message?.product ?? null;
+  const isRetired = message?.pipelineStage === 'retired';
+  const currentStageIdx = PIPELINE_STAGES_ORDER.indexOf(message?.pipelineStage || 'backlog');
+  const prevStage = currentStageIdx > 0 ? PIPELINE_STAGES_ORDER[currentStageIdx - 1] : null;
+  const nextStage = currentStageIdx < PIPELINE_STAGES_ORDER.length - 1 ? PIPELINE_STAGES_ORDER[currentStageIdx + 1] : null;
 
   return createPortal(
     <div className={styles.overlay}>
       <div className={styles.backdrop} onClick={handleDismiss} />
       <div className={styles.panel}>
-        {/* ── Header ── */}
-        <div className={styles.header}>
-          <div className={styles.headerInner}>
-            {versionStack.length > 0 && (
-              <button type="button" className={styles.versionBackBanner} onClick={handleVersionBack}>
-                <ArrowLeftOutlined />
-                <span>Back to {versionStack[versionStack.length - 1].name}</span>
-              </button>
-            )}
-            <div className={styles.headerTop}>
-              <div className={styles.panelTitle}>
-                <EditableField
-                  value={message.name}
-                  onChange={(val) => handleFieldChange('name', val)}
-                  placeholder="Message name..."
-                />
-              </div>
-              <button type="button" className={styles.closeBtn} onClick={handleDismiss}>
-                <CloseOutlined />
-              </button>
-            </div>
+        {!message ? (
+          <ConceptPanelSkeleton />
+        ) : (
+          <>
+            {/* ── Header ── */}
+            <div className={campaignView ? styles.headerCampaignView : styles.header}>
+              <div className={styles.headerInner}>
+                {campaignView ? (
+                  <button type="button" className={styles.campaignBackBanner} onClick={() => setCampaignView(null)}>
+                    <ArrowLeftOutlined />
+                    <span>Back to {message.name}</span>
+                  </button>
+                ) : versionStack.length > 0 ? (
+                  <button type="button" className={styles.versionBackBanner} onClick={handleVersionBack}>
+                    <ArrowLeftOutlined />
+                    <span>Back to {versionStack[versionStack.length - 1].name}</span>
+                  </button>
+                ) : null}
 
-            <div className={styles.headerMeta}>
-              <PipelineStageBadge
-                stage={message.pipelineStage || 'backlog'}
-                editable
-                onChange={handleStageChange}
-              />
-              {message.version && message.version > 1 && (
-                <span className={styles.versionBadge}>v{message.version}</span>
-              )}
-              {message.parentMessageId && (
-                <button
-                  type="button"
-                  className={styles.versionOriginLink}
-                  onClick={() => handleVersionClick(message.parentMessageId!)}
-                >
-                  from v{(message.version || 1) - 1}
-                </button>
-              )}
-              <span className={styles.metaDivider} />
-              {product && (
-                <span
-                  className={`${styles.metaTag} ${styles.metaTagProduct}`}
-                  style={product.color ? {
-                    color: product.color,
-                    background: `color-mix(in srgb, ${product.color} 12%, transparent)`,
-                  } : undefined}
-                >
-                  {product.name}
-                </span>
-              )}
-              {product && (
-                <EditableSelect
-                  value={message.angleId}
-                  options={angles.filter(a => a.productId === product.id).map(a => ({ value: a.id, label: a.name }))}
-                  onChange={(value) => updateMessageField(message.id, 'angleId', value)}
-                  displayLabel={message.angle?.name || 'Select angle'}
-                  className={styles.angleSelect}
-                />
-              )}
-              {message.owner && (
-                <>
-                  <span className={styles.metaDivider} />
-                  <span className={styles.metaDetail}>
-                    <span className={styles.metaDetailLabel}>Owner</span> {message.owner.name}
-                  </span>
-                </>
-              )}
-              <div className={styles.headerActions}>
-                {!isRetired && (
+                {!campaignView && (
                   <>
-                    <button
-                      type="button"
-                      className={`${styles.actionBtn} ${styles.actionBtnIterate}`}
-                      onClick={() => setShowIterateForm(true)}
-                    >
-                      Iterate
-                    </button>
-                    <Popconfirm
-                      title="Kill this message?"
-                      description="Retires the message and stops all campaigns."
-                      onConfirm={handleKill}
-                      okText="Kill"
-                      okButtonProps={{ danger: true }}
-                    >
-                      <button type="button" className={`${styles.actionBtn} ${styles.actionBtnKill}`}>
-                        Kill
-                      </button>
-                    </Popconfirm>
+                    {/* Row 1 — Meta + Controls */}
+                    <div className={styles.headerMeta}>
+                      {message.owner && (
+                        <Tooltip title="Owner" mouseEnterDelay={0.15}>
+                          <span className={styles.ownerMeta}>
+                            <span className={styles.ownerAvatar}>
+                              {message.owner.name.charAt(0).toUpperCase()}
+                            </span>
+                            {message.owner.name}
+                          </span>
+                        </Tooltip>
+                      )}
+                      {message.createdAt && (
+                        <>
+                          <span className={styles.metaDivider} />
+                          <Tooltip title="Created date" mouseEnterDelay={0.15}>
+                            <span className={styles.dateMeta}>
+                              <CalendarOutlined />
+                              {message.createdAt.slice(0, 10)}
+                            </span>
+                          </Tooltip>
+                        </>
+                      )}
+                      {message.driveFolderId && (
+                        <>
+                          <span className={styles.metaDivider} />
+                          <Tooltip title="Google Drive folder" mouseEnterDelay={0.15}>
+                            <a
+                              href={`https://drive.google.com/drive/folders/${message.driveFolderId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={styles.driveHeaderLink}
+                            >
+                              <FolderOpen size={13} />
+                              Drive
+                            </a>
+                          </Tooltip>
+                        </>
+                      )}
+                      <div className={styles.headerControls}>
+                        <button type="button" className={styles.controlBtn} onClick={handleDismiss} title="Close">
+                          <CloseOutlined />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Row 2 — Breadcrumb + Title + Stage + Actions */}
+                    <div className={styles.headerTitle}>
+                      {product && (
+                        <Tooltip title="Product" mouseEnterDelay={0.15}>
+                          <span
+                            className={styles.metaTagProduct}
+                            style={product.color ? {
+                              color: product.color,
+                              background: `color-mix(in srgb, ${product.color} 12%, transparent)`,
+                            } : undefined}
+                          >
+                            {product.name}
+                          </span>
+                        </Tooltip>
+                      )}
+                      {product && (
+                        <>
+                          <span className={styles.breadcrumbSep}>/</span>
+                          <Tooltip title="Angle" mouseEnterDelay={0.15}>
+                            <span>
+                              <EditableSelect
+                                value={message.angleId}
+                                options={angles.filter(a => a.productId === product.id).map(a => ({ value: a.id, label: a.name }))}
+                                onChange={(value) => updateMessageField(message.id, 'angleId', value)}
+                                displayLabel={message.angle?.name || 'Select angle'}
+                                className={styles.angleSelect}
+                              />
+                            </span>
+                          </Tooltip>
+                        </>
+                      )}
+                      <div className={styles.titleText} title="Message name">
+                        <EditableField
+                          value={message.name}
+                          onChange={(val) => handleFieldChange('name', val)}
+                          placeholder="Message name..."
+                        />
+                      </div>
+                      {message.version && message.version > 1 && (
+                        <span className={styles.versionBadge} title="Version">v{message.version}</span>
+                      )}
+                      {message.parentMessageId && (
+                        <button
+                          type="button"
+                          className={styles.versionOriginLink}
+                          onClick={() => handleVersionClick(message.parentMessageId!)}
+                        >
+                          from v{(message.version || 1) - 1}
+                        </button>
+                      )}
+                      <div className={styles.titleActions}>
+                        <div className={styles.stageGroup}>
+                          <Tooltip title="Pipeline stage" mouseEnterDelay={0.15}>
+                            <span>
+                              <PipelineStageBadge
+                                stage={message.pipelineStage || 'backlog'}
+                                editable
+                                onChange={handleStageChange}
+                                variant="dot"
+                              />
+                            </span>
+                          </Tooltip>
+                          {(prevStage || nextStage) && (
+                            <>
+                              <span className={styles.stageGroupDivider} />
+                              {prevStage ? (
+                                <Tooltip title={`Move to ${PIPELINE_STAGE_CONFIG[prevStage].label}`} mouseEnterDelay={0.15}>
+                                  <button
+                                    type="button"
+                                    className={styles.stageArrow}
+                                    onClick={() => handleStageChange(prevStage)}
+                                  >
+                                    <LeftOutlined />
+                                  </button>
+                                </Tooltip>
+                              ) : (
+                                <span className={styles.stageArrowPlaceholder} />
+                              )}
+                              {nextStage ? (
+                                <Tooltip title={`Move to ${PIPELINE_STAGE_CONFIG[nextStage].label}`} mouseEnterDelay={0.15}>
+                                  <button
+                                    type="button"
+                                    className={styles.stageArrow}
+                                    onClick={() => handleStageChange(nextStage)}
+                                  >
+                                    <RightOutlined />
+                                  </button>
+                                </Tooltip>
+                              ) : (
+                                <span className={styles.stageArrowPlaceholder} />
+                              )}
+                            </>
+                          )}
+                        </div>
+                        <Tooltip title="CPA Targets" mouseEnterDelay={0.15}>
+                          <button
+                            type="button"
+                            className={styles.controlBtn}
+                            onClick={() => setShowCpaTargets(true)}
+                          >
+                            <AimOutlined />
+                          </button>
+                        </Tooltip>
+                        <button
+                          type="button"
+                          className={`${styles.controlBtn} ${activeTab === 'activity' ? styles.controlBtnActive : ''}`}
+                          onClick={() => setActiveTab(activeTab === 'activity' ? 'strategy' : 'activity')}
+                          title="Activity log"
+                        >
+                          <HistoryOutlined />
+                        </button>
+                        <Dropdown
+                          menu={{
+                            items: [
+                              ...(!isRetired ? [
+                                {
+                                  key: 'iterate',
+                                  label: 'Iterate Angle',
+                                  icon: <SwapOutlined />,
+                                  onClick: () => setShowIterateForm(true),
+                                },
+                                {
+                                  key: 'kill',
+                                  label: 'Kill Message',
+                                  icon: <StopOutlined />,
+                                  danger: true,
+                                  onClick: () => {
+                                    modal.confirm({
+                                      title: 'Kill this message?',
+                                      content: 'Retires the message and stops all campaigns.',
+                                      okText: 'Kill',
+                                      okButtonProps: { danger: true },
+                                      onOk: handleKill,
+                                    });
+                                  },
+                                },
+                                { type: 'divider' as const, key: 'div' },
+                              ] : []),
+                              {
+                                key: 'delete',
+                                label: 'Delete Message',
+                                icon: <DeleteOutlined />,
+                                danger: true,
+                                onClick: () => {
+                                  modal.confirm({
+                                    title: 'Delete this message?',
+                                    content: 'This action cannot be undone.',
+                                    okText: 'Delete',
+                                    okButtonProps: { danger: true },
+                                    onOk: () => deleteMessage(message.id),
+                                  });
+                                },
+                              },
+                            ] as MenuProps['items'],
+                          }}
+                          trigger={['click']}
+                          placement="bottomRight"
+                        >
+                          <button type="button" className={styles.controlBtn} title="Actions">
+                            <MoreOutlined />
+                          </button>
+                        </Dropdown>
+                      </div>
+                    </div>
                   </>
                 )}
-                <Popconfirm
-                  title="Delete this message?"
-                  description="This action cannot be undone."
-                  onConfirm={() => deleteMessage(message.id)}
-                  okText="Delete"
-                  okButtonProps={{ danger: true }}
-                >
-                  <Button type="text" size="small" icon={<DeleteOutlined />} danger />
-                </Popconfirm>
               </div>
             </div>
 
-            {/* Tab bar */}
-            <div className={styles.tabBar}>
-              <button
-                type="button"
-                className={`${styles.tab} ${activeTab === 'strategy' ? styles.tabActive : ''}`}
-                onClick={() => setActiveTab('strategy')}
-              >
-                Strategy & Copy
-              </button>
-              <button
-                type="button"
-                className={`${styles.tab} ${activeTab === 'execution' ? styles.tabActive : ''}`}
-                onClick={() => setActiveTab('execution')}
-              >
-                Market Execution
-              </button>
-              <div className={styles.tabSpacer} />
-              <button
-                type="button"
-                className={`${styles.tab} ${styles.tabMuted} ${activeTab === 'activity' ? styles.tabActive : ''}`}
-                onClick={() => setActiveTab('activity')}
-              >
-                Activity
-              </button>
-            </div>
-          </div>
-        </div>
+            {/* ── Body ── */}
+            <div ref={bodyRef} className={styles.body}>
+              <div className={styles.bodyContent}>
+                {showIterateForm && (
+                  <div className={styles.iterateForm}>
+                    <div className={styles.iterateLabel}>Why are you iterating? (required)</div>
+                    <TextArea
+                      value={iterateReason}
+                      onChange={(e) => setIterateReason(e.target.value)}
+                      placeholder="CPA too high on Meta NO ($38 vs $28 target). Pivot hook to morning routine angle instead."
+                      rows={3}
+                    />
+                    <div className={styles.iterateActions}>
+                      <Button size="small" onClick={() => { setShowIterateForm(false); setIterateReason(''); }}>
+                        Cancel
+                      </Button>
+                      <Button
+                        size="small"
+                        type="primary"
+                        disabled={!iterateReason.trim()}
+                        onClick={handleIterate}
+                      >
+                        Create v{(message.version || 1) + 1}
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
-        {/* ── Body ── */}
-        <div className={styles.body}>
-          <div className={styles.bodyContent}>
-            {showIterateForm && (
-              <div className={styles.iterateForm}>
-                <div className={styles.iterateLabel}>Why are you iterating? (required)</div>
-                <TextArea
-                  value={iterateReason}
-                  onChange={(e) => setIterateReason(e.target.value)}
-                  placeholder="CPA too high on Meta NO ($38 vs $28 target). Pivot hook to morning routine angle instead."
-                  rows={3}
-                />
-                <div className={styles.iterateActions}>
-                  <Button size="small" onClick={() => { setShowIterateForm(false); setIterateReason(''); }}>
-                    Cancel
-                  </Button>
-                  <Button
-                    size="small"
-                    type="primary"
-                    disabled={!iterateReason.trim()}
-                    onClick={handleIterate}
-                  >
-                    Create v{(message.version || 1) + 1}
-                  </Button>
-                </div>
+                {campaignView ? (
+                  <CampaignDetailContent
+                    campaign={campaignView}
+                    performance={campaignPerformance[campaignView.id] ?? null}
+                    performanceLoading={campaignPerformanceLoading}
+                    product={message.product}
+                    dateRange={perfDateRange}
+                    onDateRangeChange={handlePerfDateRangeChange}
+                  />
+                ) : (
+                  <>
+                    {activeTab === 'strategy' && (
+                      <>
+                        <StrategyCopyTab
+                          message={message}
+                          onFieldChange={handleFieldChange}
+                        />
+                        <GeoTracksSection
+                          message={message}
+                          performanceData={campaignPerformance}
+                          performanceLoading={campaignPerformanceLoading}
+                          dateRange={perfDateRange}
+                          onDateRangeChange={handlePerfDateRangeChange}
+                          onAddGeo={addGeo}
+                          onUpdateGeoStage={updateGeoStage}
+                          onRemoveGeo={removeGeo}
+                          onDeleteCampaign={deleteCampaign}
+                          onAddCampaign={addCampaign}
+                          onCampaignClick={handleCampaignClick}
+                        />
+                      </>
+                    )}
+
+                    {activeTab === 'activity' && (
+                      <ActivityLogSection messageHistory={messageHistory} />
+                    )}
+                  </>
+                )}
               </div>
-            )}
+            </div>
 
-            {activeTab === 'strategy' && (
-              <StrategyCopyTab
-                message={message}
-                onFieldChange={handleFieldChange}
+            {message.product && (
+              <CpaTargetsModal
+                open={showCpaTargets}
+                product={message.product}
+                onClose={() => setShowCpaTargets(false)}
+                onSave={loadPipeline}
               />
             )}
-
-            {activeTab === 'activity' && (
-              <ActivityLogSection messageHistory={messageHistory} />
-            )}
-
-            {activeTab === 'execution' && (
-              <MarketExecutionTab
-                message={message}
-                onAddGeo={addGeo}
-                onUpdateGeoStage={updateGeoStage}
-                onRemoveGeo={removeGeo}
-                onDeleteCampaign={deleteCampaign}
-                onOpenCampaignModal={handleOpenCampaignModal}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* Modals */}
-        <CampaignModal
-          open={campaignModalOpen}
-          onClose={() => { setCampaignModalOpen(false); setEditingCampaign(null); setModalGeo(undefined); }}
-          messageId={message.id}
-          campaign={editingCampaign}
-          defaultGeo={modalGeo}
-        />
+          </>
+        )}
       </div>
     </div>,
     document.body,

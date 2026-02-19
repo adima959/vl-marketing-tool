@@ -121,6 +121,15 @@ export interface PipelineUser extends BaseEntity {
   isDeleted?: boolean;
 }
 
+// CPA target per product × geo × channel
+export interface CpaTarget {
+  id: string;
+  productId: string;
+  geo: Geography;
+  channel: Channel;
+  target: number;
+}
+
 // Product
 export interface Product extends BaseEntity {
   name: string;
@@ -136,6 +145,9 @@ export interface Product extends BaseEntity {
   cpaTargetNo?: number;
   cpaTargetSe?: number;
   cpaTargetDk?: number;
+  cpaTargets?: CpaTarget[];
+  driveFolderId?: string | null;
+  assetsFolderId?: string | null;
 }
 
 // Angle (simplified from MainAngle - acts as a problem area folder)
@@ -147,6 +159,7 @@ export interface Angle extends BaseEntity {
   launchedAt?: string;
   messages?: Message[];
   messageCount?: number;
+  driveFolderId?: string | null;
 }
 
 // Message (enriched from SubAngle - the hypothesis level)
@@ -176,6 +189,7 @@ export interface Message extends BaseEntity {
   spendThreshold?: number;
   version?: number;
   notes?: string;
+  driveFolderId?: string | null;
 }
 
 // Creative (NEW - separated from Assets)
@@ -210,6 +224,7 @@ export interface MessageGeo {
   launchedAt?: string;
   spendThreshold: number;
   notes?: string;
+  driveFolderId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -293,11 +308,11 @@ export interface DashboardData {
 export interface Campaign {
   id: string;
   messageId: string;
+  name?: string;
   channel: Channel;
   geo: Geography;
   externalId?: string;
   externalUrl?: string;
-  status: CampaignStatus;
   spend: number;
   conversions: number;
   cpa?: number;
@@ -328,14 +343,94 @@ export interface PipelineCard {
   version: number;
   spendThreshold: number;
   updatedAt: string;
+  driveFolderId?: string | null;
 }
 
 export interface CreateCampaignRequest {
   messageId: string;
+  name?: string;
   channel: Channel;
   geo: Geography;
   externalId?: string;
   externalUrl?: string;
+}
+
+// Campaign performance data (auto-fetched from ads + CRM + on-page)
+export interface CampaignPerformanceData {
+  // Ads metadata
+  campaignName?: string;
+  // Ads metrics (from merged_ads_spending)
+  spend: number;
+  clicks: number;
+  impressions: number;
+  conversions: number;
+  ctr: number;
+  cpc: number;
+  lastActivityDate?: string; // Most recent date with ad spend > 0
+  campaignStatus?: CampaignStatus; // Derived from lastActivityDate (≤3d: active, 4-30d: paused, 30+d: stopped)
+  // CRM metrics (from SaleRow filtered by tracking_id_4)
+  subscriptions: number;
+  trials: number;
+  trialsApproved: number;
+  approvalRate: number;
+  upsells: number;
+  ots: number;
+  revenue: number;
+  // On-page metrics (from event_page_view_enriched_v2 by utm_campaign)
+  pageViews: number;
+  uniqueVisitors: number;
+  formViews: number;
+  formStarters: number;
+  bounceRate: number;
+  scrollPastHero: number;
+  avgTimeOnPage: number | null;
+  // Computed
+  trueCpa: number | null;
+}
+
+// Ad hierarchy types (adset / ad level from merged_ads_spending)
+export interface AdsetPerformance {
+  adsetId: string;
+  adsetName: string;
+  spend: number;
+  clicks: number;
+  impressions: number;
+  conversions: number;
+  ctr: number;
+  cpc: number;
+}
+
+export interface AdPerformance {
+  adId: string;
+  adName: string;
+  adsetId: string;
+  spend: number;
+  clicks: number;
+  impressions: number;
+  conversions: number;
+  ctr: number;
+  cpc: number;
+}
+
+export interface AdLandingPage {
+  urlPath: string;
+  pageViews: number;
+  uniqueVisitors: number;
+  bounceRate: number;
+  scrollPastHero: number;
+  scrollRate: number;
+  formViews: number;
+  formViewRate: number;
+  formStarters: number;
+  formStartRate: number;
+  avgTimeOnPage: number | null;
+}
+
+export interface CampaignHierarchyData {
+  adsets: AdsetPerformance[];
+  ads: AdPerformance[];
+  adLandingPages: Record<string, AdLandingPage[]>;
+  funnelFluxIds: string[];
 }
 
 // Pipeline summary stats

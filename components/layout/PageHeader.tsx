@@ -13,12 +13,12 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, icon, actions, warning, titleExtra }: PageHeaderProps) {
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-white px-4">
+    <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-white px-4">
       <SidebarTrigger className="-ml-1" />
-      <Separator orientation="vertical" className="h-6" />
-      <div className="flex items-center gap-3">
-        {icon && <div className="flex h-8 w-8 items-center justify-center">{icon}</div>}
-        <h1 className="text-xl font-semibold">{title}</h1>
+      <Separator orientation="vertical" className="h-4" />
+      <div className="flex items-center gap-2">
+        {icon && <div className="flex h-6 w-6 items-center justify-center">{icon}</div>}
+        <h1 className="text-base font-semibold">{title}</h1>
         {titleExtra}
       </div>
       {warning && (

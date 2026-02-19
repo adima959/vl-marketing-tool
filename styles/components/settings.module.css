@@ -2,7 +2,7 @@
 
 /* Page content wrapper */
 .page {
-  padding: var(--spacing-6);
+  padding: var(--spacing-6) var(--spacing-4);
 }
 
 /* Section header — card bar with title + actions */

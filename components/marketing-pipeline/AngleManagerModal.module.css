@@ -51,8 +51,8 @@
 }
 
 .angleDeleteBtn:hover {
-  color: #dc2626;
-  background: #fef2f2;
+  color: var(--color-status-red);
+  background: var(--color-status-red-bg);
 }
 
 .angleDeleteBtn:disabled {
@@ -71,19 +71,19 @@
 
 /* === Delete confirmation row === */
 .angleRowConfirm {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: var(--color-status-red-bg);
+  border: 1px solid var(--color-status-red-bg);
 }
 
 .angleRowConfirm:hover {
-  background: #fef2f2;
+  background: var(--color-status-red-bg);
 }
 
 .confirmText {
   flex: 1;
   font-size: 12px;
   font-weight: 500;
-  color: #991b1b;
+  color: var(--color-status-red-dark);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -102,14 +102,14 @@
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
-  color: #dc2626;
+  color: var(--color-status-red);
   padding: 3px 10px;
   border-radius: var(--radius-md);
   transition: all var(--transition-fast);
 }
 
 .confirmYes:hover {
-  background: #fee2e2;
+  background: var(--color-status-red-bg);
 }
 
 .confirmCancel {

@@ -10,4 +10,8 @@ export interface MetricColumn {
   defaultVisible: boolean;
   width: number;
   align: 'left' | 'center' | 'right';
+  /** For calculated metrics: shows "numerator / denominator = value" on cell hover */
+  tooltipFormula?: { numerator: string; denominator: string };
+  /** Custom tooltip function: receives row metrics, returns tooltip lines (null to skip) */
+  tooltipFn?: (metrics: Record<string, number | string | null>) => string[] | null;
 }

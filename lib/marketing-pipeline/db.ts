@@ -9,8 +9,9 @@ import type {
   PipelineStage,
   PipelineSummary,
   Product,
+  ProductStatus,
   Angle,
-  TrackerUser,
+  PipelineUser,
   Campaign,
   Asset,
   Creative,
@@ -21,12 +22,36 @@ import type {
   GeoStage,
   VerdictType,
   CreateCampaignRequest,
+  CreateProductRequest,
+  CopyVariation,
+  CpaTarget,
 } from '@/types';
 
 
 // ════════════════════════════════════════════════════════════════════
 // Types
 // ════════════════════════════════════════════════════════════════════
+
+/** Build dynamic SET clauses from a camelCase→snake_case field map. */
+function buildDynamicUpdate(
+  data: Record<string, unknown>,
+  fieldMap: Record<string, string>,
+  opts?: { jsonbFields?: Set<string>; startIndex?: number },
+): { setClauses: string[]; values: unknown[]; nextIndex: number } {
+  const setClauses: string[] = [];
+  const values: unknown[] = [];
+  let idx = opts?.startIndex ?? 1;
+  const jsonb = opts?.jsonbFields;
+
+  for (const [jsKey, dbCol] of Object.entries(fieldMap)) {
+    const val = data[jsKey];
+    if (val !== undefined) {
+      setClauses.push(`${dbCol} = $${idx++}`);
+      values.push(jsonb?.has(jsKey) ? JSON.stringify(val) : val);
+    }
+  }
+  return { setClauses, values, nextIndex: idx };
+}
 
 export interface PipelineBoardFilters {
   ownerId?: string;
@@ -39,7 +64,7 @@ export interface PipelineBoardFilters {
 export interface PipelineBoardResult {
   cards: PipelineCard[];
   summary: PipelineSummary;
-  users: TrackerUser[];
+  users: PipelineUser[];
   products: Product[];
   angles: Angle[];
 }
@@ -53,6 +78,7 @@ export type UpdatePipelineMessageData = Partial<{
   keyIdea: string;
   primaryHookDirection: string;
   headlines: string[];
+  copyVariations: CopyVariation[];
   status: string;
   pipelineStage: PipelineStage;
   verdictType: VerdictType;
@@ -66,7 +92,6 @@ export type UpdateCampaignData = Partial<{
   geo: Geography;
   externalId: string;
   externalUrl: string;
-  status: string;
   spend: number;
   conversions: number;
   cpa: number;
@@ -89,6 +114,7 @@ export async function getPipelineBoard(filters: PipelineBoardFilters): Promise<P
       m.version,
       m.spend_threshold,
       m.updated_at,
+      m.drive_folder_id,
       a.id AS angle_id,
       a.name AS angle_name,
       a.product_id,
@@ -118,7 +144,7 @@ export async function getPipelineBoard(filters: PipelineBoardFilters): Promise<P
   const messageIds = messageRows.map(r => r.id as string);
   const campaignRows = await executeQuery<Record<string, unknown>>(`
     SELECT
-      id, message_id, channel, geo, status, spend, conversions, cpa,
+      id, message_id, name, channel, geo, spend, conversions, cpa,
       external_id, external_url, last_data_update, created_at, updated_at
     FROM app_pipeline_campaigns
     WHERE message_id = ANY($1) AND deleted_at IS NULL
@@ -136,7 +162,7 @@ export async function getPipelineBoard(filters: PipelineBoardFilters): Promise<P
   // 3. Fetch message geos for these messages
   const geoRows = await executeQuery<Record<string, unknown>>(`
     SELECT id, message_id, geo, stage, is_primary, launched_at,
-           spend_threshold, notes, created_at, updated_at
+           spend_threshold, notes, drive_folder_id, created_at, updated_at
     FROM app_pipeline_message_geos
     WHERE message_id = ANY($1) AND deleted_at IS NULL
     ORDER BY is_primary DESC, geo
@@ -152,7 +178,6 @@ export async function getPipelineBoard(filters: PipelineBoardFilters): Promise<P
   // 4. Build PipelineCard objects
   let cards: PipelineCard[] = messageRows.map(row => {
     const msgCampaigns = campaignsByMessage[row.id as string] || [];
-    const activeCampaigns = msgCampaigns.filter(c => c.status === 'active');
     const totalSpend = msgCampaigns.reduce((sum, c) => sum + Number(c.spend), 0);
     const totalConversions = msgCampaigns.reduce((sum, c) => sum + Number(c.conversions), 0);
     const blendedCpa = totalConversions > 0 ? totalSpend / totalConversions : undefined;
@@ -170,7 +195,7 @@ export async function getPipelineBoard(filters: PipelineBoardFilters): Promise<P
       ownerName: (row.owner_name as string) || '',
       totalSpend,
       blendedCpa,
-      activeCampaignCount: activeCampaigns.length,
+      activeCampaignCount: msgCampaigns.length,
       campaigns: msgCampaigns,
       geos: geosByMessage[row.id as string] || [],
       verdictType: row.verdict_type as VerdictType | undefined,
@@ -178,6 +203,7 @@ export async function getPipelineBoard(filters: PipelineBoardFilters): Promise<P
       version: (row.version as number) || 1,
       spendThreshold: Number(row.spend_threshold) || 300,
       updatedAt: row.updated_at as string,
+      driveFolderId: (row.drive_folder_id as string) || undefined,
     };
   });
 
@@ -214,16 +240,19 @@ export async function getPipelineMessageDetail(id: string): Promise<MessageDetai
     SELECT
       m.id, m.angle_id, m.name, m.description,
       m.specific_pain_point, m.core_promise, m.key_idea,
-      m.primary_hook_direction, m.headlines, m.status,
-      m.pipeline_stage, m.verdict_type, m.verdict_notes,
+      m.primary_hook_direction, m.headlines, m.copy_variations,
+      m.status, m.pipeline_stage, m.verdict_type, m.verdict_notes,
       m.parent_message_id, m.spend_threshold, m.version,
       m.notes, m.launched_at, m.created_at, m.updated_at,
+      m.drive_folder_id,
       a.id AS pl_angle_id, a.name AS pl_angle_name,
       a.description AS pl_angle_desc, a.status AS pl_angle_status,
       a.product_id AS pl_product_id,
+      a.drive_folder_id AS pl_angle_drive_folder_id,
       p.name AS pl_product_name, p.description AS pl_product_desc,
-      p.owner_id AS pl_owner_id,
+      p.color AS pl_product_color, p.owner_id AS pl_owner_id,
       p.cpa_target_no, p.cpa_target_se, p.cpa_target_dk,
+      p.drive_folder_id AS pl_product_drive_folder_id,
       u.name AS pl_owner_name, u.email AS pl_owner_email
     FROM app_pipeline_messages m
     JOIN app_pipeline_angles a ON a.id = m.angle_id
@@ -246,6 +275,7 @@ export async function getPipelineMessageDetail(id: string): Promise<MessageDetai
     key_idea: row.key_idea,
     primary_hook_direction: row.primary_hook_direction,
     headlines: row.headlines,
+    copy_variations: row.copy_variations ?? [],
     status: row.status,
     pipeline_stage: row.pipeline_stage,
     verdict_type: row.verdict_type,
@@ -257,6 +287,7 @@ export async function getPipelineMessageDetail(id: string): Promise<MessageDetai
     launched_at: row.launched_at,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    drive_folder_id: row.drive_folder_id,
   });
 
   // Build nested objects
@@ -266,19 +297,23 @@ export async function getPipelineMessageDetail(id: string): Promise<MessageDetai
     name: row.pl_angle_name as string,
     description: row.pl_angle_desc as string | undefined,
     status: row.pl_angle_status as 'idea' | 'live',
+    driveFolderId: (row.pl_angle_drive_folder_id as string) || undefined,
     createdAt: '',
     updatedAt: '',
   } as Angle;
 
+  const productId = row.pl_product_id as string;
   message.product = {
-    id: row.pl_product_id as string,
+    id: productId,
     name: row.pl_product_name as string,
     description: row.pl_product_desc as string | undefined,
+    color: (row.pl_product_color as string) || undefined,
     status: 'active',
     ownerId: row.pl_owner_id as string,
     cpaTargetNo: row.cpa_target_no != null ? Number(row.cpa_target_no) : undefined,
     cpaTargetSe: row.cpa_target_se != null ? Number(row.cpa_target_se) : undefined,
     cpaTargetDk: row.cpa_target_dk != null ? Number(row.cpa_target_dk) : undefined,
+    driveFolderId: (row.pl_product_drive_folder_id as string) || undefined,
     createdAt: '',
     updatedAt: '',
   } as Product;
@@ -293,10 +328,10 @@ export async function getPipelineMessageDetail(id: string): Promise<MessageDetai
     };
   }
 
-  // Fetch campaigns, assets, creatives, geos in parallel
-  const [campaignRows, assetRows, creativeRows, geoRows] = await Promise.all([
+  // Fetch campaigns, assets, creatives, geos, cpa targets in parallel
+  const [campaignRows, assetRows, creativeRows, geoRows, cpaTargetRows] = await Promise.all([
     executeQuery<Record<string, unknown>>(`
-      SELECT id, message_id, channel, geo, status, spend, conversions, cpa,
+      SELECT id, message_id, channel, geo, spend, conversions, cpa,
              external_id, external_url, last_data_update, created_at, updated_at
       FROM app_pipeline_campaigns
       WHERE message_id = $1 AND deleted_at IS NULL
@@ -316,17 +351,25 @@ export async function getPipelineMessageDetail(id: string): Promise<MessageDetai
     `, [id]),
     executeQuery<Record<string, unknown>>(`
       SELECT id, message_id, geo, stage, is_primary, launched_at,
-             spend_threshold, notes, created_at, updated_at
+             spend_threshold, notes, drive_folder_id, created_at, updated_at
       FROM app_pipeline_message_geos
       WHERE message_id = $1 AND deleted_at IS NULL
       ORDER BY is_primary DESC, geo
     `, [id]),
+    // Graceful: table may not exist yet before migration
+    executeQuery<Record<string, unknown>>(`
+      SELECT id, product_id, geo, channel, target
+      FROM app_product_cpa_targets
+      WHERE product_id = $1
+      ORDER BY geo, channel
+    `, [productId]).catch(() => [] as Record<string, unknown>[]),
   ]);
 
   message.campaigns = rowsToCamelCase<Campaign>(campaignRows);
   message.assets = rowsToCamelCase<Asset>(assetRows);
   message.creatives = rowsToCamelCase<Creative>(creativeRows);
   message.geos = rowsToCamelCase<MessageGeo>(geoRows);
+  message.product!.cpaTargets = rowsToCamelCase<CpaTarget>(cpaTargetRows);
 
   return message;
 }
@@ -337,38 +380,21 @@ export async function getPipelineMessageDetail(id: string): Promise<MessageDetai
 // ════════════════════════════════════════════════════════════════════
 
 export async function updatePipelineMessage(id: string, data: UpdatePipelineMessageData): Promise<MessageDetail | null> {
-  const setClauses: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
+  const { setClauses, values, nextIndex } = buildDynamicUpdate(
+    data as Record<string, unknown>,
+    {
+      name: 'name', description: 'description', angleId: 'angle_id',
+      specificPainPoint: 'specific_pain_point', corePromise: 'core_promise',
+      keyIdea: 'key_idea', primaryHookDirection: 'primary_hook_direction',
+      headlines: 'headlines', copyVariations: 'copy_variations',
+      status: 'status', pipelineStage: 'pipeline_stage',
+      verdictType: 'verdict_type', verdictNotes: 'verdict_notes',
+      spendThreshold: 'spend_threshold', notes: 'notes',
+    },
+    { jsonbFields: new Set(['copyVariations']) },
+  );
 
-  const fieldMap: Record<string, string> = {
-    name: 'name',
-    description: 'description',
-    angleId: 'angle_id',
-    specificPainPoint: 'specific_pain_point',
-    corePromise: 'core_promise',
-    keyIdea: 'key_idea',
-    primaryHookDirection: 'primary_hook_direction',
-    headlines: 'headlines',
-    status: 'status',
-    pipelineStage: 'pipeline_stage',
-    verdictType: 'verdict_type',
-    verdictNotes: 'verdict_notes',
-    spendThreshold: 'spend_threshold',
-    notes: 'notes',
-  };
-
-  for (const [jsKey, dbCol] of Object.entries(fieldMap)) {
-    const val = data[jsKey as keyof UpdatePipelineMessageData];
-    if (val !== undefined) {
-      setClauses.push(`${dbCol} = $${paramIndex++}`);
-      values.push(val);
-    }
-  }
-
-  if (setClauses.length === 0) {
-    return getPipelineMessageDetail(id);
-  }
+  if (setClauses.length === 0) return getPipelineMessageDetail(id);
 
   setClauses.push(`updated_at = NOW()`);
   values.push(id);
@@ -376,7 +402,7 @@ export async function updatePipelineMessage(id: string, data: UpdatePipelineMess
   await executeQuery(`
     UPDATE app_pipeline_messages
     SET ${setClauses.join(', ')}
-    WHERE id = $${paramIndex} AND deleted_at IS NULL
+    WHERE id = $${nextIndex} AND deleted_at IS NULL
   `, values);
 
   return getPipelineMessageDetail(id);
@@ -494,42 +520,38 @@ export async function movePipelineMessage(
 
 export async function createPipelineCampaign(data: CreateCampaignRequest): Promise<Campaign> {
   const rows = await executeQuery<Record<string, unknown>>(`
-    INSERT INTO app_pipeline_campaigns (message_id, channel, geo, external_id, external_url)
-    VALUES ($1, $2, $3, $4, $5)
-    RETURNING id, message_id, channel, geo, status, spend, conversions, cpa,
+    INSERT INTO app_pipeline_campaigns (message_id, name, channel, geo, external_id, external_url)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    RETURNING id, message_id, name, channel, geo, spend, conversions, cpa,
               external_id, external_url, last_data_update, created_at, updated_at
-  `, [data.messageId, data.channel, data.geo, data.externalId || null, data.externalUrl || null]);
+  `, [data.messageId, data.name || null, data.channel, data.geo, data.externalId || null, data.externalUrl || null]);
 
   return toCamelCase<Campaign>(rows[0]);
 }
 
+export async function getPipelineCampaignById(id: string): Promise<Campaign | null> {
+  const rows = await executeQuery<Record<string, unknown>>(`
+    SELECT id, message_id, name, channel, geo, spend, conversions, cpa,
+           external_id, external_url, last_data_update, created_at, updated_at
+    FROM app_pipeline_campaigns
+    WHERE id = $1 AND deleted_at IS NULL
+  `, [id]);
+  return rows.length > 0 ? toCamelCase<Campaign>(rows[0]) : null;
+}
+
 export async function updatePipelineCampaign(id: string, data: UpdateCampaignData): Promise<Campaign> {
-  const setClauses: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
-
-  const fieldMap: Record<string, string> = {
-    channel: 'channel',
-    geo: 'geo',
-    externalId: 'external_id',
-    externalUrl: 'external_url',
-    status: 'status',
-    spend: 'spend',
-    conversions: 'conversions',
-    cpa: 'cpa',
-  };
-
-  for (const [jsKey, dbCol] of Object.entries(fieldMap)) {
-    const val = data[jsKey as keyof UpdateCampaignData];
-    if (val !== undefined) {
-      setClauses.push(`${dbCol} = $${paramIndex++}`);
-      values.push(val);
-    }
-  }
+  const { setClauses, values, nextIndex } = buildDynamicUpdate(
+    data as Record<string, unknown>,
+    {
+      name: 'name', channel: 'channel', geo: 'geo',
+      externalId: 'external_id', externalUrl: 'external_url',
+      spend: 'spend', conversions: 'conversions', cpa: 'cpa',
+    },
+  );
 
   if (setClauses.length === 0) {
     const existing = await executeQuery<Record<string, unknown>>(`
-      SELECT id, message_id, channel, geo, status, spend, conversions, cpa,
+      SELECT id, message_id, channel, geo, spend, conversions, cpa,
              external_id, external_url, last_data_update, created_at, updated_at
       FROM app_pipeline_campaigns WHERE id = $1 AND deleted_at IS NULL
     `, [id]);
@@ -543,8 +565,8 @@ export async function updatePipelineCampaign(id: string, data: UpdateCampaignDat
   const rows = await executeQuery<Record<string, unknown>>(`
     UPDATE app_pipeline_campaigns
     SET ${setClauses.join(', ')}
-    WHERE id = $${paramIndex} AND deleted_at IS NULL
-    RETURNING id, message_id, channel, geo, status, spend, conversions, cpa,
+    WHERE id = $${nextIndex} AND deleted_at IS NULL
+    RETURNING id, message_id, channel, geo, spend, conversions, cpa,
               external_id, external_url, last_data_update, created_at, updated_at
   `, values);
 
@@ -577,6 +599,15 @@ export async function createPipelineAsset(data: {
   return toCamelCase<Asset>(rows[0]);
 }
 
+export async function getPipelineAssetById(id: string): Promise<Asset | null> {
+  const rows = await executeQuery<Record<string, unknown>>(`
+    SELECT id, message_id, geo, type, name, url, content, notes, created_at, updated_at
+    FROM app_pipeline_assets
+    WHERE id = $1 AND deleted_at IS NULL
+  `, [id]);
+  return rows.length > 0 ? toCamelCase<Asset>(rows[0]) : null;
+}
+
 export async function deletePipelineAsset(id: string): Promise<void> {
   await executeQuery(`
     UPDATE app_pipeline_assets SET deleted_at = NOW(), updated_at = NOW()
@@ -601,6 +632,15 @@ export async function createPipelineCreative(data: {
   return toCamelCase<Creative>(rows[0]);
 }
 
+export async function getPipelineCreativeById(id: string): Promise<Creative | null> {
+  const rows = await executeQuery<Record<string, unknown>>(`
+    SELECT id, message_id, geo, name, format, cta, url, notes, created_at, updated_at
+    FROM app_pipeline_creatives
+    WHERE id = $1 AND deleted_at IS NULL
+  `, [id]);
+  return rows.length > 0 ? toCamelCase<Creative>(rows[0]) : null;
+}
+
 export async function deletePipelineCreative(id: string): Promise<void> {
   await executeQuery(`
     UPDATE app_pipeline_creatives SET deleted_at = NOW(), updated_at = NOW()
@@ -610,38 +650,130 @@ export async function deletePipelineCreative(id: string): Promise<void> {
 
 
 // ════════════════════════════════════════════════════════════════════
-// Products (CPA targets)
+// Products
 // ════════════════════════════════════════════════════════════════════
+
+export async function getProductById(id: string): Promise<Product | null> {
+  const rows = await executeQuery<Record<string, unknown>>(`
+    SELECT
+      p.id, p.name, p.sku, p.description, p.notes, p.color, p.status,
+      p.owner_id, p.drive_folder_id, p.assets_folder_id, p.created_at, p.updated_at,
+      p.cpa_target_no, p.cpa_target_se, p.cpa_target_dk,
+      u.id AS user_id, u.name AS user_name, u.email AS user_email
+    FROM app_products p
+    LEFT JOIN app_users u ON u.id = p.owner_id
+    WHERE p.id = $1 AND p.deleted_at IS NULL
+  `, [id]);
+  if (rows.length === 0) return null;
+  const row = rows[0];
+  const owner = row.user_id ? {
+    id: row.user_id as string,
+    name: row.user_name as string || '',
+    email: row.user_email as string || '',
+  } : undefined;
+  const { user_id, user_name, user_email, ...productFields } = row;
+  const product = toCamelCase<Product>(productFields);
+  return { ...product, owner } as Product;
+}
+
+export async function getProducts(statusFilter?: ProductStatus | null): Promise<Product[]> {
+  const rows = await executeQuery<Record<string, unknown>>(`
+    SELECT
+      p.id, p.name, p.sku, p.description, p.notes, p.color, p.status,
+      p.owner_id, p.drive_folder_id, p.assets_folder_id, p.created_at, p.updated_at,
+      u.id AS user_id, u.name AS user_name, u.email AS user_email
+    FROM app_products p
+    LEFT JOIN app_users u ON u.id = p.owner_id
+    WHERE p.deleted_at IS NULL
+      AND ($1::app_product_status IS NULL OR p.status = $1)
+    ORDER BY p.created_at DESC
+  `, [statusFilter || null]);
+
+  return rows.map(row => {
+    const owner = row.user_id ? {
+      id: row.user_id as string,
+      name: row.user_name as string || '',
+      email: row.user_email as string || '',
+    } : undefined;
+    const { user_id, user_name, user_email, ...productFields } = row;
+    const product = toCamelCase<Product>(productFields);
+    return { ...product, owner } as Product;
+  });
+}
 
 export async function getProductsWithCpa(): Promise<Product[]> {
   return fetchProductsWithCpa();
+}
+
+export async function createProduct(data: CreateProductRequest): Promise<Product> {
+  const rows = await executeQuery<Record<string, unknown>>(`
+    INSERT INTO app_products (name, sku, description, notes, color, status, owner_id)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    RETURNING id, name, sku, description, notes, color, status, owner_id, drive_folder_id, assets_folder_id, created_at, updated_at
+  `, [
+    data.name,
+    data.sku || null,
+    data.description || null,
+    data.notes || null,
+    data.color || null,
+    data.status || 'active',
+    data.ownerId || null,
+  ]);
+  return toCamelCase<Product>(rows[0]);
+}
+
+export async function updateProduct(
+  id: string,
+  data: Partial<Pick<Product, 'name' | 'sku' | 'description' | 'notes' | 'color' | 'status' | 'ownerId' | 'driveFolderId' | 'assetsFolderId'>>,
+): Promise<Product> {
+  const { setClauses, values, nextIndex } = buildDynamicUpdate(
+    data as Record<string, unknown>,
+    {
+      name: 'name', sku: 'sku', description: 'description',
+      notes: 'notes', color: 'color', status: 'status', ownerId: 'owner_id',
+      driveFolderId: 'drive_folder_id', assetsFolderId: 'assets_folder_id',
+    },
+  );
+
+  if (setClauses.length === 0) {
+    const existing = await executeQuery<Record<string, unknown>>(`
+      SELECT id, name, sku, description, notes, color, status, owner_id, drive_folder_id, assets_folder_id, created_at, updated_at
+      FROM app_products WHERE id = $1 AND deleted_at IS NULL
+    `, [id]);
+    if (existing.length === 0) throw new Error(`Product not found: ${id}`);
+    return toCamelCase<Product>(existing[0]);
+  }
+
+  setClauses.push('updated_at = NOW()');
+  values.push(id);
+
+  const rows = await executeQuery<Record<string, unknown>>(`
+    UPDATE app_products
+    SET ${setClauses.join(', ')}
+    WHERE id = $${nextIndex} AND deleted_at IS NULL
+    RETURNING id, name, sku, description, notes, color, status, owner_id, drive_folder_id, assets_folder_id, created_at, updated_at
+  `, values);
+  if (rows.length === 0) throw new Error(`Product not found: ${id}`);
+  return toCamelCase<Product>(rows[0]);
+}
+
+export async function getUsers(): Promise<PipelineUser[]> {
+  return fetchUsers();
 }
 
 export async function updateProductCpaTargets(
   id: string,
   data: { cpaTargetNo?: number; cpaTargetSe?: number; cpaTargetDk?: number },
 ): Promise<Product> {
-  const setClauses: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
-
-  if (data.cpaTargetNo !== undefined) {
-    setClauses.push(`cpa_target_no = $${paramIndex++}`);
-    values.push(data.cpaTargetNo);
-  }
-  if (data.cpaTargetSe !== undefined) {
-    setClauses.push(`cpa_target_se = $${paramIndex++}`);
-    values.push(data.cpaTargetSe);
-  }
-  if (data.cpaTargetDk !== undefined) {
-    setClauses.push(`cpa_target_dk = $${paramIndex++}`);
-    values.push(data.cpaTargetDk);
-  }
+  const { setClauses, values, nextIndex } = buildDynamicUpdate(
+    data as Record<string, unknown>,
+    { cpaTargetNo: 'cpa_target_no', cpaTargetSe: 'cpa_target_se', cpaTargetDk: 'cpa_target_dk' },
+  );
 
   if (setClauses.length === 0) {
     const existing = await executeQuery<Record<string, unknown>>(`
       SELECT id, name, description, color, owner_id, cpa_target_no, cpa_target_se, cpa_target_dk,
-             created_at, updated_at
+             drive_folder_id, created_at, updated_at
       FROM app_products WHERE id = $1 AND deleted_at IS NULL
     `, [id]);
     if (existing.length === 0) throw new Error(`Product not found: ${id}`);
@@ -654,13 +786,48 @@ export async function updateProductCpaTargets(
   const rows = await executeQuery<Record<string, unknown>>(`
     UPDATE app_products
     SET ${setClauses.join(', ')}
-    WHERE id = $${paramIndex} AND deleted_at IS NULL
+    WHERE id = $${nextIndex} AND deleted_at IS NULL
     RETURNING id, name, description, color, owner_id, cpa_target_no, cpa_target_se, cpa_target_dk,
-              created_at, updated_at
+              drive_folder_id, created_at, updated_at
   `, values);
 
   if (rows.length === 0) throw new Error(`Product not found: ${id}`);
   return toCamelCase<Product>(rows[0]);
+}
+
+
+// ════════════════════════════════════════════════════════════════════
+// CPA Targets (per product × geo × channel)
+// ════════════════════════════════════════════════════════════════════
+
+export async function fetchCpaTargets(productId: string): Promise<CpaTarget[]> {
+  const rows = await executeQuery<Record<string, unknown>>(`
+    SELECT id, product_id, geo, channel, target, created_at, updated_at
+    FROM app_product_cpa_targets
+    WHERE product_id = $1
+    ORDER BY geo, channel
+  `, [productId]);
+  return rowsToCamelCase<CpaTarget>(rows);
+}
+
+export async function upsertCpaTargets(
+  productId: string,
+  targets: { geo: Geography; channel: Channel; target: number }[],
+): Promise<CpaTarget[]> {
+  // Simple approach: delete all for this product, then insert the new set
+  await executeQuery(
+    `DELETE FROM app_product_cpa_targets WHERE product_id = $1`,
+    [productId],
+  );
+
+  for (const t of targets) {
+    await executeQuery(`
+      INSERT INTO app_product_cpa_targets (product_id, geo, channel, target)
+      VALUES ($1, $2, $3, $4)
+    `, [productId, t.geo, t.channel, t.target]);
+  }
+
+  return fetchCpaTargets(productId);
 }
 
 
@@ -680,6 +847,17 @@ export async function deletePipelineAngle(id: string): Promise<void> {
   `, [id]);
 }
 
+export async function updatePipelineAngle(id: string, data: { name: string }): Promise<Angle> {
+  const rows = await executeQuery<Record<string, unknown>>(`
+    UPDATE app_pipeline_angles
+    SET name = $2, updated_at = NOW()
+    WHERE id = $1 AND deleted_at IS NULL
+    RETURNING id, product_id, name, description, status, drive_folder_id, created_at, updated_at
+  `, [id, data.name]);
+  if (rows.length === 0) throw new Error('Angle not found');
+  return toCamelCase<Angle>(rows[0]);
+}
+
 export async function getAngleMessageCount(angleId: string): Promise<number> {
   const rows = await executeQuery<{ count: string }>(`
     SELECT COUNT(*)::text AS count
@@ -689,12 +867,12 @@ export async function getAngleMessageCount(angleId: string): Promise<number> {
   return parseInt(rows[0].count, 10);
 }
 
-export async function createPipelineAngle(data: { productId: string; name: string; description?: string }): Promise<Angle> {
+export async function createPipelineAngle(data: { productId: string; name: string; description?: string; driveFolderId?: string }): Promise<Angle> {
   const rows = await executeQuery<Record<string, unknown>>(`
-    INSERT INTO app_pipeline_angles (product_id, name, description)
-    VALUES ($1, $2, $3)
-    RETURNING id, product_id, name, description, status, created_at, updated_at
-  `, [data.productId, data.name, data.description || null]);
+    INSERT INTO app_pipeline_angles (product_id, name, description, drive_folder_id)
+    VALUES ($1, $2, $3, $4)
+    RETURNING id, product_id, name, description, status, drive_folder_id, created_at, updated_at
+  `, [data.productId, data.name, data.description || null, data.driveFolderId || null]);
 
   return toCamelCase<Angle>(rows[0]);
 }
@@ -709,13 +887,14 @@ export async function createPipelineMessage(data: {
   name: string;
   description?: string;
   pipelineStage?: PipelineStage;
+  driveFolderId?: string;
 }): Promise<MessageDetail | null> {
   const stage = data.pipelineStage || 'backlog';
   const rows = await executeQuery<{ id: string }>(`
-    INSERT INTO app_pipeline_messages (angle_id, name, description, pipeline_stage, status)
-    VALUES ($1, $2, $3, $4, 'idea')
+    INSERT INTO app_pipeline_messages (angle_id, name, description, pipeline_stage, status, drive_folder_id)
+    VALUES ($1, $2, $3, $4, 'idea', $5)
     RETURNING id
-  `, [data.angleId, data.name, data.description || null, stage]);
+  `, [data.angleId, data.name, data.description || null, stage, data.driveFolderId || null]);
 
   return getPipelineMessageDetail(rows[0].id);
 }
@@ -738,44 +917,48 @@ export async function addMessageGeo(data: {
   geo: Geography;
   isPrimary?: boolean;
   spendThreshold?: number;
+  driveFolderId?: string;
 }): Promise<MessageGeo> {
+  // ON CONFLICT handles race conditions and re-adding a previously removed geo
   const rows = await executeQuery<Record<string, unknown>>(`
-    INSERT INTO app_pipeline_message_geos (message_id, geo, is_primary, spend_threshold)
-    VALUES ($1, $2, $3, $4)
+    INSERT INTO app_pipeline_message_geos (message_id, geo, is_primary, spend_threshold, drive_folder_id)
+    VALUES ($1, $2, $3, $4, $5)
+    ON CONFLICT (message_id, geo) DO UPDATE SET
+      updated_at = NOW(),
+      deleted_at = NULL,
+      is_primary = EXCLUDED.is_primary,
+      spend_threshold = EXCLUDED.spend_threshold,
+      drive_folder_id = COALESCE(EXCLUDED.drive_folder_id, app_pipeline_message_geos.drive_folder_id)
     RETURNING id, message_id, geo, stage, is_primary, launched_at,
-              spend_threshold, notes, created_at, updated_at
-  `, [data.messageId, data.geo, data.isPrimary ?? false, data.spendThreshold ?? 300]);
+              spend_threshold, notes, drive_folder_id, created_at, updated_at
+  `, [data.messageId, data.geo, data.isPrimary ?? false, data.spendThreshold ?? 300, data.driveFolderId ?? null]);
 
   return toCamelCase<MessageGeo>(rows[0]);
+}
+
+export async function getMessageGeoById(id: string): Promise<MessageGeo | null> {
+  const rows = await executeQuery<Record<string, unknown>>(`
+    SELECT id, message_id, geo, stage, is_primary, launched_at,
+           spend_threshold, notes, drive_folder_id, created_at, updated_at
+    FROM app_pipeline_message_geos
+    WHERE id = $1 AND deleted_at IS NULL
+  `, [id]);
+  return rows.length > 0 ? toCamelCase<MessageGeo>(rows[0]) : null;
 }
 
 export async function updateMessageGeo(
   id: string,
   data: Partial<{ stage: GeoStage; spendThreshold: number; notes: string; launchedAt: string }>,
 ): Promise<MessageGeo> {
-  const setClauses: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
-
-  const fieldMap: Record<string, string> = {
-    stage: 'stage',
-    spendThreshold: 'spend_threshold',
-    notes: 'notes',
-    launchedAt: 'launched_at',
-  };
-
-  for (const [jsKey, dbCol] of Object.entries(fieldMap)) {
-    const val = data[jsKey as keyof typeof data];
-    if (val !== undefined) {
-      setClauses.push(`${dbCol} = $${paramIndex++}`);
-      values.push(val);
-    }
-  }
+  const { setClauses, values, nextIndex } = buildDynamicUpdate(
+    data as Record<string, unknown>,
+    { stage: 'stage', spendThreshold: 'spend_threshold', notes: 'notes', launchedAt: 'launched_at' },
+  );
 
   if (setClauses.length === 0) {
     const existing = await executeQuery<Record<string, unknown>>(`
       SELECT id, message_id, geo, stage, is_primary, launched_at,
-             spend_threshold, notes, created_at, updated_at
+             spend_threshold, notes, drive_folder_id, created_at, updated_at
       FROM app_pipeline_message_geos WHERE id = $1 AND deleted_at IS NULL
     `, [id]);
     if (existing.length === 0) throw new Error(`MessageGeo not found: ${id}`);
@@ -788,9 +971,9 @@ export async function updateMessageGeo(
   const rows = await executeQuery<Record<string, unknown>>(`
     UPDATE app_pipeline_message_geos
     SET ${setClauses.join(', ')}
-    WHERE id = $${paramIndex} AND deleted_at IS NULL
+    WHERE id = $${nextIndex} AND deleted_at IS NULL
     RETURNING id, message_id, geo, stage, is_primary, launched_at,
-              spend_threshold, notes, created_at, updated_at
+              spend_threshold, notes, drive_folder_id, created_at, updated_at
   `, values);
 
   if (rows.length === 0) throw new Error(`MessageGeo not found: ${id}`);
@@ -817,6 +1000,8 @@ export interface PipelineHistoryEntry {
   fieldName: string;
   oldValue: unknown;
   newValue: unknown;
+  oldValueDisplay?: string | null;
+  newValueDisplay?: string | null;
   action: string;
   changedBy: string;
   changedAt: string;
@@ -828,12 +1013,34 @@ export async function getPipelineHistory(entityType: string, entityId: string): 
     SELECT
       h.id, h.entity_type, h.entity_id, h.field_name,
       h.old_value, h.new_value, h.action, h.changed_by, h.changed_at,
-      u.name AS changed_by_name
+      cb.name AS changed_by_name,
+      COALESCE(old_u.name, old_a.name) AS old_value_display,
+      COALESCE(new_u.name, new_a.name) AS new_value_display
     FROM app_entity_history h
-    LEFT JOIN app_users u ON u.id = h.changed_by
-    WHERE h.entity_type = $1 AND h.entity_id = $2
+    LEFT JOIN app_users cb ON cb.id = h.changed_by
+    LEFT JOIN app_pipeline_angles old_a
+      ON h.field_name = 'angleId'
+      AND old_a.id::text = TRIM(BOTH '"' FROM h.old_value::text)
+    LEFT JOIN app_pipeline_angles new_a
+      ON h.field_name = 'angleId'
+      AND new_a.id::text = TRIM(BOTH '"' FROM h.new_value::text)
+    LEFT JOIN app_users old_u
+      ON h.field_name = 'ownerId'
+      AND old_u.id::text = TRIM(BOTH '"' FROM h.old_value::text)
+    LEFT JOIN app_users new_u
+      ON h.field_name = 'ownerId'
+      AND new_u.id::text = TRIM(BOTH '"' FROM h.new_value::text)
+    WHERE (
+      (h.entity_type = $1 AND h.entity_id = $2::uuid)
+      OR (h.entity_type = 'pipeline_message' AND h.entity_id != $2::uuid AND h.entity_id IN (
+        SELECT id FROM app_pipeline_message_geos WHERE message_id = $2::uuid
+      ))
+      OR (h.entity_type = 'campaign' AND h.entity_id IN (
+        SELECT id FROM app_pipeline_campaigns WHERE message_id = $2::uuid
+      ))
+    )
     ORDER BY h.changed_at DESC
-    LIMIT 50
+    LIMIT 100
   `, [entityType, entityId]);
 
   return rowsToCamelCase<PipelineHistoryEntry>(rows);
@@ -844,29 +1051,66 @@ export async function getPipelineHistory(entityType: string, entityId: string): 
 // Internal helpers (shared queries)
 // ════════════════════════════════════════════════════════════════════
 
-async function fetchUsers(): Promise<TrackerUser[]> {
+async function fetchUsers(): Promise<PipelineUser[]> {
   const rows = await executeQuery<Record<string, unknown>>(`
     SELECT id, name, email, created_at, updated_at
     FROM app_users WHERE deleted_at IS NULL AND is_product_owner = true ORDER BY name
   `);
-  return rowsToCamelCase<TrackerUser>(rows);
+  return rowsToCamelCase<PipelineUser>(rows);
 }
 
 async function fetchProductsWithCpa(productId?: string): Promise<Product[]> {
   const rows = await executeQuery<Record<string, unknown>>(`
-    SELECT id, name, description, color, owner_id, cpa_target_no, cpa_target_se, cpa_target_dk,
-           created_at, updated_at
-    FROM app_products
-    WHERE deleted_at IS NULL
-      AND ($1::uuid IS NULL OR id = $1)
-    ORDER BY name
+    SELECT p.id, p.name, p.sku, p.description, p.notes, p.color, p.owner_id,
+           p.cpa_target_no, p.cpa_target_se, p.cpa_target_dk,
+           p.drive_folder_id, p.assets_folder_id, p.created_at, p.updated_at,
+           u.id AS user_id, u.name AS user_name, u.email AS user_email
+    FROM app_products p
+    LEFT JOIN app_users u ON u.id = p.owner_id
+    WHERE p.deleted_at IS NULL
+      AND ($1::uuid IS NULL OR p.id = $1)
+    ORDER BY p.name
   `, [productId || null]);
-  return rowsToCamelCase<Product>(rows);
+  const products = rows.map(row => {
+    const owner = row.user_id ? {
+      id: row.user_id as string,
+      name: row.user_name as string || '',
+      email: row.user_email as string || '',
+    } : undefined;
+    const { user_id, user_name, user_email, ...productFields } = row;
+    return { ...toCamelCase<Product>(productFields), owner } as Product;
+  });
+
+  // Attach per-geo-channel CPA targets (graceful if table doesn't exist yet)
+  if (products.length > 0) {
+    try {
+      const productIds = products.map(p => p.id);
+      const targetRows = await executeQuery<Record<string, unknown>>(`
+        SELECT id, product_id, geo, channel, target
+        FROM app_product_cpa_targets
+        WHERE product_id = ANY($1)
+        ORDER BY geo, channel
+      `, [productIds]);
+      const targets = rowsToCamelCase<CpaTarget>(targetRows);
+      const targetsByProduct: Record<string, CpaTarget[]> = {};
+      for (const t of targets) {
+        if (!targetsByProduct[t.productId]) targetsByProduct[t.productId] = [];
+        targetsByProduct[t.productId].push(t);
+      }
+      for (const p of products) {
+        p.cpaTargets = targetsByProduct[p.id] || [];
+      }
+    } catch {
+      // Table may not exist yet — leave cpaTargets undefined
+    }
+  }
+
+  return products;
 }
 
 async function fetchPipelineAngles(productId?: string): Promise<Angle[]> {
   const rows = await executeQuery<Record<string, unknown>>(`
-    SELECT a.id, a.product_id, a.name, a.description, a.status, a.created_at, a.updated_at,
+    SELECT a.id, a.product_id, a.name, a.description, a.status, a.drive_folder_id, a.created_at, a.updated_at,
            (SELECT COUNT(*) FROM app_pipeline_messages m WHERE m.angle_id = a.id AND m.deleted_at IS NULL)::int AS message_count
     FROM app_pipeline_angles a
     WHERE a.deleted_at IS NULL

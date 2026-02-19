@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense, useEffect, useCallback } from 'react';
+import { useState, Suspense, useEffect, useRef, useCallback, lazy } from 'react';
 import { Button } from 'antd';
 import { SettingOutlined } from '@ant-design/icons';
 import Link from 'next/link';
@@ -12,6 +12,7 @@ import { SavedViewsDropdown } from '@/components/saved-views/SavedViewsDropdown'
 import { useSessionUrlSync } from '@/hooks/useSessionUrlSync';
 import { useApplyViewFromUrl } from '@/hooks/useApplyViewFromUrl';
 import { useReportPageSetup } from '@/hooks/useReportPageSetup';
+import { useSidebar } from '@/components/ui/sidebar';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useSessionColumnStore } from '@/stores/sessionColumnStore';
 import { SESSION_METRIC_COLUMNS } from '@/config/sessionColumns';
@@ -22,11 +23,31 @@ import { Eye } from 'lucide-react';
 import badgeStyles from '@/styles/components/badge.module.css';
 import pageStyles from '@/components/dashboard/dashboard.module.css';
 import type { ResolvedViewParams } from '@/types/savedViews';
+import type { OnPageViewClickContext } from '@/types/onPageDetails';
+
+const OnPageViewsModal = lazy(() =>
+  import('@/components/on-page-analysis/OnPageViewsModal').then((mod) => ({ default: mod.OnPageViewsModal }))
+);
 
 function OnPageAnalysisContent() {
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailModalContext, setDetailModalContext] = useState<OnPageViewClickContext | null>(null);
   const [unclassifiedCount, setUnclassifiedCount] = useState<number | null>(null);
+  const { setOpen } = useSidebar();
+  const hasCollapsed = useRef(false);
+
   const { hasUnsavedChanges, resetFilters, dateRange, filters, setFilters } = useSessionStore();
+
+  const handleMetricClick = (context: OnPageViewClickContext) => {
+    setDetailModalContext(context);
+    setDetailModalOpen(true);
+  };
+
+  const handleDetailModalClose = () => {
+    setDetailModalOpen(false);
+    setTimeout(() => setDetailModalContext(null), 300);
+  };
 
   useSessionUrlSync();
 
@@ -53,6 +74,14 @@ function OnPageAnalysisContent() {
     onApplyView,
     getExtraState,
   });
+
+  // Auto-collapse sidebar on mount only once
+  useEffect(() => {
+    if (!hasCollapsed.current) {
+      setOpen(false);
+      hasCollapsed.current = true;
+    }
+  }, [setOpen]);
 
   useApplyViewFromUrl(handleApplyView);
 
@@ -107,25 +136,37 @@ function OnPageAnalysisContent() {
           }
         />
         <div className={pageStyles.content}>
-          <SessionFilterToolbar filters={filters} onFiltersChange={setFilters} />
-          <TableInfoBanner messages={[
-            ...(includesToday ? ["Today's data may be incomplete"] : []),
-          ]} />
-          <SessionDataTable />
+          <SessionFilterToolbar
+            filters={filters}
+            onFiltersChange={setFilters}
+            infoBanner={includesToday ? <TableInfoBanner messages={["Today's data may be incomplete"]} /> : undefined}
+          />
+          <SessionDataTable onMetricClick={handleMetricClick} />
         </div>
       </div>
       <SessionColumnSettingsModal
         open={columnSettingsOpen}
         onClose={() => setColumnSettingsOpen(false)}
       />
+      {detailModalOpen && (
+        <Suspense fallback={null}>
+          <OnPageViewsModal
+            open={detailModalOpen}
+            onClose={handleDetailModalClose}
+            context={detailModalContext}
+          />
+        </Suspense>
+      )}
     </>
   );
 }
 
 export default function OnPageAnalysisPage() {
   return (
-    <Suspense fallback={<div />}>
-      <OnPageAnalysisContent />
-    </Suspense>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 8 }}>
+      <Eye style={{ width: 40, height: 40, color: '#999' }} />
+      <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>Maintenance</h2>
+      <p style={{ margin: 0, color: '#666' }}>Will be back 20th Feb.</p>
+    </div>
   );
 }

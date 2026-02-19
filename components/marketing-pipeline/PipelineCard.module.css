@@ -48,24 +48,24 @@
   margin-bottom: 6px;
 }
 
-.productTag {
+.tagBase {
   font-size: 11px;
   font-weight: 500;
-  color: var(--color-primary-800);
-  background: var(--color-primary-100);
   padding: 2px 8px;
   border-radius: var(--radius-full);
   line-height: 18px;
 }
 
+.productTag {
+  composes: tagBase;
+  color: var(--color-primary-800);
+  background: var(--color-primary-100);
+}
+
 .angleTag {
-  font-size: 11px;
-  font-weight: 500;
+  composes: tagBase;
   color: var(--color-gray-600);
   background: var(--color-gray-100);
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  line-height: 18px;
 }
 
 /* Geo flags row */
@@ -113,11 +113,24 @@
   min-width: 0;
 }
 
+.driveLink {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-gray-400);
+  transition: color var(--transition-fast);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.driveLink:hover {
+  color: var(--color-primary-600);
+}
+
 .versionBadge {
   font-size: 11px;
   font-weight: 500;
-  color: #4338ca;
-  background: #eef2ff;
+  color: var(--color-status-indigo);
+  background: var(--color-status-indigo-bg);
   padding: 1px 6px;
   border-radius: var(--radius-full);
   line-height: 18px;

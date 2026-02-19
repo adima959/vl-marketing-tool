@@ -29,9 +29,11 @@ export async function getRoles(): Promise<Role[]> {
       r.is_system,
       r.created_at,
       r.updated_at,
-      (SELECT COUNT(*)::int FROM app_users u WHERE u.role_id = r.id AND u.deleted_at IS NULL) AS user_count
+      COUNT(u.id)::int AS user_count
     FROM app_roles r
+    LEFT JOIN app_users u ON u.role_id = r.id AND u.deleted_at IS NULL
     WHERE r.deleted_at IS NULL
+    GROUP BY r.id, r.name, r.description, r.is_system, r.created_at, r.updated_at
     ORDER BY r.is_system DESC, r.name ASC
   `);
 
@@ -50,9 +52,11 @@ export async function getRoleById(id: string): Promise<Role | null> {
       r.is_system,
       r.created_at,
       r.updated_at,
-      (SELECT COUNT(*)::int FROM app_users u WHERE u.role_id = r.id AND u.deleted_at IS NULL) AS user_count
+      COUNT(u.id)::int AS user_count
     FROM app_roles r
+    LEFT JOIN app_users u ON u.role_id = r.id AND u.deleted_at IS NULL
     WHERE r.id = $1 AND r.deleted_at IS NULL
+    GROUP BY r.id, r.name, r.description, r.is_system, r.created_at, r.updated_at
   `, [id]);
 
   if (rows.length === 0) return null;
