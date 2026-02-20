@@ -28,7 +28,7 @@ async function main(): Promise<void> {
   // Get marketing campaign+adset keys
   const { rows: marketingRows } = await neon.query(`
     SELECT DISTINCT campaign_id::text AS campaign_id, adset_id::text AS adset_id
-    FROM merged_ads_spending
+    FROM marketing_merged_ads_spending
     WHERE network = 'Google Ads'
       AND date::date BETWEEN '2026-01-09' AND '2026-02-09'
   `);

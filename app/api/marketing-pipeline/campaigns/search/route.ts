@@ -15,7 +15,7 @@ interface CampaignSearchRow {
 /**
  * GET /api/marketing-pipeline/campaigns/search?productId=uuid&geo=NO
  *
- * Returns ad campaigns from merged_ads_spending that are classified
+ * Returns ad campaigns from marketing_merged_ads_spending that are classified
  * for the given product and geography. Used by the CampaignModal
  * to let users pick from real campaigns instead of typing IDs manually.
  */
@@ -42,7 +42,7 @@ async function handleGet(
          MAX(m.network) AS network,
          ROUND(SUM(m.cost::numeric), 2) AS total_spend,
          SUM(m.clicks::integer) AS total_clicks
-       FROM merged_ads_spending m
+       FROM marketing_merged_ads_spending m
        JOIN app_campaign_classifications cc
          ON m.campaign_id = cc.campaign_id
          AND cc.is_ignored = false

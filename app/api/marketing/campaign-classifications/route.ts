@@ -38,7 +38,7 @@ const VALID_COUNTRY_CODES = ['NO', 'SE', 'DK', 'FI'];
 /** Shared query: unclassified campaigns not yet in the mapping table */
 const UNCLASSIFIED_QUERY = `
   SELECT DISTINCT ON (m.campaign_id) m.campaign_id, m.campaign_name
-  FROM merged_ads_spending m
+  FROM marketing_merged_ads_spending m
   WHERE m.campaign_id IS NOT NULL
     AND m.campaign_id != ''
     AND NOT EXISTS (
@@ -52,7 +52,7 @@ const UNCLASSIFIED_QUERY = `
 const UNCLASSIFIED_COUNT_QUERY = `
   SELECT COUNT(*) as count FROM (
     SELECT DISTINCT m.campaign_id
-    FROM merged_ads_spending m
+    FROM marketing_merged_ads_spending m
     WHERE m.campaign_id IS NOT NULL
       AND m.campaign_id != ''
       AND NOT EXISTS (
@@ -85,7 +85,7 @@ async function handleGet(
     const campaignNamesCte = `
       WITH campaign_names AS (
         SELECT DISTINCT ON (campaign_id) campaign_id, campaign_name
-        FROM merged_ads_spending
+        FROM marketing_merged_ads_spending
         WHERE campaign_id IS NOT NULL AND campaign_id != ''
         ORDER BY campaign_id, campaign_name
       )`;
@@ -277,7 +277,7 @@ async function handlePost(
 
     // Look up campaign name for response
     const nameRows = await executeQuery<{ campaign_name: string }>(
-      `SELECT DISTINCT campaign_name FROM merged_ads_spending WHERE campaign_id = $1 LIMIT 1`,
+      `SELECT DISTINCT campaign_name FROM marketing_merged_ads_spending WHERE campaign_id = $1 LIMIT 1`,
       [campaignId]
     );
     const campaignName = nameRows[0]?.campaign_name ?? campaignId;

@@ -2,7 +2,7 @@
  * Debug: Why does the marketing report show ~47% fewer subs than the dashboard?
  *
  * Compares CRM tracking IDs (tracking_id_4 = campaign, tracking_id_2 = adset)
- * against marketing data (merged_ads_spending.campaign_id, adset_id)
+ * against marketing data (marketing_merged_ads_spending.campaign_id, adset_id)
  * for Denmark, 09/01/2026 – 09/02/2026.
  *
  * Run: npx tsx scripts/debug-crm-matching.ts
@@ -129,7 +129,7 @@ async function main(): Promise<void> {
     console.log(`    "${val}": ${count} subs`);
   }
 
-  // ── 2. Marketing side: campaign_id/adset_id from merged_ads_spending ───
+  // ── 2. Marketing side: campaign_id/adset_id from marketing_merged_ads_spending ───
   const marketingIds = await pq<{
     campaign_id: string;
     adset_id: string;
@@ -142,7 +142,7 @@ async function main(): Promise<void> {
            m.campaign_name,
            m.adset_name,
            SUM(m.impressions::integer) AS impressions
-    FROM merged_ads_spending m
+    FROM marketing_merged_ads_spending m
     WHERE m.network = 'Google Ads'
       AND m.date::date BETWEEN '2026-01-09' AND '2026-02-09'
     GROUP BY m.campaign_id, m.adset_id, m.campaign_name, m.adset_name

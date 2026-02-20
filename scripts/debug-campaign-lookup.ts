@@ -1,5 +1,5 @@
 /**
- * Look up campaign name → campaign ID mappings in merged_ads_spending
+ * Look up campaign name → campaign ID mappings in marketing_merged_ads_spending
  * for the non-numeric tracking_id_4 values found in MariaDB.
  *
  * Run: npx tsx scripts/debug-campaign-lookup.ts
@@ -55,7 +55,7 @@ async function main(): Promise<void> {
   );
   console.log(`  tracking_id_2 = "null" (literal string): ${nullT2.cnt} subs`);
 
-  console.log('\n=== 2. Search merged_ads_spending for these campaign names ===\n');
+  console.log('\n=== 2. Search marketing_merged_ads_spending for these campaign names ===\n');
 
   // Exact match by campaign_name
   for (const val of badValues) {
@@ -64,13 +64,13 @@ async function main(): Promise<void> {
     const exact = await pq<{ campaign_id: string; campaign_name: string; network: string; min_date: string; max_date: string }>(`
       SELECT campaign_id::text AS campaign_id, campaign_name, network,
              MIN(date::date)::text AS min_date, MAX(date::date)::text AS max_date
-      FROM merged_ads_spending
+      FROM marketing_merged_ads_spending
       WHERE campaign_name = $1
       GROUP BY campaign_id, campaign_name, network
     `, [val]);
 
     if (exact.length > 0) {
-      console.log(`  "${val}" → EXACT MATCH in merged_ads_spending:`);
+      console.log(`  "${val}" → EXACT MATCH in marketing_merged_ads_spending:`);
       for (const r of exact) {
         console.log(`    campaign_id=${r.campaign_id}, network=${r.network}, dates=${r.min_date} to ${r.max_date}`);
       }
@@ -80,12 +80,12 @@ async function main(): Promise<void> {
   }
 
   // Broader search: all "Balansera_Dnk" campaigns
-  console.log('\n=== 3. All "Balansera_Dnk" campaigns in merged_ads_spending ===\n');
+  console.log('\n=== 3. All "Balansera_Dnk" campaigns in marketing_merged_ads_spending ===\n');
 
   const balansera = await pq<{ campaign_id: string; campaign_name: string; network: string; impressions: string }>(`
     SELECT campaign_id::text AS campaign_id, campaign_name, network,
            SUM(impressions::integer) AS impressions
-    FROM merged_ads_spending
+    FROM marketing_merged_ads_spending
     WHERE campaign_name ILIKE 'Balansera_Dnk%'
     GROUP BY campaign_id, campaign_name, network
     ORDER BY SUM(impressions::integer) DESC

@@ -10,24 +10,24 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- ───────────────────────────────────────────────────────────────────────────
--- 1. Indexes for merged_ads_spending
+-- 1. Indexes for marketing_merged_ads_spending
 -- ───────────────────────────────────────────────────────────────────────────
 
 -- General campaign + date index (for fetchAdsMetrics)
 -- Supports: WHERE m.date >= X AND m.date <= Y AND m.campaign_id = ANY(...)
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_mas_campaign_date
-  ON merged_ads_spending (campaign_id, date);
+  ON marketing_merged_ads_spending (campaign_id, date);
 
 -- Adset-level queries (for fetchAdsetMetrics)
 -- Supports: WHERE m.date >= X AND m.date <= Y AND m.campaign_id = X AND m.adset_id IS NOT NULL
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_mas_campaign_adset_date
-  ON merged_ads_spending (campaign_id, adset_id, date)
+  ON marketing_merged_ads_spending (campaign_id, adset_id, date)
   WHERE adset_id IS NOT NULL AND adset_id != '';
 
 -- Ad-level queries (for fetchAdMetrics)
 -- Supports: WHERE m.date >= X AND m.date <= Y AND m.campaign_id = X AND m.ad_id IS NOT NULL
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_mas_campaign_ad_date
-  ON merged_ads_spending (campaign_id, ad_id, adset_id, date)
+  ON marketing_merged_ads_spending (campaign_id, ad_id, adset_id, date)
   WHERE ad_id IS NOT NULL AND ad_id != '';
 
 -- ───────────────────────────────────────────────────────────────────────────

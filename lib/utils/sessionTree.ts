@@ -129,7 +129,7 @@ function buildLevel(
 function formatAttribute(dimension: string, value: string, isEnriched: boolean): string {
   if (dimension === 'date') return value;
   if (dimension === 'entryCountryCode') return value.toUpperCase();
-  // Enriched dims already have proper names from merged_ads_spending
+  // Enriched dims already have proper names from marketing_merged_ads_spending
   if (isEnriched) return value;
   return toTitleCase(value);
 }

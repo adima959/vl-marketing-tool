@@ -7,7 +7,7 @@ import type { TableFilter } from '@/types/filters';
  * Dimension mapping from marketing report → session analysis filter fields.
  * The on-page analysis page uses the session store, which uses entry-prefixed
  * dimension IDs. Campaign/adset/ad pass names directly — the session query
- * builder supports name-based matching via merged_ads_spending subqueries.
+ * builder supports name-based matching via marketing_merged_ads_spending subqueries.
  */
 const DIMENSION_TO_FILTER_FIELD: Record<string, string> = {
   campaign: 'entryCampaign',

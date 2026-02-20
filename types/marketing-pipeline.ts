@@ -360,7 +360,7 @@ export interface CreateCampaignRequest {
 export interface CampaignPerformanceData {
   // Ads metadata
   campaignName?: string;
-  // Ads metrics (from merged_ads_spending)
+  // Ads metrics (from marketing_merged_ads_spending)
   spend: number;
   clicks: number;
   impressions: number;
@@ -389,7 +389,7 @@ export interface CampaignPerformanceData {
   trueCpa: number | null;
 }
 
-// Ad hierarchy types (adset / ad level from merged_ads_spending)
+// Ad hierarchy types (adset / ad level from marketing_merged_ads_spending)
 export interface AdsetPerformance {
   adsetId: string;
   adsetName: string;

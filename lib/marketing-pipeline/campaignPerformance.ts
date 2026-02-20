@@ -1,6 +1,6 @@
 /**
  * Campaign Performance — fetches live data from 3 sources:
- * 1. Ads (PostgreSQL merged_ads_spending) — spend, clicks, impressions, conversions
+ * 1. Ads (PostgreSQL marketing_merged_ads_spending) — spend, clicks, impressions, conversions
  * 2. CRM (MariaDB via crmQueryBuilder) — subscriptions, trials, approved, upsells, OTS
  * 3. On-page (PostgreSQL event_page_view_enriched_v2) — page views, visitors, forms
  *
@@ -54,7 +54,7 @@ async function fetchAdsMetrics(
         SUM(m.clicks::integer) AS clicks,
         SUM(m.impressions::integer) AS impressions,
         ROUND(SUM(m.conversions::numeric), 0) AS conversions
-      FROM merged_ads_spending m
+      FROM marketing_merged_ads_spending m
       WHERE m.date >= $1::date AND m.date <= $2::date
         AND m.campaign_id = ANY($3)
       GROUP BY m.campaign_id
@@ -63,7 +63,7 @@ async function fetchAdsMetrics(
       SELECT
         m.campaign_id,
         MAX(m.date) AS last_date
-      FROM merged_ads_spending m
+      FROM marketing_merged_ads_spending m
       WHERE m.campaign_id = ANY($1)
         AND m.cost::numeric > 0
       GROUP BY m.campaign_id
@@ -309,7 +309,7 @@ async function fetchAdsetMetrics(
       SUM(m.clicks::integer) AS clicks,
       SUM(m.impressions::integer) AS impressions,
       ROUND(SUM(m.conversions::numeric), 0) AS conversions
-    FROM merged_ads_spending m
+    FROM marketing_merged_ads_spending m
     WHERE m.date >= $1::date AND m.date <= $2::date
       AND m.campaign_id = $3
       AND m.adset_id IS NOT NULL AND m.adset_id != ''
@@ -358,7 +358,7 @@ async function fetchAdMetrics(
       SUM(m.clicks::integer) AS clicks,
       SUM(m.impressions::integer) AS impressions,
       ROUND(SUM(m.conversions::numeric), 0) AS conversions
-    FROM merged_ads_spending m
+    FROM marketing_merged_ads_spending m
     WHERE m.date >= $1::date AND m.date <= $2::date
       AND m.campaign_id = $3
       AND m.ad_id IS NOT NULL AND m.ad_id != ''

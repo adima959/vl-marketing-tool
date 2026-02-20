@@ -112,7 +112,7 @@ export async function getMarketingDataFlat(
     '  SUM(m.clicks::integer) AS clicks,',
     '  SUM(m.impressions::integer) AS impressions,',
     '  SUM(m.conversions::numeric) AS conversions',
-    'FROM merged_ads_spending m',
+    'FROM marketing_merged_ads_spending m',
     joinClause,
     'WHERE m.date::date BETWEEN $1::date AND $2::date',
     filterClause,

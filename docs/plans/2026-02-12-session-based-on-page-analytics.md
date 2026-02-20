@@ -156,7 +156,7 @@ Use `page_type` when available, fall back to URL pattern matching.
 | PostgreSQL (Neon) | `remote_session_tracker.event_page_view_enriched_v2` | Materialized View | Millions | Every page view with 60 columns |
 | MariaDB | `crm_subscription_enriched` | Table | Tens of thousands | Pre-computed trial subscriptions |
 | PostgreSQL (Neon) | `app_url_classifications` | Table | Hundreds | URL → Product/Country mapping |
-| PostgreSQL (Neon) | `merged_ads_spending` | Table | Thousands | Campaign/adset/ad name lookups |
+| PostgreSQL (Neon) | `marketing_merged_ads_spending` | Materialized View | Thousands | Campaign/adset/ad name lookups |
 
 ### 3.2 Key Fields Available for Session Grouping
 

@@ -32,7 +32,7 @@ WHERE indexname IN (
 )
 ORDER BY
   CASE tablename
-    WHEN 'merged_ads_spending' THEN 1
+    WHEN 'marketing_merged_ads_spending' THEN 1
     ELSE 2
   END,
   indexname;
@@ -46,7 +46,7 @@ SELECT
   pg_size_pretty(pg_relation_size(schemaname||'.'||tablename)) AS table_size,
   pg_size_pretty(pg_indexes_size(schemaname||'.'||tablename)) AS indexes_size
 FROM pg_tables
-WHERE tablename IN ('merged_ads_spending', 'event_page_view_enriched_v2')
+WHERE tablename IN ('marketing_merged_ads_spending', 'event_page_view_enriched_v2')
 ORDER BY tablename;
 
 -- ───────────────────────────────────────────────────────────────────────────

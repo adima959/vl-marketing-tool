@@ -43,7 +43,7 @@ export const POST = withAdmin(async (request: Request, user: AppUser) => {
         ctr_percent,
         cpc,
         cpm
-      FROM merged_ads_spending
+      FROM marketing_merged_ads_spending
       WHERE date = $1
         AND campaign_name = $2
         AND network = 'Google Ads'

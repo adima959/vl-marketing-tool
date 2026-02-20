@@ -1,6 +1,6 @@
 /**
  * Debug + Fix: Find CRM subscriptions with campaign NAMES instead of numeric IDs
- * in tracking_id_4, look up the correct campaign_id from merged_ads_spending,
+ * in tracking_id_4, look up the correct campaign_id from marketing_merged_ads_spending,
  * and optionally update them.
  *
  * Run: npx tsx scripts/debug-fix-tracking-ids.ts
@@ -58,7 +58,7 @@ async function main(): Promise<void> {
   console.log(`  Total affected subs: ${totalAffected}\n`);
 
   // 2. For each non-numeric value, try to find a matching campaign in marketing data
-  console.log('=== Looking up campaign IDs in merged_ads_spending ===\n');
+  console.log('=== Looking up campaign IDs in marketing_merged_ads_spending ===\n');
 
   for (const r of nonNumeric) {
     const name = r.tracking_id_4;
@@ -66,7 +66,7 @@ async function main(): Promise<void> {
     // Try exact name match
     const exact = await pq<{ campaign_id: string; campaign_name: string }>(`
       SELECT DISTINCT campaign_id::text AS campaign_id, campaign_name
-      FROM merged_ads_spending
+      FROM marketing_merged_ads_spending
       WHERE campaign_name = $1
     `, [name]);
 
@@ -82,7 +82,7 @@ async function main(): Promise<void> {
 
     const fuzzy = await pq<{ campaign_id: string; campaign_name: string }>(`
       SELECT DISTINCT campaign_id::text AS campaign_id, campaign_name
-      FROM merged_ads_spending
+      FROM marketing_merged_ads_spending
       WHERE campaign_name ILIKE $1
       LIMIT 5
     `, [`%${baseName}%`]);

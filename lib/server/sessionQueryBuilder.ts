@@ -46,7 +46,7 @@ const ENTRY_DIMENSION_MAP: Record<string, string> = {
 };
 
 /**
- * Enriched entry dimensions that have both IDs and names in merged_ads_spending.
+ * Enriched entry dimensions that have both IDs and names in marketing_merged_ads_spending.
  * Each gets two columns in the flat result: _id (raw tracking ID) + display name.
  */
 const ENRICHED_ENTRY_DIMS: Record<string, {
@@ -190,7 +190,7 @@ class SessionQueryBuilder {
       fromClause += `
       LEFT JOIN (
         SELECT DISTINCT ${joinConfig.distinctCols}
-        FROM merged_ads_spending
+        FROM marketing_merged_ads_spending
         WHERE date::date BETWEEN $1::date AND $2::date
       ) mas ON ${joinConfig.joinOn}`;
     }
@@ -336,7 +336,7 @@ class SessionQueryBuilder {
    * Build table filter clauses.
    * Same field = OR, different fields = AND.
    * For enriched entry dimensions (campaign/adset/ad), generates OR conditions
-   * to match by both raw ID and name (via merged_ads_spending subquery).
+   * to match by both raw ID and name (via marketing_merged_ads_spending subquery).
    */
   private buildTableFilterClause(
     filters: Array<{ field: string; operator: string; value: string }>,
@@ -365,7 +365,7 @@ class SessionQueryBuilder {
         params.push(value);
         const paramRef = `$${params.length}`;
         const nameSubquery = enriched
-          ? `SELECT DISTINCT ${enriched.idColumn}::text FROM merged_ads_spending WHERE date::date BETWEEN $1::date AND $2::date AND LOWER(${enriched.nameColumn}) = LOWER(${paramRef})`
+          ? `SELECT DISTINCT ${enriched.idColumn}::text FROM marketing_merged_ads_spending WHERE date::date BETWEEN $1::date AND $2::date AND LOWER(${enriched.nameColumn}) = LOWER(${paramRef})`
           : null;
         switch (operator) {
           case 'equals':
@@ -384,7 +384,7 @@ class SessionQueryBuilder {
             break;
           case 'contains':
             if (enriched) {
-              const nameContainsSubquery = `SELECT DISTINCT ${enriched.idColumn}::text FROM merged_ads_spending WHERE date::date BETWEEN $1::date AND $2::date AND LOWER(${enriched.nameColumn}) LIKE '%' || LOWER(${paramRef}) || '%'`;
+              const nameContainsSubquery = `SELECT DISTINCT ${enriched.idColumn}::text FROM marketing_merged_ads_spending WHERE date::date BETWEEN $1::date AND $2::date AND LOWER(${enriched.nameColumn}) LIKE '%' || LOWER(${paramRef}) || '%'`;
               orParts.push(`(LOWER(${col}::text) LIKE '%' || LOWER(${paramRef}) || '%' OR ${col}::text IN (${nameContainsSubquery}))`);
             } else {
               orParts.push(`LOWER(${col}::text) LIKE '%' || LOWER(${paramRef}) || '%'`);
@@ -392,7 +392,7 @@ class SessionQueryBuilder {
             break;
           case 'not_contains':
             if (enriched) {
-              const nameNotContainsSubquery = `SELECT DISTINCT ${enriched.idColumn}::text FROM merged_ads_spending WHERE date::date BETWEEN $1::date AND $2::date AND LOWER(${enriched.nameColumn}) LIKE '%' || LOWER(${paramRef}) || '%'`;
+              const nameNotContainsSubquery = `SELECT DISTINCT ${enriched.idColumn}::text FROM marketing_merged_ads_spending WHERE date::date BETWEEN $1::date AND $2::date AND LOWER(${enriched.nameColumn}) LIKE '%' || LOWER(${paramRef}) || '%'`;
               orParts.push(`(LOWER(${col}::text) NOT LIKE '%' || LOWER(${paramRef}) || '%' AND ${col}::text NOT IN (${nameNotContainsSubquery}))`);
             } else {
               orParts.push(`LOWER(${col}::text) NOT LIKE '%' || LOWER(${paramRef}) || '%'`);
