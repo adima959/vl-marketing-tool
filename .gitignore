@@ -41,3 +41,6 @@ debug.log
 *.tsbuildinfo
 next-env.d.ts
 .claude-backup/
+
+# audit results
+tests/on-page-audit/results/*.json

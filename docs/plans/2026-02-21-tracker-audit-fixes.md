@@ -1,139 +1,47 @@
-# Tracker Tables Audit — Fix Plan
+# Tracker Audit — Consolidated Fix Plan
 
-Audit date: 2026-02-21. Tables: `neondb.tracker_*` (~22hrs of data).
-
----
-
-## Critical
-
-### Bounce rate 92.7%
-
-5,152 of 5,556 sessions have only 1 page view. Either session stitching is broken (navigating within the site creates a new session instead of extending the current one), or this is inherent to the ad funnel.
-
-**Fix:** Log `session_id` on client-side page transitions. If a user navigates from article to order page and gets a new session, the stitching logic needs fixing.
+Audit date: 2026-02-21. Tables: `neondb.tracker_*`.
 
 ---
 
-### Column typo: `refferer`
+## Frontend Fixes (for frontend developer)
 
-Column is misspelled with double-f. Will trip up anyone writing queries.
-
-**Fix:**
-```sql
-ALTER TABLE tracker_sessions RENAME COLUMN refferer TO referrer;
-```
-Update all tracker code that reads/writes this column at the same time.
-
----
-
-## Significant
-
-### 169 sessions with zero page views (3%)
-
-Sessions were created but no page_view event followed. User likely closed the tab before the page loaded.
-
-**Fix:** Only persist a session after its first page_view arrives. Or accept as expected behavior and filter in queries with `WHERE EXISTS (SELECT 1 FROM tracker_page_views ...)`.
-
----
-
-### 466 orphan events (1.1%)
-
-Events reference `page_view_id`s that don't exist. These events can't be attributed to anything.
-
-**Fix:** Buffer events until their page_view is confirmed, or add a FK constraint:
-```sql
-ALTER TABLE tracker_events
-  ADD CONSTRAINT fk_events_page_view
-  FOREIGN KEY (page_view_id) REFERENCES tracker_page_views(page_view_id);
+### FE-1: Duplicate page view firing
+**Impact**: Inflates page view counts, skews bounce rate.
+**Detail**: Same session + URL + same second, up to 4x. Worst: session `a24eb831` fired 4 PVs for same URL within 400ms.
+**Fix**: Track last sent URL + timestamp, suppress within 2s window.
+```js
+const _lastPV = { url: null, ts: 0 };
+function sendPageView(url) {
+  const now = Date.now();
+  if (_lastPV.url === url && now - _lastPV.ts < 2000) return;
+  _lastPV.url = url;
+  _lastPV.ts = now;
+  // ... send
+}
 ```
 
----
+### FE-2: Duplicate event firing
+**Impact**: Inflates engagement metrics (CTA clicks, scroll milestones).
+**Detail**: Events fire 2-4x within <1s for same element+action. Affects `in_view`, `out_view`, `click`, `page_scroll`.
+**Fix**: Per-pageview dedup cache with 1s cooldown keyed on `pageViewId:eventName:action:signalId`. For IntersectionObserver, use `unobserve()` after first trigger for one-shot events, or track in/out state for toggle events.
 
-### 538 events timestamped before their page view (1.3%)
+### FE-3: Duplicate session creation (race condition)
+**Impact**: Splits single visit into two sessions.
+**Detail**: Visitor `f1W8ngu3PUTGnxL3mZG1eBeZzy` — iPad Safari — created 2 sessions at exactly `15:32:38.550`.
+**Fix**: Use a `sessionStorage` mutex flag during session creation. Check flag before creating, set it during API call, clear on completion.
 
-`event_at` is earlier than the page view's `viewed_at` by more than 5 seconds. Likely client clock drift or event batching.
+### FE-4: 61 sessions with zero page views
+**Impact**: 3.8% of sessions have no analytics data. All have NULL device/os/browser/bot_score.
+**Detail**: Session endpoint is called but the subsequent page_view call either fails or never executes.
+**Fix**: Either defer session creation until first page_view, or ensure page_view send retries on failure.
 
-**Fix:** Use server-side timestamps instead of client-reported `event_at`, or normalize event timestamps relative to the page_view's `viewed_at`.
+### FE-10: Events firing before their page view
+**Impact**: 6 events on PV `191c33d5` fired 7-10s before the page view was recorded.
+**Fix**: Buffer events until the page_view API call completes and returns a confirmed `page_view_id`.
 
----
-
-## Moderate
-
-### Duplicate sessions — same visitor, same second
-
-8 occurrences. All have `bot_score = 0.9`. Bot traffic creating rapid-fire sessions.
-
-**Fix:** Debounce session creation in the tracker (skip if a session for this visitor was created < 2s ago). Or add a unique partial index:
-```sql
-CREATE UNIQUE INDEX idx_sessions_dedup
-  ON tracker_sessions (visitor_id, date_trunc('second', created_at))
-  WHERE bot_score < 0.5;
-```
-
----
-
-### Duplicate page view fires (order page fires 3x)
-
-Same session + URL + same second, up to 3 times. Concentrated on the `order-phone-nossn` page.
-
-**Fix:** Debounce page_view events on the client — skip if same `page_load_id` already fired. Investigate that order page for re-render triggers.
-
+### FE-13: `entry_page_path` trailing `?` mismatch
+**Impact**: Session `a1fc79f9` has `entry_page_path` ending with `?` but actual PV URL doesn't.
+**Fix**: Strip trailing `?` from URLs before storing: `url.replace(/\?$/, '')`.
 
 ---
-
-### 34% of sessions missing `cumulative_time_s`
-
-1,945 sessions have no time data. Tied to the heartbeat system not being fully operational yet.
-
-**Fix:** Once heartbeats are stable, backfill from `tracker_raw_heartbeats.cumulative_active_ms`. Until then, accept NULLs in time-based metrics.
-
----
-
-### Performance metric outliers (max FCP = 16 minutes)
-
-28 page views with FCP > 10s, max value 963,295ms. 23 page views where FCP > LCP (impossible).
-
-**Fix:** Clamp at ingestion — reject values above 30s as invalid:
-```sql
-ALTER TABLE tracker_page_views
-  ADD CONSTRAINT chk_fcp CHECK (fcp_ms IS NULL OR fcp_ms BETWEEN 0 AND 30000),
-  ADD CONSTRAINT chk_lcp CHECK (lcp_ms IS NULL OR lcp_ms BETWEEN 0 AND 30000);
-```
-
----
-
-### Table bloat (12-15% dead tuples)
-
-`tracker_page_views` has 14.86% dead tuples, `tracker_sessions` has 11.98%. Caused by frequent UPDATEs after initial insert (heartbeat/time backfills).
-
-**Fix:** Monitor at scale. Not a problem at current size. If it becomes one, switch to append-only writes + computed views instead of in-place updates.
-
----
-
-### 26 visitors with zero sessions
-
-Visitor records created but never linked to a session.
-
-**Fix:** Create visitors lazily — only insert after first session is confirmed. Or periodic cleanup:
-```sql
-DELETE FROM tracker_visitors v
-WHERE NOT EXISTS (SELECT 1 FROM tracker_sessions s WHERE s.visitor_id = v.visitor_id);
-```
-
----
-
-### No FK constraints between tables
-
-Referential integrity is not enforced. Allows the orphan problems above.
-
-**Fix:** Add FKs after stabilizing the ingestion pipeline. Premature FKs cause insert failures during race conditions. Priority order:
-1. `tracker_page_views.session_id → tracker_sessions.session_id`
-2. `tracker_events.page_view_id → tracker_page_views.page_view_id`
-
----
-
-### 36% of sessions have `browser_name = 'Unknown'`
-
-2,068 out of 5,725 sessions. The UA parser can't identify over a third of browsers.
-
-**Fix:** Upgrade the UA parser library (e.g., `ua-parser-js` v2 or `bowser`). Log sample unknown user agents to diagnose which browsers are being missed.
