@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getProductById } from '@/lib/marketing-pipeline/db';
-import { createDriveSubfolder, uploadFileToDrive, listDriveFiles } from '@/lib/server/googleDrive';
+import { createDriveSubfolder, uploadFileToDrive, listDriveFilesWithSubfolders, findOrCreateSubfolder } from '@/lib/server/googleDrive';
 import { withPermission } from '@/lib/rbac';
 import { isValidUUID } from '@/lib/utils/validation';
 import { executeQuery } from '@/lib/server/db';
@@ -37,7 +37,7 @@ export const GET = withPermission('tools.marketing_pipeline', 'can_view', async 
       return NextResponse.json({ success: true, data: [] });
     }
 
-    const files = await listDriveFiles(product.assetsFolderId);
+    const files = await listDriveFilesWithSubfolders(product.assetsFolderId);
     return NextResponse.json({ success: true, data: files });
   } catch (error) {
     unstable_rethrow(error);
@@ -119,7 +119,22 @@ export const POST = withPermission('tools.marketing_pipeline', 'can_edit', async
       }
     }
 
-    const uploaded = await uploadFileToDrive(assetsFolderId, fileName, mimeType, buffer);
+    // Determine target folder (root Assets or a named subfolder)
+    const folderName = formData.get('folder') as string | null;
+    let targetFolderId = assetsFolderId;
+
+    if (folderName && folderName !== 'root' && folderName !== 'Assets') {
+      const subId = await findOrCreateSubfolder(assetsFolderId, folderName);
+      if (!subId) {
+        return NextResponse.json(
+          { success: false, error: `Failed to create subfolder "${folderName}"` },
+          { status: 500 },
+        );
+      }
+      targetFolderId = subId;
+    }
+
+    const uploaded = await uploadFileToDrive(targetFolderId, fileName, mimeType, buffer);
     if (!uploaded) {
       return NextResponse.json(
         { success: false, error: 'Failed to upload file to Drive' },

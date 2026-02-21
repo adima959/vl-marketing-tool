@@ -48,7 +48,7 @@
 
 .panelNarrow {
   composes: panel;
-  width: min(640px, calc(100vw - 40px));
+  width: min(704px, calc(100vw - 40px));
 }
 
 .panelNarrow .body {

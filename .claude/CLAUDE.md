@@ -6,6 +6,8 @@
 
 **Running Scripts**: ALWAYS use `npx tsx scripts/foo.ts` (or `npm run script -- scripts/foo.ts`). NEVER use bare `node` on `.ts` files — it causes MODULE_TYPELESS_PACKAGE_JSON warnings.
 
+**Verification**: `npm run build` (TypeScript + Next.js compilation). No test suite — verify via build output.
+
 **Architecture**:
 ```
 app/          - Next.js routes, API endpoints
@@ -24,11 +26,15 @@ lib/          - server/ (crmQueryBuilder, marketingQueryBuilder, trackerQueryBui
 
 **Database Placeholders**: PostgreSQL = `$1, $2, $3` | MariaDB = `?, ?, ?` — NEVER mix.
 
+**MariaDB Queries**: Use `pool.execute()` for parameterized queries, `pool.query()` for simple — avoids "prepared statement needs to be re-prepared" errors with views.
+
 **Table Scroll Width**: NEVER `scroll={{ x: 'max-content' }}`. ALWAYS `scroll={{ x: attributeWidth + visibleMetricsWidth }}`.
 
-**Load Data Button**: ONLY button triggers data fetch. Dimension/date changes update active state only.
+**Load Data Button**: ONLY button triggers data fetch. Stores use dual-state: `dateRange` (active/editing) vs `loadedDateRange` (rendered). Dimension/date changes update active state only. New stores MUST follow this pattern — see `stores/reportStore.ts`.
 
 **Date/Timezone**: Server = Europe/Oslo (CET, UTC+1). NEVER `toISOString().split('T')[0]` — shifts back one day. Client → Server: `formatLocalDate()` from `lib/types/api.ts`. MariaDB builders: `getUTCFullYear/getUTCDate`. Zod: `z.string().date()`, NOT `.datetime()`.
+
+**API Route Auth**: All routes use `withAuth()` (basic), `withRole('admin')` (admin-only), or `withPermission('feature', 'action')` (RBAC). Never skip auth wrappers. Pattern: `export const POST = withAuth(async (req, user) => { ... })`.
 
 ## Code Conventions
 
@@ -36,6 +42,8 @@ lib/          - server/ (crmQueryBuilder, marketingQueryBuilder, trackerQueryBui
 - React 19: Server Components default, `'use client'` when needed
 - Design tokens from `styles/tokens.ts` + `styles/tokens.css` — never hardcode
 - Naming: PascalCase (Components), useCamelCase (hooks), camelStore (stores)
+- Imports: Use `@/` path alias (e.g., `@/lib/server/db`). NEVER `../` — blocked by hook
+- API routes: `withAuth` wrapper → Zod parse body → business logic → `NextResponse.json({ success: true, data })`. Errors: `handleApiError(error)` from `lib/server/apiErrorHandler.ts`
 
 ---
 
@@ -43,23 +51,10 @@ lib/          - server/ (crmQueryBuilder, marketingQueryBuilder, trackerQueryBui
 
 ## Process
 
-1. **State assumptions explicitly** — do NOT skip this step:
-   ```
-   ASSUMPTIONS I'M MAKING:
-   1. [assumption]
-   2. [assumption]
-   → Correct me now or I'll proceed with these.
-   ```
-2. **Present a plan and WAIT** — do NOT write code until you receive explicit approval ("go ahead", "yes", "do it"). Silence is NOT approval.
-3. **If requirements are ambiguous — ASK.** Never guess and build.
-4. **Before editing 3+ files** — decompose into smaller tasks and get approval for each chunk.
-5. **After any modification** — ALWAYS output:
-   ```
-   CHANGES MADE:
-   - [file]: [what and why]
-   POTENTIAL CONCERNS:
-   - [risks to verify]
-   ```
+1. **Simple tasks** (1-2 files, clear scope) — just do it. No ceremony needed.
+2. **Medium tasks** (3+ files) — state assumptions, get approval before coding.
+3. **Complex features** — present a full plan and WAIT for explicit approval ("go ahead", "yes", "do it"). Silence is NOT approval.
+4. **If requirements are ambiguous — ASK.** Never guess and build.
 
 ## Behavior
 
@@ -69,23 +64,7 @@ lib/          - server/ (crmQueryBuilder, marketingQueryBuilder, trackerQueryBui
 - **Verify work** — run `npm run build` after code changes. Don't rely on the user to catch errors.
 - **Debugging data mismatches** — trace the exact query on each side, find delta records, then root-cause.
 
-## Sub-Agents
-
 Use the Task tool proactively — dispatch like any other tool, don't ask permission.
-
-| Pattern | When | Example |
-|---------|------|---------|
-| **Parallel** | 2+ independent tasks, no shared files | Explore auth system + explore DB schema simultaneously |
-| **Sequential** | Task B needs output from Task A | Research existing patterns → then plan implementation |
-| **Background** | Research not blocking current work | Investigate a module while implementing another |
-
-**Agent types**:
-- `Explore` — codebase search, reading files, understanding patterns (use for broad searches)
-- `Plan` — design implementation approach, weigh alternatives
-- `Bash` — run commands, git operations, build scripts
-- `general-purpose` — complex multi-step tasks combining search + analysis
-
-**Provide explicit context**: file paths, what to look for, expected output. Vague dispatches fail.
 
 ---
 
@@ -110,5 +89,12 @@ Know these upfront to avoid wasted round-trips:
 | `.claude/docs/git-workflow.md` | Build decisions, pre-commit verification, committing, branching, PRs |
 | `.claude/docs/database.md` | CRM schema, business rules, UTM mapping, PostgreSQL app notes |
 | `.claude/docs/codebase-index.md` | Full codebase index — routes, APIs, components, stores, hooks, lib, types |
+| `.claude/docs/crm-data-matching.md` | CRM number validation, trial counting methodology, reference values |
 
 Update docs when making changes affecting patterns/conventions. Commit code + docs together. When the human corrects your approach and it reflects a reusable lesson, propose adding it to the relevant `.claude/` file.
+
+---
+
+# Context Management
+
+**On compaction**: Preserve the full list of modified files, active task context, and any database query patterns discussed.

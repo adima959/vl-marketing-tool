@@ -19,8 +19,15 @@ const DB_URL = process.env.DATABASE_URL;
 if (!DB_URL) { console.error('DATABASE_URL is required'); process.exit(1); }
 const pool = new Pool({ connectionString: DB_URL });
 
+// Parse --hours N for time-scoped runs
+const hoursIdx = process.argv.indexOf('--hours');
+const HOURS_BACK = hoursIdx !== -1 ? parseInt(process.argv[hoursIdx + 1], 10) : 0;
+
+// queryRunner is either the pool or a dedicated client (for temp view support)
+let queryRunner: { query: (sql: string, params?: unknown[]) => Promise<{ rows: Record<string, unknown>[] }> } = pool;
+
 async function q(sql: string, params: unknown[] = []) {
-  const result = await pool.query(sql, params);
+  const result = await queryRunner.query(sql, params);
   return result.rows;
 }
 
@@ -37,7 +44,28 @@ function show(rows: Record<string, unknown>[], label?: string) {
 }
 
 async function main() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let client: any = null;
   try {
+    // If --hours is set, get a dedicated connection and create temp views
+    // that shadow the real tables — all existing queries auto-filter
+    if (HOURS_BACK > 0) {
+      client = await pool.connect();
+      queryRunner = client;
+      // Compute cutoff in JS — safe to embed since it's not user input
+      const cutoff = new Date(Date.now() - HOURS_BACK * 60 * 60 * 1000).toISOString();
+      console.log('\n  Filtering to last ' + HOURS_BACK + ' hour(s) (since ' + cutoff + ')\n');
+      // DDL (CREATE VIEW) does not support $1 bind params, so we embed the timestamp directly
+      const sessView = 'CREATE TEMP VIEW tracker_sessions AS SELECT * FROM public.tracker_sessions WHERE created_at >= TIMESTAMP ' + "'" + cutoff + "'";
+      const pvView = 'CREATE TEMP VIEW tracker_page_views AS SELECT * FROM public.tracker_page_views WHERE viewed_at >= TIMESTAMP ' + "'" + cutoff + "'";
+      const evView = 'CREATE TEMP VIEW tracker_events AS SELECT * FROM public.tracker_events WHERE event_at >= TIMESTAMP ' + "'" + cutoff + "'";
+      const visView = 'CREATE TEMP VIEW tracker_visitors AS SELECT * FROM public.tracker_visitors WHERE visitor_id IN (SELECT DISTINCT visitor_id FROM pg_temp.tracker_sessions)';
+      await client.query(sessView);
+      await client.query(pvView);
+      await client.query(evView);
+      await client.query(visView);
+    }
+
     // ══════════════════════════════════════════════════════════════════
     // SCHEMA DISCOVERY
     // ══════════════════════════════════════════════════════════════════
@@ -103,14 +131,12 @@ async function main() {
       SELECT 'tracker_sessions' AS tbl, COUNT(*) AS rows FROM tracker_sessions
       UNION ALL SELECT 'tracker_page_views', COUNT(*) FROM tracker_page_views
       UNION ALL SELECT 'tracker_events', COUNT(*) FROM tracker_events
-      UNION ALL SELECT 'tracker_raw_heartbeats', COUNT(*) FROM tracker_raw_heartbeats
       UNION ALL SELECT 'tracker_visitors', COUNT(*) FROM tracker_visitors
     `), 'Row counts');
 
     show(await q(`SELECT MIN(created_at) AS earliest, MAX(created_at) AS latest FROM tracker_sessions`), 'Sessions date range');
     show(await q(`SELECT MIN(viewed_at) AS earliest, MAX(viewed_at) AS latest FROM tracker_page_views`), 'Page views date range');
     show(await q(`SELECT MIN(event_at) AS earliest, MAX(event_at) AS latest FROM tracker_events`), 'Events date range');
-    show(await q(`SELECT MIN(cumulative_heartbeat_at) AS earliest, MAX(cumulative_heartbeat_at) AS latest FROM tracker_raw_heartbeats`), 'Heartbeats date range');
     show(await q(`SELECT MIN(first_seen_at) AS earliest, MAX(first_seen_at) AS latest FROM tracker_visitors`), 'Visitors date range');
 
     // ══════════════════════════════════════════════════════════════════
@@ -135,7 +161,6 @@ async function main() {
         COUNT(utm_term) AS has_utm_term,
         COUNT(placement) AS has_placement,
         COUNT(keyword) AS has_keyword,
-        COUNT(referrer) AS has_referrer,
         COUNT(device_type) AS has_device,
         COUNT(os_name) AS has_os,
         COUNT(browser_name) AS has_browser,
@@ -152,7 +177,6 @@ async function main() {
         COUNT(page_type) AS has_page_type,
         COUNT(url_path) AS has_url_path,
         COUNT(url_full) AS has_url_full,
-        COUNT(referrer_url) AS has_referrer,
         COUNT(screen_width) AS has_screen_w,
         COUNT(screen_height) AS has_screen_h,
         COUNT(fcp_ms) AS has_fcp,
@@ -181,7 +205,6 @@ async function main() {
         COUNT(*) FILTER (WHERE utm_source = '') AS empty_utm_source,
         COUNT(*) FILTER (WHERE utm_campaign = '') AS empty_utm_campaign,
         COUNT(*) FILTER (WHERE utm_medium = '') AS empty_utm_medium,
-        COUNT(*) FILTER (WHERE referrer = '') AS empty_referrer,
         COUNT(*) FILTER (WHERE entry_page_path = '') AS empty_entry_path,
         COUNT(*) FILTER (WHERE ip IS NULL) AS null_ip,
         COUNT(*) FILTER (WHERE visitor_id = '') AS empty_visitor_id,
@@ -195,8 +218,7 @@ async function main() {
       SELECT
         COUNT(*) FILTER (WHERE url_path = '') AS empty_url_path,
         COUNT(*) FILTER (WHERE url_full = '') AS empty_url_full,
-        COUNT(*) FILTER (WHERE page_type = '') AS empty_page_type,
-        COUNT(*) FILTER (WHERE referrer_url = '') AS empty_referrer_url
+        COUNT(*) FILTER (WHERE page_type = '') AS empty_page_type
       FROM tracker_page_views
     `), 'Page views empty string check');
 
@@ -233,20 +255,6 @@ async function main() {
       LEFT JOIN tracker_page_views pv ON e.page_view_id = pv.page_view_id
       WHERE pv.page_view_id IS NULL
     `), 'Events → missing page views');
-
-    show(await q(`
-      SELECT COUNT(*) AS orphan_heartbeats
-      FROM tracker_raw_heartbeats hb
-      LEFT JOIN tracker_page_views pv ON hb.page_view_id = pv.page_view_id
-      WHERE pv.page_view_id IS NULL
-    `), 'Heartbeats → missing page views');
-
-    show(await q(`
-      SELECT COUNT(*) AS orphan_heartbeats_session
-      FROM tracker_raw_heartbeats hb
-      LEFT JOIN tracker_sessions s ON hb.session_id = s.session_id
-      WHERE s.session_id IS NULL
-    `), 'Heartbeats → missing sessions');
 
     show(await q(`
       SELECT COUNT(*) AS sessions_no_visitor
@@ -460,56 +468,10 @@ async function main() {
     `), 'Sample non-empty event_properties');
 
     // ══════════════════════════════════════════════════════════════════
-    // PHASE 7: HEARTBEAT ANALYSIS
+    // PHASE 7: TEMPORAL ANOMALIES
+    // (Heartbeat section skipped — raw heartbeats are pruned every minute)
     // ══════════════════════════════════════════════════════════════════
-    section('PHASE 7: HEARTBEAT ANALYSIS');
-
-    show(await q(`
-      SELECT
-        (SELECT COUNT(*) FROM tracker_page_views) AS total_page_views,
-        (SELECT COUNT(DISTINCT page_view_id) FROM tracker_raw_heartbeats) AS pv_with_heartbeats,
-        (SELECT COUNT(*) FROM tracker_raw_heartbeats) AS total_heartbeats,
-        ROUND(100.0 *
-          (SELECT COUNT(DISTINCT page_view_id) FROM tracker_raw_heartbeats) /
-          NULLIF((SELECT COUNT(*) FROM tracker_page_views), 0),
-        2) AS heartbeat_coverage_pct
-    `), 'Heartbeat coverage');
-
-    show(await q(`
-      SELECT
-        COUNT(*) AS total,
-        COUNT(*) FILTER (WHERE cumulative_active_ms IS NULL) AS null_count,
-        COUNT(*) FILTER (WHERE cumulative_active_ms <= 0) AS zero_or_neg,
-        ROUND(AVG(cumulative_active_ms)::numeric, 0) AS avg_ms,
-        MIN(cumulative_active_ms) AS min_ms,
-        MAX(cumulative_active_ms) AS max_ms
-      FROM tracker_raw_heartbeats
-    `), 'cumulative_active_ms distribution');
-
-    show(await q(`
-      SELECT COUNT(*) AS session_id_mismatch
-      FROM tracker_raw_heartbeats hb
-      JOIN tracker_page_views pv ON hb.page_view_id = pv.page_view_id
-      WHERE hb.session_id != pv.session_id
-    `), 'Heartbeat session_id vs page_view session_id consistency');
-
-    // Heartbeats per page view
-    show(await q(`
-      WITH hb_per_pv AS (
-        SELECT page_view_id, COUNT(*) AS hb_count FROM tracker_raw_heartbeats GROUP BY page_view_id
-      )
-      SELECT
-        COUNT(*) AS page_views_with_hb,
-        ROUND(AVG(hb_count)::numeric, 2) AS avg_heartbeats,
-        MIN(hb_count) AS min_hb,
-        MAX(hb_count) AS max_hb
-      FROM hb_per_pv
-    `), 'Heartbeats per page view');
-
-    // ══════════════════════════════════════════════════════════════════
-    // PHASE 8: TEMPORAL ANOMALIES
-    // ══════════════════════════════════════════════════════════════════
-    section('PHASE 8: TEMPORAL ANOMALIES');
+    section('PHASE 7: TEMPORAL ANOMALIES');
 
     show(await q(`
       SELECT COUNT(*) AS events_before_pageview
@@ -526,22 +488,15 @@ async function main() {
     `), 'Page views >5s before session creation');
 
     show(await q(`
-      SELECT COUNT(*) AS hb_before_pv
-      FROM tracker_raw_heartbeats hb
-      JOIN tracker_page_views pv ON hb.page_view_id = pv.page_view_id
-      WHERE hb.cumulative_heartbeat_at < pv.viewed_at
-    `), 'Heartbeats before page view');
-
-    show(await q(`
       SELECT EXTRACT(HOUR FROM viewed_at)::int AS hour_utc, COUNT(*) AS page_views
       FROM tracker_page_views
       GROUP BY hour_utc ORDER BY hour_utc
     `), 'Hourly distribution (UTC)');
 
     // ══════════════════════════════════════════════════════════════════
-    // PHASE 9: UTM & TRAFFIC
+    // PHASE 8: UTM & TRAFFIC
     // ══════════════════════════════════════════════════════════════════
-    section('PHASE 9: UTM & TRAFFIC');
+    section('PHASE 8: UTM & TRAFFIC');
 
     show(await q(`
       SELECT
@@ -591,9 +546,9 @@ async function main() {
     `), 'Top referrers');
 
     // ══════════════════════════════════════════════════════════════════
-    // PHASE 10: VISITOR ANALYSIS
+    // PHASE 9: VISITOR ANALYSIS
     // ══════════════════════════════════════════════════════════════════
-    section('PHASE 10: VISITOR ANALYSIS');
+    section('PHASE 9: VISITOR ANALYSIS');
 
     show(await q(`
       SELECT s.visitor_id, COUNT(*) AS sessions,
@@ -639,9 +594,9 @@ async function main() {
     `), 'Visitor first_seen_at vs actual first session');
 
     // ══════════════════════════════════════════════════════════════════
-    // PHASE 11: DUPLICATE DETECTION
+    // PHASE 10: DUPLICATE DETECTION
     // ══════════════════════════════════════════════════════════════════
-    section('PHASE 11: DUPLICATE DETECTION');
+    section('PHASE 10: DUPLICATE DETECTION');
 
     show(await q(`
       SELECT visitor_id, COUNT(*) AS cnt
@@ -666,27 +621,9 @@ async function main() {
     `), 'Duplicate events (same pv + event_name + action + signal + same second)');
 
     // ══════════════════════════════════════════════════════════════════
-    // PHASE 12: DATA CONSISTENCY
+    // PHASE 11: DATA CONSISTENCY
     // ══════════════════════════════════════════════════════════════════
-    section('PHASE 12: DATA CONSISTENCY');
-
-    show(await q(`
-      SELECT
-        COUNT(*) AS total,
-        COUNT(*) FILTER (WHERE entry_page_path LIKE 'https://%') AS full_urls,
-        COUNT(*) FILTER (WHERE entry_page_path LIKE '/%') AS relative_paths,
-        COUNT(*) FILTER (WHERE entry_page_path IS NULL) AS null_paths
-      FROM tracker_sessions
-    `), 'entry_page_path format');
-
-    show(await q(`
-      SELECT
-        COUNT(*) AS total,
-        COUNT(*) FILTER (WHERE url_path LIKE 'https://%') AS full_urls,
-        COUNT(*) FILTER (WHERE url_path LIKE '/%') AS relative_paths,
-        COUNT(*) FILTER (WHERE url_path IS NULL) AS null_paths
-      FROM tracker_page_views
-    `), 'url_path format');
+    section('PHASE 11: DATA CONSISTENCY');
 
     // Session entry_page_path vs first page view url_path
     show(await q(`
@@ -719,14 +656,6 @@ async function main() {
     `), 'entry_page_path vs first PV mismatch samples');
 
     show(await q(`
-      SELECT
-        COUNT(*) AS total,
-        COUNT(*) FILTER (WHERE referrer = '') AS empty_referrer,
-        COUNT(*) FILTER (WHERE referrer IS NULL) AS null_referrer
-      FROM tracker_sessions
-    `), 'Referrer analysis');
-
-    show(await q(`
       SELECT property_dump
       FROM tracker_sessions
       WHERE property_dump IS NOT NULL AND property_dump != '{}'::jsonb
@@ -734,9 +663,9 @@ async function main() {
     `), 'property_dump contents sample');
 
     // ══════════════════════════════════════════════════════════════════
-    // PHASE 13: INDEX & TABLE HEALTH
+    // PHASE 12: INDEX & TABLE HEALTH
     // ══════════════════════════════════════════════════════════════════
-    section('PHASE 13: INDEX & TABLE HEALTH');
+    section('PHASE 12: INDEX & TABLE HEALTH');
 
     show(await q(`
       SELECT relname, n_live_tup, n_dead_tup,
@@ -771,9 +700,9 @@ async function main() {
     `), 'Foreign key constraints (existing)');
 
     // ══════════════════════════════════════════════════════════════════
-    // PHASE 14: ADVANCED CROSS-TABLE ANALYSIS
+    // PHASE 13: ADVANCED CROSS-TABLE ANALYSIS
     // ══════════════════════════════════════════════════════════════════
-    section('PHASE 14: ADVANCED CROSS-TABLE ANALYSIS');
+    section('PHASE 13: ADVANCED CROSS-TABLE ANALYSIS');
 
     // Events timeline consistency
     show(await q(`
@@ -796,9 +725,9 @@ async function main() {
     `), 'Visitor record completeness');
 
     // ══════════════════════════════════════════════════════════════════
-    // PHASE 15: DATA QUALITY EDGE CASES
+    // PHASE 14: DATA QUALITY EDGE CASES
     // ══════════════════════════════════════════════════════════════════
-    section('PHASE 15: DATA QUALITY EDGE CASES');
+    section('PHASE 14: DATA QUALITY EDGE CASES');
 
     // Screen size anomalies
     show(await q(`
@@ -850,9 +779,9 @@ async function main() {
     `), 'Visitors with many distinct user agents (>2)');
 
     // ══════════════════════════════════════════════════════════════════
-    // PHASE 16: FUNNEL & CLICK ID ANALYSIS
+    // PHASE 15: FUNNEL & CLICK ID ANALYSIS
     // ══════════════════════════════════════════════════════════════════
-    section('PHASE 16: FUNNEL & CLICK ID ANALYSIS');
+    section('PHASE 15: FUNNEL & CLICK ID ANALYSIS');
 
     show(await q(`
       SELECT ff_funnel_id, COUNT(*) AS cnt
@@ -880,6 +809,7 @@ async function main() {
   } catch (error) {
     console.error('Analysis failed:', error);
   } finally {
+    if (client) client.release();
     await pool.end();
   }
 }

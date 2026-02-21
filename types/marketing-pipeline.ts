@@ -135,8 +135,10 @@ export interface CpaTarget {
 export interface Product extends BaseEntity {
   name: string;
   sku?: string;
-  description?: string;
   notes?: string;
+  ingredientClaims?: string;
+  competitivePositioning?: string;
+  customerLanguageBank?: string;
   color?: string;
   status: ProductStatus;
   ownerId?: string | null;
@@ -156,6 +158,8 @@ export interface Angle extends BaseEntity {
   productId: string;
   name: string;
   description?: string;
+  targetAudience?: string;
+  emotionalDriver?: string;
   status: AngleStatus;
   launchedAt?: string;
   messages?: Message[];
@@ -248,8 +252,10 @@ export interface ActivityLog extends BaseEntity {
 export interface CreateProductRequest {
   name: string;
   sku?: string;
-  description?: string;
   notes?: string;
+  ingredientClaims?: string;
+  competitivePositioning?: string;
+  customerLanguageBank?: string;
   color?: string;
   status?: ProductStatus;
   ownerId?: string | null;

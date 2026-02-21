@@ -12,6 +12,11 @@ import { createDriveSubfolder, DRIVE_FOLDERS } from '@/lib/server/googleDrive';
 import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
 import { createProductSchema } from '@/lib/schemas/marketingPipeline';
+import {
+  INGREDIENT_CLAIMS_TEMPLATE,
+  COMPETITIVE_POSITIONING_TEMPLATE,
+  CUSTOMER_LANGUAGE_BANK_TEMPLATE,
+} from '@/lib/marketing-pipeline/productTemplates';
 import { z } from 'zod';
 import { unstable_rethrow } from 'next/navigation';
 
@@ -46,8 +51,10 @@ export const POST = withPermission('admin.product_settings', 'can_create', async
     const newProduct = await createProduct({
       name: body.name,
       sku: body.sku ?? undefined,
-      description: body.description ?? undefined,
       notes: body.notes ?? undefined,
+      ingredientClaims: body.ingredientClaims ?? INGREDIENT_CLAIMS_TEMPLATE,
+      competitivePositioning: body.competitivePositioning ?? COMPETITIVE_POSITIONING_TEMPLATE,
+      customerLanguageBank: body.customerLanguageBank ?? CUSTOMER_LANGUAGE_BANK_TEMPLATE,
       color: body.color ?? undefined,
       status: body.status,
       ownerId: body.ownerId ?? undefined,

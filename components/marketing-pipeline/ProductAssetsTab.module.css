@@ -50,59 +50,29 @@
   display: none;
 }
 
-/* ── Compact "add more" trigger ──────────────────────── */
-
-.compactDropZone {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-2);
-  padding: 48px var(--spacing-4);
-  border: 2px dashed var(--color-primary-300);
-  border-radius: var(--radius-lg);
-  cursor: pointer;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  transition: all var(--transition-fast);
-  background: transparent;
-}
-
-.compactDropZone:hover {
-  border-color: var(--color-primary-400);
-  color: var(--color-primary-600);
-  background: var(--color-primary-alpha-3);
-}
-
-.compactDropZoneDragOver {
-  border-color: var(--color-primary-500);
-  border-style: solid;
-  background: var(--color-primary-alpha-6);
-  color: var(--color-primary-600);
-}
-
-.dropHintInline {
-  font-size: var(--font-size-xs);
-  color: var(--color-gray-400);
-  margin-left: auto;
-}
-
 /* ── Upload queue ────────────────────────────────────── */
 
 .uploadList {
+  composes: whiteBox from './PipelinePanel.module.css';
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-2);
-  margin-top: var(--spacing-6);
+  overflow-y: auto;
+  /* Match drop zone height */
+  min-height: 120px;
+  max-height: 120px;
 }
 
 .uploadRow {
   display: flex;
   align-items: center;
-  gap: var(--spacing-2);
-  padding: var(--spacing-2) var(--spacing-3);
-  background: var(--color-gray-50);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
+  gap: 8px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--color-border-light);
+  font-size: 13px;
+}
+
+.uploadRow:last-child {
+  border-bottom: none;
 }
 
 .uploadFileName {
@@ -143,11 +113,11 @@
 }
 
 .uploadStatusDone {
-  color: var(--color-success-600);
+  color: var(--color-status-green);
 }
 
 .uploadStatusError {
-  color: var(--color-error-600);
+  color: var(--color-status-red);
 }
 
 .uploadSpinner {
@@ -163,7 +133,7 @@
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--color-error-600);
+  color: var(--color-status-red);
   cursor: pointer;
   padding: 0;
   margin-left: 2px;
@@ -171,12 +141,108 @@
 }
 
 .uploadDismiss:hover {
-  background: var(--color-error-50);
+  background: var(--color-status-red-bg);
+}
+
+/* ── Upload success celebration ────────────────────── */
+
+.uploadSuccess {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  border: 1px solid var(--color-status-green-leaf-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-status-green-leaf-bg);
+  min-height: 120px;
+  max-height: 120px;
+  position: relative;
+  overflow: hidden;
+}
+
+.successIcon {
+  color: var(--color-status-green);
+  animation: successPop 400ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  z-index: 1;
+}
+
+.successText {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-status-green-dark);
+  z-index: 1;
+}
+
+@keyframes successPop {
+  0% { transform: scale(0); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Confetti */
+.confettiField {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.confettiPiece {
+  position: absolute;
+  top: -14px;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: confettiFall 1.4s ease-out forwards;
+}
+
+/* Cycle through colors */
+.confettiPiece:nth-child(6n+1) { background: var(--color-status-green); }
+.confettiPiece:nth-child(6n+2) { background: var(--color-accent-blue); }
+.confettiPiece:nth-child(6n+3) { background: var(--color-accent-orange); }
+.confettiPiece:nth-child(6n+4) { background: var(--color-accent-purple); }
+.confettiPiece:nth-child(6n+5) { background: var(--color-accent-pink); }
+.confettiPiece:nth-child(6n+6) { background: var(--color-accent-cyan); }
+
+/* Vary shapes — circles vs rectangles */
+.confettiPiece:nth-child(3n) {
+  border-radius: 50%;
+  width: 8px;
+  height: 8px;
+}
+
+.confettiPiece:nth-child(4n+1) {
+  width: 12px;
+  height: 6px;
+  border-radius: 2px;
+}
+
+@keyframes confettiFall {
+  0% {
+    transform: translateY(-10px) rotate(0deg) scale(1.2);
+    opacity: 1;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(140px) rotate(540deg) scale(0.6);
+    opacity: 0;
+  }
 }
 
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* ── File section — whiteBox card ────────────────────── */
+
+.fileSection {
+  composes: whiteBox from './PipelinePanel.module.css';
+  margin-top: var(--spacing-5);
+  overflow: visible;
 }
 
 /* ── File list skeleton ──────────────────────────────── */
@@ -185,15 +251,15 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-top: var(--spacing-6);
+  padding: var(--spacing-3) var(--spacing-4);
 }
 
 .skeletonRow {
   display: flex;
   align-items: center;
   gap: var(--spacing-2);
-  padding: 8px var(--spacing-3);
-  height: 36px;
+  padding: 9px 0;
+  height: 38px;
 }
 
 .skeletonIcon {
@@ -243,16 +309,68 @@
   100% { background-position: -200% 0; }
 }
 
-/* ── Toolbar: filter chips + group toggle ────────────── */
+/* ── Folder tabs — underline style (panel convention) ── */
+
+.folderTabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--color-gray-200);
+  padding: 0 16px;
+}
+
+.folderTabBtn {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-gray-500);
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition-fast);
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+
+.folderTabBtn:hover {
+  color: var(--color-gray-700);
+}
+
+.folderTabBtnActive {
+  color: var(--color-gray-900);
+  border-bottom-color: var(--color-gray-900);
+  font-weight: 600;
+}
+
+.folderTabCount {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-gray-400);
+  background: var(--color-gray-100);
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  min-width: 16px;
+  text-align: center;
+  line-height: 16px;
+}
+
+.folderTabBtnActive .folderTabCount {
+  color: var(--color-gray-600);
+  background: var(--color-gray-200);
+}
+
+/* ── Toolbar: filter chips ───────────────────────────── */
 
 .toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-2);
-  margin-top: var(--spacing-10);
-  padding-bottom: var(--spacing-3);
-  border-bottom: 1px solid var(--color-gray-200);
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--color-border-light);
+  background: var(--color-gray-50);
 }
 
 .filterChips {
@@ -279,7 +397,7 @@
 
 .filterChip:hover {
   border-color: var(--color-gray-300);
-  background: var(--color-gray-50);
+  background: var(--color-background-primary);
 }
 
 .filterChipActive {
@@ -316,58 +434,28 @@
   white-space: nowrap;
 }
 
-.groupToggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border: 1px solid var(--color-gray-200);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-gray-400);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.groupToggle:hover {
-  border-color: var(--color-gray-300);
-  color: var(--color-text-secondary);
-  background: var(--color-gray-50);
-}
-
-.groupToggleActive {
-  border-color: var(--color-primary-200);
-  background: var(--color-primary-50);
-  color: var(--color-primary-600);
-}
-
-.groupToggleActive:hover {
-  border-color: var(--color-primary-300);
-  background: var(--color-primary-50);
-}
-
-/* ── Unified file list ───────────────────────────────── */
+/* ── File list (CRUD list pattern) ───────────────────── */
 
 .fileList {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  margin-top: var(--spacing-2);
 }
 
 .fileRow {
   display: flex;
   align-items: center;
-  gap: var(--spacing-2);
-  padding: 6px var(--spacing-3);
-  border-radius: var(--radius-md);
+  gap: 8px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--color-border-light);
   transition: background var(--transition-fast);
-  height: 36px;
+}
+
+.fileRow:last-child {
+  border-bottom: none;
 }
 
 .fileRow:hover {
-  background: var(--color-gray-50);
+  background: var(--color-background-secondary);
 }
 
 .fileIcon {
@@ -421,7 +509,8 @@
 .fileName {
   flex: 1;
   min-width: 0;
-  font-size: var(--font-size-sm);
+  font-size: 13px;
+  font-weight: 400;
   color: var(--color-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -437,6 +526,20 @@
   padding: 1px 6px;
   border-radius: var(--radius-sm);
   letter-spacing: 0.03em;
+}
+
+.folderBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-gray-500);
+  background: var(--color-gray-50);
+  border: 1px solid var(--color-gray-200);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
 }
 
 .fileMeta {
@@ -455,82 +558,262 @@
   color: var(--color-gray-400);
 }
 
+/* Action buttons — hidden until row hover */
 .fileActions {
   display: flex;
   align-items: center;
   gap: 2px;
   flex-shrink: 0;
-  opacity: 0;
-  transition: opacity var(--transition-fast);
-}
-
-.fileRow:hover .fileActions {
-  opacity: 1;
 }
 
 .fileActionBtn {
+  all: unset;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border: none;
+  width: 24px;
+  height: 24px;
   border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-gray-500);
-  cursor: pointer;
+  color: var(--color-gray-400);
+  opacity: 0;
   transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.fileRow:hover .fileActionBtn {
+  opacity: 1;
 }
 
 .fileActionBtn:hover {
+  color: var(--color-gray-700);
   background: var(--color-gray-100);
-  color: var(--color-text-primary);
 }
 
 .fileActionBtnDanger:hover {
-  background: var(--color-error-50);
-  color: var(--color-error-600);
+  color: var(--color-status-red);
+  background: var(--color-status-red-bg);
 }
 
-/* ── Group headers ───────────────────────────────────── */
+/* ── Multi-select: checkbox ─────────────────────────── */
 
-.groupHeader {
+.rowCheckbox {
+  all: unset;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: var(--spacing-2);
-  font-size: var(--font-size-xs);
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1.5px solid var(--color-gray-300);
+  background: var(--color-background-primary);
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+  opacity: 0;
+  margin-right: -4px;
+}
+
+.rowCheckbox:hover {
+  border-color: var(--color-primary-400);
+}
+
+/* Show checkbox on row hover or when any selection is active */
+.fileRowSelectable .rowCheckbox,
+.fileRow:hover .rowCheckbox {
+  opacity: 1;
+}
+
+.rowCheckboxChecked {
+  opacity: 1;
+  background: var(--color-primary-500);
+  border-color: var(--color-primary-500);
+  color: white;
+}
+
+.rowCheckboxChecked:hover {
+  background: var(--color-primary-600);
+  border-color: var(--color-primary-600);
+}
+
+.rowCheckboxIndeterminate {
+  opacity: 1;
+  background: var(--color-primary-500);
+  border-color: var(--color-primary-500);
+  color: white;
+}
+
+/* Selected row highlight */
+.fileRowSelected {
+  background: var(--color-primary-alpha-3);
+}
+
+.fileRowSelected:hover {
+  background: var(--color-primary-alpha-6);
+}
+
+/* ── Multi-select: toolbar in selection mode ────────── */
+
+.toolbarSelection {
+  background: var(--color-primary-50);
+  border-bottom-color: var(--color-primary-100);
+}
+
+.toolbarSelection .rowCheckbox {
+  opacity: 1;
+}
+
+.bulkLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bulkCount {
+  font-size: 13px;
   font-weight: var(--font-weight-semibold);
-  color: var(--color-gray-500);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 6px var(--spacing-3);
-  margin-top: var(--spacing-4);
-  background: var(--color-gray-50);
+  color: var(--color-primary-700);
+  white-space: nowrap;
+}
+
+.bulkActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.bulkActionBtn {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
   border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-gray-600);
+  transition: all var(--transition-fast);
+  white-space: nowrap;
 }
 
-.groupHeader:first-child {
-  margin-top: var(--spacing-2);
+.bulkActionBtn:hover {
+  background: var(--color-background-primary);
+  color: var(--color-gray-800);
 }
 
-.groupCount {
-  font-size: 10px;
+.bulkActionBtnDanger {
+  color: var(--color-status-red);
+}
+
+.bulkActionBtnDanger:hover {
+  background: var(--color-status-red-bg);
+  color: var(--color-status-red-dark, #b91c1c);
+}
+
+.bulkActionBtnDanger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bulkClearBtn {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
   color: var(--color-gray-400);
-  font-weight: var(--font-weight-normal);
+  transition: all var(--transition-fast);
+  margin-left: 4px;
+}
+
+.bulkClearBtn:hover {
+  background: var(--color-gray-200);
+  color: var(--color-gray-600);
 }
 
 /* ── Empty state ─────────────────────────────────────── */
 
 .emptyState {
   text-align: center;
-  padding: var(--spacing-4) 0;
+  padding: var(--spacing-8) var(--spacing-4);
   color: var(--color-gray-400);
-  font-size: var(--font-size-sm);
+  font-size: 13px;
 }
 
 .emptyHint {
   text-align: center;
-  padding: var(--spacing-3) 0;
+  padding: var(--spacing-6) var(--spacing-4);
   color: var(--color-gray-400);
-  font-size: var(--font-size-xs);
+  font-size: 13px;
+}
+
+/* ── Folder selection dialog ─────────────────────────── */
+
+.folderDialog {
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  background: var(--color-background-primary);
+  padding: var(--spacing-3) var(--spacing-4);
+  box-shadow: var(--shadow-xs);
+}
+
+.folderDialogHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-3);
+}
+
+.folderDialogTitle {
+  font-size: 13px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.folderDialogClose {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--color-gray-400);
+  transition: all var(--transition-fast);
+}
+
+.folderDialogClose:hover {
+  background: var(--color-gray-100);
+  color: var(--color-gray-600);
+}
+
+.folderOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.folderOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  background: var(--color-background-secondary);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.folderOption:hover {
+  border-color: var(--color-primary-300);
+  background: var(--color-primary-50);
+  color: var(--color-primary-700);
 }

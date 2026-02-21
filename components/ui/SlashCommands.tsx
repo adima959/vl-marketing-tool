@@ -14,6 +14,7 @@ import tippy, { type Instance } from 'tippy.js';
 import type { Editor, Range } from '@tiptap/core';
 import {
   Type,
+  Heading1,
   Heading2,
   Heading3,
   List,
@@ -24,6 +25,10 @@ import {
   Minus,
   Highlighter,
   ChevronRight,
+  Info,
+  AlertTriangle,
+  AlertCircle,
+  CheckCircle,
 } from 'lucide-react';
 import styles from './SlashCommands.module.css';
 
@@ -44,8 +49,14 @@ const COMMANDS: CommandItem[] = [
     command: (editor) => { editor.chain().focus().setParagraph().run(); },
   },
   {
-    title: 'Heading 2',
+    title: 'Heading 1',
     description: 'Large heading',
+    icon: <Heading1 size={16} />,
+    command: (editor) => { editor.chain().focus().toggleHeading({ level: 1 }).run(); },
+  },
+  {
+    title: 'Heading 2',
+    description: 'Medium heading',
     icon: <Heading2 size={16} />,
     command: (editor) => { editor.chain().focus().toggleHeading({ level: 2 }).run(); },
   },
@@ -102,6 +113,30 @@ const COMMANDS: CommandItem[] = [
     description: 'Horizontal rule',
     icon: <Minus size={16} />,
     command: (editor) => { editor.chain().focus().setHorizontalRule().run(); },
+  },
+  {
+    title: 'Info Callout',
+    description: 'Blue info box',
+    icon: <Info size={16} />,
+    command: (editor) => { editor.chain().focus().setCallout({ type: 'info' }).run(); },
+  },
+  {
+    title: 'Warning Callout',
+    description: 'Yellow warning box',
+    icon: <AlertTriangle size={16} />,
+    command: (editor) => { editor.chain().focus().setCallout({ type: 'warning' }).run(); },
+  },
+  {
+    title: 'Error Callout',
+    description: 'Red error box',
+    icon: <AlertCircle size={16} />,
+    command: (editor) => { editor.chain().focus().setCallout({ type: 'error' }).run(); },
+  },
+  {
+    title: 'Success Callout',
+    description: 'Green success box',
+    icon: <CheckCircle size={16} />,
+    command: (editor) => { editor.chain().focus().setCallout({ type: 'success' }).run(); },
   },
 ];
 

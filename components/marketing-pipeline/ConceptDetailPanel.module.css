@@ -707,3 +707,416 @@
   gap: var(--spacing-2);
   margin-top: var(--spacing-2);
 }
+
+/* ── Product Tab Bar ──────────────────────────────────── */
+
+.productTabBar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--color-gray-200);
+  padding: 0 24px;
+  background: var(--color-background-primary);
+}
+
+.productTab {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-gray-500);
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition-fast);
+  margin-bottom: -1px;
+}
+
+.productTab:hover {
+  color: var(--color-gray-700);
+}
+
+.productTabActive {
+  color: var(--color-gray-900);
+  border-bottom-color: var(--color-gray-900);
+  font-weight: 600;
+}
+
+.productTabBadge {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-gray-400);
+  background: var(--color-gray-100);
+  padding: 0 5px;
+  border-radius: 9999px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 16px;
+}
+
+.productTabActive .productTabBadge {
+  color: var(--color-gray-600);
+  background: var(--color-gray-200);
+}
+
+/* ── Product Content Card (white container for tab content) ── */
+
+.contentCard {
+  composes: whiteBox from './PipelinePanel.module.css';
+  overflow: visible;
+}
+
+/* ── Product Accordion Sections ───────────────────────── */
+
+.accordionSection {
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.accordionSection:last-child {
+  border-bottom: none;
+}
+
+.accordionHeader {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-gray-700);
+  transition: background var(--transition-fast);
+  line-height: 1;
+  box-sizing: border-box;
+}
+
+.accordionHeader:hover {
+  background: var(--color-gray-50);
+}
+
+.accordionChevron {
+  font-size: 10px;
+  color: var(--color-gray-400);
+  width: 12px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.accordionIcon {
+  color: var(--color-gray-400);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.accordionLabel {
+  flex: 1;
+}
+
+/* Status indicator on right side of accordion header */
+.accordionStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.accordionStatusSaving {
+  color: var(--color-gray-500);
+  background: var(--color-gray-100);
+}
+
+.accordionStatusSaved {
+  color: var(--color-status-green);
+  background: var(--color-status-green-bg);
+}
+
+.accordionStatusError {
+  color: var(--color-status-red);
+  background: var(--color-status-red-bg);
+}
+
+@keyframes accordionSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.accordionStatusSpinner {
+  animation: accordionSpin 1s linear infinite;
+}
+
+.accordionContent {
+  /* Left padding aligns with header icon: 16px base + 12px chevron + 8px gap = 36px */
+  padding: 8px 16px 16px 36px;
+}
+
+.accordionDescription {
+  margin: 0 0 var(--spacing-3) 0;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--color-gray-400);
+  letter-spacing: 0.01em;
+}
+
+/* Preamble text above accordion sections — explains why this layer exists */
+.researchPreamble {
+  margin: 0;
+  padding: var(--spacing-3) var(--spacing-4);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--color-gray-400);
+  border-bottom: 1px solid var(--color-border-light);
+  letter-spacing: 0.01em;
+}
+
+/* ── Angle Accordion Extensions ──────────────────────── */
+
+/* Actions (rename/delete) in the angle accordion header */
+.angleAccordionActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.angleAccordionAction {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--color-gray-400);
+  opacity: 0;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.accordionHeader:hover .angleAccordionAction {
+  opacity: 1;
+}
+
+.angleAccordionAction:hover {
+  color: var(--color-gray-700);
+  background: var(--color-gray-100);
+}
+
+.angleDeleteAction:hover:not(:disabled) {
+  color: var(--color-status-red);
+  background: var(--color-status-red-bg);
+}
+
+.angleDeleteAction:disabled {
+  cursor: not-allowed;
+  opacity: 0.3 !important;
+}
+
+/* Message count badge in angle header */
+.angleMsgBadge {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-gray-400);
+  background: var(--color-gray-100);
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  min-width: 16px;
+  text-align: center;
+  line-height: 16px;
+  flex-shrink: 0;
+}
+
+/* Field label inside expanded angle content */
+.angleFieldLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-gray-700);
+  margin: 0 0 2px 0;
+}
+
+/* Field helper text — reuses accordion description pattern */
+.angleFieldHelper {
+  margin: 0 0 var(--spacing-2) 0;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--color-gray-400);
+}
+
+/* Spacing between stacked field blocks inside an angle */
+.angleFieldBlock {
+  margin-bottom: var(--spacing-4);
+}
+
+.angleFieldBlock:last-child {
+  margin-bottom: 0;
+}
+
+/* Inline rename input inside accordion header */
+.angleRenameInput {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  padding: 2px 6px;
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--radius-sm);
+  background: var(--color-background-primary);
+  color: var(--color-gray-800);
+  outline: none;
+  min-width: 0;
+}
+
+.angleRenameInput:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-100);
+}
+
+/* Save button in rename mode */
+.angleSaveAction {
+  opacity: 1 !important;
+  color: var(--color-primary);
+}
+
+.angleSaveAction:hover {
+  background: var(--color-primary-50);
+}
+
+.angleCancelAction {
+  opacity: 1 !important;
+}
+
+/* Delete confirmation row */
+.angleConfirmRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--color-status-red-bg);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.angleConfirmText {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-status-red-dark, #991b1b);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.angleConfirmYes {
+  all: unset;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-status-red);
+  padding: 3px 10px;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.angleConfirmYes:hover {
+  background: var(--color-status-red-hover);
+}
+
+.angleConfirmCancel {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--color-gray-500);
+  transition: all var(--transition-fast);
+}
+
+.angleConfirmCancel:hover {
+  color: var(--color-gray-700);
+  background: var(--color-gray-100);
+}
+
+/* Add angle row at bottom */
+.angleAddRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: var(--spacing-3) var(--spacing-4);
+  border-top: 1px solid var(--color-border-light);
+  background: var(--color-gray-50);
+}
+
+.angleAddInput {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  padding: 6px 10px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  background: var(--color-background-primary);
+  color: var(--color-gray-800);
+  outline: none;
+  min-width: 0;
+}
+
+.angleAddInput:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-100);
+}
+
+.angleAddInput::placeholder {
+  color: var(--color-gray-400);
+}
+
+.angleAddBtn {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-gray-400);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.angleAddBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.angleAddBtnActive {
+  color: var(--color-primary);
+}
+
+.angleAddBtnActive:hover {
+  background: var(--color-primary-50);
+}
+
+/* Empty state */
+.angleEmptyState {
+  padding: 32px 16px;
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-400);
+}

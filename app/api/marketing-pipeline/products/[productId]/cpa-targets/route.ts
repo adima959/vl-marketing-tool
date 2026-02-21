@@ -20,7 +20,7 @@ const cpaTargetSchema = z.object({
   targets: z.array(z.object({
     geo: z.enum(['NO', 'SE', 'DK', 'FI']),
     channel: z.enum(['meta', 'google', 'taboola', 'other']),
-    target: z.number().positive(),
+    target: z.coerce.number().positive(),
   })),
 });
 

@@ -2,7 +2,6 @@
 
 import { Modal, Form, Input, Select } from 'antd';
 import type { Angle, AngleStatus } from '@/types';
-import { FormRichEditor } from '@/components/ui/FormRichEditor';
 import { useEntityModal } from '@/hooks/useEntityModal';
 import modalStyles from '@/styles/components/modal.module.css';
 
@@ -17,6 +16,8 @@ interface AngleModalProps {
 interface AngleFormValues {
   name: string;
   description?: string;
+  targetAudience?: string;
+  emotionalDriver?: string;
   status: AngleStatus;
 }
 
@@ -39,6 +40,8 @@ export function AngleModal({ open, onClose, onSuccess, productId, angle }: Angle
     entityToFormValues: (angle) => ({
       name: angle.name,
       description: angle.description || '',
+      targetAudience: angle.targetAudience || '',
+      emotionalDriver: angle.emotionalDriver || '',
       status: angle.status,
     }),
     formValuesToRequestBody: (values, isEdit) => (isEdit ? values : { ...values, productId }),
@@ -83,8 +86,16 @@ export function AngleModal({ open, onClose, onSuccess, productId, angle }: Angle
             <Select options={statusOptions} />
           </Form.Item>
 
-          <Form.Item name="description" label="Description" style={{ gridColumn: '1 / -1' }}>
-            <FormRichEditor placeholder="Brief description of the problem area..." />
+          <Form.Item name="description" label="Problem or Desire" style={{ gridColumn: '1 / -1' }}>
+            <Input.TextArea rows={2} placeholder="What problem area or desire does this angle address?" />
+          </Form.Item>
+
+          <Form.Item name="targetAudience" label="Target Audience" style={{ gridColumn: '1 / -1' }}>
+            <Input.TextArea rows={2} placeholder="Who are you writing to? Age, life situation, what defines them." />
+          </Form.Item>
+
+          <Form.Item name="emotionalDriver" label="Emotional Driver" style={{ gridColumn: '1 / -1' }}>
+            <Input.TextArea rows={2} placeholder="The deep fear or desire — not the surface symptom." />
           </Form.Item>
         </div>
       </Form>

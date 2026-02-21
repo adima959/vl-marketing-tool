@@ -106,6 +106,7 @@ interface PipelineState {
   toggleChannelFilter: (value: string) => void;
   toggleGeoFilter: (value: string) => void;
   updateProductField: (productId: string, field: string, value: string | number) => void;
+  updateAngleField: (angleId: string, field: string, value: string) => void;
   fetchCampaignPerformance: (messageId: string, dateRange?: { start: string; end: string }) => void;
   openProductPanel: (productId: string) => void;
   closeProductPanel: () => void;
@@ -627,6 +628,19 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       refreshAfterMutation(get);
     } catch (error) {
       handleStoreError('update product field', error);
+    }
+  },
+
+  updateAngleField: async (angleId, field, value) => {
+    try {
+      await fetchApi(`/api/marketing-pipeline/angles/${angleId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value }),
+      });
+      set({ angles: get().angles.map(a => a.id === angleId ? { ...a, [field]: value } : a) });
+    } catch (error) {
+      handleStoreError('update angle field', error);
     }
   },
 }));

@@ -1,5 +1,5 @@
 /**
- * PATCH  /api/marketing-pipeline/angles/[angleId] — rename a pipeline angle
+ * PATCH  /api/marketing-pipeline/angles/[angleId] — update a pipeline angle
  * DELETE /api/marketing-pipeline/angles/[angleId] — soft-delete a pipeline angle
  */
 
@@ -27,14 +27,17 @@ export const PATCH = withPermission('admin.data_maps', 'can_edit', async (
     const rawBody = await request.json();
     const body = updatePipelineAngleSchema.parse(rawBody);
 
-    if (!body.name) {
-      return NextResponse.json({ success: false, error: 'name is required' }, { status: 400 });
-    }
+    // Build update data from all provided fields
+    const updateData: Record<string, string> = {};
+    if (body.name !== undefined) updateData.name = body.name;
+    if (body.description !== undefined) updateData.description = body.description ?? '';
+    if (body.targetAudience !== undefined) updateData.targetAudience = body.targetAudience ?? '';
+    if (body.emotionalDriver !== undefined) updateData.emotionalDriver = body.emotionalDriver ?? '';
 
-    const angle = await updatePipelineAngle(angleId, { name: body.name });
+    const angle = await updatePipelineAngle(angleId, updateData);
 
-    // Rename Drive folder in background (non-blocking)
-    if (angle.driveFolderId) {
+    // Rename Drive folder in background if name changed (non-blocking)
+    if (body.name && angle.driveFolderId) {
       renameDriveFolder(angle.driveFolderId, body.name).catch(() => {});
     }
 

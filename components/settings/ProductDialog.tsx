@@ -1,11 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { App, Modal, Form, Input, Select, Button } from 'antd';
-import { AimOutlined } from '@ant-design/icons';
+import { App, Modal, Form, Input, Select } from 'antd';
 import type { Product, PipelineUser } from '@/types/marketing-pipeline';
-import { FormRichEditor } from '@/components/ui/FormRichEditor';
-import { CpaTargetsModal } from '@/components/marketing-pipeline/CpaTargetsModal';
 import modalStyles from '@/styles/components/modal.module.css';
 
 /** 24 subtle product colors inspired by VitaLiv product packaging */
@@ -32,7 +29,6 @@ interface ProductDialogProps {
 interface ProductFormValues {
   name: string;
   sku?: string;
-  description?: string;
   ownerId?: string;
 }
 
@@ -41,7 +37,6 @@ export function ProductDialog({ product, users, open, onClose, onSuccess }: Prod
   const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
-  const [showCpaTargets, setShowCpaTargets] = useState(false);
 
   const isEdit = !!product;
 
@@ -59,7 +54,6 @@ export function ProductDialog({ product, users, open, onClose, onSuccess }: Prod
         body: JSON.stringify({
           name: values.name,
           sku: values.sku || null,
-          description: values.description || null,
           color: selectedColor,
           ownerId: values.ownerId || null,
         }),
@@ -94,7 +88,6 @@ export function ProductDialog({ product, users, open, onClose, onSuccess }: Prod
         form.setFieldsValue({
           name: product.name,
           sku: product.sku || undefined,
-          description: product.description || undefined,
           ownerId: product.ownerId ?? undefined,
         });
         setSelectedColor(product.color || null);
@@ -172,37 +165,8 @@ export function ProductDialog({ product, users, open, onClose, onSuccess }: Prod
             </div>
           </Form.Item>
 
-          <Form.Item
-            label={<span className={modalStyles.formLabel}>Description</span>}
-            name="description"
-            style={{ gridColumn: '1 / -1', marginBottom: 0 }}
-          >
-            <FormRichEditor placeholder="Brief product description..." />
-          </Form.Item>
         </div>
-
-        {isEdit && product && (
-          <div style={{ padding: '0 0 4px', marginTop: 8 }}>
-            <Button
-              type="link"
-              icon={<AimOutlined />}
-              onClick={() => setShowCpaTargets(true)}
-              style={{ padding: 0, fontSize: 13 }}
-            >
-              Edit CPA Targets
-            </Button>
-          </div>
-        )}
       </Form>
-
-      {isEdit && product && (
-        <CpaTargetsModal
-          open={showCpaTargets}
-          product={product}
-          onClose={() => setShowCpaTargets(false)}
-          onSave={onSuccess}
-        />
-      )}
     </Modal>
   );
 }

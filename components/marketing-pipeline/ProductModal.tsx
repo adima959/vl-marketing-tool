@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { Modal, Form, Input, Select } from 'antd';
 import type { Product, PipelineUser } from '@/types';
-import { FormRichEditor } from '@/components/ui/FormRichEditor';
 import { useEntityModal } from '@/hooks/useEntityModal';
 import modalStyles from '@/styles/components/modal.module.css';
 
@@ -25,8 +24,6 @@ interface ProductModalProps {
 
 interface ProductFormValues {
   name: string;
-  description?: string;
-  notes?: string;
   ownerId: string;
 }
 
@@ -42,8 +39,6 @@ export function ProductModal({ open, onClose, onSuccess, product, users }: Produ
     getUpdateUrl: (product) => `/api/marketing-pipeline/products/${product.id}`,
     entityToFormValues: (product) => ({
       name: product.name,
-      description: product.description || '',
-      notes: product.notes || '',
       ownerId: product.ownerId ?? '',
     }),
     formValuesToRequestBody: (values) => ({ ...values, color: selectedColor }),
@@ -124,13 +119,6 @@ export function ProductModal({ open, onClose, onSuccess, product, users }: Produ
             </div>
           </Form.Item>
 
-          <Form.Item name="description" label="Description" style={{ gridColumn: '1 / -1' }}>
-            <FormRichEditor placeholder="Product description..." />
-          </Form.Item>
-
-          <Form.Item name="notes" label="Notes" style={{ gridColumn: '1 / -1' }}>
-            <FormRichEditor placeholder="Internal notes, pricing info, etc." />
-          </Form.Item>
         </div>
       </Form>
     </Modal>

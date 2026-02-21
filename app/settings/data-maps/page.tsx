@@ -17,7 +17,7 @@
 import { useState, lazy, Suspense, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Spin } from 'antd';
-import { Megaphone, Globe, Link2, Triangle } from 'lucide-react';
+import { Megaphone, Globe, Link2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AccessDenied } from '@/components/AccessDenied';
 import { fetchUnclassifiedCount as fetchCampaignCount } from '@/lib/api/campaignClassificationsClient';
@@ -38,11 +38,7 @@ const AffiliateMapPanel = lazy(() =>
   import('@/components/settings/AffiliateMapPanel').then((mod) => ({ default: mod.AffiliateMapPanel }))
 );
 
-const AngleMapPanel = lazy(() =>
-  import('@/components/settings/AngleMapPanel').then((mod) => ({ default: mod.AngleMapPanel }))
-);
-
-type TabKey = 'campaign' | 'url' | 'affiliate' | 'angles';
+type TabKey = 'campaign' | 'url' | 'affiliate';
 
 interface Tab {
   key: TabKey;
@@ -54,7 +50,6 @@ const TABS: Tab[] = [
   { key: 'campaign', label: 'Campaign Map', icon: Megaphone },
   { key: 'url', label: 'URL Map', icon: Globe },
   { key: 'affiliate', label: 'Affiliate Map', icon: Link2 },
-  { key: 'angles', label: 'Angles', icon: Triangle },
 ];
 
 export default function DataMapsPage(): React.ReactNode {
@@ -66,13 +61,12 @@ export default function DataMapsPage(): React.ReactNode {
     campaign: null,
     url: null,
     affiliate: null,
-    angles: null,
   });
 
   // Set initial tab from URL parameter
   useEffect(() => {
     const tabParam = searchParams.get('tab') as TabKey | null;
-    if (tabParam && ['campaign', 'url', 'affiliate', 'angles'].includes(tabParam)) {
+    if (tabParam && ['campaign', 'url', 'affiliate'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
@@ -148,7 +142,6 @@ export default function DataMapsPage(): React.ReactNode {
         {activeTab === 'campaign' && <CampaignMapPanel onUnclassifiedCountChange={handleCampaignCountChange} />}
         {activeTab === 'url' && <UrlMapPanel onUnclassifiedCountChange={handleUrlCountChange} />}
         {activeTab === 'affiliate' && <AffiliateMapPanel />}
-        {activeTab === 'angles' && <AngleMapPanel />}
       </Suspense>
     </div>
   );

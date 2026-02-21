@@ -97,6 +97,23 @@ export type UpdateCampaignData = Partial<{
   cpa: number;
 }>;
 
+// PostgreSQL NUMERIC columns return as strings via the Neon driver.
+// These helpers coerce known numeric fields after toCamelCase / rowsToCamelCase.
+function coerceCampaign(c: Campaign): Campaign {
+  return {
+    ...c,
+    spend: Number(c.spend),
+    conversions: Number(c.conversions),
+    cpa: c.cpa != null ? Number(c.cpa) : undefined,
+  };
+}
+function coerceMessageGeo(g: MessageGeo): MessageGeo {
+  return { ...g, spendThreshold: Number(g.spendThreshold) };
+}
+function coerceCpaTarget(t: CpaTarget): CpaTarget {
+  return { ...t, target: Number(t.target) };
+}
+
 
 // ════════════════════════════════════════════════════════════════════
 // Board Query
@@ -246,11 +263,11 @@ export async function getPipelineMessageDetail(id: string): Promise<MessageDetai
       m.notes, m.launched_at, m.created_at, m.updated_at,
       m.drive_folder_id,
       a.id AS pl_angle_id, a.name AS pl_angle_name,
-      a.description AS pl_angle_desc, a.status AS pl_angle_status,
+      a.description AS pl_angle_desc, a.target_audience AS pl_angle_target_audience,
+      a.emotional_driver AS pl_angle_emotional_driver, a.status AS pl_angle_status,
       a.product_id AS pl_product_id,
       a.drive_folder_id AS pl_angle_drive_folder_id,
-      p.name AS pl_product_name, p.description AS pl_product_desc,
-      p.color AS pl_product_color, p.owner_id AS pl_owner_id,
+      p.name AS pl_product_name, p.color AS pl_product_color, p.owner_id AS pl_owner_id,
       p.cpa_target_no, p.cpa_target_se, p.cpa_target_dk,
       p.drive_folder_id AS pl_product_drive_folder_id,
       u.name AS pl_owner_name, u.email AS pl_owner_email
@@ -281,7 +298,7 @@ export async function getPipelineMessageDetail(id: string): Promise<MessageDetai
     verdict_type: row.verdict_type,
     verdict_notes: row.verdict_notes,
     parent_message_id: row.parent_message_id,
-    spend_threshold: row.spend_threshold,
+    spend_threshold: Number(row.spend_threshold) || 300,
     version: row.version,
     notes: row.notes,
     launched_at: row.launched_at,
@@ -296,6 +313,8 @@ export async function getPipelineMessageDetail(id: string): Promise<MessageDetai
     productId: row.pl_product_id as string,
     name: row.pl_angle_name as string,
     description: row.pl_angle_desc as string | undefined,
+    targetAudience: row.pl_angle_target_audience as string | undefined,
+    emotionalDriver: row.pl_angle_emotional_driver as string | undefined,
     status: row.pl_angle_status as 'idea' | 'live',
     driveFolderId: (row.pl_angle_drive_folder_id as string) || undefined,
     createdAt: '',
@@ -306,7 +325,6 @@ export async function getPipelineMessageDetail(id: string): Promise<MessageDetai
   message.product = {
     id: productId,
     name: row.pl_product_name as string,
-    description: row.pl_product_desc as string | undefined,
     color: (row.pl_product_color as string) || undefined,
     status: 'active',
     ownerId: row.pl_owner_id as string,
@@ -365,11 +383,11 @@ export async function getPipelineMessageDetail(id: string): Promise<MessageDetai
     `, [productId]).catch(() => [] as Record<string, unknown>[]),
   ]);
 
-  message.campaigns = rowsToCamelCase<Campaign>(campaignRows);
+  message.campaigns = rowsToCamelCase<Campaign>(campaignRows).map(coerceCampaign);
   message.assets = rowsToCamelCase<Asset>(assetRows);
   message.creatives = rowsToCamelCase<Creative>(creativeRows);
-  message.geos = rowsToCamelCase<MessageGeo>(geoRows);
-  message.product!.cpaTargets = rowsToCamelCase<CpaTarget>(cpaTargetRows);
+  message.geos = rowsToCamelCase<MessageGeo>(geoRows).map(coerceMessageGeo);
+  message.product!.cpaTargets = rowsToCamelCase<CpaTarget>(cpaTargetRows).map(coerceCpaTarget);
 
   return message;
 }
@@ -526,7 +544,7 @@ export async function createPipelineCampaign(data: CreateCampaignRequest): Promi
               external_id, external_url, last_data_update, created_at, updated_at
   `, [data.messageId, data.name || null, data.channel, data.geo, data.externalId || null, data.externalUrl || null]);
 
-  return toCamelCase<Campaign>(rows[0]);
+  return coerceCampaign(toCamelCase<Campaign>(rows[0]));
 }
 
 export async function getPipelineCampaignById(id: string): Promise<Campaign | null> {
@@ -536,7 +554,7 @@ export async function getPipelineCampaignById(id: string): Promise<Campaign | nu
     FROM app_pipeline_campaigns
     WHERE id = $1 AND deleted_at IS NULL
   `, [id]);
-  return rows.length > 0 ? toCamelCase<Campaign>(rows[0]) : null;
+  return rows.length > 0 ? coerceCampaign(toCamelCase<Campaign>(rows[0])) : null;
 }
 
 export async function updatePipelineCampaign(id: string, data: UpdateCampaignData): Promise<Campaign> {
@@ -556,7 +574,7 @@ export async function updatePipelineCampaign(id: string, data: UpdateCampaignDat
       FROM app_pipeline_campaigns WHERE id = $1 AND deleted_at IS NULL
     `, [id]);
     if (existing.length === 0) throw new Error(`Campaign not found: ${id}`);
-    return toCamelCase<Campaign>(existing[0]);
+    return coerceCampaign(toCamelCase<Campaign>(existing[0]));
   }
 
   setClauses.push(`updated_at = NOW()`);
@@ -571,7 +589,7 @@ export async function updatePipelineCampaign(id: string, data: UpdateCampaignDat
   `, values);
 
   if (rows.length === 0) throw new Error(`Campaign not found: ${id}`);
-  return toCamelCase<Campaign>(rows[0]);
+  return coerceCampaign(toCamelCase<Campaign>(rows[0]));
 }
 
 export async function deletePipelineCampaign(id: string): Promise<void> {
@@ -656,8 +674,10 @@ export async function deletePipelineCreative(id: string): Promise<void> {
 export async function getProductById(id: string): Promise<Product | null> {
   const rows = await executeQuery<Record<string, unknown>>(`
     SELECT
-      p.id, p.name, p.sku, p.description, p.notes, p.color, p.status,
-      p.owner_id, p.drive_folder_id, p.assets_folder_id, p.created_at, p.updated_at,
+      p.id, p.name, p.sku, p.notes,
+      p.ingredient_claims, p.competitive_positioning, p.customer_language_bank,
+      p.color, p.status, p.owner_id, p.drive_folder_id, p.assets_folder_id,
+      p.created_at, p.updated_at,
       p.cpa_target_no, p.cpa_target_se, p.cpa_target_dk,
       u.id AS user_id, u.name AS user_name, u.email AS user_email
     FROM app_products p
@@ -679,8 +699,10 @@ export async function getProductById(id: string): Promise<Product | null> {
 export async function getProducts(statusFilter?: ProductStatus | null): Promise<Product[]> {
   const rows = await executeQuery<Record<string, unknown>>(`
     SELECT
-      p.id, p.name, p.sku, p.description, p.notes, p.color, p.status,
-      p.owner_id, p.drive_folder_id, p.assets_folder_id, p.created_at, p.updated_at,
+      p.id, p.name, p.sku, p.notes,
+      p.ingredient_claims, p.competitive_positioning, p.customer_language_bank,
+      p.color, p.status, p.owner_id, p.drive_folder_id, p.assets_folder_id,
+      p.created_at, p.updated_at,
       u.id AS user_id, u.name AS user_name, u.email AS user_email
     FROM app_products p
     LEFT JOIN app_users u ON u.id = p.owner_id
@@ -707,14 +729,17 @@ export async function getProductsWithCpa(): Promise<Product[]> {
 
 export async function createProduct(data: CreateProductRequest): Promise<Product> {
   const rows = await executeQuery<Record<string, unknown>>(`
-    INSERT INTO app_products (name, sku, description, notes, color, status, owner_id)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
-    RETURNING id, name, sku, description, notes, color, status, owner_id, drive_folder_id, assets_folder_id, created_at, updated_at
+    INSERT INTO app_products (name, sku, notes, ingredient_claims, competitive_positioning, customer_language_bank, color, status, owner_id)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    RETURNING id, name, sku, notes, ingredient_claims, competitive_positioning, customer_language_bank,
+              color, status, owner_id, drive_folder_id, assets_folder_id, created_at, updated_at
   `, [
     data.name,
     data.sku || null,
-    data.description || null,
     data.notes || null,
+    data.ingredientClaims || null,
+    data.competitivePositioning || null,
+    data.customerLanguageBank || null,
     data.color || null,
     data.status || 'active',
     data.ownerId || null,
@@ -724,20 +749,24 @@ export async function createProduct(data: CreateProductRequest): Promise<Product
 
 export async function updateProduct(
   id: string,
-  data: Partial<Pick<Product, 'name' | 'sku' | 'description' | 'notes' | 'color' | 'status' | 'ownerId' | 'driveFolderId' | 'assetsFolderId'>>,
+  data: Partial<Pick<Product, 'name' | 'sku' | 'notes' | 'ingredientClaims' | 'competitivePositioning' | 'customerLanguageBank' | 'color' | 'status' | 'ownerId' | 'driveFolderId' | 'assetsFolderId'>>,
 ): Promise<Product> {
   const { setClauses, values, nextIndex } = buildDynamicUpdate(
     data as Record<string, unknown>,
     {
-      name: 'name', sku: 'sku', description: 'description',
-      notes: 'notes', color: 'color', status: 'status', ownerId: 'owner_id',
+      name: 'name', sku: 'sku',
+      notes: 'notes', ingredientClaims: 'ingredient_claims',
+      competitivePositioning: 'competitive_positioning',
+      customerLanguageBank: 'customer_language_bank',
+      color: 'color', status: 'status', ownerId: 'owner_id',
       driveFolderId: 'drive_folder_id', assetsFolderId: 'assets_folder_id',
     },
   );
 
   if (setClauses.length === 0) {
     const existing = await executeQuery<Record<string, unknown>>(`
-      SELECT id, name, sku, description, notes, color, status, owner_id, drive_folder_id, assets_folder_id, created_at, updated_at
+      SELECT id, name, sku, notes, ingredient_claims, competitive_positioning, customer_language_bank,
+             color, status, owner_id, drive_folder_id, assets_folder_id, created_at, updated_at
       FROM app_products WHERE id = $1 AND deleted_at IS NULL
     `, [id]);
     if (existing.length === 0) throw new Error(`Product not found: ${id}`);
@@ -751,7 +780,8 @@ export async function updateProduct(
     UPDATE app_products
     SET ${setClauses.join(', ')}
     WHERE id = $${nextIndex} AND deleted_at IS NULL
-    RETURNING id, name, sku, description, notes, color, status, owner_id, drive_folder_id, assets_folder_id, created_at, updated_at
+    RETURNING id, name, sku, notes, ingredient_claims, competitive_positioning, customer_language_bank,
+              color, status, owner_id, drive_folder_id, assets_folder_id, created_at, updated_at
   `, values);
   if (rows.length === 0) throw new Error(`Product not found: ${id}`);
   return toCamelCase<Product>(rows[0]);
@@ -772,7 +802,7 @@ export async function updateProductCpaTargets(
 
   if (setClauses.length === 0) {
     const existing = await executeQuery<Record<string, unknown>>(`
-      SELECT id, name, description, color, owner_id, cpa_target_no, cpa_target_se, cpa_target_dk,
+      SELECT id, name, color, owner_id, cpa_target_no, cpa_target_se, cpa_target_dk,
              drive_folder_id, created_at, updated_at
       FROM app_products WHERE id = $1 AND deleted_at IS NULL
     `, [id]);
@@ -787,7 +817,7 @@ export async function updateProductCpaTargets(
     UPDATE app_products
     SET ${setClauses.join(', ')}
     WHERE id = $${nextIndex} AND deleted_at IS NULL
-    RETURNING id, name, description, color, owner_id, cpa_target_no, cpa_target_se, cpa_target_dk,
+    RETURNING id, name, color, owner_id, cpa_target_no, cpa_target_se, cpa_target_dk,
               drive_folder_id, created_at, updated_at
   `, values);
 
@@ -807,7 +837,7 @@ export async function fetchCpaTargets(productId: string): Promise<CpaTarget[]> {
     WHERE product_id = $1
     ORDER BY geo, channel
   `, [productId]);
-  return rowsToCamelCase<CpaTarget>(rows);
+  return rowsToCamelCase<CpaTarget>(rows).map(coerceCpaTarget);
 }
 
 export async function upsertCpaTargets(
@@ -847,13 +877,40 @@ export async function deletePipelineAngle(id: string): Promise<void> {
   `, [id]);
 }
 
-export async function updatePipelineAngle(id: string, data: { name: string }): Promise<Angle> {
+export async function updatePipelineAngle(
+  id: string,
+  data: Partial<Pick<Angle, 'name' | 'description' | 'targetAudience' | 'emotionalDriver'>>,
+): Promise<Angle> {
+  const { setClauses, values, nextIndex } = buildDynamicUpdate(
+    data as Record<string, unknown>,
+    {
+      name: 'name',
+      description: 'description',
+      targetAudience: 'target_audience',
+      emotionalDriver: 'emotional_driver',
+    },
+  );
+
+  if (setClauses.length === 0) {
+    const existing = await executeQuery<Record<string, unknown>>(`
+      SELECT id, product_id, name, description, target_audience, emotional_driver,
+             status, drive_folder_id, created_at, updated_at
+      FROM app_pipeline_angles WHERE id = $1 AND deleted_at IS NULL
+    `, [id]);
+    if (existing.length === 0) throw new Error('Angle not found');
+    return toCamelCase<Angle>(existing[0]);
+  }
+
+  setClauses.push('updated_at = NOW()');
+  values.push(id);
+
   const rows = await executeQuery<Record<string, unknown>>(`
     UPDATE app_pipeline_angles
-    SET name = $2, updated_at = NOW()
-    WHERE id = $1 AND deleted_at IS NULL
-    RETURNING id, product_id, name, description, status, drive_folder_id, created_at, updated_at
-  `, [id, data.name]);
+    SET ${setClauses.join(', ')}
+    WHERE id = $${nextIndex} AND deleted_at IS NULL
+    RETURNING id, product_id, name, description, target_audience, emotional_driver,
+              status, drive_folder_id, created_at, updated_at
+  `, values);
   if (rows.length === 0) throw new Error('Angle not found');
   return toCamelCase<Angle>(rows[0]);
 }
@@ -871,7 +928,8 @@ export async function createPipelineAngle(data: { productId: string; name: strin
   const rows = await executeQuery<Record<string, unknown>>(`
     INSERT INTO app_pipeline_angles (product_id, name, description, drive_folder_id)
     VALUES ($1, $2, $3, $4)
-    RETURNING id, product_id, name, description, status, drive_folder_id, created_at, updated_at
+    RETURNING id, product_id, name, description, target_audience, emotional_driver,
+              status, drive_folder_id, created_at, updated_at
   `, [data.productId, data.name, data.description || null, data.driveFolderId || null]);
 
   return toCamelCase<Angle>(rows[0]);
@@ -933,7 +991,7 @@ export async function addMessageGeo(data: {
               spend_threshold, notes, drive_folder_id, created_at, updated_at
   `, [data.messageId, data.geo, data.isPrimary ?? false, data.spendThreshold ?? 300, data.driveFolderId ?? null]);
 
-  return toCamelCase<MessageGeo>(rows[0]);
+  return coerceMessageGeo(toCamelCase<MessageGeo>(rows[0]));
 }
 
 export async function getMessageGeoById(id: string): Promise<MessageGeo | null> {
@@ -943,7 +1001,7 @@ export async function getMessageGeoById(id: string): Promise<MessageGeo | null> 
     FROM app_pipeline_message_geos
     WHERE id = $1 AND deleted_at IS NULL
   `, [id]);
-  return rows.length > 0 ? toCamelCase<MessageGeo>(rows[0]) : null;
+  return rows.length > 0 ? coerceMessageGeo(toCamelCase<MessageGeo>(rows[0])) : null;
 }
 
 export async function updateMessageGeo(
@@ -962,7 +1020,7 @@ export async function updateMessageGeo(
       FROM app_pipeline_message_geos WHERE id = $1 AND deleted_at IS NULL
     `, [id]);
     if (existing.length === 0) throw new Error(`MessageGeo not found: ${id}`);
-    return toCamelCase<MessageGeo>(existing[0]);
+    return coerceMessageGeo(toCamelCase<MessageGeo>(existing[0]));
   }
 
   setClauses.push(`updated_at = NOW()`);
@@ -977,7 +1035,7 @@ export async function updateMessageGeo(
   `, values);
 
   if (rows.length === 0) throw new Error(`MessageGeo not found: ${id}`);
-  return toCamelCase<MessageGeo>(rows[0]);
+  return coerceMessageGeo(toCamelCase<MessageGeo>(rows[0]));
 }
 
 export async function deleteMessageGeo(id: string): Promise<void> {
@@ -1061,7 +1119,9 @@ async function fetchUsers(): Promise<PipelineUser[]> {
 
 async function fetchProductsWithCpa(productId?: string): Promise<Product[]> {
   const rows = await executeQuery<Record<string, unknown>>(`
-    SELECT p.id, p.name, p.sku, p.description, p.notes, p.color, p.owner_id,
+    SELECT p.id, p.name, p.sku, p.notes,
+           p.ingredient_claims, p.competitive_positioning, p.customer_language_bank,
+           p.color, p.owner_id,
            p.cpa_target_no, p.cpa_target_se, p.cpa_target_dk,
            p.drive_folder_id, p.assets_folder_id, p.created_at, p.updated_at,
            u.id AS user_id, u.name AS user_name, u.email AS user_email
@@ -1091,7 +1151,7 @@ async function fetchProductsWithCpa(productId?: string): Promise<Product[]> {
         WHERE product_id = ANY($1)
         ORDER BY geo, channel
       `, [productIds]);
-      const targets = rowsToCamelCase<CpaTarget>(targetRows);
+      const targets = rowsToCamelCase<CpaTarget>(targetRows).map(coerceCpaTarget);
       const targetsByProduct: Record<string, CpaTarget[]> = {};
       for (const t of targets) {
         if (!targetsByProduct[t.productId]) targetsByProduct[t.productId] = [];
@@ -1110,7 +1170,8 @@ async function fetchProductsWithCpa(productId?: string): Promise<Product[]> {
 
 async function fetchPipelineAngles(productId?: string): Promise<Angle[]> {
   const rows = await executeQuery<Record<string, unknown>>(`
-    SELECT a.id, a.product_id, a.name, a.description, a.status, a.drive_folder_id, a.created_at, a.updated_at,
+    SELECT a.id, a.product_id, a.name, a.description, a.target_audience, a.emotional_driver,
+           a.status, a.drive_folder_id, a.created_at, a.updated_at,
            (SELECT COUNT(*) FROM app_pipeline_messages m WHERE m.angle_id = a.id AND m.deleted_at IS NULL)::int AS message_count
     FROM app_pipeline_angles a
     WHERE a.deleted_at IS NULL

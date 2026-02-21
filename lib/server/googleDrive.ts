@@ -278,6 +278,8 @@ export interface DriveFile {
   thumbnailLink?: string;
   createdTime: string;
   lastModifyingUser?: { displayName?: string; emailAddress?: string };
+  /** Subfolder name this file belongs to, or 'Assets' for root */
+  folder?: string;
 }
 
 /**
@@ -312,6 +314,89 @@ export async function listDriveFiles(folderId: string): Promise<DriveFile[]> {
 }
 
 /**
+ * Find an existing subfolder by name inside a parent, or create it.
+ * Returns the subfolder's Drive ID, or null on failure.
+ */
+export async function findOrCreateSubfolder(
+  parentFolderId: string,
+  folderName: string,
+): Promise<string | null> {
+  const token = await getAccessToken();
+  if (!token) return null;
+
+  try {
+    // Search for existing folder by name in parent
+    const q = encodeURIComponent(
+      `'${parentFolderId}' in parents and name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+    );
+    const res = await fetch(
+      `${DRIVE_API}?q=${q}&fields=files(id)&pageSize=1&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+
+    if (res.ok) {
+      const data = await res.json() as { files: { id: string }[] };
+      if (data.files?.length > 0) {
+        return data.files[0].id;
+      }
+    }
+
+    // Not found — create it
+    return createDriveSubfolder(parentFolderId, folderName);
+  } catch (error) {
+    console.error(`[Google Drive] findOrCreateSubfolder "${folderName}" in ${parentFolderId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * List files from a folder and all its immediate subfolders.
+ * Each file gets a `folder` property indicating which subfolder it belongs to.
+ */
+export async function listDriveFilesWithSubfolders(folderId: string): Promise<DriveFile[]> {
+  const token = await getAccessToken();
+  if (!token) return [];
+
+  try {
+    // 1. List immediate child folders
+    const folderQ = encodeURIComponent(
+      `'${folderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+    );
+    const folderRes = await fetch(
+      `${DRIVE_API}?q=${folderQ}&fields=files(id,name)&pageSize=50&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+
+    const subfolders: { id: string; name: string }[] = [];
+    if (folderRes.ok) {
+      const data = await folderRes.json() as { files: { id: string; name: string }[] };
+      subfolders.push(...(data.files || []));
+    }
+
+    // 2. List files in root + each subfolder in parallel
+    const foldersToList = [
+      { id: folderId, name: 'Assets' },
+      ...subfolders,
+    ];
+
+    const results = await Promise.all(
+      foldersToList.map(async (folder) => {
+        const files = await listDriveFiles(folder.id);
+        return files.map(f => ({ ...f, folder: folder.name }));
+      }),
+    );
+
+    // 3. Flatten and sort by createdTime desc
+    return results.flat().sort((a, b) =>
+      new Date(b.createdTime).getTime() - new Date(a.createdTime).getTime(),
+    );
+  } catch (error) {
+    console.error(`[Google Drive] listDriveFilesWithSubfolders error for ${folderId}:`, error);
+    return [];
+  }
+}
+
+/**
  * Delete a file from Google Drive permanently.
  * Returns true on success, false on failure.
  */
@@ -334,6 +419,53 @@ export async function deleteDriveFile(fileId: string): Promise<boolean> {
   } catch (error) {
     console.error(`[Google Drive] Delete file error for ${fileId}:`, error);
     return false;
+  }
+}
+
+/**
+ * Download a file from Google Drive via service account.
+ * Returns { stream, mimeType, fileName } or null on failure.
+ */
+export async function downloadDriveFile(fileId: string): Promise<{
+  body: ReadableStream<Uint8Array>;
+  mimeType: string;
+  fileName: string;
+  size: string;
+} | null> {
+  const token = await getAccessToken();
+  if (!token) return null;
+
+  try {
+    // Get file metadata first (name + mimeType)
+    const metaRes = await fetch(
+      `${DRIVE_API}/${encodeURIComponent(fileId)}?fields=name,mimeType,size&supportsAllDrives=true`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!metaRes.ok) {
+      console.error(`[Google Drive] Download metadata failed for ${fileId}:`, metaRes.status);
+      return null;
+    }
+    const meta = await metaRes.json() as { name: string; mimeType: string; size: string };
+
+    // Download file content
+    const dlRes = await fetch(
+      `${DRIVE_API}/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!dlRes.ok || !dlRes.body) {
+      console.error(`[Google Drive] Download failed for ${fileId}:`, dlRes.status);
+      return null;
+    }
+
+    return {
+      body: dlRes.body as ReadableStream<Uint8Array>,
+      mimeType: meta.mimeType,
+      fileName: meta.name,
+      size: meta.size,
+    };
+  } catch (error) {
+    console.error(`[Google Drive] Download error for ${fileId}:`, error);
+    return null;
   }
 }
 
