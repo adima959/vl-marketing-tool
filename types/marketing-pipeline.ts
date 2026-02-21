@@ -377,7 +377,7 @@ export interface CampaignPerformanceData {
   upsells: number;
   ots: number;
   revenue: number;
-  // On-page metrics (from event_page_view_enriched_v2 by utm_campaign)
+  // On-page metrics (from trackerQueryBuilder by utm_campaign)
   pageViews: number;
   uniqueVisitors: number;
   formViews: number;

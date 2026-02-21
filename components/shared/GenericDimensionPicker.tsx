@@ -177,6 +177,13 @@ export function GenericDimensionPicker({
       }}
       placement="bottomLeft"
       classNames={{ root: styles.popover }}
+      styles={{
+        container: {
+          border: '1.5px solid #d1d5db',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04)',
+          borderRadius: 12,
+        },
+      }}
     >
       <button type="button" className={`${styles.triggerBtn} ${open ? styles.triggerBtnOpen : ''}`}>
         <PlusOutlined />

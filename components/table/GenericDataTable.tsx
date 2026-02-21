@@ -1,7 +1,7 @@
 import { Table, Tooltip } from 'antd';
 import { BarChartOutlined, WarningFilled } from '@ant-design/icons';
 import type { ColumnsType, TableProps } from 'antd/es/table';
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback, useRef } from 'react';
 import { MetricCell } from './MetricCell';
 import { formatNumber, formatPercentage } from '@/lib/formatters';
 import { useToast } from '@/hooks/useToast';
@@ -161,14 +161,43 @@ export function GenericDataTable<TRow extends BaseTableRow>({
   const { visibleColumns } = useColumnStore();
   const toast = useToast();
 
+  // Attribute column resize state
+  const [attributeWidth, setAttributeWidth] = useState(300);
+  const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizeRef.current = { startX: e.clientX, startWidth: attributeWidth };
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      if (!resizeRef.current) return;
+      const delta = moveEvent.clientX - resizeRef.current.startX;
+      const next = Math.max(150, Math.min(600, resizeRef.current.startWidth + delta));
+      setAttributeWidth(next);
+    };
+
+    const onMouseUp = () => {
+      resizeRef.current = null;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [attributeWidth]);
+
   // Calculate total table width for scroll.x (sum of all column widths)
   const tableWidth = useMemo(() => {
-    const attributeWidth = 300;
     const visibleMetricsWidth = metricColumns
       .filter((col) => visibleColumns.includes(col.id))
       .reduce((sum, col) => sum + col.width, 0);
     return attributeWidth + visibleMetricsWidth;
-  }, [metricColumns, visibleColumns]);
+  }, [metricColumns, visibleColumns, attributeWidth]);
 
   // Process data to inject skeleton rows for expanded parents that are loading
   const processedData = useMemo(() => {
@@ -179,6 +208,9 @@ export function GenericDataTable<TRow extends BaseTableRow>({
   // Build columns from config
   const columns: ColumnsType<TRow> = useMemo(() => {
     const attributeColumn = buildAttributeColumn<TRow>(expandedRowKeys, setExpandedRowKeys, loadChildData, toast.error, getAttributeActionUrl, getAttributeWarning);
+
+    // Override width to match resize state
+    attributeColumn.width = attributeWidth;
 
     // Get visible metric columns
     const visibleMetrics = metricColumns.filter((col) => visibleColumns.includes(col.id));
@@ -307,6 +339,8 @@ export function GenericDataTable<TRow extends BaseTableRow>({
     toast,
     hideZeroValues,
     getAttributeActionUrl,
+    attributeWidth,
+    handleResizeStart,
   ]);
 
   // Handle sort change
@@ -365,7 +399,16 @@ export function GenericDataTable<TRow extends BaseTableRow>({
   }
 
   return (
-    <div ref={tableRef} className={`${styles.dataTable} ${colorClassName}`}>
+    <div
+      ref={tableRef}
+      className={`${styles.dataTable} ${colorClassName}`}
+      style={{ '--attr-col-width': `${attributeWidth}px` } as React.CSSProperties}
+    >
+      <div
+        className={styles.colResizeHandle}
+        style={{ left: `${attributeWidth}px` }}
+        onMouseDown={handleResizeStart}
+      />
       <Table<TRow>
         columns={columns}
         dataSource={processedData}

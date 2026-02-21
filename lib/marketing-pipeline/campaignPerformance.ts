@@ -2,15 +2,16 @@
  * Campaign Performance — fetches live data from 3 sources:
  * 1. Ads (PostgreSQL marketing_merged_ads_spending) — spend, clicks, impressions, conversions
  * 2. CRM (MariaDB via crmQueryBuilder) — subscriptions, trials, approved, upsells, OTS
- * 3. On-page (PostgreSQL event_page_view_enriched_v2) — page views, visitors, forms
+ * 3. On-page (PostgreSQL tracker_* tables via trackerQueryBuilder) — page views, visitors, forms
  *
  * All queries run in parallel. Results are keyed by externalId (campaign_id).
  */
 
 import { executeQuery } from '@/lib/server/db';
 import { fetchCRMSales } from '@/lib/server/crmQueryBuilder';
+import { getTrackerMetricsByCampaign, getTrackerAdLandingPages, getTrackerFunnelFluxIds } from '@/lib/server/trackerQueryBuilder';
 import { formatLocalDate } from '@/lib/types/api';
-import type { CampaignPerformanceData, AdsetPerformance, AdPerformance, AdLandingPage, CampaignHierarchyData } from '@/types';
+import type { CampaignPerformanceData, AdsetPerformance, AdPerformance, CampaignHierarchyData } from '@/types';
 import type { SaleRow } from '@/types/sales';
 
 interface DateRange {
@@ -182,64 +183,6 @@ function computeCrmMetrics(
   return result;
 }
 
-// ── On-Page Query ────────────────────────────────────────────────────
-
-interface OnPageRow {
-  campaign_id: string;
-  page_views: string | number;
-  unique_visitors: string | number;
-  form_views: string | number;
-  form_starters: string | number;
-  bounce_rate: string | number | null;
-  scroll_past_hero: string | number;
-  avg_time_on_page: string | number | null;
-}
-
-type OnPageFields = Pick<CampaignPerformanceData, 'pageViews' | 'uniqueVisitors' | 'formViews' | 'formStarters' | 'bounceRate' | 'scrollPastHero' | 'avgTimeOnPage'>;
-
-async function fetchOnPageMetrics(
-  externalIds: string[],
-  dateRange: DateRange,
-): Promise<Map<string, OnPageFields>> {
-  if (externalIds.length === 0) return new Map();
-
-  const startTs = `${formatLocalDate(dateRange.start)}T00:00:00`;
-  const endTs = `${formatLocalDate(dateRange.end)}T23:59:59.999`;
-  const rows = await executeQuery<OnPageRow>(`
-    SELECT
-      pv.utm_campaign AS campaign_id,
-      COUNT(*) AS page_views,
-      COUNT(DISTINCT pv.ff_visitor_id) AS unique_visitors,
-      COUNT(*) FILTER (WHERE pv.form_view = true) AS form_views,
-      COUNT(*) FILTER (WHERE pv.form_started = true) AS form_starters,
-      ROUND(
-        COUNT(*) FILTER (WHERE pv.active_time_s IS NOT NULL AND pv.active_time_s < 5)::numeric
-        / NULLIF(COUNT(*) FILTER (WHERE pv.active_time_s IS NOT NULL), 0),
-        4
-      ) AS bounce_rate,
-      COUNT(*) FILTER (WHERE pv.hero_scroll_passed = true) AS scroll_past_hero,
-      ROUND(AVG(pv.active_time_s)::numeric, 2) AS avg_time_on_page
-    FROM remote_session_tracker.event_page_view_enriched_v2 pv
-    WHERE pv.created_at >= $1::timestamp AND pv.created_at <= $2::timestamp
-      AND pv.utm_campaign = ANY($3)
-    GROUP BY pv.utm_campaign
-  `, [startTs, endTs, externalIds]);
-
-  const result = new Map<string, OnPageFields>();
-  for (const row of rows) {
-    result.set(row.campaign_id, {
-      pageViews: Number(row.page_views) || 0,
-      uniqueVisitors: Number(row.unique_visitors) || 0,
-      formViews: Number(row.form_views) || 0,
-      formStarters: Number(row.form_starters) || 0,
-      bounceRate: Number(row.bounce_rate) || 0,
-      scrollPastHero: Number(row.scroll_past_hero) || 0,
-      avgTimeOnPage: row.avg_time_on_page != null ? Number(row.avg_time_on_page) : null,
-    });
-  }
-  return result;
-}
-
 // ── Orchestrator ─────────────────────────────────────────────────────
 
 /**
@@ -257,7 +200,7 @@ export async function getCampaignPerformance(
   const [adsMap, saleRows, onPageMap] = await Promise.all([
     fetchAdsMetrics(externalIds, dateRange).catch(() => new Map() as Awaited<ReturnType<typeof fetchAdsMetrics>>),
     fetchCRMSales(dateRange).catch(() => [] as SaleRow[]),
-    fetchOnPageMetrics(externalIds, dateRange).catch(() => new Map() as Awaited<ReturnType<typeof fetchOnPageMetrics>>),
+    getTrackerMetricsByCampaign(externalIds, dateRange).catch(() => new Map() as Awaited<ReturnType<typeof getTrackerMetricsByCampaign>>),
   ]);
 
   const crmMap = computeCrmMetrics(saleRows, externalIds);
@@ -385,92 +328,6 @@ async function fetchAdMetrics(
   });
 }
 
-// ── Per-Ad Landing Page Metrics ──────────────────────────────────────
-
-interface LandingPageRow {
-  ad_id: string;
-  url_path: string;
-  page_views: string | number;
-  unique_visitors: string | number;
-  bounce_rate: string | number | null;
-  scroll_past_hero: string | number;
-  form_views: string | number;
-  form_starters: string | number;
-  avg_time_on_page: string | number | null;
-}
-
-async function fetchAdLandingPages(
-  campaignExternalId: string,
-  dateRange: DateRange,
-): Promise<Record<string, AdLandingPage[]>> {
-  const startTs = `${formatLocalDate(dateRange.start)}T00:00:00`;
-  const endTs = `${formatLocalDate(dateRange.end)}T23:59:59.999`;
-  const rows = await executeQuery<LandingPageRow>(`
-    SELECT
-      pv.utm_medium AS ad_id,
-      pv.url_path,
-      COUNT(*) AS page_views,
-      COUNT(DISTINCT pv.ff_visitor_id) AS unique_visitors,
-      ROUND(
-        COUNT(*) FILTER (WHERE pv.active_time_s IS NOT NULL AND pv.active_time_s < 5)::numeric
-        / NULLIF(COUNT(*) FILTER (WHERE pv.active_time_s IS NOT NULL), 0), 4
-      ) AS bounce_rate,
-      COUNT(*) FILTER (WHERE pv.hero_scroll_passed = true) AS scroll_past_hero,
-      COUNT(*) FILTER (WHERE pv.form_view = true) AS form_views,
-      COUNT(*) FILTER (WHERE pv.form_started = true) AS form_starters,
-      ROUND(AVG(pv.active_time_s)::numeric, 2) AS avg_time_on_page
-    FROM remote_session_tracker.event_page_view_enriched_v2 pv
-    WHERE pv.created_at >= $1::timestamp AND pv.created_at <= $2::timestamp
-      AND pv.utm_campaign = $3
-      AND pv.utm_medium IS NOT NULL AND pv.utm_medium != ''
-    GROUP BY pv.utm_medium, pv.url_path
-    ORDER BY pv.utm_medium, COUNT(*) DESC
-  `, [startTs, endTs, campaignExternalId]);
-
-  const result: Record<string, AdLandingPage[]> = {};
-  for (const row of rows) {
-    const pageViews = Number(row.page_views) || 0;
-    const scrollPastHero = Number(row.scroll_past_hero) || 0;
-    const formViews = Number(row.form_views) || 0;
-    const formStarters = Number(row.form_starters) || 0;
-    const lp: AdLandingPage = {
-      urlPath: row.url_path,
-      pageViews,
-      uniqueVisitors: Number(row.unique_visitors) || 0,
-      bounceRate: Number(row.bounce_rate) || 0,
-      scrollPastHero,
-      scrollRate: pageViews > 0 ? scrollPastHero / pageViews : 0,
-      formViews,
-      formViewRate: pageViews > 0 ? formViews / pageViews : 0,
-      formStarters,
-      formStartRate: formViews > 0 ? formStarters / formViews : 0,
-      avgTimeOnPage: row.avg_time_on_page != null ? Number(row.avg_time_on_page) : null,
-    };
-    if (!result[row.ad_id]) result[row.ad_id] = [];
-    result[row.ad_id].push(lp);
-  }
-  return result;
-}
-
-// ── FunnelFlux IDs ─────────────────────────────────────────────────
-
-async function fetchFunnelFluxIds(
-  campaignExternalId: string,
-  dateRange: DateRange,
-): Promise<string[]> {
-  const startTs = `${formatLocalDate(dateRange.start)}T00:00:00`;
-  const endTs = `${formatLocalDate(dateRange.end)}T23:59:59.999`;
-  const rows = await executeQuery<{ ff_funnel_id: string }>(`
-    SELECT DISTINCT pv.ff_funnel_id
-    FROM remote_session_tracker.event_page_view_enriched_v2 pv
-    WHERE pv.created_at >= $1::timestamp AND pv.created_at <= $2::timestamp
-      AND pv.utm_campaign = $3
-      AND pv.ff_funnel_id IS NOT NULL AND pv.ff_funnel_id != ''
-    LIMIT 10
-  `, [startTs, endTs, campaignExternalId]);
-  return rows.map(r => r.ff_funnel_id);
-}
-
 /**
  * Fetch ad hierarchy (adsets + ads + landing pages) for a single campaign external ID.
  */
@@ -481,8 +338,8 @@ export async function getCampaignHierarchy(
   const [adsets, ads, adLandingPages, funnelFluxIds] = await Promise.all([
     fetchAdsetMetrics(campaignExternalId, dateRange),
     fetchAdMetrics(campaignExternalId, dateRange),
-    fetchAdLandingPages(campaignExternalId, dateRange).catch(() => ({} as Record<string, AdLandingPage[]>)),
-    fetchFunnelFluxIds(campaignExternalId, dateRange).catch(() => [] as string[]),
+    getTrackerAdLandingPages(campaignExternalId, dateRange).catch(() => ({})),
+    getTrackerFunnelFluxIds(campaignExternalId, dateRange).catch(() => [] as string[]),
   ]);
   return { adsets, ads, adLandingPages, funnelFluxIds };
 }

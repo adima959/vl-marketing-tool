@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/server/db';
-import { onPageQueryBuilder } from '@/lib/server/onPageQueryBuilder';
+import { getTrackerDetail } from '@/lib/server/trackerQueryBuilder';
 import { createValidationError, maskErrorForClient } from '@/lib/types/errors';
 import { withPermission } from '@/lib/rbac';
 import type { AppUser } from '@/types/user';
@@ -37,7 +36,6 @@ interface RawPageViewRow {
   language: string | null;
   platform: string | null;
   os_name: string | null;
-  os_version: string | null;
   browser_name: string | null;
   fcp_s: string | null;
   lcp_s: string | null;
@@ -72,24 +70,18 @@ async function handleOnPageDetail(
     const page = body.pagination?.page ?? 1;
     const pageSize = body.pagination?.pageSize ?? 100;
 
-    const { query, countQuery, params } =
-      onPageQueryBuilder.buildDetailQuery({
-        dateRange: {
-          start: new Date(body.dateRange.start),
-          end: new Date(body.dateRange.end),
-        },
-        dimensionFilters: body.dimensionFilters || {},
-        metricId: body.metricId,
-        page,
-        pageSize,
-      });
+    const { records: rawRows, total } = await getTrackerDetail({
+      dateRange: {
+        start: new Date(body.dateRange.start),
+        end: new Date(body.dateRange.end),
+      },
+      dimensionFilters: body.dimensionFilters || {},
+      metricId: body.metricId,
+      page,
+      pageSize,
+    });
 
-    const [rows, countResult] = await Promise.all([
-      executeQuery<RawPageViewRow>(query, params),
-      executeQuery<{ total: string }>(countQuery, params),
-    ]);
-
-    const total = Number(countResult[0]?.total) || 0;
+    const rows = rawRows as unknown as RawPageViewRow[];
 
     const records = rows.map((row) => ({
       id: row.id,
@@ -121,7 +113,6 @@ async function handleOnPageDetail(
       language: row.language,
       platform: row.platform,
       osName: row.os_name,
-      osVersion: row.os_version,
       browserName: row.browser_name,
       fcpS: row.fcp_s != null ? Number(row.fcp_s) : null,
       lcpS: row.lcp_s != null ? Number(row.lcp_s) : null,

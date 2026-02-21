@@ -4,7 +4,7 @@
 
 ⚠️ **CRITICAL: Different databases use different placeholder syntax**
 - PostgreSQL (Neon): `$1, $2, $3` — File: `lib/server/db.ts`
-- MariaDB (CRM): `?, ?, ?` — File: `lib/server/mariadb.ts` | Full docs: `docs/mariadb.md`
+- MariaDB (CRM): `?, ?, ?` — File: `lib/server/mariadb.ts` | Full docs: `docs/database.md`
 - Using wrong syntax causes silent failures or SQL injection vulnerabilities
 
 For query examples, read the source files directly.

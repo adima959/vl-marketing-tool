@@ -5,11 +5,9 @@ import { SESSION_DIMENSION_GROUPS } from '@/config/sessionDimensions';
 import { useSessionStore } from '@/stores/sessionStore';
 
 const GROUP_COLORS: Record<string, string> = {
-  content: '#3b82f6',    // Blue - what they viewed
-  source: '#f59e0b',     // Orange - how they got there
-  audience: '#8b5cf6',   // Purple - who they are
-  funnel: '#ef4444',     // Red - funnel progression
-  time: '#10b981',       // Green - when
+  content: '#3b82f6',        // Blue - what they landed on
+  trafficSource: '#f59e0b',  // Orange - how they got there
+  audience: '#8b5cf6',       // Purple - who they are
 };
 
 /**

@@ -30,30 +30,34 @@ interface UnclassifiedRow {
   url_path: string;
 }
 
-/** Shared unclassified URL query */
+/** Shared unclassified URL query (min 5 page views to filter noise) */
 const UNCLASSIFIED_URL_QUERY = `
-  SELECT DISTINCT pv.url_path
-  FROM remote_session_tracker.event_page_view_enriched_v2 pv
+  SELECT pv.url_path
+  FROM tracker_page_views pv
   WHERE pv.url_path IS NOT NULL
     AND pv.url_path != ''
     AND NOT EXISTS (
       SELECT 1 FROM app_url_classifications uc
       WHERE uc.url_path = pv.url_path
     )
+  GROUP BY pv.url_path
+  HAVING COUNT(*) >= 5
   ORDER BY pv.url_path
   LIMIT 500`;
 
 /** Lightweight count-only version */
 const UNCLASSIFIED_URL_COUNT_QUERY = `
   SELECT COUNT(*) as count FROM (
-    SELECT DISTINCT pv.url_path
-    FROM remote_session_tracker.event_page_view_enriched_v2 pv
+    SELECT pv.url_path
+    FROM tracker_page_views pv
     WHERE pv.url_path IS NOT NULL
       AND pv.url_path != ''
       AND NOT EXISTS (
         SELECT 1 FROM app_url_classifications uc
         WHERE uc.url_path = pv.url_path
       )
+    GROUP BY pv.url_path
+    HAVING COUNT(*) >= 5
     LIMIT 500
   ) t`;
 

@@ -47,7 +47,6 @@ export interface OnPageDetailRecord {
   language: string | null;
   platform: string | null;
   osName: string | null;
-  osVersion: string | null;
   browserName: string | null;
   fcpS: number | null;
   lcpS: number | null;

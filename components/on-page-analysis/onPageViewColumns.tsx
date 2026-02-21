@@ -121,7 +121,6 @@ export function buildOnPageViewColumns(
     // ========== 4. DEVICE/ENVIRONMENT ==========
     textCol('Device', 'deviceType', 80),
     textCol('OS', 'osName', 70),
-    tooltipCol('OS Version', 'osVersion', 90),
     textCol('Browser', 'browserName', 80),
     tooltipCol('Platform', 'platform', 100),
     monoCol('Language', 'language', 80),

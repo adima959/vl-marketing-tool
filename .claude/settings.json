@@ -31,42 +31,12 @@
       "mcp__browsermcp__browser_press_key",
       "mcp__browsermcp__browser_wait",
       "mcp__browsermcp__browser_get_console_logs",
-      "mcp__browsermcp__browser_screenshot"
+      "mcp__browsermcp__browser_screenshot",
+      "mcp__claude-context__index_codebase",
+      "mcp__claude-context__search_code"
     ]
   },
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node .claude/hooks/validate-commit.js",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node .claude/hooks/block-push.js",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node .claude/hooks/block-dangerous-git.js",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",

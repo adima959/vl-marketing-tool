@@ -96,7 +96,7 @@ function OnPageAnalysisContent() {
           Reset
         </Button>
       )}
-      <Link href="/settings/data-maps?tab=url">
+      <Link href="/settings/data-maps?tab=url" target="_blank">
         <Button
           type="text"
           size="small"
@@ -162,11 +162,5 @@ function OnPageAnalysisContent() {
 }
 
 export default function OnPageAnalysisPage() {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 8 }}>
-      <Eye style={{ width: 40, height: 40, color: '#999' }} />
-      <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>Maintenance</h2>
-      <p style={{ margin: 0, color: '#666' }}>Will be back 20th Feb.</p>
-    </div>
-  );
+  return <OnPageAnalysisContent />;
 }

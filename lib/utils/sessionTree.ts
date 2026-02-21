@@ -125,12 +125,21 @@ function buildLevel(
   return sortRows(result, sortBy, sortDirection, dim);
 }
 
+/** Dimensions that should never be title-cased (URLs, domains, IDs) */
+const RAW_VALUE_DIMS = new Set([
+  'entryUrlPath', 'urlPath', 'funnelStep',
+  'entryReferrer', 'entryPlacement',
+  'funnelId', 'entryWebmasterId',
+]);
+
 /** Format a dimension value for display */
 function formatAttribute(dimension: string, value: string, isEnriched: boolean): string {
   if (dimension === 'date') return value;
   if (dimension === 'entryCountryCode') return value.toUpperCase();
   // Enriched dims already have proper names from marketing_merged_ads_spending
   if (isEnriched) return value;
+  // URLs, domains, and IDs should not be title-cased
+  if (RAW_VALUE_DIMS.has(dimension)) return value;
   return toTitleCase(value);
 }
 
