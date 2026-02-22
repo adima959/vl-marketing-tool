@@ -309,12 +309,12 @@ async function runAllChecks() {
 
 
   const noPk = await q(`
-    SELECT COUNT(*)::int AS cnt
+    SELECT CASE WHEN COUNT(*) = 0 THEN 1 ELSE 0 END::int AS cnt
     FROM information_schema.table_constraints
     WHERE table_name = 'tracker_raw_heartbeats' AND constraint_type = 'PRIMARY KEY'
   `);
-  check('config.heartbeats_pk', 'tracker_raw_heartbeats has primary key (0=no)', 'config',
-    noPk[0].cnt, { failIf: 0 });
+  check('config.heartbeats_pk', 'tracker_raw_heartbeats missing primary key (1=missing)', 'config',
+    noPk[0].cnt, { failIf: 1 });
 
   // ══════════════════════════════════════════
   // SESSION QUALITY METRICS
