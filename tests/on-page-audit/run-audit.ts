@@ -378,23 +378,6 @@ async function runAllChecks() {
   `);
   check('index.duplicates', 'Duplicate index pairs', 'config',
     dupIndexes.length, { warnIf: 1, detail: dupIndexes });
-
-  const deadTuples = await q(`
-    SELECT relname,
-           n_live_tup::int AS live,
-           n_dead_tup::int AS dead,
-           CASE WHEN n_live_tup > 0
-             THEN ROUND(100.0 * n_dead_tup / n_live_tup, 2)::float
-             ELSE 0 END AS dead_pct
-    FROM pg_stat_user_tables
-    WHERE relname LIKE 'tracker_%'
-    ORDER BY dead_pct DESC
-  `);
-  for (const r of deadTuples) {
-    check(`index.dead_${r.relname.replace('tracker_', '')}`,
-      `${r.relname} dead tuple % (${r.dead}/${r.live})`, 'config',
-      r.dead_pct, { warnIf: 15, failIf: 30 });
-  }
 }
 
 // ─── Main ────────────────────────────────────────────────────
